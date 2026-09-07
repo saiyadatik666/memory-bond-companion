@@ -4,6 +4,7 @@ import {
   Bell,
   Languages,
   Settings,
+  User,
   Wifi,
   WifiOff,
   Sparkles,
@@ -22,11 +23,13 @@ export function Header({
   store,
   onOpenVoice,
   onOpenNotifications,
+  onOpenAuth,
   onNavigate,
 }: {
   store: MemoryBondStore;
   onOpenVoice: () => void;
   onOpenNotifications: () => void;
+  onOpenAuth: () => void;
   onNavigate: (tab: string) => void;
 }) {
   const { lang, setLang, t } = useI18n();
@@ -115,6 +118,17 @@ export function Header({
             )}
           </Button>
 
+          {/* User Account / Sign In */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onOpenAuth}
+            className="rounded-2xl h-10 w-10 p-0 text-muted-foreground hover:text-foreground"
+            title="Account / Sign In"
+          >
+            <User className="h-5 w-5" />
+          </Button>
+
           {/* Settings Button */}
           <Button
             variant="ghost"
@@ -129,3 +143,4 @@ export function Header({
     </header>
   );
 }
+

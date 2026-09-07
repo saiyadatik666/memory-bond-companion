@@ -23,6 +23,7 @@ import { SeniorOnboarding } from "./SeniorOnboarding";
 import { SosModal } from "./SosModal";
 import { VoiceAssistantModal } from "./VoiceAssistantModal";
 import { NotificationDrawer } from "./NotificationDrawer";
+import { AuthModal } from "./AuthModal";
 
 export function MemoryBondApp() {
   const store = useMemoryBondStore();
@@ -31,6 +32,7 @@ export function MemoryBondApp() {
   const [isSosOpen, setIsSosOpen] = useState<boolean>(false);
   const [isVoiceOpen, setIsVoiceOpen] = useState<boolean>(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState<boolean>(false);
+  const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
 
   // Sync tab if user switches role to caregiver or senior
   useEffect(() => {
@@ -76,6 +78,7 @@ export function MemoryBondApp() {
         store={store}
         onOpenVoice={() => setIsVoiceOpen(true)}
         onOpenNotifications={() => setIsNotificationsOpen(true)}
+        onOpenAuth={() => setIsAuthOpen(true)}
         onNavigate={handleNavigate}
       />
 
@@ -142,6 +145,12 @@ export function MemoryBondApp() {
         store={store}
       />
 
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        store={store}
+      />
+
       {/* Statutory Footer */}
       <footer className="border-t border-border py-4 px-4 text-center text-xs text-muted-foreground space-y-1">
         <p className="font-semibold">
@@ -154,3 +163,4 @@ export function MemoryBondApp() {
     </div>
   );
 }
+
