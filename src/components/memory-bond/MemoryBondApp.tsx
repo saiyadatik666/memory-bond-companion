@@ -21,6 +21,7 @@ import { SeniorOnboarding } from "./SeniorOnboarding";
 
 // Modals
 import { SosModal } from "./SosModal";
+import { VoiceAssistantModal } from "./VoiceAssistantModal";
 import { NotificationDrawer } from "./NotificationDrawer";
 import { AuthModal } from "./AuthModal";
 import { Footer } from "./Footer";
@@ -151,15 +152,14 @@ export function MemoryBondApp() {
         store={store}
       />
 
-      {/* Statutory Footer */}
-      <footer className="border-t border-border py-4 px-4 text-center text-xs text-muted-foreground space-y-1">
-        <p className="font-semibold">
-          Memory Bond • AI Cognitive Gaming & Memory Assistance Platform
-        </p>
-        <p>
-          SIH 2026 Problem Statement ID: SIH26003 (North Eastern Region Support). Non-diagnostic engagement system.
-        </p>
-      </footer>
+      {/* Attractive & Accessible Footer */}
+      <Footer
+        store={store}
+        onNavigate={handleNavigate}
+        onOpenSos={() => setIsSosOpen(true)}
+        onOpenVoice={() => setIsVoiceOpen(true)}
+        onOpenAuth={() => setIsAuthOpen(true)}
+      />
     </div>
   );
 }
