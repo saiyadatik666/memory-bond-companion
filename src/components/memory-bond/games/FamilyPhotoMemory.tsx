@@ -54,6 +54,8 @@ export function FamilyPhotoMemory({
 
   const current = FAMILY_PROFILES[currentIdx];
 
+  if (!current) return null;
+
   const handleNext = () => {
     const isCorrect = selected === current.correctAnswer;
     if (isCorrect) setScore((s) => s + 1);

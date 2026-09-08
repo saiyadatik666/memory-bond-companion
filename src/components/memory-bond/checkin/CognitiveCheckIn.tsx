@@ -109,7 +109,7 @@ export function CognitiveCheckIn({ store }: { store: MemoryBondStore }) {
                       key={day}
                       onClick={() => setAnswers({ ...answers, day })}
                       className={`p-4 rounded-2xl border-2 font-bold transition-all text-base ${
-                        answers.day === day
+                        answers["day"] === day
                           ? "bg-primary text-primary-foreground border-primary shadow-sm"
                           : "bg-secondary/40 hover:bg-secondary/70 border-border text-foreground"
                       }`}
@@ -149,7 +149,7 @@ export function CognitiveCheckIn({ store }: { store: MemoryBondStore }) {
                       key={i}
                       onClick={() => setAnswers({ ...answers, seq })}
                       className={`p-4 rounded-2xl border-2 font-bold transition-all text-base ${
-                        answers.seq === seq
+                        answers["seq"] === seq
                           ? "bg-primary text-primary-foreground border-primary shadow-sm"
                           : "bg-secondary/40 hover:bg-secondary/70 border-border text-foreground"
                       }`}
@@ -175,7 +175,7 @@ export function CognitiveCheckIn({ store }: { store: MemoryBondStore }) {
                       key={i}
                       onClick={() => setAnswers({ ...answers, shape: shape.label })}
                       className={`p-5 rounded-2xl border-2 font-bold transition-all flex flex-col items-center gap-2 ${
-                        answers.shape === shape.label
+                        answers["shape"] === shape.label
                           ? "bg-primary text-primary-foreground border-primary shadow-sm"
                           : "bg-secondary/40 hover:bg-secondary/70 border-border text-foreground"
                       }`}
@@ -204,7 +204,7 @@ export function CognitiveCheckIn({ store }: { store: MemoryBondStore }) {
                       key={i}
                       onClick={() => setAnswers({ ...answers, combo })}
                       className={`p-4 rounded-2xl border-2 font-bold transition-all text-base ${
-                        answers.combo === combo
+                        answers["combo"] === combo
                           ? "bg-primary text-primary-foreground border-primary shadow-sm"
                           : "bg-secondary/40 hover:bg-secondary/70 border-border text-foreground"
                       }`}

@@ -25,6 +25,8 @@ export function WordMemory({
 
   const current = WORD_LISTS[levelIdx];
 
+  if (!current) return null;
+
   const startLevel = (idx = 0) => {
     setLevelIdx(idx);
     setSelectedWords([]);

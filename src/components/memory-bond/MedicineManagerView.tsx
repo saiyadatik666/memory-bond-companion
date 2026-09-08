@@ -52,7 +52,7 @@ export function MedicineManagerView({ store }: { store: MemoryBondStore }) {
       warn_days: Number(warnDays),
       times: timesStr.split(",").map((t) => t.trim()),
       frequency: "daily",
-      start_date: new Date().toISOString().split("T")[0],
+      start_date: new Date().toISOString().slice(0, 10),
       end_date: null,
       instructions,
       doctor,

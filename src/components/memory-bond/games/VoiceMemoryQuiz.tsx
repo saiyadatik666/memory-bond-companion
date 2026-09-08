@@ -38,6 +38,8 @@ export function VoiceMemoryQuiz({
 
   const current = QUIZ_ITEMS[currentIdx];
 
+  if (!current) return null;
+
   const handlePlayVoice = () => {
     setIsPlaying(true);
     speakText(current.promptAudioText);

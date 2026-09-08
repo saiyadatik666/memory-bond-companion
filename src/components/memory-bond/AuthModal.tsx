@@ -61,7 +61,7 @@ export function AuthModal({
         if (error) throw error;
 
         store.updateProfile({
-          full_name: fullName || email.split("@")[0],
+          full_name: fullName || email.split("@")[0] || "Memory Bond User",
           role,
         });
         setSuccessMessage("Account created successfully! You are now signed in.");
@@ -78,8 +78,8 @@ export function AuthModal({
 
         if (data.user) {
           store.updateProfile({
-            full_name: data.user.user_metadata?.full_name || email.split("@")[0],
-            role: data.user.user_metadata?.role || "senior",
+            full_name: data.user.user_metadata?.["full_name"] || email.split("@")[0] || "Memory Bond User",
+            role: data.user.user_metadata?.["role"] === "caregiver" ? "caregiver" : "senior",
           });
         }
         setSuccessMessage("Signed in successfully!");

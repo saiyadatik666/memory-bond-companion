@@ -23,7 +23,7 @@ export function AppointmentsView({ store }: { store: MemoryBondStore }) {
   const [title, setTitle] = useState<string>("");
   const [kind, setKind] = useState<Appointment["kind"]>("doctor");
   const [date, setDate] = useState<string>(
-    new Date(Date.now() + 86400000).toISOString().split("T")[0]
+    new Date(Date.now() + 86400000).toISOString().slice(0, 10)
   );
   const [time, setTime] = useState<string>("10:30");
   const [location, setLocation] = useState<string>("");
@@ -172,7 +172,7 @@ export function AppointmentsView({ store }: { store: MemoryBondStore }) {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Category</Label>
-                  <Select value={kind} onValueChange={(val: any) => setKind(val)}>
+                  <Select value={kind} onValueChange={(val: Appointment["kind"]) => setKind(val)}>
                     <SelectTrigger className="rounded-xl mt-1">
                       <SelectValue placeholder="Kind" />
                     </SelectTrigger>

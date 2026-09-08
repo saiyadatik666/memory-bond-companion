@@ -28,6 +28,8 @@ export function FindDifference({
 
   const current = PUZZLES[puzzleIdx];
 
+  if (!current) return null;
+
   const handleTileClick = (index: number) => {
     if (index === current.oddIndex) {
       setFound(true);
