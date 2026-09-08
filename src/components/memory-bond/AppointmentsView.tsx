@@ -172,7 +172,7 @@ export function AppointmentsView({ store }: { store: MemoryBondStore }) {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Category</Label>
-                  <Select value={kind} onValueChange={(val: any) => setKind(val)}>
+                  <Select value={kind} onValueChange={(val: Appointment["kind"]) => setKind(val)}>
                     <SelectTrigger className="rounded-xl mt-1">
                       <SelectValue placeholder="Kind" />
                     </SelectTrigger>
