@@ -26,6 +26,12 @@ export function VoiceAssistantModal({
   const [feedbackMessage, setFeedbackMessage] = useState<string>("");
   const [recognitionError, setRecognitionError] = useState<string | null>(null);
 
+  // Load conversation mode from localStorage
+  const [conversationMode, setConversationMode] = useState<boolean>(() => {
+    const stored = localStorage.getItem('conversationMode');
+    return stored ? stored === 'true' : false;
+  });
+
   // Check speech recognition API support
   const SpeechRecognition =
     typeof window !== "undefined"
@@ -78,6 +84,10 @@ export function VoiceAssistantModal({
 
   const processCommand = (text: string, locale?: string) => {
     if (!text.trim()) return;
+    // Record user input
+    if (store && typeof store.addConversation === 'function') {
+      store.addConversation(`User: ${text}`);
+    }
     const intent = parseVoiceIntent(text, store);
     setPendingIntent(intent);
 
@@ -91,18 +101,27 @@ export function VoiceAssistantModal({
     }
   };
 
+
   // Wrapper to handle speaking state
   const speakWithTracking = (msg: string, locale: string) => {
     setIsSpeaking(true);
-    speakText(msg, locale);
-    // Listen for end of speech
     const utterance = new SpeechSynthesisUtterance(msg);
     utterance.lang = locale;
+    utterance.rate = 0.9;
     utterance.onend = () => {
       setIsSpeaking(false);
+      // Record assistant response
+      if (store && typeof store.addConversation === 'function') {
+        store.addConversation(`Assistant: ${msg}`);
+      }
+      // If conversation mode is enabled, restart listening automatically
+      if (conversationMode) {
+        startListening();
+      }
     };
     window.speechSynthesis.speak(utterance);
   };
+
 
   const handleConfirmIntent = () => {
     if (!pendingIntent) return;
@@ -145,11 +164,13 @@ export function VoiceAssistantModal({
     onClose();
   };
 
+
   const handleCancelIntent = () => {
     setPendingIntent(null);
     setTranscript("");
     speakWithTracking("Cancelled.", detectedLocale || speechLocale || "en-IN");
   };
+
 
   if (!isOpen) return null;
 

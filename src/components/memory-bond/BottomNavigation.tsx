@@ -8,6 +8,7 @@ import {
   Settings,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { useState } from "react";
 
 export function BottomNavigation({
   currentTab,
@@ -18,7 +19,20 @@ export function BottomNavigation({
   onSelectTab: (tab: string) => void;
   role: "senior" | "caregiver";
 }) {
-  const { t } = useI18n();
+
+  const [isConversationMode, setIsConversationMode] = useState<boolean>(() => {
+    const stored = localStorage.getItem('conversationMode');
+    return stored ? stored === 'true' : false;
+  });
+
+  const toggleConversationMode = () => {
+    setIsConversationMode((prev) => {
+      const next = !prev;
+      localStorage.setItem('conversationMode', String(next));
+      return next;
+    });
+  };
+
 
   const tabs =
     role === "senior"
@@ -65,7 +79,26 @@ export function BottomNavigation({
             </button>
           );
         })}
+        {/* Conversation Mode Toggle */}
+        <button
+          onClick={toggleConversationMode}
+          className={`flex flex-col items-center justify-center gap-1 py-1.5 px-3 rounded-2xl transition-all ${
+            isConversationMode ? "bg-success/20 text-success" : "bg-muted/20 text-muted-foreground"
+          }`}
+        >
+          <div className="p-1.5 rounded-xl">
+            <span className="text-xs font-medium">{isConversationMode ? "Conversation ON" : "Conversation OFF"}</span>
+          </div>
+        </button>
+        {/* STOP Button for speech */}
+        <button
+          onClick={() => { window.speechSynthesis.cancel(); }}
+          className="flex flex-col items-center justify-center gap-1 py-1.5 px-3 rounded-2xl bg-destructive/20 text-destructive hover:bg-destructive/30"
+        >
+          <div className="p-1.5 rounded-xl">
+            <span className="text-xs font-medium">STOP</span>
+          </div>
+        </button>
       </div>
     </nav>
   );
-}
