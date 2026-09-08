@@ -111,8 +111,8 @@ export function extractTime(text: string): string {
 
   const matchWithMinutes = t.match(/(\d{1,2})[:.:](\d{2})\s*(am|pm)?/);
   if (matchWithMinutes) {
-    let hours = parseInt(matchWithMinutes[1], 10);
-    const minutes = matchWithMinutes[2];
+    let hours = parseInt(matchWithMinutes[1] ?? "0", 10);
+    const minutes = matchWithMinutes[2] ?? "00";
     const meridiem = matchWithMinutes[3];
     if (meridiem === "pm" && hours < 12) hours += 12;
     if (meridiem === "am" && hours === 12) hours = 0;
@@ -121,7 +121,7 @@ export function extractTime(text: string): string {
 
   const matchHourOnly = t.match(/(\d{1,2})\s*(am|pm)/);
   if (matchHourOnly) {
-    let hours = parseInt(matchHourOnly[1], 10);
+    let hours = parseInt(matchHourOnly[1] ?? "0", 10);
     const meridiem = matchHourOnly[2];
     if (meridiem === "pm" && hours < 12) hours += 12;
     if (meridiem === "am" && hours === 12) hours = 0;
@@ -393,7 +393,7 @@ export function parseVoiceIntent(rawText: string, store: MemoryBondStore): Voice
     const nextMed = store.medicines[0];
     return {
       type: "TAKE_MEDICINE",
-      medicineId: nextMed?.id,
+      ...(nextMed ? { medicineId: nextMed.id } : {}),
       medicineName: nextMed?.name || "Scheduled Medicine",
       confirmationMessage: nextMed
         ? `You want to record that you took ${nextMed.name}. Save this confirmation?`
@@ -448,7 +448,7 @@ export function parseVoiceIntent(rawText: string, store: MemoryBondStore): Voice
     const time = extractTime(lower);
     const cleanTitle = text.replace(/remind me|schedule|create/gi, "").trim();
     // approximate date 3 days ahead or tomorrow
-    const futureDate = new Date(Date.now() + 2 * 86400000).toISOString().split("T")[0];
+    const futureDate = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
 
     return {
       type: "CREATE_APPOINTMENT",

@@ -141,7 +141,7 @@ const STORAGE_PREFIX = "mb_app_v1_";
 const getKey = (key: string) => `${STORAGE_PREFIX}${key}`;
 
 // Helper: Today YYYY-MM-DD
-export const getTodayDateString = () => new Date().toISOString().split("T")[0];
+export const getTodayDateString = () => new Date().toISOString().slice(0, 10);
 
 // Realistic Initial Demo Dataset (North Eastern Region / Indian context)
 export const DEMO_PROFILE: Profile = {
@@ -235,7 +235,7 @@ export const DEMO_APPOINTMENTS: Appointment[] = [
     id: "app-1",
     title: "Dr. Nilotpal Dutta - Neurological Review",
     kind: "doctor",
-    date: new Date(Date.now() + 3 * 86400000).toISOString().split("T")[0],
+    date: (new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10) || ""),
     time: "10:30",
     location: "Guwahati Neurological Clinic, Room 204, GS Road",
     notes: "Bring previous prescription, blood reports, and 2-week memory log.",
@@ -244,7 +244,7 @@ export const DEMO_APPOINTMENTS: Appointment[] = [
     id: "app-2",
     title: "Fasting Blood Sugar & Lipid Profile",
     kind: "test",
-    date: new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
+    date: (new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10) || ""),
     time: "08:00",
     location: "Apollo Diagnostics Center, Silpukhuri",
     notes: "Fasting required from 10 PM night before. Water is allowed.",
@@ -303,7 +303,7 @@ export const DEMO_JOURNAL: MemoryJournalItem[] = [
     id: "jou-3",
     title: "Voice Note: Sunita's Sunday Reminder",
     body: "Baba, don't worry about the grocery list! I have ordered your herbal tea and will bring it over this Sunday. Love you!",
-    entry_date: getTodayDateString(),
+    entry_date: getTodayDateString() || "",
     kind: "voice",
     audio_duration: 12,
   },
@@ -658,7 +658,7 @@ export function useMemoryBondStore() {
   }, []);
 
   const markReminderDone = useCallback((id: string) => {
-    setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, last_done: getTodayDateString() } : r)));
+    setReminders((prev) => prev.map((r): Reminder => (r.id === id ? { ...r, last_done: getTodayDateString() } : r)));
   }, []);
 
   const deleteReminder = useCallback((id: string) => {
@@ -669,7 +669,7 @@ export function useMemoryBondStore() {
   const toggleRoutineDone = useCallback((id: string) => {
     const today = getTodayDateString();
     setRoutines((prev) =>
-      prev.map((rt) => (rt.id === id ? { ...rt, done_date: rt.done_date === today ? null : today } : rt))
+      prev.map((rt): DailyRoutine => (rt.id === id ? { ...rt, done_date: rt.done_date === today ? null : today } : rt))
     );
   }, []);
 
@@ -877,6 +877,7 @@ export function useMemoryBondStore() {
 
     // Notifications
     notifications,
+    markNotificationRead,
     markAllNotificationsRead,
     // Conversation History
     addConversation,
