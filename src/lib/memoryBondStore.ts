@@ -792,6 +792,26 @@ export function useMemoryBondStore() {
 
   const effectiveOnline = !offlineModeForced && isOnline;
 
+  // Conversation History for Voice Assistant
+  const [conversationHistory, setConversationHistory] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(getKey('conversationHistory'));
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+
+  const addConversation = useCallback((entry: string) => {
+    setConversationHistory((prev) => {
+      const next = [...prev, entry];
+      localStorage.setItem(getKey('conversationHistory'), JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const getRecentConversations = useCallback((limit = 10) => {
+    return conversationHistory.slice(-limit);
+  }, [conversationHistory]);
+
   return {
     // Network & Demo state
     isOnline: effectiveOnline,
