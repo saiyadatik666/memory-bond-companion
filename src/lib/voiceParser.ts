@@ -7,11 +7,40 @@ export type VoiceIntent =
   | { type: "TAKE_MEDICINE"; medicineId?: string; medicineName?: string; confirmationMessage: string }
   | { type: "CREATE_REMINDER"; title: string; time: string; reminderType: "medicine" | "shopping" | "appointment" | "personal" | "family_call" | "routine" | "hydration" | "meal" | "custom"; confirmationMessage: string }
   | { type: "CREATE_APPOINTMENT"; title: string; date: string; time: string; location?: string; confirmationMessage: string }
+  | { type: "ADD_JOURNAL"; title: string; body: string; confirmationMessage: string }
   | { type: "NAVIGATE"; targetView: string; confirmationMessage: string }
   | { type: "QUERY_NEXT_REMINDER"; message: string }
+  | { type: "SPEAK_REMINDERS"; message: string }
+  | { type: "ANSWER"; message: string }
   | { type: "QUERY_MEDICINE"; message: string }
   | { type: "CASUAL_CHAT"; message: string }
   | { type: "UNKNOWN"; original: string; confirmationMessage: string };
+
+/** Intent kinds that are simply spoken back — no confirmation card needed. */
+export const SPOKEN_ANSWER_TYPES = [
+  "QUERY_NEXT_REMINDER",
+  "SPEAK_REMINDERS",
+  "ANSWER",
+  "QUERY_MEDICINE",
+  "CASUAL_CHAT",
+] as const;
+
+export function isSpokenAnswer(intent: VoiceIntent): intent is Extract<VoiceIntent, { message: string }> {
+  return (SPOKEN_ANSWER_TYPES as readonly string[]).includes(intent.type);
+}
+
+/** Pick a localized string, falling back to a same-script sibling, then English. */
+function pick<T>(map: Record<string, T>, locale: string): T {
+  const base = locale.split("-")[0] ?? "en";
+  const sameScript: Record<string, string> = { as: "bn-IN", mr: "hi-IN", pa: "hi-IN", or: "bn-IN", kn: "ta-IN", ml: "ta-IN" };
+  return (
+    map[locale] ??
+    map[`${base}-IN`] ??
+    (sameScript[base] ? map[sameScript[base]!] : undefined) ??
+    (map["en-IN"] as T)
+  );
+}
+
 
 // Language detection from Unicode script ranges
 export function detectLanguage(text: string): string {
