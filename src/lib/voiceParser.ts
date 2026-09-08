@@ -37,7 +37,28 @@ export type VoiceIntent =
       confirmationMessage: string;
     };
 
-// Normalizes time string e.g. "8 PM" -> "20:00", "8:30 am" -> "08:30"
+export function detectLanguage(text: string): string {
+  const t = text.trim();
+  // Gujarati script range
+  if (/[\u0A80-\u0AFF]/.test(t)) return "gu-IN";
+  // Devanagari (Hindi, Marathi, Nepali, etc.)
+  if (/[\u0900-\u097F]/.test(t)) return "hi-IN";
+  // Bengali/Assamese script range
+  if (/[\u0980-\u09FF]/.test(t)) return "bn-IN";
+  // Tamil script range
+  if (/[\u0B80-\u0BFF]/.test(t)) return "ta-IN";
+  // Telugu script range
+  if (/[\u0C00-\u0C7F]/.test(t)) return "te-IN";
+  // Kannada script range
+  if (/[\u0C80-\u0CFF]/.test(t)) return "kn-IN";
+  // Malayalam script range
+  if (/[\u0D00-\u0D7F]/.test(t)) return "ml-IN";
+  // Punjabi (Gurmukhi) script range
+  if (/[\u0A00-\u0A7F]/.test(t)) return "pa-IN";
+  // Default to English
+  return "en-IN";
+}
+
 export function extractTime(text: string): string {
   const t = text.toLowerCase();
   // match patterns like 8:30 pm, 8 pm, 20:00, 10 am

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Mic, MicOff, Send, X, Check, Edit3, Volume2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { parseVoiceIntent, speakText, type VoiceIntent } from "@/lib/voiceParser";
+import { parseVoiceIntent, speakText, type VoiceIntent, detectLanguage } from "@/lib/voiceParser";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
 
@@ -19,6 +19,8 @@ export function VoiceAssistantModal({
 }) {
   const { speechLocale } = useI18n();
   const [isListening, setIsListening] = useState<boolean>(false);
+  const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
+  const [detectedLocale, setDetectedLocale] = useState<string>(speechLocale || "en-IN");
   const [transcript, setTranscript] = useState<string>("");
   const [pendingIntent, setPendingIntent] = useState<VoiceIntent | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<string>("");
@@ -31,6 +33,8 @@ export function VoiceAssistantModal({
       : null;
 
   const startListening = () => {
+    // Prevent starting if already speaking
+    if (isSpeaking) return;
     setRecognitionError(null);
     if (!SpeechRecognition) {
       setRecognitionError("Speech recognition is not supported in this browser. Please type your message below.");
@@ -39,7 +43,8 @@ export function VoiceAssistantModal({
 
     try {
       const recognition = new SpeechRecognition();
-      recognition.lang = speechLocale || "en-IN";
+      // Use previously detected locale if available
+      recognition.lang = detectedLocale || speechLocale || "en-IN";
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
 
@@ -49,8 +54,10 @@ export function VoiceAssistantModal({
 
       recognition.onresult = (event: any) => {
         const text = event.results[0][0].transcript;
+        const lang = detectLanguage(text);
+        setDetectedLocale(lang);
         setTranscript(text);
-        processCommand(text);
+        processCommand(text, lang);
       };
 
       recognition.onerror = (event: any) => {
@@ -69,17 +76,32 @@ export function VoiceAssistantModal({
     }
   };
 
-  const processCommand = (text: string) => {
+  const processCommand = (text: string, locale?: string) => {
     if (!text.trim()) return;
     const intent = parseVoiceIntent(text, store);
     setPendingIntent(intent);
 
+    const usedLocale = locale || detectedLocale || speechLocale || "en-IN";
+
     if (intent.type === "QUERY_NEXT_REMINDER") {
       setFeedbackMessage(intent.message);
-      speakText(intent.message, speechLocale);
+      speakWithTracking(intent.message, usedLocale);
     } else {
-      speakText(intent.confirmationMessage, speechLocale);
+      speakWithTracking(intent.confirmationMessage, usedLocale);
     }
+  };
+
+  // Wrapper to handle speaking state
+  const speakWithTracking = (msg: string, locale: string) => {
+    setIsSpeaking(true);
+    speakText(msg, locale);
+    // Listen for end of speech
+    const utterance = new SpeechSynthesisUtterance(msg);
+    utterance.lang = locale;
+    utterance.onend = () => {
+      setIsSpeaking(false);
+    };
+    window.speechSynthesis.speak(utterance);
   };
 
   const handleConfirmIntent = () => {
@@ -126,10 +148,21 @@ export function VoiceAssistantModal({
   const handleCancelIntent = () => {
     setPendingIntent(null);
     setTranscript("");
-    speakText("Cancelled.", speechLocale);
+    speakWithTracking("Cancelled.", detectedLocale || speechLocale || "en-IN");
   };
 
   if (!isOpen) return null;
+
+  const handleStop = () => {
+    if (isListening) {
+      // No direct stop, but we can cancel the recognition by creating a new instance and calling abort if available
+      // For simplicity, we rely on SpeechRecognition onend when we cancel speech synthesis
+    }
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in">
@@ -138,6 +171,13 @@ export function VoiceAssistantModal({
         <button
           onClick={onClose}
           className="absolute right-5 top-5 rounded-full p-2 text-muted-foreground hover:bg-secondary hover:text-foreground"
+        >
+          <X className="h-6 w-6" />
+        </button>
+        {/* STOP button */}
+        <button
+          onClick={handleStop}
+          className="absolute left-5 top-5 rounded-full p-2 text-muted-foreground hover:bg-destructive hover:text-white"
         >
           <X className="h-6 w-6" />
         </button>
