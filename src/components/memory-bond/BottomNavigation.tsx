@@ -1,12 +1,4 @@
-import {
-  Home,
-  Pill,
-  Bell,
-  Gamepad2,
-  Users,
-  Sun,
-  Settings,
-} from "lucide-react";
+import { Home, Pill, Bell, Gamepad2, Users, Sun, Settings } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useEffect, useState } from "react";
 
@@ -21,7 +13,6 @@ export function BottomNavigation({
 }) {
   const { t } = useI18n();
 
-
   const [isConversationMode, setIsConversationMode] = useState(false);
 
   useEffect(() => {
@@ -35,7 +26,6 @@ export function BottomNavigation({
       return next;
     });
   };
-
 
   const tabs =
     role === "senior"
@@ -90,12 +80,16 @@ export function BottomNavigation({
           }`}
         >
           <div className="p-1.5 rounded-xl">
-            <span className="text-xs font-medium">{isConversationMode ? "Conversation ON" : "Conversation OFF"}</span>
+            <span className="text-xs font-medium">
+              {isConversationMode ? "Conversation ON" : "Conversation OFF"}
+            </span>
           </div>
         </button>
         {/* STOP Button for speech */}
         <button
-          onClick={() => { window.speechSynthesis.cancel(); }}
+          onClick={() => {
+            window.speechSynthesis.cancel();
+          }}
           className="flex flex-col items-center justify-center gap-1 py-1.5 px-3 rounded-2xl bg-destructive/20 text-destructive hover:bg-destructive/30"
         >
           <div className="p-1.5 rounded-xl">
