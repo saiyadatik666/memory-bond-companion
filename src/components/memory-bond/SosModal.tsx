@@ -21,31 +21,33 @@ export function SosModal({
   onClose: () => void;
   store: MemoryBondStore;
 }) {
-  // Step 1: holding (10s), Step 2: confirm dialog, Step 3: sent success
-  const [step, setStep] = useState<"hold" | "confirm" | "dispatched">("hold");
+  // Step 1: countdown (10s after click), Step 2: confirm dialog, Step 3: sent success
+  const [step, setStep] = useState<"idle" | "countdown" | "confirm" | "dispatched">("idle");
   const [holdProgress, setHoldProgress] = useState<number>(0); // 0 to 100%
-  const [isHolding, setIsHolding] = useState<boolean>(false);
+  const [secondsLeft, setSecondsLeft] = useState<number>(10);
   const [locationStatus, setLocationStatus] = useState<"pending" | "granted" | "unavailable">("pending");
   const [dispatchedEvent, setDispatchedEvent] = useState<SosEvent | null>(null);
 
-  const holdTimerRef = useRef<any>(null);
   const progressIntervalRef = useRef<any>(null);
+  const holdTimerRef = useRef<any>(null);
   const holdDurationMs = 10000; // 10 full seconds
 
   useEffect(() => {
     if (!isOpen) {
       // Reset state when closed
-      setStep("hold");
+      setStep("idle");
       setHoldProgress(0);
-      setIsHolding(false);
+      setSecondsLeft(10);
       clearInterval(progressIntervalRef.current);
       clearTimeout(holdTimerRef.current);
     }
   }, [isOpen]);
 
-  const startHold = () => {
-    setIsHolding(true);
+  const startCountdown = () => {
+    if (step !== "idle") return;
+    setStep("countdown");
     setHoldProgress(0);
+    setSecondsLeft(10);
 
     // Haptic vibration where supported
     if (typeof window !== "undefined" && "vibrate" in navigator) {
@@ -56,23 +58,23 @@ export function SosModal({
     progressIntervalRef.current = setInterval(() => {
       const elapsed = Date.now() - startTime;
       const pct = Math.min(100, (elapsed / holdDurationMs) * 100);
+      const sLeft = Math.max(0, Math.ceil((holdDurationMs - elapsed) / 1000));
       setHoldProgress(pct);
+      setSecondsLeft(sLeft);
 
       if (elapsed >= holdDurationMs) {
         clearInterval(progressIntervalRef.current);
-        setIsHolding(false);
         setStep("confirm"); // Step 2: Confirmation modal!
       }
     }, 100);
   };
 
-  const cancelHold = () => {
-    if (step === "hold") {
-      setIsHolding(false);
-      setHoldProgress(0);
-      clearInterval(progressIntervalRef.current);
-      clearTimeout(holdTimerRef.current);
-    }
+  const cancelCountdown = () => {
+    setStep("idle");
+    setHoldProgress(0);
+    setSecondsLeft(10);
+    clearInterval(progressIntervalRef.current);
+    clearTimeout(holdTimerRef.current);
   };
 
   const handleConfirmSendSos = () => {
@@ -128,8 +130,8 @@ export function SosModal({
           <X className="h-6 w-6" />
         </button>
 
-        {/* STEP 1: 10-Second Press and Hold */}
-        {step === "hold" && (
+        {/* STEP 1a: Idle — tap to begin */}
+        {step === "idle" && (
           <div className="space-y-6">
             <div className="space-y-2">
               <div className="mx-auto w-20 h-20 rounded-full bg-destructive/15 border-4 border-destructive flex items-center justify-center text-destructive animate-pulse">
@@ -137,29 +139,48 @@ export function SosModal({
               </div>
               <h3 className="text-3xl font-black text-foreground">EMERGENCY SOS</h3>
               <p className="text-base text-muted-foreground font-medium">
-                To prevent accidental triggers, press and hold the SOS button firmly for <strong>10 seconds</strong>.
+                Tap the SOS button once. A <strong>10-second</strong> countdown will begin, then the alert is sent.
               </p>
             </div>
 
-            {/* Circular Hold Button */}
+            {/* Circular SOS Button */}
             <div className="relative mx-auto w-48 h-48 flex items-center justify-center">
-              {/* Circular SVG progress ring */}
               <svg className="absolute inset-0 w-full h-full -rotate-90">
+                <circle cx="96" cy="96" r="86" stroke="currentColor" strokeWidth="12" className="text-muted/30" fill="transparent" />
+              </svg>
+              <button
+                onClick={startCountdown}
+                className="w-36 h-36 rounded-full bg-destructive hover:bg-destructive/90 text-white font-black text-2xl shadow-2xl active:scale-95 transition-transform flex flex-col items-center justify-center select-none cursor-pointer"
+              >
+                <span>SOS</span>
+                <span className="text-xs font-normal opacity-90 mt-1">TAP TO START</span>
+              </button>
+            </div>
+
+            <div className="text-lg font-black text-destructive">Tap SOS to begin</div>
+          </div>
+        )}
+
+        {/* STEP 1b: Countdown running */}
+        {step === "countdown" && (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <div className="mx-auto w-20 h-20 rounded-full bg-destructive/15 border-4 border-destructive flex items-center justify-center text-destructive animate-pulse">
+                <AlertOctagon className="h-10 w-10" />
+              </div>
+              <h3 className="text-3xl font-black text-foreground">SENDING IN {secondsLeft}s…</h3>
+              <p className="text-base text-muted-foreground font-medium">
+                Alert will be sent automatically. Tap <strong>CANCEL</strong> to stop.
+              </p>
+            </div>
+
+            {/* Circular progress ring */}
+            <div className="relative mx-auto w-48 h-48 flex items-center justify-center">
+              <svg className="absolute inset-0 w-full h-full -rotate-90">
+                <circle cx="96" cy="96" r="86" stroke="currentColor" strokeWidth="12" className="text-muted/30" fill="transparent" />
                 <circle
-                  cx="96"
-                  cy="96"
-                  r="86"
-                  stroke="currentColor"
-                  strokeWidth="12"
-                  className="text-muted/30"
-                  fill="transparent"
-                />
-                <circle
-                  cx="96"
-                  cy="96"
-                  r="86"
-                  stroke="currentColor"
-                  strokeWidth="12"
+                  cx="96" cy="96" r="86"
+                  stroke="currentColor" strokeWidth="12"
                   className="text-destructive transition-all duration-100"
                   fill="transparent"
                   strokeDasharray="540"
@@ -167,30 +188,18 @@ export function SosModal({
                   strokeLinecap="round"
                 />
               </svg>
-
-              <button
-                onMouseDown={startHold}
-                onMouseUp={cancelHold}
-                onMouseLeave={cancelHold}
-                onTouchStart={startHold}
-                onTouchEnd={cancelHold}
-                className="w-36 h-36 rounded-full bg-destructive hover:bg-destructive/90 text-white font-black text-2xl shadow-2xl active:scale-95 transition-transform flex flex-col items-center justify-center select-none cursor-pointer"
-              >
-                <span>SOS</span>
-                <span className="text-xs font-normal opacity-90 mt-1">
-                  {isHolding ? "Keep holding..." : "HOLD 10s"}
-                </span>
-              </button>
-            </div>
-
-            <div className="space-y-1">
-              <div className="text-lg font-black text-destructive">
-                {isHolding ? `${Math.ceil((100 - holdProgress) / 10)}s remaining...` : "Press & Hold SOS button"}
+              <div className="w-36 h-36 rounded-full bg-destructive text-white font-black text-4xl shadow-2xl flex flex-col items-center justify-center select-none">
+                <span>{secondsLeft}</span>
+                <span className="text-xs font-normal opacity-90 mt-1">seconds</span>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Release anytime to cancel before 10 seconds.
-              </p>
             </div>
+
+            <button
+              onClick={cancelCountdown}
+              className="mx-auto block px-10 py-3 rounded-2xl bg-secondary border-2 border-border text-foreground font-black text-lg hover:bg-secondary/80 active:scale-95 transition-transform"
+            >
+              CANCEL
+            </button>
           </div>
         )}
 
@@ -225,8 +234,9 @@ export function SosModal({
                 size="lg"
                 variant="outline"
                 onClick={() => {
-                  setStep("hold");
+                  setStep("idle");
                   setHoldProgress(0);
+                  setSecondsLeft(10);
                   onClose();
                 }}
                 className="h-16 text-xl font-bold rounded-2xl border-2"
