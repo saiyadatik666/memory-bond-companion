@@ -21,9 +21,9 @@ import { SeniorOnboarding } from "./SeniorOnboarding";
 
 // Modals
 import { SosModal } from "./SosModal";
-import { VoiceAssistantModal } from "./VoiceAssistantModal";
 import { NotificationDrawer } from "./NotificationDrawer";
 import { AuthModal } from "./AuthModal";
+import { Footer } from "./Footer";
 
 export function MemoryBondApp() {
   const store = useMemoryBondStore();
