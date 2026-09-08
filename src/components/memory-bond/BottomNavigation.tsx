@@ -19,6 +19,8 @@ export function BottomNavigation({
   onSelectTab: (tab: string) => void;
   role: "senior" | "caregiver";
 }) {
+  const { t } = useI18n();
+
 
   const [isConversationMode, setIsConversationMode] = useState<boolean>(() => {
     const stored = localStorage.getItem('conversationMode');
@@ -102,3 +104,4 @@ export function BottomNavigation({
       </div>
     </nav>
   );
+}
