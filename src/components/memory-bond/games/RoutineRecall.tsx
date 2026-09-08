@@ -42,6 +42,8 @@ export function RoutineRecall({
 
   const currentQ = QUESTIONS[currentIdx];
 
+  if (!currentQ) return null;
+
   const handleSelect = (idx: number) => {
     setSelectedOpt(idx);
   };

@@ -52,10 +52,11 @@ export function MemoryCardMatch({
   }, []);
 
   const handleCardClick = (index: number) => {
-    if (cards[index].flipped || cards[index].matched || selected.length === 2) return;
+    const card = cards[index];
+    if (!card || card.flipped || card.matched || selected.length === 2) return;
 
     const newCards = [...cards];
-    newCards[index].flipped = true;
+    newCards[index] = { ...card, flipped: true };
     setCards(newCards);
 
     const newSelected = [...selected, index];
@@ -64,14 +65,17 @@ export function MemoryCardMatch({
     if (newSelected.length === 2) {
       setMoves((m) => m + 1);
       const [firstIdx, secondIdx] = newSelected;
-      if (newCards[firstIdx].icon === newCards[secondIdx].icon) {
+      if (firstIdx === undefined || secondIdx === undefined) return;
+      const firstCard = newCards[firstIdx];
+      const secondCard = newCards[secondIdx];
+      if (!firstCard || !secondCard) return;
+      if (firstCard.icon === secondCard.icon) {
         // Matched!
         setTimeout(() => {
           setCards((prev) => {
-            const updated = [...prev];
-            updated[firstIdx].matched = true;
-            updated[secondIdx].matched = true;
-            return updated;
+            return prev.map((item, itemIndex) =>
+              itemIndex === firstIdx || itemIndex === secondIdx ? { ...item, matched: true } : item
+            );
           });
           setMatches((prev) => {
             const nextMatches = prev + 1;
@@ -87,10 +91,9 @@ export function MemoryCardMatch({
         // Not a match, flip back gently
         setTimeout(() => {
           setCards((prev) => {
-            const updated = [...prev];
-            updated[firstIdx].flipped = false;
-            updated[secondIdx].flipped = false;
-            return updated;
+            return prev.map((item, itemIndex) =>
+              itemIndex === firstIdx || itemIndex === secondIdx ? { ...item, flipped: false } : item
+            );
           });
           setSelected([]);
         }, 1100);

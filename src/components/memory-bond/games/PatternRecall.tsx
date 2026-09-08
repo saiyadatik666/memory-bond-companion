@@ -32,7 +32,9 @@ export function PatternRecall({
     setIsPlayingSeq(true);
     for (let i = 0; i < seq.length; i++) {
       await new Promise((r) => setTimeout(r, 600));
-      setActiveTile(seq[i]);
+      const tile = seq[i];
+      if (tile === undefined) continue;
+      setActiveTile(tile);
       await new Promise((r) => setTimeout(r, 600));
       setActiveTile(null);
     }
