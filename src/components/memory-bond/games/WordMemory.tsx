@@ -23,7 +23,7 @@ export function WordMemory({
   const [countdown, setCountdown] = useState<number>(6);
   const [selectedWords, setSelectedWords] = useState<string[]>([]);
 
-  const current = WORD_LISTS[levelIdx].targets;
+  const current = WORD_LISTS[levelIdx];
 
   if (!current) return null;
 
