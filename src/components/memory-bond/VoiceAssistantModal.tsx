@@ -44,7 +44,9 @@ export function VoiceAssistantModal({
     if (isSpeaking) return;
     setRecognitionError(null);
     if (!SpeechRecognition) {
-      setRecognitionError("Speech recognition is not supported in this browser. Please type your message below.");
+      setRecognitionError(
+        "Speech recognition is not supported in this browser. Please type your message below.",
+      );
       return;
     }
 
@@ -69,7 +71,9 @@ export function VoiceAssistantModal({
 
       recognition.onerror = (event: any) => {
         setIsListening(false);
-        setRecognitionError(`Could not detect voice (${event.error || "error"}). Try typing below.`);
+        setRecognitionError(
+          `Could not detect voice (${event.error || "error"}). Try typing below.`,
+        );
       };
 
       recognition.onend = () => {
@@ -86,7 +90,7 @@ export function VoiceAssistantModal({
   const processCommand = (text: string, locale?: string) => {
     if (!text.trim()) return;
     // Record user input
-    if (store && typeof store.addConversation === 'function') {
+    if (store && typeof store.addConversation === "function") {
       store.addConversation(`User: ${text}`);
     }
     const intent = parseVoiceIntent(text, store);
@@ -102,7 +106,6 @@ export function VoiceAssistantModal({
     }
   };
 
-
   // Wrapper to handle speaking state
   const speakWithTracking = (msg: string, locale: string) => {
     setIsSpeaking(true);
@@ -112,7 +115,7 @@ export function VoiceAssistantModal({
     utterance.onend = () => {
       setIsSpeaking(false);
       // Record assistant response
-      if (store && typeof store.addConversation === 'function') {
+      if (store && typeof store.addConversation === "function") {
         store.addConversation(`Assistant: ${msg}`);
       }
       // If conversation mode is enabled, restart listening automatically
@@ -122,7 +125,6 @@ export function VoiceAssistantModal({
     };
     window.speechSynthesis.speak(utterance);
   };
-
 
   const handleConfirmIntent = () => {
     if (!pendingIntent) return;
@@ -165,13 +167,11 @@ export function VoiceAssistantModal({
     onClose();
   };
 
-
   const handleCancelIntent = () => {
     setPendingIntent(null);
     setTranscript("");
     speakWithTracking("Cancelled.", detectedLocale || speechLocale || "en-IN");
   };
-
 
   if (!isOpen) return null;
 
