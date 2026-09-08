@@ -881,7 +881,7 @@ export function useMemoryBondStore() {
     // Conversation History
     addConversation,
     getRecentConversations,
-  },
-};}
+  };
+}
 
 export type MemoryBondStore = ReturnType<typeof useMemoryBondStore>;
