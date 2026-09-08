@@ -24,11 +24,10 @@ export function DemoControlBar({
 
   // Quick simulation actions for Judges
   const simulateLowStock = () => {
-    if (store.medicines.length > 0) {
-      // Drop stock of Donepezil to 2
-      store.updateMedicine(store.medicines[0].id, { stock: 2, refill_threshold: 6 });
-      alert(`Simulated low stock for ${store.medicines[0].name}! Check Medicines tab & Caregiver dashboard.`);
-    }
+    const medicine = store.medicines[0];
+    if (!medicine) return;
+    store.updateMedicine(medicine.id, { stock: 2, refill_threshold: 6 });
+    alert(`Simulated low stock for ${medicine.name}! Check Medicines tab & Caregiver dashboard.`);
   };
 
   return (

@@ -23,7 +23,7 @@ export function AppointmentsView({ store }: { store: MemoryBondStore }) {
   const [title, setTitle] = useState<string>("");
   const [kind, setKind] = useState<Appointment["kind"]>("doctor");
   const [date, setDate] = useState<string>(
-    new Date(Date.now() + 86400000).toISOString().split("T")[0]
+    new Date(Date.now() + 86400000).toISOString().slice(0, 10)
   );
   const [time, setTime] = useState<string>("10:30");
   const [location, setLocation] = useState<string>("");

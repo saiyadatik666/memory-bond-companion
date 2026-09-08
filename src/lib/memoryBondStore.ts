@@ -141,7 +141,7 @@ const STORAGE_PREFIX = "mb_app_v1_";
 const getKey = (key: string) => `${STORAGE_PREFIX}${key}`;
 
 // Helper: Today YYYY-MM-DD
-export const getTodayDateString = () => new Date().toISOString().split("T")[0];
+export const getTodayDateString = () => new Date().toISOString().slice(0, 10);
 
 // Realistic Initial Demo Dataset (North Eastern Region / Indian context)
 export const DEMO_PROFILE: Profile = {
@@ -235,7 +235,7 @@ export const DEMO_APPOINTMENTS: Appointment[] = [
     id: "app-1",
     title: "Dr. Nilotpal Dutta - Neurological Review",
     kind: "doctor",
-    date: new Date(Date.now() + 3 * 86400000).toISOString().split("T")[0],
+    date: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
     time: "10:30",
     location: "Guwahati Neurological Clinic, Room 204, GS Road",
     notes: "Bring previous prescription, blood reports, and 2-week memory log.",
@@ -244,7 +244,7 @@ export const DEMO_APPOINTMENTS: Appointment[] = [
     id: "app-2",
     title: "Fasting Blood Sugar & Lipid Profile",
     kind: "test",
-    date: new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
+    date: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
     time: "08:00",
     location: "Apollo Diagnostics Center, Silpukhuri",
     notes: "Fasting required from 10 PM night before. Water is allowed.",
@@ -877,6 +877,7 @@ export function useMemoryBondStore() {
 
     // Notifications
     notifications,
+    markNotificationRead,
     markAllNotificationsRead,
     // Conversation History
     addConversation,

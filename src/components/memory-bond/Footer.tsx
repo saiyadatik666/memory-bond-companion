@@ -269,7 +269,7 @@ export function Footer({
                   className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
                 >
                   <Lock className="h-3.5 w-3.5 text-cyan-500" />
-                  {store.profile.fullName ? "Account Profile" : "Sign In / Evaluator Demo"}
+                  {store.profile.full_name ? "Account Profile" : "Sign In / Evaluator Demo"}
                 </button>
               </li>
               <li>

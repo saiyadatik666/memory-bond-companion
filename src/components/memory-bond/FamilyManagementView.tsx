@@ -30,14 +30,15 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
     e.preventDefault();
     if (!name.trim() || !phone.trim()) return;
 
-    store.addContact({
+    const contact: Omit<EmergencyContact, "id"> = {
       name: name.trim(),
       relationship: relationship.trim(),
       phone: phone.trim(),
-      email: email.trim() || undefined,
       priority: store.contacts.length + 1,
       is_emergency: isEmergency,
-    });
+    };
+    const trimmedEmail = email.trim();
+    store.addContact(trimmedEmail ? { ...contact, email: trimmedEmail } : contact);
 
     setIsAddOpen(false);
     setName("");

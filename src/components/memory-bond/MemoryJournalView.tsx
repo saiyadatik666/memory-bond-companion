@@ -23,7 +23,7 @@ export function MemoryJournalView({ store }: { store: MemoryBondStore }) {
   const [isAddOpen, setIsAddOpen] = useState<boolean>(false);
   const [title, setTitle] = useState<string>("");
   const [body, setBody] = useState<string>("");
-  const [entryDate, setEntryDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [entryDate, setEntryDate] = useState<string>(new Date().toISOString().slice(0, 10));
 
   // Audio recording state
   const [isRecording, setIsRecording] = useState<boolean>(false);
@@ -75,14 +75,15 @@ export function MemoryJournalView({ store }: { store: MemoryBondStore }) {
     e.preventDefault();
     if (!title.trim()) return;
 
-    store.addJournalEntry({
+    const entry: Omit<MemoryJournalItem, "id"> = {
       title: title.trim(),
       body: body.trim(),
       entry_date: entryDate,
       kind: recordedAudioUrl ? "voice" : "text",
-      media_url: recordedAudioUrl || undefined,
-      audio_duration: recordingDuration || undefined,
-    });
+    };
+    store.addJournalEntry(recordedAudioUrl
+      ? { ...entry, media_url: recordedAudioUrl, audio_duration: recordingDuration }
+      : entry);
 
     setIsAddOpen(false);
     setTitle("");
