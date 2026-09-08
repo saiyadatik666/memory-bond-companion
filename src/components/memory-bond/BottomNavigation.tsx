@@ -8,7 +8,7 @@ import {
   Settings,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function BottomNavigation({
   currentTab,
@@ -22,15 +22,16 @@ export function BottomNavigation({
   const { t } = useI18n();
 
 
-  const [isConversationMode, setIsConversationMode] = useState<boolean>(() => {
-    const stored = localStorage.getItem('conversationMode');
-    return stored ? stored === 'true' : false;
-  });
+  const [isConversationMode, setIsConversationMode] = useState(false);
+
+  useEffect(() => {
+    setIsConversationMode(localStorage.getItem("conversationMode") === "true");
+  }, []);
 
   const toggleConversationMode = () => {
     setIsConversationMode((prev) => {
       const next = !prev;
-      localStorage.setItem('conversationMode', String(next));
+      localStorage.setItem("conversationMode", String(next));
       return next;
     });
   };
