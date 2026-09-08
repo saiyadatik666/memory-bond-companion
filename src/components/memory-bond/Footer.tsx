@@ -367,7 +367,7 @@ export function Footer({
                   onClick={() => handleLanguageChange(l.code)}
                   className={`flex flex-col items-center justify-center p-2 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
                     isSelected
-                      ? "bg-primary text-primary-foreground border-primary shadow-md scale-102"
+                      ? "bg-primary text-primary-foreground border-primary shadow-md scale-[1.02]"
                       : "bg-background/80 hover:bg-muted text-foreground border-border hover:border-primary/40"
                   }`}
                 >
