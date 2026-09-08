@@ -26,11 +26,12 @@ export function VoiceAssistantModal({
   const [feedbackMessage, setFeedbackMessage] = useState<string>("");
   const [recognitionError, setRecognitionError] = useState<string | null>(null);
 
-  // Load conversation mode from localStorage
-  const [conversationMode, setConversationMode] = useState<boolean>(() => {
-    const stored = localStorage.getItem('conversationMode');
-    return stored ? stored === 'true' : false;
-  });
+  // Load this browser preference after hydration so server rendering stays safe.
+  const [conversationMode, setConversationMode] = useState(false);
+
+  useEffect(() => {
+    setConversationMode(localStorage.getItem("conversationMode") === "true");
+  }, []);
 
   // Check speech recognition API support
   const SpeechRecognition =
