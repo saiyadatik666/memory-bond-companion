@@ -55,7 +55,7 @@ export function Footer({
   };
 
   return (
-    <footer className="relative mt-12 bg-card/90 dark:bg-card/40 backdrop-blur-2xl border-t border-border/80 text-foreground transition-colors overflow-hidden">
+    <footer className="relative mt-12 bg-white/30 dark:bg-black/30 backdrop-blur-xl rounded-xl border border-border/30 shadow-lg text-foreground transition-colors overflow-hidden">
       {/* Aurora Top Accent Gradient Line */}
       <div className="h-1.5 w-full bg-gradient-to-r from-teal-500 via-cyan-400 to-emerald-400 opacity-90 shadow-[0_0_12px_rgba(20,184,166,0.5)]" />
 
