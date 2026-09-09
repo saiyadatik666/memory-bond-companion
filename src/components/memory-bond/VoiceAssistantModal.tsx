@@ -294,7 +294,7 @@ export function VoiceAssistantModal({
         )}
 
         {/* Mandatory Confirmation Modal / Dialog before important actions */}
-        {pendingIntent && pendingIntent.type !== "QUERY_NEXT_REMINDER" && (
+        {pendingIntent && !isSpokenAnswer(pendingIntent) && (
           <div className="rounded-2xl border-2 border-primary bg-primary/10 p-5 space-y-4 animate-in zoom-in-95">
             <div className="flex items-center gap-2 text-primary font-bold text-sm uppercase tracking-wider">
               <Sparkles className="h-4 w-4" /> Please Confirm Action
