@@ -27,7 +27,9 @@ export function SosModal({
   const [step, setStep] = useState<"idle" | "countdown" | "confirm" | "dispatched">("idle");
   const [holdProgress, setHoldProgress] = useState<number>(0); // 0 to 100%
   const [secondsLeft, setSecondsLeft] = useState<number>(5);
-  const [locationStatus, setLocationStatus] = useState<"pending" | "granted" | "unavailable">("pending");
+  const [locationStatus, setLocationStatus] = useState<"pending" | "granted" | "unavailable">(
+    "pending",
+  );
   const [dispatchedEvent, setDispatchedEvent] = useState<SosEvent | null>(null);
 
   const progressIntervalRef = useRef<any>(null);
@@ -113,7 +115,7 @@ export function SosModal({
           setLocationStatus("unavailable");
           setStep("dispatched");
         },
-        { timeout: 5000 }
+        { timeout: 5000 },
       );
     } else {
       const event = store.triggerSos({
@@ -158,7 +160,15 @@ export function SosModal({
             {/* Circular SOS Button */}
             <div className="relative mx-auto w-48 h-48 flex items-center justify-center">
               <svg className="absolute inset-0 w-full h-full -rotate-90">
-                <circle cx="96" cy="96" r="86" stroke="currentColor" strokeWidth="12" className="text-muted/30" fill="transparent" />
+                <circle
+                  cx="96"
+                  cy="96"
+                  r="86"
+                  stroke="currentColor"
+                  strokeWidth="12"
+                  className="text-muted/30"
+                  fill="transparent"
+                />
               </svg>
               <button
                 onPointerDown={startCountdown}
@@ -192,10 +202,21 @@ export function SosModal({
             {/* Circular progress ring */}
             <div className="relative mx-auto w-48 h-48 flex items-center justify-center">
               <svg className="absolute inset-0 w-full h-full -rotate-90">
-                <circle cx="96" cy="96" r="86" stroke="currentColor" strokeWidth="12" className="text-muted/30" fill="transparent" />
                 <circle
-                  cx="96" cy="96" r="86"
-                  stroke="currentColor" strokeWidth="12"
+                  cx="96"
+                  cy="96"
+                  r="86"
+                  stroke="currentColor"
+                  strokeWidth="12"
+                  className="text-muted/30"
+                  fill="transparent"
+                />
+                <circle
+                  cx="96"
+                  cy="96"
+                  r="86"
+                  stroke="currentColor"
+                  strokeWidth="12"
                   className="text-destructive transition-all duration-100"
                   fill="transparent"
                   strokeDasharray="540"
@@ -234,7 +255,8 @@ export function SosModal({
                 Send Emergency Alert?
               </h3>
               <p className="text-lg text-foreground font-semibold">
-                Are you sure you want to send an emergency alert to all your trusted family contacts?
+                Are you sure you want to send an emergency alert to all your trusted family
+                contacts?
               </p>
             </div>
 
@@ -242,7 +264,9 @@ export function SosModal({
               <p className="font-bold text-foreground">Will notify contacts:</p>
               {store.contacts.map((c) => (
                 <div key={c.id} className="flex justify-between font-medium text-muted-foreground">
-                  <span>{c.name} ({c.relationship})</span>
+                  <span>
+                    {c.name} ({c.relationship})
+                  </span>
                   <span className="font-mono">{c.phone}</span>
                 </div>
               ))}
@@ -302,7 +326,8 @@ export function SosModal({
                 <strong>Notified:</strong> {dispatchedEvent?.notified}
               </div>
               <div className="text-xs text-muted-foreground italic pt-1 border-t border-border">
-                Note: In this working demo, alerts are recorded in the Caregiver Dashboard & notification center.
+                Note: In this working demo, alerts are recorded in the Caregiver Dashboard &
+                notification center.
               </div>
             </div>
 

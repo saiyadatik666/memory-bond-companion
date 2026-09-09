@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 export const LANGUAGES = [
   { code: "en", label: "English", native: "English", speech: "en-IN" },
@@ -20,6 +28,7 @@ export type LangCode = (typeof LANGUAGES)[number]["code"];
 type Dict = Record<string, string>;
 
 const en: Dict = {
+  sosSent: "SOS is active. Your family is being informed.",
   appName: "Memory Bond",
   tagline: "A calm companion for memory, medicines and family",
   getStarted: "Get started",
@@ -105,6 +114,7 @@ const en: Dict = {
 /* Translations cover navigation, buttons, alerts and key labels.
    Missing keys fall back to English so nothing ever renders blank. */
 const hi: Dict = {
+  sosSent: "SOS सक्रिय हो गया है। आपके परिवार को सूचना भेजी जा रही है।",
   tagline: "याद, दवा और परिवार के लिए एक शांत साथी",
   getStarted: "शुरू करें",
   signIn: "साइन इन करें",
@@ -186,6 +196,7 @@ const hi: Dict = {
 };
 
 const as: Dict = {
+  sosSent: "SOS সক্ৰিয় হৈছে। আপোনাৰ পৰিবাৰক জনোৱা হৈছে।",
   tagline: "স্মৃতি, ঔষধ আৰু পৰিয়ালৰ বাবে এটা শান্ত সহায়ক",
   getStarted: "আৰম্ভ কৰক",
   signIn: "ছাইন ইন",
@@ -266,6 +277,7 @@ const as: Dict = {
 };
 
 const bn: Dict = {
+  sosSent: "SOS চালু হয়েছে। আপনার পরিবারকে জানানো হচ্ছে।",
   tagline: "স্মৃতি, ঔষধ ও পরিবারের জন্য একটি শান্ত সহচর",
   getStarted: "শুরু করুন",
   signIn: "সাইন ইন",
@@ -346,6 +358,7 @@ const bn: Dict = {
 };
 
 const gu: Dict = {
+  sosSent: "SOS શરૂ થઈ ગયું છે. તમારા પરિવારને જાણ કરવામાં આવે છે.",
   tagline: "યાદ, દવા અને પરિવાર માટે શાંત સાથી",
   getStarted: "શરૂ કરો",
   signIn: "સાઇન ઇન",
@@ -426,6 +439,7 @@ const gu: Dict = {
 };
 
 const mr: Dict = {
+  sosSent: "SOS सुरू झाले आहे. तुमच्या कुटुंबाला कळवले जात आहे.",
   tagline: "स्मरण, औषध आणि कुटुंबासाठी शांत सोबती",
   getStarted: "सुरू करा",
   signIn: "साइन इन",
@@ -506,6 +520,7 @@ const mr: Dict = {
 };
 
 const ta: Dict = {
+  sosSent: "SOS இயக்கப்பட்டது. உங்கள் குடும்பத்திற்குத் தெரிவிக்கப்படுகிறது.",
   tagline: "நினைவு, மருந்து மற்றும் குடும்பத்திற்கான அமைதியான தோழன்",
   getStarted: "தொடங்கவும்",
   signIn: "உள்நுழை",
@@ -586,6 +601,7 @@ const ta: Dict = {
 };
 
 const te: Dict = {
+  sosSent: "SOS ప్రారంభమైంది. మీ కుటుంబానికి తెలియజేస్తున్నాము.",
   tagline: "జ్ఞాపకం, మందులు మరియు కుటుంబం కోసం ప్రశాంత తోడు",
   getStarted: "ప్రారంభించండి",
   signIn: "సైన్ ఇన్",
@@ -666,6 +682,7 @@ const te: Dict = {
 };
 
 const kn: Dict = {
+  sosSent: "SOS ಸಕ್ರಿಯವಾಗಿದೆ. ನಿಮ್ಮ ಕುಟುಂಬಕ್ಕೆ ತಿಳಿಸಲಾಗುತ್ತಿದೆ.",
   appName: "Memory Bond",
   tagline: "ನೆನಪು, ಔಷಧ ಮತ್ತು ಕುಟುಂಬಕ್ಕಾಗಿ ಶಾಂತ ಸಂಗಾತಿ",
   getStarted: "ಪ್ರಾರಂಭಿಸಿ",
@@ -749,6 +766,7 @@ const kn: Dict = {
 };
 
 const ml: Dict = {
+  sosSent: "SOS സജീവമായി. നിങ്ങളുടെ കുടുംബത്തെ അറിയിക്കുന്നു.",
   appName: "Memory Bond",
   tagline: "ഓർമ്മ, മരുന്ന്, കുടുംബം എന്നിവയ്ക്കുള്ള ശാന്തമായ കൂട്ടുകാരൻ",
   getStarted: "തുടങ്ങാം",
@@ -832,6 +850,7 @@ const ml: Dict = {
 };
 
 const pa: Dict = {
+  sosSent: "SOS ਚਾਲੂ ਹੋ ਗਿਆ ਹੈ। ਤੁਹਾਡੇ ਪਰਿਵਾਰ ਨੂੰ ਸੂਚਿਤ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ।",
   appName: "Memory Bond",
   tagline: "ਯਾਦਾਂ, ਦਵਾਈਆਂ ਅਤੇ ਪਰਿਵਾਰ ਲਈ ਸ਼ਾਂਤ ਸਾਥੀ",
   getStarted: "ਸ਼ੁਰੂ ਕਰੋ",
@@ -915,6 +934,7 @@ const pa: Dict = {
 };
 
 const or: Dict = {
+  sosSent: "SOS ସକ୍ରିୟ ହୋଇଛି। ଆପଣଙ୍କ ପରିବାରକୁ ଜଣାଯାଉଛି।",
   appName: "Memory Bond",
   tagline: "ସ୍ମୃତି, ଔଷଧ ଏବଂ ପରିବାର ପାଇଁ ଶାନ୍ତ ସାଥୀ",
   getStarted: "ଆରମ୍ଭ କରନ୍ତୁ",
