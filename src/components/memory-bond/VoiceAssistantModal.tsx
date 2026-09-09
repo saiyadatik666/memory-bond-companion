@@ -93,15 +93,16 @@ export function VoiceAssistantModal({
     if (store && typeof store.addConversation === "function") {
       store.addConversation(`User: ${text}`);
     }
-    const intent = parseVoiceIntent(text, store);
-    setPendingIntent(intent);
-
     const usedLocale = locale || detectedLocale || speechLocale || "en-IN";
+    const intent = parseVoiceIntent(text, store, usedLocale);
 
-    if (intent.type === "QUERY_NEXT_REMINDER") {
+    if (isSpokenAnswer(intent)) {
+      setPendingIntent(null);
       setFeedbackMessage(intent.message);
       speakWithTracking(intent.message, usedLocale);
     } else {
+      setPendingIntent(intent);
+      setFeedbackMessage("");
       speakWithTracking(intent.confirmationMessage, usedLocale);
     }
   };
