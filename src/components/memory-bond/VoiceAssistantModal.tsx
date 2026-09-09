@@ -2,7 +2,13 @@ import { useState, useEffect } from "react";
 import { Mic, MicOff, Send, X, Check, Edit3, Volume2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { parseVoiceIntent, speakText, type VoiceIntent, detectLanguage } from "@/lib/voiceParser";
+import {
+  parseVoiceIntent,
+  speakText,
+  isSpokenAnswer,
+  type VoiceIntent,
+  detectLanguage,
+} from "@/lib/voiceParser";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
 
@@ -93,15 +99,16 @@ export function VoiceAssistantModal({
     if (store && typeof store.addConversation === "function") {
       store.addConversation(`User: ${text}`);
     }
-    const intent = parseVoiceIntent(text, store);
-    setPendingIntent(intent);
-
     const usedLocale = locale || detectedLocale || speechLocale || "en-IN";
+    const intent = parseVoiceIntent(text, store, usedLocale);
 
-    if (intent.type === "QUERY_NEXT_REMINDER") {
+    if (isSpokenAnswer(intent)) {
+      setPendingIntent(null);
       setFeedbackMessage(intent.message);
       speakWithTracking(intent.message, usedLocale);
     } else {
+      setPendingIntent(intent);
+      setFeedbackMessage("");
       speakWithTracking(intent.confirmationMessage, usedLocale);
     }
   };
@@ -156,6 +163,14 @@ export function VoiceAssistantModal({
         notes: "Created via Voice Assistant",
       });
       speakText("Appointment saved.", speechLocale);
+    } else if (pendingIntent.type === "ADD_JOURNAL") {
+      store.addJournalEntry({
+        title: pendingIntent.title,
+        body: pendingIntent.body,
+        entry_date: new Date().toISOString().slice(0, 10),
+        kind: "voice",
+      });
+      speakText("Saved to your memory journal.", speechLocale);
     } else if (pendingIntent.type === "NAVIGATE") {
       if (onNavigate) {
         onNavigate(pendingIntent.targetView);
@@ -287,7 +302,7 @@ export function VoiceAssistantModal({
         )}
 
         {/* Mandatory Confirmation Modal / Dialog before important actions */}
-        {pendingIntent && pendingIntent.type !== "QUERY_NEXT_REMINDER" && (
+        {pendingIntent && !isSpokenAnswer(pendingIntent) && (
           <div className="rounded-2xl border-2 border-primary bg-primary/10 p-5 space-y-4 animate-in zoom-in-95">
             <div className="flex items-center gap-2 text-primary font-bold text-sm uppercase tracking-wider">
               <Sparkles className="h-4 w-4" /> Please Confirm Action
