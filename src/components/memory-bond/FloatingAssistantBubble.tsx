@@ -226,22 +226,26 @@ export function FloatingAssistantBubble({
 
             <div className="space-y-3 text-sm text-muted-foreground bg-secondary/30 p-4 rounded-2xl">
               <p className="font-medium text-foreground">
-                In the native Android build of <strong>Memory Bond</strong>, this companion bubble floats
-                above all third-party applications (dialer, WhatsApp, YouTube, lockscreen).
+                <strong>Floating Companion Architecture:</strong>
               </p>
               <div className="space-y-2 text-xs">
                 <div className="flex items-start gap-2">
-                  <ShieldAlert className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                  <Sparkles className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                   <div>
-                    <strong className="text-foreground">SYSTEM_ALERT_WINDOW Permission:</strong> Allows
-                    Memory Bond to display the floating emergency badge over the OS window manager.
+                    <strong className="text-foreground">Web Version (Current):</strong> Operates as an
+                    in-app assistive companion within Memory Bond. Modern web browsers security policies
+                    do not allow external OS overlays outside the browser tab.
                   </div>
                 </div>
                 <div className="flex items-start gap-2">
-                  <Sparkles className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <ShieldAlert className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
                   <div>
-                    <strong className="text-foreground">Battery Optimization Whitelist:</strong> Runs
-                    a lightweight background service so seniors never lose instant 1-tap voice support.
+                    <strong className="text-foreground">Native Android App (APK):</strong> Uses Android's{" "}
+                    <code className="font-mono bg-secondary px-1 py-0.5 rounded text-foreground">
+                      SYSTEM_ALERT_WINDOW
+                    </code>{" "}
+                    permission and a background foreground service so the bubble floats everywhere—even over
+                    WhatsApp, the phone dialer, or lockscreen.
                   </div>
                 </div>
               </div>

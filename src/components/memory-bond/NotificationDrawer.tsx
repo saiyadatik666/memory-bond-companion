@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Bell,
   X,
@@ -8,9 +9,13 @@ import {
   CheckCircle2,
   Check,
   Clock,
+  Volume2,
+  Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MemoryBondStore, AppNotification } from "@/lib/memoryBondStore";
+import { useI18n } from "@/lib/i18n";
+import { speakText, stopSpeaking } from "@/lib/voiceParser";
 
 export function NotificationDrawer({
   isOpen,
@@ -21,6 +26,9 @@ export function NotificationDrawer({
   onClose: () => void;
   store: MemoryBondStore;
 }) {
+  const { speechLocale } = useI18n();
+  const [showOnlyUnread, setShowOnlyUnread] = useState<boolean>(false);
+
   if (!isOpen) return null;
 
   const getCategoryIcon = (category: AppNotification["category"]) => {
@@ -39,7 +47,16 @@ export function NotificationDrawer({
     }
   };
 
+  const handleSpeakNotification = (e: React.MouseEvent, notif: AppNotification) => {
+    e.stopPropagation();
+    stopSpeaking();
+    speakText(`${notif.title}. ${notif.body}`, speechLocale || "en-IN");
+  };
+
   const unreadCount = store.notifications.filter((n) => !n.read).length;
+  const displayedNotifications = showOnlyUnread
+    ? store.notifications.filter((n) => !n.read)
+    : store.notifications;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-xs animate-in fade-in">
@@ -58,16 +75,25 @@ export function NotificationDrawer({
             </div>
             <button
               onClick={onClose}
-              className="p-1 rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
+              className="p-1.5 rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
             >
               <X className="h-6 w-6" />
             </button>
           </div>
 
           <div className="flex justify-between items-center text-xs">
-            <span className="text-muted-foreground font-semibold">
-              {store.notifications.length} total alerts
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowOnlyUnread(!showOnlyUnread)}
+                className={`px-2.5 py-1 rounded-full font-bold transition-all ${
+                  showOnlyUnread
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {showOnlyUnread ? "Showing Unread" : "Show Unread Only"}
+              </button>
+            </div>
             {unreadCount > 0 && (
               <button
                 onClick={() => store.markAllNotificationsRead()}
@@ -81,18 +107,18 @@ export function NotificationDrawer({
 
         {/* Scrollable list */}
         <div className="flex-1 overflow-y-auto space-y-3 py-4 my-2">
-          {store.notifications.length === 0 ? (
-            <div className="text-center text-muted-foreground py-12">
-              No notifications at this moment.
+          {displayedNotifications.length === 0 ? (
+            <div className="text-center text-muted-foreground py-12 font-medium">
+              {showOnlyUnread ? "No unread notifications." : "No notifications at this moment."}
             </div>
           ) : (
-            store.notifications.map((notif) => (
+            displayedNotifications.map((notif) => (
               <div
                 key={notif.id}
                 onClick={() => store.markNotificationRead(notif.id)}
                 className={`p-4 rounded-2xl border-2 transition-all cursor-pointer space-y-2 ${
                   notif.read
-                    ? "bg-secondary/20 border-border opacity-70"
+                    ? "bg-secondary/20 border-border opacity-75"
                     : "bg-card border-primary/40 shadow-xs"
                 }`}
               >
@@ -101,16 +127,30 @@ export function NotificationDrawer({
                     {getCategoryIcon(notif.category)}
                     <h4 className="font-bold text-sm text-foreground">{notif.title}</h4>
                   </div>
-                  {!notif.read && (
-                    <span className="w-2.5 h-2.5 rounded-full bg-primary shrink-0 mt-1" />
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={(e) => handleSpeakNotification(e, notif)}
+                      className="p-1 rounded-lg text-muted-foreground hover:text-primary hover:bg-secondary"
+                      title="Read aloud notification"
+                    >
+                      <Volume2 className="h-4 w-4" />
+                    </button>
+                    {!notif.read && (
+                      <span className="w-2.5 h-2.5 rounded-full bg-primary shrink-0" />
+                    )}
+                  </div>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed font-medium">
                   {notif.body}
                 </p>
-                <div className="flex items-center gap-1 text-[11px] text-muted-foreground/80">
+                <div className="flex items-center gap-1 text-[11px] text-muted-foreground/80 font-mono">
                   <Clock className="h-3 w-3" />
-                  <span>{new Date(notif.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                  <span>
+                    {new Date(notif.created_at).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
                 </div>
               </div>
             ))

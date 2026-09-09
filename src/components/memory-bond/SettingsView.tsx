@@ -375,12 +375,13 @@ export function SettingsView({ store }: { store: MemoryBondStore }) {
             <Sparkles className="h-4 w-4 text-primary" /> Native Android Overlay Architecture
           </div>
           <p className="text-muted-foreground leading-relaxed">
-            In native packaging, Memory Bond registers a foreground service with Android's{" "}
+            <strong>Web Browser Version:</strong> Operates as an interactive in-app companion bubble within Memory Bond.<br />
+            <strong>Native Android APK:</strong> Requests Android's{" "}
             <code className="bg-secondary px-1 py-0.5 rounded font-mono text-[11px] text-foreground">
               SYSTEM_ALERT_WINDOW
             </code>{" "}
-            permission and requests battery optimization whitelist. This allows elderly users to summon
-            the Memory Bond Voice Assistant or initiate 5-second SOS even while on phone calls or home screen.
+            permission and battery optimization whitelist so elderly users can summon the Memory Bond Voice
+            Assistant or initiate 5-second SOS from anywhere—even during WhatsApp video calls or on the device homescreen.
           </p>
         </div>
       </div>

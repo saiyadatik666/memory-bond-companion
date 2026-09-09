@@ -65,25 +65,38 @@ export function DemoControlBar({
             </button>
           </div>
 
-          {/* Network Simulator */}
+          {/* Network & Sync Status (Per Section 20 of Spec) */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border bg-secondary font-bold text-xs">
+            {!store.isOnline ? (
+              <span className="flex items-center gap-1 text-destructive font-black">
+                <WifiOff className="h-3.5 w-3.5" /> Offline
+              </span>
+            ) : store.isSyncing ? (
+              <span className="flex items-center gap-1 text-primary animate-pulse font-black">
+                <RotateCcw className="h-3.5 w-3.5 animate-spin" /> Syncing...
+              </span>
+            ) : store.syncQueue.length > 0 ? (
+              <span className="flex items-center gap-1 text-warning font-bold">
+                <Wifi className="h-3.5 w-3.5" /> Queued ({store.syncQueue.length})
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-success font-bold">
+                <Wifi className="h-3.5 w-3.5" /> Synced
+              </span>
+            )}
+          </div>
+
+          {/* Network Simulator Toggle */}
           <button
             onClick={() => store.setOfflineModeForced(!store.offlineModeForced)}
             className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl font-bold border transition-all ${
               store.offlineModeForced
                 ? "bg-destructive/10 border-destructive text-destructive"
-                : "bg-secondary border-border text-foreground"
+                : "bg-secondary border-border text-foreground hover:bg-secondary/70"
             }`}
             title="Toggle Offline Simulation"
           >
-            {store.offlineModeForced ? (
-              <>
-                <WifiOff className="h-3.5 w-3.5" /> Offline Mode
-              </>
-            ) : (
-              <>
-                <Wifi className="h-3.5 w-3.5 text-success" /> Online
-              </>
-            )}
+            {store.offlineModeForced ? "Simulate Online" : "Simulate Offline"}
           </button>
 
           {/* Quick Simulation Dropdown toggle */}
@@ -119,7 +132,7 @@ export function DemoControlBar({
               onClick={onOpenSos}
               className="h-8 text-xs font-bold rounded-xl gap-1.5 text-destructive border-destructive/40"
             >
-              <AlertOctagon className="h-3.5 w-3.5" /> Test 10s SOS Workflow
+              <AlertOctagon className="h-3.5 w-3.5" /> Test 5-Second SOS Emergency
             </Button>
 
             <Button
@@ -127,7 +140,7 @@ export function DemoControlBar({
               variant="outline"
               onClick={() => {
                 store.resetToDemoData();
-                alert("Demo data refreshed!");
+                alert("Realistic North Eastern Region demo dataset refreshed!");
               }}
               className="h-8 text-xs font-bold rounded-xl gap-1.5"
             >
