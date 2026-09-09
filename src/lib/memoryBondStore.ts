@@ -13,6 +13,9 @@ export interface Profile {
   voice_enabled: boolean;
   onboarded: boolean;
   easy_mode: boolean;
+  reduced_motion?: boolean;
+  voice_provider?: "web_speech" | "bhashini" | "google_cloud";
+  floating_bubble?: boolean;
 }
 
 export interface CaregiverLink {
@@ -191,6 +194,9 @@ export const DEMO_PROFILE: Profile = {
   voice_enabled: true,
   onboarded: true,
   easy_mode: false,
+  reduced_motion: false,
+  voice_provider: "web_speech",
+  floating_bubble: true,
 };
 
 export const DEMO_CAREGIVER_LINKS: CaregiverLink[] = [

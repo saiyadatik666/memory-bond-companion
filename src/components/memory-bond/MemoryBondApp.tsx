@@ -25,6 +25,7 @@ import { VoiceAssistantModal } from "./VoiceAssistantModal";
 import { NotificationDrawer } from "./NotificationDrawer";
 import { AuthModal } from "./AuthModal";
 import { Footer } from "./Footer";
+import { FloatingAssistantBubble } from "./FloatingAssistantBubble";
 
 export function MemoryBondApp() {
   const store = useMemoryBondStore();
@@ -69,8 +70,19 @@ export function MemoryBondApp() {
     );
   }
 
+  const fontClass =
+    store.profile.font_size === "xlarge"
+      ? "text-scale-xlarge"
+      : store.profile.font_size === "large"
+      ? "text-scale-large"
+      : "text-scale-normal";
+
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col justify-between pb-24">
+    <div
+      className={`min-h-screen bg-background text-foreground flex flex-col justify-between pb-24 ${fontClass} ${
+        store.profile.high_contrast ? "high-contrast contrast-boost" : ""
+      } ${store.profile.reduced_motion ? "reduced-motion" : ""}`}
+    >
       {/* Top Demo Bar for Evaluators & Judges */}
       <DemoControlBar store={store} onOpenSos={() => setIsSosOpen(true)} />
 
@@ -160,6 +172,14 @@ export function MemoryBondApp() {
         onOpenVoice={() => setIsVoiceOpen(true)}
         onOpenAuth={() => setIsAuthOpen(true)}
       />
+
+      {/* Floating Accessibility Companion Bubble (Android Overlay Simulator) */}
+      {store.profile.floating_bubble !== false && (
+        <FloatingAssistantBubble
+          onOpenVoice={() => setIsVoiceOpen(true)}
+          onOpenSos={() => setIsSosOpen(true)}
+        />
+      )}
     </div>
   );
 }

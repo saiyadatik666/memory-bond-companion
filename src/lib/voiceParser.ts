@@ -41,6 +41,8 @@ export type VoiceIntent =
   | { type: "ANSWER"; message: string }
   | { type: "QUERY_MEDICINE"; message: string }
   | { type: "CASUAL_CHAT"; message: string }
+  | { type: "CONFIRM_ACTION"; confirmationMessage: string }
+  | { type: "CANCEL_ACTION"; confirmationMessage: string }
   | { type: "UNKNOWN"; original: string; confirmationMessage: string };
 
 /** Intents that are simply spoken back — no confirmation card needed. */
@@ -50,6 +52,7 @@ const SPOKEN_ANSWER_TYPES = [
   "ANSWER",
   "QUERY_MEDICINE",
   "CASUAL_CHAT",
+  "CANCEL_ACTION",
 ];
 
 export function isSpokenAnswer(
@@ -60,25 +63,30 @@ export function isSpokenAnswer(
 
 /** The spoken text of any intent, whatever its shape. */
 export function intentSpeech(intent: VoiceIntent): string {
-  return isSpokenAnswer(intent) ? intent.message : intent.confirmationMessage;
+  if (isSpokenAnswer(intent)) return intent.message;
+  return intent.confirmationMessage;
 }
 
 // Language detection from Unicode script ranges
 export function detectLanguage(text: string): string {
   const t = text.trim();
-  if (/[\u0A80-\u0AFF]/.test(t)) return "gu-IN";
-  if (/[\u0900-\u097F]/.test(t)) return "hi-IN";
-  if (/[\u0980-\u09FF]/.test(t)) return "bn-IN";
-  if (/[\u0B80-\u0BFF]/.test(t)) return "ta-IN";
-  if (/[\u0C00-\u0C7F]/.test(t)) return "te-IN";
-  if (/[\u0C80-\u0CFF]/.test(t)) return "kn-IN";
-  if (/[\u0D00-\u0D7F]/.test(t)) return "ml-IN";
-  if (/[\u0A00-\u0A7F]/.test(t)) return "pa-IN";
-  if (/[\u0B00-\u0B7F]/.test(t)) return "or-IN";
+  if (/[\u0A80-\u0AFF]/.test(t)) return "gu-IN"; // Gujarati
+  if (/[\u0900-\u097F]/.test(t)) return "hi-IN"; // Hindi / Marathi / Sanskrit
+  if (/[\u0980-\u09FF]/.test(t)) {
+    // Bengali or Assamese (Assamese distinctive characters: ৱ, ৰ)
+    if (/[ৱৰ]/.test(t)) return "as-IN";
+    return "bn-IN";
+  }
+  if (/[\u0B80-\u0BFF]/.test(t)) return "ta-IN"; // Tamil
+  if (/[\u0C00-\u0C7F]/.test(t)) return "te-IN"; // Telugu
+  if (/[\u0C80-\u0CFF]/.test(t)) return "kn-IN"; // Kannada
+  if (/[\u0D00-\u0D7F]/.test(t)) return "ml-IN"; // Malayalam
+  if (/[\u0A00-\u0A7F]/.test(t)) return "pa-IN"; // Punjabi
+  if (/[\u0B00-\u0B7F]/.test(t)) return "or-IN"; // Odia
   return "en-IN";
 }
 
-/** Pick a localized value: exact locale, then a same-script sibling, then English. */
+/** Pick a localized value: exact locale, then fallback */
 function pick<T>(map: Record<string, T>, locale: string): T {
   const base = (locale.split("-")[0] ?? "en").toLowerCase();
   const sibling: Record<string, string> = {
@@ -98,28 +106,33 @@ function pick<T>(map: Record<string, T>, locale: string): T {
   );
 }
 
-// Best-voice picker
+// Best voice picker for elderly accessibility
 export function selectVoice(lang: string): SpeechSynthesisVoice | null {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
   const voices = window.speechSynthesis.getVoices();
   if (!voices.length) return null;
-  let v = voices.find((voice) => voice.lang === lang);
+
+  // Exact match
+  let v = voices.find((voice) => voice.lang.toLowerCase() === lang.toLowerCase());
   if (v) return v;
-  const prefix = lang.split("-")[0] ?? "en";
-  v = voices.find((voice) => voice.lang.startsWith(prefix));
+
+  // Language prefix match (e.g. "hi", "bn", "ta")
+  const prefix = lang.split("-")[0]?.toLowerCase() ?? "en";
+  v = voices.find((voice) => voice.lang.toLowerCase().startsWith(prefix));
   if (v) return v;
-  v = voices.find((voice) => voice.lang.startsWith("hi"));
+
+  // Regional Indian English fallback
+  v = voices.find((voice) => voice.lang.toLowerCase() === "en-in");
   if (v) return v;
-  return (
-    voices.find((voice) => voice.lang === "en-IN") ??
-    voices.find((voice) => voice.lang.startsWith("en")) ??
-    null
-  );
+
+  return voices.find((voice) => voice.lang.toLowerCase().startsWith("en")) ?? voices[0] ?? null;
 }
 
-// Time extractor
+// Time extractor supporting Indian natural speech (Hindi, English, regional terms)
 export function extractTime(text: string): string {
   const t = text.toLowerCase();
+  
+  // Format: 8:30 AM / 8.30 PM
   const m1 = t.match(/(\d{1,2})[:.](\d{2})\s*(am|pm)?/);
   if (m1 && m1[1] && m1[2]) {
     let h = parseInt(m1[1], 10);
@@ -129,630 +142,565 @@ export function extractTime(text: string): string {
     if (mer === "am" && h === 12) h = 0;
     return `${h.toString().padStart(2, "0")}:${min}`;
   }
-  const m2 = t.match(/(\d{1,2})\s*(am|pm)/);
+
+  // Format: 8 AM / 8 PM / 8 baje / 8 বজাত
+  const m2 = t.match(/(\d{1,2})\s*(am|pm|baje|बजे|বজাত|વાગ્યે|वाजता|மணிக்கு|గంటలకు|ಗಂಟೆಗೆ)/);
   if (m2 && m2[1]) {
     let h = parseInt(m2[1], 10);
-    const mer = m2[2];
-    if (mer === "pm" && h < 12) h += 12;
-    if (mer === "am" && h === 12) h = 0;
+    const word = m2[2];
+    if (word === "pm" && h < 12) h += 12;
+    if (word === "am" && h === 12) h = 0;
+    // Contextual AM/PM check
+    if ((t.includes("shaam") || t.includes("raat") || t.includes("evening") || t.includes("night") || t.includes("दुपार")) && h < 12) {
+      h += 12;
+    }
     return `${h.toString().padStart(2, "0")}:00`;
   }
-  if (t.includes("raat") || t.includes("night") || t.includes("tonight")) return "20:00";
-  if (t.includes("morning") || t.includes("subah") || t.includes("savare")) return "08:30";
-  if (t.includes("afternoon") || t.includes("dopahar")) return "13:00";
-  if (t.includes("evening") || t.includes("shaam") || t.includes("saanj")) return "17:30";
+
+  // Pure number like "8" when user mentions time
+  const m3 = t.match(/\b(\d{1,2})\b/);
+  if (m3 && m3[1]) {
+    const num = parseInt(m3[1], 10);
+    if (num >= 1 && num <= 12) {
+      const isPm = t.includes("pm") || t.includes("shaam") || t.includes("raat") || t.includes("evening") || t.includes("night");
+      const h = isPm && num < 12 ? num + 12 : num;
+      return `${h.toString().padStart(2, "0")}:00`;
+    }
+  }
+
+  // Natural colloquial terms
+  if (t.includes("raat") || t.includes("night") || t.includes("tonight") || t.includes("राती")) return "20:30";
+  if (t.includes("morning") || t.includes("subah") || t.includes("savare") || t.includes("पुৱা") || t.includes("সকাল")) return "08:30";
+  if (t.includes("afternoon") || t.includes("dopahar") || t.includes("दुपारी") || t.includes("দুপুর")) return "13:00";
+  if (t.includes("evening") || t.includes("shaam") || t.includes("saanj") || t.includes("সন্ধ্যা")) return "17:30";
+
   return "09:00";
 }
 
 // ---------------------------------------------------------------------------
-// Localised message maps (English is always the final fallback)
+// Localised message maps for All 12 Languages
 // ---------------------------------------------------------------------------
 const MED_CONFIRM: Record<string, (n: string) => string> = {
-  "hi-IN": (n) => `क्या आप ${n} लेना दर्ज करना चाहते हैं?`,
-  "gu-IN": (n) => `શું તમે ${n} લીધી એ નોંધ કરવા માંગો છો?`,
-  "bn-IN": (n) => `আপনি কি ${n} খাওয়ার রেকর্ড করতে চান?`,
-  "ta-IN": (n) => `${n} எடுத்தீர்களா என்பதை சேமிக்கட்டுமா?`,
-  "te-IN": (n) => `${n} తీసుకున్నారని నమోదు చేయాలా?`,
-  "kn-IN": (n) => `${n} ತೆಗೆದುಕೊಂಡಿದ್ದೀರಾ ಎಂದು ದಾಖಲಿಸಲಾ?`,
-  "ml-IN": (n) => `${n} കഴിച്ചു എന്ന് രേഖപ്പെടുത്തണോ?`,
-  "pa-IN": (n) => `ਕੀ ਤੁਸੀਂ ${n} ਲੈ ਲਈ — ਦਰਜ ਕਰਨਾ ਚਾਹੁੰਦੇ ਹੋ?`,
-  "mr-IN": (n) => `${n} घेतली असे नोंदवू का?`,
-  "as-IN": (n) => `আপুনি ${n} খাইছে বুলি লিখিম নেকি?`,
+  "hi-IN": (n) => `क्या आप दर्ज करना चाहते हैं कि आपने ${n} ले ली?`,
+  "as-IN": (n) => `আপুনি ${n} খালে বুলি লিপিবদ্ধ কৰিবনে?`,
+  "bn-IN": (n) => `আপনি কি নথিবদ্ধ করতে চান যে আপনি ${n} খেয়েছেন?`,
+  "gu-IN": (n) => `શું તમે નોંધવા માંગો છો કે તમે ${n} લીધી છે?`,
+  "mr-IN": (n) => `आपण नोंदवू इच्छिता का की आपण ${n} घेतली आहे?`,
+  "ta-IN": (n) => `நீங்கள் ${n} உட்கொண்டதாகப் பதிவு செய்யவா?`,
+  "te-IN": (n) => `మీరు ${n} వేసుకున్నారని నమోదు చేయమంటారా?`,
+  "kn-IN": (n) => `ನೀವು ${n} ತೆಗೆದುಕೊಂಡಿದ್ದೀರಿ ಎಂದು ದಾಖಲಿಸಬೇಕೇ?`,
+  "ml-IN": (n) => `നിങ്ങൾ ${n} കഴിച്ചതായി രേഖപ്പെടുത്തണമോ?`,
+  "pa-IN": (n) => `ਕੀ ਤੁਸੀਂ ਦਰਜ ਕਰਨਾ ਚਾਹੁੰਦੇ ਹੋ ਕਿ ਤੁਸੀਂ ${n} ਲੈ ਲਈ ਹੈ?`,
+  "or-IN": (n) => `ଆପଣ ${n} ନେଇଛନ୍ତି ବୋଲି ଲିପିବଦ୍ଧ କରିବେ କି?`,
   "en-IN": (n) => `Record that you took ${n}?`,
 };
+
 const REM_CONFIRM: Record<string, (t: string, tm: string) => string> = {
-  "hi-IN": (t, tm) => `क्या मैं "${t}" के लिए ${tm} बजे reminder सेट करूँ?`,
-  "gu-IN": (t, tm) => `શું હું "${t}" માટે ${tm} વાગ્યે reminder સેટ કરું?`,
-  "bn-IN": (t, tm) => `"${t}" এর জন্য ${tm} টায় রিমাইন্ডার সেট করব?`,
-  "ta-IN": (t, tm) => `"${t}" க்கு ${tm} மணிக்கு நினைவூட்டல் அமைக்கட்டுமா?`,
-  "te-IN": (t, tm) => `"${t}" కోసం ${tm}కి రిమైండర్ సెట్ చేయనా?`,
-  "kn-IN": (t, tm) => `"${t}" ಗಾಗಿ ${tm}ಕ್ಕೆ ರಿಮೈಂಡರ್ ಹೊಂದಿಸಲಾ?`,
-  "ml-IN": (t, tm) => `"${t}" ന് ${tm}ന് ഓർമ്മ ഇടണോ?`,
-  "pa-IN": (t, tm) => `"${t}" ਲਈ ${tm} ਵਜੇ ਰਿਮਾਈਂਡਰ ਲਗਾਵਾਂ?`,
-  "mr-IN": (t, tm) => `"${t}" साठी ${tm} वाजता आठवण ठेवू का?`,
-  "as-IN": (t, tm) => `"${t}" ৰ বাবে ${tm} বজাত মনত পেলাব নেকি?`,
+  "hi-IN": (t, tm) => `क्या मैं "${t}" के लिए ${tm} बजे का रिमाइंडर लगा दूँ?`,
+  "as-IN": (t, tm) => `মই "${t}" ৰ বাবে ${tm} বজাত মনত পেলোৱা সংকেত লগাম নেকি?`,
+  "bn-IN": (t, tm) => `আমি কি "${t}" এর জন্য ${tm} টায় রিমাইন্ডার সেট করব?`,
+  "gu-IN": (t, tm) => `શું હું "${t}" માટે ${tm} વાગ્યે રિમાઇન્ડર ગોઠવું?`,
+  "mr-IN": (t, tm) => `मी "${t}" साठी ${tm} वाजता आठवण सेट करू का?`,
+  "ta-IN": (t, tm) => `"${t}" க்காக ${tm} மணிக்கு நினைவூட்டல் அமைக்கவா?`,
+  "te-IN": (t, tm) => `"${t}" కోసం ${tm} గంటలకు రిమైండర్ సెట్ చేయమంటారా?`,
+  "kn-IN": (t, tm) => `"${t}" ಗಾಗಿ ${tm} ಗಂಟೆಗೆ ಜ್ಞಾಪನೆಯನ್ನು ಹೊಂದಿಸಲೇ?`,
+  "ml-IN": (t, tm) => `"${t}" നായി ${tm} ന് ഓർമ്മപ്പെടുത്തൽ സജ്ജീകരിക്കണമോ?`,
+  "pa-IN": (t, tm) => `ਕੀ ਮੈਂ "${t}" ਲਈ ${tm} ਵਜੇ ਰੀਮਾਈਂਡਰ ਲਗਾ ਦੇਵਾਂ?`,
+  "or-IN": (t, tm) => `ମୁଁ "${t}" ପାଇଁ ${tm} ଟାରେ ରିମାଇଣ୍ଡର ଲଗାଇବି କି?`,
   "en-IN": (t, tm) => `Shall I set a reminder for "${t}" at ${tm}?`,
 };
+
 const APPT_CONFIRM: Record<string, (t: string, tm: string) => string> = {
-  "hi-IN": (t, tm) => `"${t}" appointment ${tm} बजे save करूँ?`,
-  "gu-IN": (t, tm) => `"${t}" appointment ${tm} વાગ્યે save કરું?`,
-  "bn-IN": (t, tm) => `"${t}" অ্যাপয়েন্টমেন্ট ${tm} টায় সেভ করব?`,
-  "ta-IN": (t, tm) => `"${t}" நியமனம் ${tm}க்கு சேமிக்கட்டுமா?`,
-  "te-IN": (t, tm) => `"${t}" అపాయింట్‌మెంట్ ${tm}కి సేవ్ చేయనా?`,
-  "kn-IN": (t, tm) => `"${t}" ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್ ${tm}ಕ್ಕೆ ಸೇವ್ ಮಾಡಲಾ?`,
-  "ml-IN": (t, tm) => `"${t}" ${tm}ന് സേവ് ചെയ്യണോ?`,
-  "pa-IN": (t, tm) => `"${t}" ਅਪੌਇੰਟਮੈਂਟ ${tm} ਵਜੇ ਸੇਵ ਕਰਾਂ?`,
+  "hi-IN": (t, tm) => `क्या "${t}" अपॉइंटमेंट ${tm} बजे के लिए सेव करूँ?`,
+  "as-IN": (t, tm) => `"${t}" নিযুক্তি ${tm} বজাত সংৰক্ষণ কৰিম নেকি?`,
+  "bn-IN": (t, tm) => `"${t}" অ্যাপয়েন্টমেন্ট ${tm} টায় সংরক্ষণ করব?`,
+  "gu-IN": (t, tm) => `"${t}" એપોઇન્ટમેન્ટ ${tm} વાગ્યે સાચવું?`,
   "mr-IN": (t, tm) => `"${t}" भेट ${tm} वाजता जतन करू का?`,
-  "as-IN": (t, tm) => `"${t}" ${tm} বজাত সাঁচি থওঁ নেকি?`,
+  "ta-IN": (t, tm) => `"${t}" சந்திப்பை ${tm} மணிக்குச் சேமிக்கவா?`,
+  "te-IN": (t, tm) => `"${t}" అపాయింట్‌మెంట్‌ను ${tm} గంటలకు సేవ్ చేయమంటారా?`,
+  "kn-IN": (t, tm) => `"${t}" ನೇಮಕಾತಿಯನ್ನು ${tm} ಗಂಟೆಗೆ ಉಳಿಸಲೇ?`,
+  "ml-IN": (t, tm) => `"${t}" കൂടിക്കാഴ്ച ${tm} ന് സേവ് ചെയ്യണമോ?`,
+  "pa-IN": (t, tm) => `ਕੀ "${t}" ਮੁਲਾਕਾਤ ${tm} ਵਜੇ ਸੰਭਾਲੀਏ?`,
+  "or-IN": (t, tm) => `"${t}" ସାକ୍ଷାତ ${tm} ଟାରେ ସଞ୍ଚୟ କରିବି କି?`,
   "en-IN": (t, tm) => `Save appointment "${t}" at ${tm}?`,
 };
+
 const JOURNAL_CONFIRM: Record<string, (b: string) => string> = {
-  "hi-IN": (b) => `क्या मैं यह याद journal में सेव करूँ: "${b}"?`,
-  "gu-IN": (b) => `આ સ્મૃતિ journal માં સેવ કરું: "${b}"?`,
-  "bn-IN": (b) => `এই স্মৃতিটি জার্নালে সেভ করব: "${b}"?`,
-  "ta-IN": (b) => `இந்த நினைவை நாட்குறிப்பில் சேமிக்கட்டுமா: "${b}"?`,
-  "te-IN": (b) => `ఈ జ్ఞాపకాన్ని డైరీలో సేవ్ చేయనా: "${b}"?`,
-  "kn-IN": (b) => `ಈ ನೆನಪನ್ನು ದಿನಚರಿಯಲ್ಲಿ ಉಳಿಸಲಾ: "${b}"?`,
-  "ml-IN": (b) => `ഈ ഓർമ്മ ഡയറിയിൽ സൂക്ഷിക്കണോ: "${b}"?`,
-  "pa-IN": (b) => `ਇਹ ਯਾਦ ਡਾਇਰੀ ਵਿੱਚ ਸੇਵ ਕਰਾਂ: "${b}"?`,
-  "mr-IN": (b) => `ही आठवण डायरीत जतन करू का: "${b}"?`,
-  "as-IN": (b) => `এই স্মৃতি ডায়েৰীত সাঁচি থওঁ নেকি: "${b}"?`,
-  "en-IN": (b) => `Shall I save this memory to your journal: "${b}"?`,
-};
-const JOURNAL_EMPTY: Record<string, string> = {
-  "hi-IN": "बताइए क्या याद सेव करनी है — जैसे: नोट करो, आज पोते के साथ चाय पी।",
-  "gu-IN": "કહો શું નોંધવું છે — જેમ કે: નોંધ કરો, આજે પૌત્ર સાથે ચા પીધી.",
-  "bn-IN": "কী লিখব বলুন — যেমন: নোট করো, আজ নাতির সঙ্গে চা খেলাম।",
-  "ta-IN": "என்ன எழுத வேண்டும் சொல்லுங்கள் — உதாரணம்: நோட் செய், இன்று பேரனுடன் தேநீர்.",
-  "te-IN": "ఏం రాయాలో చెప్పండి — ఉదా: నోట్ చేయి, ఈరోజు మనవడితో టీ తాగాను.",
-  "kn-IN": "ಏನು ಬರೆಯಬೇಕು ಹೇಳಿ — ಉದಾ: ನೋಟ್ ಮಾಡು, ಇಂದು ಮೊಮ್ಮಗನ ಜೊತೆ ಚಹಾ.",
-  "ml-IN": "എന്ത് എഴുതണം എന്ന് പറയൂ — ഉദാ: നോട്ട് ചെയ്യൂ, ഇന്ന് കൊച്ചുമകനൊപ്പം ചായ.",
-  "pa-IN": "ਦੱਸੋ ਕੀ ਲਿਖਣਾ ਹੈ — ਜਿਵੇਂ: ਨੋਟ ਕਰੋ, ਅੱਜ ਪੋਤੇ ਨਾਲ ਚਾਹ ਪੀਤੀ।",
-  "mr-IN": "काय लिहू ते सांगा — जसे: नोंद कर, आज नातवासोबत चहा घेतला.",
-  "as-IN": "কি লিখিম কওক — যেনে: টোকা লিখা, আজি নাতিৰ সৈতে চাহ খালোঁ।",
-  "en-IN": "Tell me what to save — for example: note that I had tea with my grandson today.",
-};
-const NO_REMINDERS: Record<string, string> = {
-  "hi-IN": "आज कोई reminder नहीं है।",
-  "gu-IN": "આજે કોઈ reminder નથી.",
-  "bn-IN": "আজ কোনো রিমাইন্ডার নেই।",
-  "ta-IN": "இன்று நினைவூட்டல் இல்லை.",
-  "te-IN": "ఈరోజు రిమైండర్లు లేవు.",
-  "kn-IN": "ಇಂದು ಯಾವುದೇ ರಿಮೈಂಡರ್ ಇಲ್ಲ.",
-  "ml-IN": "ഇന്ന് ഓർമ്മകൾ ഒന്നുമില്ല.",
-  "pa-IN": "ਅੱਜ ਕੋਈ ਰਿਮਾਈਂਡਰ ਨਹੀਂ ਹੈ।",
-  "mr-IN": "आज कोणतीही आठवण नाही.",
-  "as-IN": "আজি কোনো ৰিমাইণ্ডাৰ নাই।",
-  "en-IN": "You have no reminders today.",
-};
-const REMINDER_LIST_INTRO: Record<string, (n: number) => string> = {
-  "hi-IN": (n) => `आपके ${n} reminder हैं।`,
-  "gu-IN": (n) => `તમારા ${n} reminder છે.`,
-  "bn-IN": (n) => `আপনার ${n} টি রিমাইন্ডার আছে।`,
-  "ta-IN": (n) => `உங்களுக்கு ${n} நினைவூட்டல்கள் உள்ளன.`,
-  "te-IN": (n) => `మీకు ${n} రిమైండర్లు ఉన్నాయి.`,
-  "kn-IN": (n) => `ನಿಮಗೆ ${n} ರಿಮೈಂಡರ್‌ಗಳಿವೆ.`,
-  "ml-IN": (n) => `നിങ്ങൾക്ക് ${n} ഓർമ്മകൾ ഉണ്ട്.`,
-  "pa-IN": (n) => `ਤੁਹਾਡੇ ${n} ਰਿਮਾਈਂਡਰ ਹਨ।`,
-  "mr-IN": (n) => `तुमच्या ${n} आठवणी आहेत.`,
-  "as-IN": (n) => `আপোনাৰ ${n} টা ৰিমাইণ্ডাৰ আছে।`,
-  "en-IN": (n) => `You have ${n} reminders.`,
-};
-const AT_WORD: Record<string, string> = {
-  "hi-IN": "बजे",
-  "gu-IN": "વાગ્યે",
-  "bn-IN": "টায়",
-  "ta-IN": "மணிக்கு",
-  "te-IN": "గంటలకు",
-  "kn-IN": "ಗಂಟೆಗೆ",
-  "ml-IN": "മണിക്ക്",
-  "pa-IN": "ਵਜੇ",
-  "mr-IN": "वाजता",
-  "as-IN": "বজাত",
-  "en-IN": "at",
-};
-const TIME_NOW: Record<string, (t: string) => string> = {
-  "hi-IN": (t) => `अभी ${t} बजे हैं।`,
-  "gu-IN": (t) => `હાલ ${t} વાગ્યા છે.`,
-  "bn-IN": (t) => `এখন ${t} টা।`,
-  "ta-IN": (t) => `இ�const UNK_RESPONSE: Record<string, string> = {
-  "hi-IN": "मैं समझ नहीं पाया। क्या आप reminder, दवाई, appointment, या journal में कुछ लिखवाना चाहते हैं?",
-  "gu-IN": "હું સમજ્યો નહિ. reminder, દવા, appointment કે journal માં નોંધ જોઈએ?",
-  "bn-IN": "আমি বুঝতে পারিনি। রিমাইন্ডার, ওষুধ, অ্যাপয়েন্টমেন্ট বা জার্নালে নোট দরকার?",
-  "ta-IN": "என்னால் புரியவில்லை. நினைவூட்டல், மருந்து, நியமனம் அல்லது நோட் வேண்டுமா?",
-  "te-IN": "నాకు అర్థమవలేదు. రిమైండర్, మందు, అపాయింట్‌మెంట్ లేదా నోట్ కావాలా?",
-  "kn-IN": "ನನಗೆ ಅರ್ಥವಾಗಲಿಲ್ಲ. ರಿಮೈಂಡರ್, ಔಷಧ, ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್ ಅಥವಾ ನೋಟ್ ಬೇಕೇ?",
-  "ml-IN": "എനിക്ക് മനസ്സിലായില്ല. ഓർമ്മ, മരുന്ന്, അപ്പോയ്ന്റ്മെന്റ് അല്ലെങ്കിൽ നോട്ട് വേണോ?",
-  "pa-IN": "ਮੈਨੂੰ ਸਮਝ ਨਹੀਂ ਆਇਆ। ਰਿਮਾਈਂਡਰ, ਦਵਾਈ, ਅਪੌਇੰਟਮੈਂਟ ਜਾਂ ਨੋਟ ਚਾਹੀਦਾ ਹੈ?",
-  "mr-IN": "मला समजले नाही. आठवण, औषध, भेट किंवा नोंद हवी आहे का?",
-  "as-IN": "মই বুজি নাপালোঁ। ৰিমাইণ্ডাৰ, ঔষধ, সাক্ষাৎ বা টোকা লাগে নেকি?",
-  "en-IN":
-    "I didn't quite understand. Would you like a reminder, medicine help, an appointment, or a note in your journal?",
+  "hi-IN": (b) => `क्या आप इसे Memory Bond में याद के रूप में सेव करना चाहते हैं: "${b}"?`,
+  "as-IN": (b) => `আপুনি এইটো Memory Bond দিনলিপিত স্মৃতি হিচাপে সাঁচিব খোজে নেকি: "${b}"?`,
+  "bn-IN": (b) => `আপনি কি এটি Memory Bond ডায়েরিতে স্মৃতি হিসেবে সংরক্ষণ করতে চান: "${b}"?`,
+  "gu-IN": (b) => `શું તમે આને Memory Bond માં યાદ તરીકે સાચવવા માંગો છો: "${b}"?`,
+  "mr-IN": (b) => `आपण हे Memory Bond मध्ये आठवण म्हणून जतन करू इच्छिता: "${b}"?`,
+  "ta-IN": (b) => `இதை Memory Bond இல் நினைவாகச் சேமிக்க விரும்புகிறீர்களா: "${b}"?`,
+  "te-IN": (b) => `దీన్ని Memory Bond లో జ్ఞాపకంగా భద్రపరచాలనుకుంటున్నారా: "${b}"?`,
+  "kn-IN": (b) => `ಇದನ್ನು Memory Bond ನಲ್ಲಿ ನೆನಪಾಗಿ ಉಳಿಸಲು ಬಯಸುವಿರಾ: "${b}"?`,
+  "ml-IN": (b) => `ഇത് Memory Bond-ൽ ഓർമ്മയായി സൂക്ഷിക്കണോ: "${b}"?`,
+  "pa-IN": (b) => `ਕੀ ਤੁਸੀਂ ਇਸਨੂੰ Memory Bond ਵਿੱਚ ਯਾਦ ਵਜੋਂ ਸੰਭਾਲਣਾ ਚਾਹੁੰਦੇ ਹੋ: "${b}"?`,
+  "or-IN": (b) => `ଆପଣ ଏହାକୁ Memory Bond ରେ ସ୍ମୃତି ଭାବରେ ସାଇତି ରଖିବାକୁ ଚାହାଁନ୍ତି କି: "${b}"?`,
+  "en-IN": (b) => `Shall I save this memory to your Memory Bond journal: "${b}"?`,
 };
 
-const CANCEL_RESPONSES: Record<string, string> = {
-  "hi-IN": "ठीक है, मैंने इसे रद्द कर दिया।",
-  "gu-IN": "ઠીક છે, મેં રદ કર્યું છે.",
+const NO_REMINDER_MSG: Record<string, string> = {
+  "hi-IN": "आपके पास आज कोई आगामी रिमाइंडर नहीं है। सब कुछ पूरा हो चुका है।",
+  "as-IN": "আপোনাৰ আজিৰ কোনো বাকী মনত পেলোৱা সংকেত নাই। সকলো সম্পূৰ্ণ হৈছে।",
+  "bn-IN": "আপনার আজ কোনও অবশিষ্ট রিমাইন্ডার নেই। সব সম্পন্ন হয়েছে।",
+  "gu-IN": "તમારી પાસે આજે કોઈ બાકી રિમાઇન્ડર નથી. બધું પૂર્ણ થઈ ગયું છે.",
+  "mr-IN": "आपल्याकडे आज कोणतीही उर्वरित आठवण नाही. सर्व कामे पूर्ण झाली आहेत.",
+  "ta-IN": "உங்களுக்கு இன்று வரவிருக்கும் நினைவூட்டல்கள் எதுவும் இல்லை. அனைத்தும் முடிந்தது.",
+  "te-IN": "మీకు ఈ రోజు రాబోయే రిమైండర్‌లు లేవు. అన్నీ పూర్తయ్యాయి.",
+  "kn-IN": "ನಿಮಗೆ ಇಂದು ಯಾವುದೇ ಬಾಕಿ ಜ್ಞಾಪನೆಗಳಿಲ್ಲ. ಎಲ್ಲವೂ ಪೂರ್ಣಗೊಂಡಿದೆ.",
+  "ml-IN": "നിങ്ങൾക്ക് ഇന്ന് വരാനിരിക്കുന്ന ഓർമ്മപ്പെടുത്തലുകൾ ഒന്നുമില്ല.",
+  "pa-IN": "ਤੁਹਾਡੇ ਕੋਲ ਅੱਜ ਕੋਈ ਬਾਕੀ ਰੀਮਾਈਂਡਰ ਨਹੀਂ ਹੈ। ਸਭ ਪੂਰਾ ਹੋ ਗਿਆ ਹੈ।",
+  "or-IN": "ଆପଣଙ୍କର ଆଜି କୌଣସି ବାକି ସ୍ମାରକ ନାହିଁ। ସବୁ ହୋଇଯାଇଛି।",
+  "en-IN": "You have no upcoming reminders for today. All caught up!",
+};
+
+const NEXT_REMINDER_MSG: Record<string, (t: string, tm: string) => string> = {
+  "hi-IN": (t, tm) => `आपका अगला रिमाइंडर है: "${t}", ${tm} बजे।`,
+  "as-IN": (t, tm) => `আপোনাৰ পৰৱৰ্তী মনত পেলোৱা কাম: "${t}", ${tm} বজাত।`,
+  "bn-IN": (t, tm) => `আপনার পরের রিমাইন্ডার হলো: "${t}", ${tm} টায়।`,
+  "gu-IN": (t, tm) => `તમારું આગલું રિમાઇન્ડર છે: "${t}", ${tm} વાગ્યે.`,
+  "mr-IN": (t, tm) => `आपली पुढील आठवण आहे: "${t}", ${tm} वाजता.`,
+  "ta-IN": (t, tm) => `உங்கள் அடுத்த நினைவூட்டல்: "${t}", ${tm} மணிக்கு.`,
+  "te-IN": (t, tm) => `మీ తదుపరి రిమైండర్: "${t}", ${tm} గంటలకు.`,
+  "kn-IN": (t, tm) => `ನಿಮ್ಮ ಮುಂದಿನ ಜ್ಞಾಪನೆ: "${t}", ${tm} ಗಂಟೆಗೆ.`,
+  "ml-IN": (t, tm) => `നിങ്ങളുടെ അടുത്ത ഓർമ്മപ്പെടുത്തൽ: "${t}", ${tm} ന്.`,
+  "pa-IN": (t, tm) => `ਤੁਹਾਡਾ ਅਗਲਾ ਰੀਮਾਈਂਡਰ ਹੈ: "${t}", ${tm} ਵਜੇ।`,
+  "or-IN": (t, tm) => `ଆପଣଙ୍କ ପରବର୍ତ୍ତୀ ସ୍ମାରକ: "${t}", ${tm} ଟାରେ।`,
+  "en-IN": (t, tm) => `Your next reminder is "${t}" at ${tm}.`,
+};
+
+const NO_MEDS_MSG: Record<string, string> = {
+  "hi-IN": "आपकी सभी दवाइयाँ आज समय पर ले ली गई हैं। बहुत बढ़िया!",
+  "as-IN": "আপোনাৰ সকলো ঔষধ আজি সময়মতে খোৱা হৈছে। বৰ ভাল!",
+  "bn-IN": "আপনার সব ঔষধ আজ ঠিক সময়ে নেওয়া হয়েছে। খুব ভালো!",
+  "gu-IN": "તમારી બધી દવાઓ આજે સમયસર લેવાઈ ગઈ છે. ખૂબ સરસ!",
+  "mr-IN": "आपली सर्व औषधे आज वेळेवर घेतली गेली आहेत. उत्तम!",
+  "ta-IN": "உங்கள் அனைத்து மருந்துகளும் இன்று சரியான நேரத்தில் உட்கொள்ளப்பட்டன. மிக நன்று!",
+  "te-IN": "మీ మందులన్నీ ఈ రోజు సమయానికి వేసుకున్నారు. చాలా మంచిది!",
+  "kn-IN": "ನಿಮ್ಮ ಎಲ್ಲಾ ಔಷಧಿಗಳನ್ನು ಇಂದು ಸಮಯಕ್ಕೆ ತೆಗೆದುಕೊಳ್ಳಲಾಗಿದೆ. ತುಂಬಾ ಒಳ್ಳೆಯದು!",
+  "ml-IN": "നിങ്ങളുടെ എല്ലാ മരുന്നുകളും ഇന്ന് കൃത്യസമയത്ത് കഴിച്ചു.",
+  "pa-IN": "ਤੁਹਾਡੀਆਂ ਸਾਰੀਆਂ ਦਵਾਈਆਂ ਅੱਜ ਸਮੇਂ ਸਿਰ ਲਈਆਂ ਗਈਆਂ ਹਨ। ਸ਼ਾਬਾਸ਼!",
+  "or-IN": "ଆପଣଙ୍କର ସମସ୍ତ ଔଷଧ ଆଜି ସମୟରେ ନିଆଯାଇଛି। ବହୁତ ଭଲ!",
+  "en-IN": "All your scheduled medicines have been taken today. Well done!",
+};
+
+const NEXT_MED_MSG: Record<string, (n: string, d: string, tm: string) => string> = {
+  "hi-IN": (n, d, tm) => `आपकी अगली दवा है ${n} (${d}), समय: ${tm}।`,
+  "as-IN": (n, d, tm) => `আপোনাৰ পৰৱৰ্তী ঔষধ হ’ল ${n} (${d}), সময়: ${tm}।`,
+  "bn-IN": (n, d, tm) => `আপনার পরের ঔষধ হলো ${n} (${d}), সময়: ${tm}।`,
+  "gu-IN": (n, d, tm) => `તમારી આગલી દવા છે ${n} (${d}), સમય: ${tm}.`,
+  "mr-IN": (n, d, tm) => `आपले पुढील औषध आहे ${n} (${d}), वेळ: ${tm}.`,
+  "ta-IN": (n, d, tm) => `உங்கள் அடுத்த மருந்து ${n} (${d}), நேரம்: ${tm}.`,
+  "te-IN": (n, d, tm) => `మీ తదుపరి మందు ${n} (${d}), సమయం: ${tm}.`,
+  "kn-IN": (n, d, tm) => `ನಿಮ್ಮ ಮುಂದಿನ ಔಷಧಿ ${n} (${d}), ಸಮಯ: ${tm}.`,
+  "ml-IN": (n, d, tm) => `നിങ്ങളുടെ അടുത്ത മരുന്ന് ${n} (${d}), സമയം: ${tm}.`,
+  "pa-IN": (n, d, tm) => `ਤੁਹਾਡੀ ਅਗਲੀ ਦਵਾਈ ਹੈ ${n} (${d}), ਸਮਾਂ: ${tm}।`,
+  "or-IN": (n, d, tm) => `ଆପଣଙ୍କ ପରବର୍ତ୍ତୀ ଔଷଧ ହେଉଛି ${n} (${d}), ସମୟ: ${tm}।`,
+  "en-IN": (n, d, tm) => `Your next medicine is ${n} (${d}) at ${tm}.`,
+};
+
+const UNKNOWN_MSG: Record<string, string> = {
+  "hi-IN": "मैं समझ नहीं पाया। क्या आप दवा, रिमाइंडर या रूटीन के बारे में पूछना चाहते हैं?",
+  "as-IN": "মই বুজি নাপালোঁ। আপুনি ঔষধ, মনত পেলোৱা সংকেত বা ৰুটিনৰ বিষয়ে সুধিব খোজে নেকি?",
+  "bn-IN": "আমি বুঝতে পারিনি। আপনি কি ঔষধ, রিমাইন্ডার বা রুটিন সম্পর্কে জানতে চান?",
+  "gu-IN": "હું સમજી શક્યો નથી. શું તમે દવા, રિમાઇન્ડર કે દિનચર્યા વિશે પૂછવા માંગો છો?",
+  "mr-IN": "मला समजले नाही. आपण औषध, आठवण किंवा दिनचर्येबद्दल विचारू इच्छिता का?",
+  "ta-IN": "எனக்குப் புரியவில்லை. மருந்து, நினைவூட்டல் அல்லது வழக்கம் பற்றி கேட்க விரும்புகிறீர்களா?",
+  "te-IN": "నాకు అర్థం కాలేదు. మందులు, రిమైండర్లు లేదా దినచర్య గురించి అడగాలనుకుంటున్నారా?",
+  "kn-IN": "ನನಗೆ ಅರ್ಥವಾಗಲಿಲ್ಲ. ನೀವು ಔಷಧಿ, ಜ್ಞಾಪನೆ ಅಥವಾ ದಿನಚರಿಯ ಬಗ್ಗೆ ಕೇಳಲು ಬಯಸುವಿರಾ?",
+  "ml-IN": "എനിക്ക് മനസ്സിലായില്ല. മരുന്ന്, ഓർമ്മപ്പെടുത്തൽ അല്ലെങ്കിൽ ദിനചര്യയെക്കുറിച്ച് ചോദിക്കണമോ?",
+  "pa-IN": "ਮੈਨੂੰ ਸਮਝ ਨਹੀਂ ਆਇਆ। ਕੀ ਤੁਸੀਂ ਦਵਾਈ ਜਾਂ ਰੀਮਾਈਂਡਰ ਬਾਰੇ ਪੁੱਛਣਾ ਚਾਹੁੰਦੇ ਹੋ?",
+  "or-IN": "ମୁଁ ବୁଝିପାରିଲି ନାହିଁ। ଆପଣ ଔଷଧ ବା ସ୍ମାରକ ବିଷୟରେ ପଚାରିବାକୁ ଚାହାଁନ୍ତି କି?",
+  "en-IN": "I didn't quite catch that. You can ask about medicines, reminders, or routine.",
+};
+
+const CANCELLED_MSG: Record<string, string> = {
+  "hi-IN": "ठीक है, रद्द कर दिया गया।",
+  "as-IN": "ঠিক আছে, বাতিল কৰা হ’ল।",
   "bn-IN": "ঠিক আছে, বাতিল করা হলো।",
+  "gu-IN": "ઠીક છે, રદ કરવામાં આવ્યું.",
+  "mr-IN": "ठीक आहे, रद्द केले.",
   "ta-IN": "சரி, ரத்து செய்யப்பட்டது.",
-  "te-IN": "సరే, రద్దు చేశాను.",
+  "te-IN": "సరే, రద్దు చేయబడింది.",
   "kn-IN": "ಸರಿ, ರದ್ದುಗೊಳಿಸಲಾಗಿದೆ.",
   "ml-IN": "ശരി, റദ്ദാക്കി.",
   "pa-IN": "ਠੀਕ ਹੈ, ਰੱਦ ਕਰ ਦਿੱਤਾ ਗਿਆ।",
-  "mr-IN": "ठीक आहे, मी रद्द केले आहे.",
-  "as-IN": "ঠিক আছে, বাতিল কৰা হ’ল।",
-  "en-IN": "Understood, cancelled.",
+  "or-IN": "ଠିକ୍ ଅଛି, ବାତିଲ୍ କରାଗଲା।",
+  "en-IN": "Action cancelled.",
 };
 
-export interface PendingVoiceContext {
-  intent: VoiceIntent;
-  question: string;
+// ---------------------------------------------------------------------------
+// Supported Voice Providers Architecture
+// ---------------------------------------------------------------------------
+export interface VoiceProviderOption {
+  id: "web_speech" | "bhashini" | "google_cloud";
+  name: string;
+  description: string;
+  active: boolean;
+  offlineCapable: boolean;
 }
 
-export const SUPPORTED_VOICE_PROVIDERS = [
-  { id: "web_speech", name: "Browser Web Speech Engine (Fast, Local & Offline)", active: true },
-  { id: "bhashini", name: "BHASHINI AI (Indian Languages Mission)", active: false, note: "API Integration Ready" },
-  { id: "google_speech", name: "Google Cloud Speech AI", active: false, note: "API Integration Ready" },
+export const SUPPORTED_VOICE_PROVIDERS: VoiceProviderOption[] = [
+  {
+    id: "web_speech",
+    name: "Browser Speech Engine (Local & Offline Ready)",
+    description: "Zero-latency, private, runs completely inside the device without external network.",
+    active: true,
+    offlineCapable: true,
+  },
+  {
+    id: "bhashini",
+    name: "BHASHINI AI (Indian Languages Mission)",
+    description: "Dedicated Indian national AI speech pipeline supporting all 22 scheduled languages.",
+    active: false,
+    offlineCapable: false,
+  },
+  {
+    id: "google_cloud",
+    name: "Cloud Multilingual Speech Adapter",
+    description: "High-fidelity neural voices with deep accent recognition.",
+    active: false,
+    offlineCapable: false,
+  },
 ];
 
-const AFFIRMATIVE_WORDS = [
-  "yes", "yeah", "yep", "sure", "ok", "okay", "confirm", "proceed",
-  "हाँ", "हा", "हाँजी", "ज़रूर", "बिल्कुल", "ठीक", "कर दो", "लगा दो", "लिख लो",
-  "হাঁ", "হয়", "নিশ্চয়", "কৰক", "লিখক",
-  "হ্যাঁ", "হ্যা", "করো", "ঠিক আছে",
-  "હા", "હાજી", "ચોક્કસ", "કરો",
-  "हो", "होय", "नक्की", "करा",
-  "ஆம்", "சரி", "செய்", "உறுதி",
-  "అవును", "సరే", "చేయి",
-  "ಹೌದು", "ಸರಿ", "ಮಾಡಿ",
-  "അതെ", "ശരി", "ചെയ്യുക",
-  "ਹਾਂ", "ਜ਼ਰੂਰ", "ਕਰ ਦਿਓ",
-  "ହଁ", "ହଁଆଜ୍ଞା", "ଠିକ୍",
+// Conversational affirmative and negative terms
+const AFFIRMATIVE_TERMS = [
+  "yes", "yeah", "sure", "ok", "okay", "confirm", "correct",
+  "हाँ", "हा", "हाँजी", "कर दो", "लगा दो", "ले ली", "खा ली",
+  "হয়", "ঠিক আছে", "কৰক",
+  "হ্যাঁ", "হ্যা", "করুন", "নিয়েছি",
+  "હા", "હાજી", "કરો", "લીધી",
+  "होय", "हो", "करा", "घेतली",
+  "ஆம்", "சரி", "போடுங்கள்", "உட்கொண்டேன்",
+  "అవును", "సరే", "చేయండి", "వేశాను",
+  "ಹೌದು", "ಸರಿ", "ಮಾಡಿ", "ತೆಗೆದುಕೊಂಡೆ",
+  "അതെ", "ശരി", "കഴിച്ചു",
+  "ਹਾਂ", "ਹਾਂਜੀ", "ਕਰੋ",
+  "ହଁ", "ହଁଆଜ୍ଞା", "କରନ୍ତୁ",
 ];
 
-const NEGATIVE_WORDS = [
-  "no", "nope", "cancel", "don't", "stop", "never mind",
-  "नहीं", "ना", "मत करो", "रहने दो", "कैंसिल",
-  "নহয়", "নালাগে", "থাকক", "বাতিল",
+const NEGATIVE_TERMS = [
+  "no", "nope", "cancel", "stop", "dont", "do not",
+  "नहीं", "ना", "मत करो", "रहने दो",
+  "নহয়", "নালাগে", "বাতিল",
   "না", "করবেন না", "থাক",
-  "ના", "નહિ", "રદ કરો",
-  "नाही", "नको", "रद्द करा",
-  "இல்லை", "வேண்டாம்", "ரத்து",
-  "వద్దు", "కాదు", "రద్దు",
-  "ಬೇಡ", "ಇಲ್ಲ", "ರದ್ದು",
+  "ના", "નહીં", "રહેવા દો",
+  "नाही", "नको",
+  "இல்லை", "வேண்டாம்", "தவிர்",
+  "వద్దు", "కాదు",
+  "ಬೇಡ", "ಇಲ್ಲ",
   "വേണ്ട", "ഇല്ല",
-  "ਨਹੀਂ", "ਨਾ ਕਰੋ",
-  "ନାହିଁ", "ଦରକାର ନାହିଁ",
+  "ਨਹੀਂ", "ਰਹਿਣ ਦਿਓ",
+  "ନାହିଁ", "ନାଇଁ",
 ];
 
-// Multilingual keyword banks -------------------------------------------------
-const JOURNAL_KW = [
-  "note that", "add a note", "make a note", "note down", "write down", "diary",
-  "journal", "memory journal", "remember that", "save this memory", "note karo",
-  "note likho", "diary me likho", "yaad likho", "yaad rakho", "नोट", "डायरी", "याद लिखो",
-  "नोंद", "নোট", "ডায়েরি", "টোকা", "ડાયરી", "નોંધ", "நோட்", "நாட்குறிப்பு",
-  "నోట్", "డైరీ", "ನೋಟ್", "ದಿನಚರಿ", "നോട്ട്", "ഡയറി", "ਨੋਟ", "ਡਾਇਰੀ",
-];
-const SPEAK_REM_KW = [
-  "read my reminders", "read out my reminders", "tell me my reminders", "speak my reminders",
-  "what are my reminders", "all my reminders", "today's reminders", "todays reminders",
-  "sare reminder", "reminder batao", "reminder sunao", "reminder bolo",
-  "reminder सुनाओ", "reminder बताओ", "রিমাইন্ডার বলুন", "reminder કહો",
-  "நினைவூட்டல் சொல்", "రిమైండర్లు చెప్పు",
-];
-const TIME_KW = ["what time", "time now", "kitne baje", "samay kya", "समय", "কটা বাজে", "કેટલા વાગ્યા", "நேரம் என்ன", "సమయం ఎంత"];
-const DATE_KW = ["what day", "what date", "today's date", "todays date", "aaj kaunsi tarikh", "aaj kya din", "आज कौन", "আজ কী", "આજે કઈ", "இன்று என்ன தேதி", "ఈరోజు తేదీ"];
-const APPT_Q_KW = ["next appointment", "my appointment", "when is my appointment", "doctor kab", "appointment kab", "अपॉइंटमेंट कब", "অ্যাপয়েন্টমেন্ট কখন"];
-const FAMILY_Q_KW = ["my family", "family contacts", "who is my family", "mera parivar", "parivar", "परिवार", "পরিবার", "પરિવાર", "குடும்பம்", "కుటుంబం"];
+export function isAffirmative(text: string): boolean {
+  const t = text.trim().toLowerCase();
+  return AFFIRMATIVE_TERMS.some((term) => t === term || t.startsWith(term + " ") || t.endsWith(" " + term));
+}
 
-function stripJournalKeywords(text: string): string {
-  let out = text;
-  for (const kw of JOURNAL_KW) {
-    out = out.replace(new RegExp(kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), " ");
-  }
-  return out.replace(/^\s*(that|ki|ke|कि|যে)\s+/i, "").replace(/\s{2,}/g, " ").trim();
+export function isNegative(text: string): boolean {
+  const t = text.trim().toLowerCase();
+  return NEGATIVE_TERMS.some((term) => t === term || t.startsWith(term + " ") || t.endsWith(" " + term));
 }
 
 // ---------------------------------------------------------------------------
-// Main intent parser with Multi-turn Context Retention
+// Main Intent Parser
 // ---------------------------------------------------------------------------
 export function parseVoiceIntent(
   rawText: string,
   store: MemoryBondStore,
   locale = "en-IN",
-  previousContext?: PendingVoiceContext | null,
+  pendingContext?: VoiceIntent | null
 ): VoiceIntent {
   const text = rawText.trim();
   const lower = text.toLowerCase();
-  const at = pick(AT_WORD, locale);
 
-  // 0. Check Context Retention: Was the AI awaiting confirmation? (Section 6 & 23 requirement)
-  if (previousContext && previousContext.intent) {
-    const isAffirmative = AFFIRMATIVE_WORDS.some(
-      (w) => lower === w.toLowerCase() || lower.startsWith(w.toLowerCase() + " ") || lower.endsWith(" " + w.toLowerCase())
-    );
-    const isNegative = NEGATIVE_WORDS.some(
-      (w) => lower === w.toLowerCase() || lower.startsWith(w.toLowerCase() + " ") || lower.endsWith(" " + w.toLowerCase())
-    );
-
-    if (isAffirmative) {
-      // Execute the pending action immediately
-      const pending = previousContext.intent;
-      if (pending.type === "CREATE_REMINDER") {
-        store.addReminder({
-          title: pending.title,
-          time: pending.time,
-          type: pending.reminderType,
-          date: null,
-          repeat: "daily",
-          notes: "Created via Memory Bond Voice Assistant",
-          active: true,
-        });
-        const msg = locale.startsWith("hi")
-          ? `मैंने "${pending.title}" का रिमाइंडर ${pending.time} बजे के लिए सेट कर दिया है।`
-          : locale.startsWith("as")
-          ? `"${pending.title}" ৰ বাবে ${pending.time} বজাত ৰিমাইণ্ডাৰ সংৰক্ষণ কৰা হ’ল।`
-          : `Saved reminder for "${pending.title}" at ${pending.time}.`;
-        return { type: "ANSWER", message: msg };
-      } else if (pending.type === "TAKE_MEDICINE") {
-        const medId = pending.medicineId || store.medicines[0]?.id;
-        if (medId) {
-          store.takeMedicine(medId);
-        }
-        const msg = locale.startsWith("hi")
-          ? "दवा लेना दर्ज कर लिया गया है। शाबाश!"
-          : locale.startsWith("as")
-          ? "ঔষধ খোৱা বুলি লিপিবদ্ধ কৰা হ’ল। বৰ ভাল!"
-          : "Recorded that you took your medicine. Well done!";
-        return { type: "ANSWER", message: msg };
-      } else if (pending.type === "ADD_JOURNAL") {
-        store.addJournalEntry({
-          title: pending.title,
-          body: pending.body,
-          entry_date: new Date().toISOString().slice(0, 10),
-          kind: "voice",
-        });
-        const msg = locale.startsWith("hi")
-          ? "आपकी याद Memory Bond जर्नल में सुरक्षित हो गई है।"
-          : locale.startsWith("as")
-          ? "আপোনাৰ স্মৃতি Memory Bond দিনলিপিত সাঁচি ৰখা হ’ল।"
-          : "Saved to your Memory Bond memory journal.";
-        return { type: "ANSWER", message: msg };
-      } else if (pending.type === "CREATE_APPOINTMENT") {
-        store.addAppointment({
-          title: pending.title,
-          date: pending.date,
-          time: pending.time,
-          kind: "doctor",
-          location: pending.location || "Clinic",
-          notes: "Scheduled via Voice Assistant",
-        });
-        const msg = locale.startsWith("hi")
-          ? `अपॉइंटमेंट "${pending.title}" ${pending.time} बजे के लिए सेव कर दिया गया है।`
-          : `Appointment saved for ${pending.time}.`;
-        return { type: "ANSWER", message: msg };
-      }
-    } else if (isNegative) {
-      return { type: "ANSWER", message: pick(CANCEL_RESPONSES, locale) };
+  // 1. Context Retention Check: Did user confirm or reject previous pending action?
+  if (pendingContext && !isSpokenAnswer(pendingContext)) {
+    if (isAffirmative(lower)) {
+      return {
+        type: "CONFIRM_ACTION",
+        confirmationMessage: "Confirmed. Executing now.",
+      };
+    }
+    if (isNegative(lower)) {
+      return {
+        type: "CANCEL_ACTION",
+        confirmationMessage: pick(CANCELLED_MSG, locale),
+      };
     }
   }
 
-  // 1. Casual greetings / emotional chat
-  const isGreeting =
-    /^(hi|hello|hey|good morning|good evening|good afternoon|good night|namaste|namaskar)[\s!.,]*$/i.test(text) ||
-    /namaste|namaskar|sat sri akal/i.test(text);
-  const isWellbeing = /how are you|kaise ho|kaisa hai/i.test(text);
-  const isEmotional = /i feel|i am (sad|happy|tired|lonely|anxious|worried|great|good|bad)/i.test(text); `ನಿಮ್ಮ ಕುಟುಂಬದಲ್ಲಿ ${n} ಇದ್ದಾರೆ.`,
-  "ml-IN": (n) => `നിങ്ങളുടെ കുടുംബത്തിൽ ${n} ഉണ്ട്.`,
-  "pa-IN": (n) => `ਤੁਹਾਡੇ ਪਰਿਵਾਰ ਵਿੱਚ ${n} ਹਨ।`,
-  "mr-IN": (n) => `तुमच्या कुटुंबात ${n} आहेत.`,
-  "as-IN": (n) => `আপোনাৰ পৰিয়ালত ${n} আছে।`,
-  "en-IN": (n) => `Your family contacts are ${n}.`,
-};
-const NO_FAMILY: Record<string, string> = {
-  "hi-IN": "अभी कोई family contact सेव नहीं है।",
-  "en-IN": "No family contacts are saved yet.",
-  "bn-IN": "এখনো কোনো পারিবারিক যোগাযোগ সেভ করা নেই।",
-  "ta-IN": "குடும்ப தொடர்புகள் இல்லை.",
-  "te-IN": "కుటుంబ కాంటాక్ట్లు లేవు.",
-  "gu-IN": "કોઈ family contact સેવ નથી.",
-};
-const JOURNAL_SAVED: Record<string, string> = {
-  "hi-IN": "आपकी याद journal में सेव हो गई।",
-  "gu-IN": "તમારી સ્મૃતિ journal માં સેવ થઈ ગઈ.",
-  "bn-IN": "স্মৃতিটি জার্নালে সেভ হয়েছে।",
-  "ta-IN": "நினைவு நாட்குறிப்பில் சேமிக்கப்பட்டது.",
-  "te-IN": "జ్ఞాపకం డైరీలో సేవ్ అయింది.",
-  "kn-IN": "ನೆನಪು ದಿನಚರಿಯಲ್ಲಿ ಉಳಿಸಲಾಗಿದೆ.",
-  "ml-IN": "ഓർമ്മ ഡയറിയിൽ സൂക്ഷിച്ചു.",
-  "pa-IN": "ਯਾਦ ਡਾਇਰੀ ਵਿੱਚ ਸੇਵ ਹੋ ਗਈ।",
-  "mr-IN": "आठवण डायरीत जतन झाली.",
-  "as-IN": "স্মৃতি ডায়েৰীত সাঁচি থোৱা হ'ল।",
-  "en-IN": "Your memory has been saved to the journal.",
-};
-const UNK_RESPONSE: Record<string, string> = {
-  "hi-IN": "मैं समझ नहीं पाया। क्या आप reminder, दवाई, appointment, या journal में कुछ लिखवाना चाहते हैं?",
-  "gu-IN": "હું સમજ્યો નહિ. reminder, દવા, appointment કે journal માં નોંધ જોઈએ?",
-  "bn-IN": "আমি বুঝতে পারিনি। রিমাইন্ডার, ওষুধ, অ্যাপয়েন্টমেন্ট বা জার্নালে নোট দরকার?",
-  "ta-IN": "என்னால் புரியவில்லை. நினைவூட்டல், மருந்து, நியமனம் அல்லது நோட் வேண்டுமா?",
-  "te-IN": "నాకు అర్థమవలేదు. రిమైండర్, మందు, అపాయింట్‌మెంట్ లేదా నోట్ కావాలా?",
-  "kn-IN": "ನನಗೆ ಅರ್ಥವಾಗಲಿಲ್ಲ. ರಿಮೈಂಡರ್, ಔಷಧ, ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್ ಅಥವಾ ನೋಟ್ ಬೇಕೇ?",
-  "ml-IN": "എനിക്ക് മനസ്സിലായില്ല. ഓർമ്മ, മരുന്ന്, അപ്പോയ്ന്റ്മെന്റ് അല്ലെങ്കിൽ നോട്ട് വേണോ?",
-  "pa-IN": "ਮੈਨੂੰ ਸਮਝ ਨਹੀਂ ਆਇਆ। ਰਿਮਾਈਂਡਰ, ਦਵਾਈ, ਅਪੌਇੰਟਮੈਂਟ ਜਾਂ ਨੋਟ ਚਾਹੀਦਾ ਹੈ?",
-  "mr-IN": "मला समजले नाही. आठवण, औषध, भेट किंवा नोंद हवी आहे का?",
-  "as-IN": "মই বুজি নাপালোঁ। ৰিমাইণ্ডাৰ, ঔষধ, সাক্ষাৎ বা টোকা লাগে নেকি?",
-  "en-IN":
-    "I didn't quite understand. Would you like a reminder, medicine help, an appointment, or a note in your journal?",
-};
-
-// Multilingual keyword banks -------------------------------------------------
-const JOURNAL_KW = [
-  "note that", "add a note", "make a note", "note down", "write down", "diary",
-  "journal", "memory journal", "remember that", "save this memory", "note karo",
-  "note likho", "diary me likho", "yaad likho", "yaad rakho", "नोट", "डायरी", "याद लिखो",
-  "नोंद", "নোট", "ডায়েরি", "টোকা", "ડાયરી", "નોંધ", "நோட்", "நாட்குறிப்பு",
-  "నోట్", "డైరీ", "ನೋಟ್", "ದಿನಚರಿ", "നോട്ട്", "ഡയറി", "ਨੋਟ", "ਡਾਇਰੀ",
-];
-const SPEAK_REM_KW = [
-  "read my reminders", "read out my reminders", "tell me my reminders", "speak my reminders",
-  "what are my reminders", "all my reminders", "today's reminders", "todays reminders",
-  "sare reminder", "reminder batao", "reminder sunao", "reminder bolo",
-  "reminder सुनाओ", "reminder बताओ", "রিমাইন্ডার বলুন", "reminder કહો",
-  "நினைவூட்டல் சொல்", "రిమైండర్లు చెప్పు",
-];
-const TIME_KW = ["what time", "time now", "kitne baje", "samay kya", "समय", "কটা বাজে", "કેટલા વાગ્યા", "நேரம் என்ன", "సమయం ఎంత"];
-const DATE_KW = ["what day", "what date", "today's date", "todays date", "aaj kaunsi tarikh", "aaj kya din", "आज कौन", "আজ কী", "આજે કઈ", "இன்று என்ன தேதி", "ఈరోజు తేదీ"];
-const APPT_Q_KW = ["next appointment", "my appointment", "when is my appointment", "doctor kab", "appointment kab", "अपॉइंटमेंट कब", "অ্যাপয়েন্টমেন্ট কখন"];
-const FAMILY_Q_KW = ["my family", "family contacts", "who is my family", "mera parivar", "parivar", "परिवार", "পরিবার", "પરિવાર", "குடும்பம்", "కుటుంబం"];
-
-function stripJournalKeywords(text: string): string {
-  let out = text;
-  for (const kw of JOURNAL_KW) {
-    out = out.replace(new RegExp(kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), " ");
-  }
-  return out.replace(/^\s*(that|ki|ke|कि|যে)\s+/i, "").replace(/\s{2,}/g, " ").trim();
-}
-
-// ---------------------------------------------------------------------------
-// Main intent parser
-// ---------------------------------------------------------------------------
-export function parseVoiceIntent(
-  rawText: string,
-  store: MemoryBondStore,
-  locale = "en-IN",
-): VoiceIntent {
-  const text = rawText.trim();
-  const lower = text.toLowerCase();
-  const at = pick(AT_WORD, locale);
-
-  // 1. Casual greetings / emotional chat
-  const isGreeting =
-    /^(hi|hello|hey|good morning|good evening|good afternoon|good night|namaste|namaskar)[\s!.,]*$/i.test(text) ||
-    /namaste|namaskar|sat sri akal/i.test(text);
-  const isWellbeing = /how are you|kaise ho|kaisa hai/i.test(text);
-  const isEmotional = /i feel|i am (sad|happy|tired|lonely|anxious|worried|great|good|bad)/i.test(text);
-
-  if (isGreeting || isWellbeing || isEmotional) {
-    const responses: Record<string, string> = {
-      "hi-IN": "नमस्ते! आज आप कैसे हैं? मैं आपकी कैसे मदद कर सकता हूँ?",
-      "gu-IN": "નમસ્તે! આજે તમે કેવા છો? હું તમારી શી મદદ કરી શકું?",
-      "bn-IN": "নমস্কার! আজ আপনি কেমন আছেন? কীভাবে সাহায্য করতে পারি?",
-      "ta-IN": "வணக்கம்! இன்று நீங்கள் எப்படி? எப்படி உதவலாம்?",
-      "te-IN": "నమస్కారం! ఈరోజు ఎలా ఉన్నారు? ఎలా సహాయం చేయగలను?",
-      "kn-IN": "ನಮಸ್ಕಾರ! ಇಂದು ಹೇಗಿದ್ದೀರಾ? ಹೇಗೆ ಸಹಾಯ ಮಾಡಲಿ?",
-      "ml-IN": "നമസ്കാരം! ഇന്ന് എങ്ങനെ ഉണ്ട്? ഞാൻ എങ്ങനെ സഹായിക്കാം?",
-      "pa-IN": "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ! ਅੱਜ ਕਿਵੇਂ ਹੋ? ਮੈਂ ਕਿਵੇਂ ਮਦਦ ਕਰ ਸਕਦਾ ਹਾਂ?",
-      "mr-IN": "नमस्कार! आज तुम्ही कसे आहात? मी कशी मदत करू?",
-      "as-IN": "নমস্কাৰ! আজি আপুনি কেনে আছে? মই কেনেকৈ সহায় কৰিম?",
-      "en-IN": "Hello! How are you feeling today? How can I help you?",
-    };
-    return { type: "CASUAL_CHAT", message: pick(responses, locale) };
-  }
-
-  // 2. Dictate a memory-journal note
-  if (JOURNAL_KW.some((kw) => lower.includes(kw.toLowerCase()))) {
-    const body = stripJournalKeywords(text);
-    if (!body) {
-      return { type: "ANSWER", message: pick(JOURNAL_EMPTY, locale) };
+  // 2. Navigation Intent
+  if (
+    lower.includes("go to") ||
+    lower.includes("open") ||
+    lower.includes("kholo") ||
+    lower.includes("khol") ||
+    lower.includes("chalo") ||
+    lower.includes("dekho") ||
+    lower.includes("খোলো") ||
+    lower.includes("खोलो")
+  ) {
+    if (lower.includes("medicine") || lower.includes("dawa") || lower.includes("दवा") || lower.includes("ঔষধ")) {
+      return { type: "NAVIGATE", targetView: "medicines", confirmationMessage: "Opening Medicine Manager." };
     }
-    const words = body.split(/\s+/);
-    const title = words.slice(0, 6).join(" ") + (words.length > 6 ? "…" : "");
-    return {
-      type: "ADD_JOURNAL",
-      title,
-      body,
-      confirmationMessage: pick(JOURNAL_CONFIRM, locale)(body),
-    };
-  }
-
-  // 3. Read out all reminders
-  if (SPEAK_REM_KW.some((kw) => lower.includes(kw.toLowerCase()))) {
-    const active = store.reminders.filter((r) => r.active);
-    if (active.length === 0) {
-      return { type: "SPEAK_REMINDERS", message: pick(NO_REMINDERS, locale) };
+    if (lower.includes("game") || lower.includes("khel") || lower.includes("खेल") || lower.includes("খেল")) {
+      return { type: "NAVIGATE", targetView: "games", confirmationMessage: "Opening Cognitive Games Hub." };
     }
-    const intro = pick(REMINDER_LIST_INTRO, locale)(active.length);
-    const list = active.map((r) => `${r.title} — ${at} ${r.time}`).join(". ");
-    return { type: "SPEAK_REMINDERS", message: `${intro} ${list}.` };
+    if (lower.includes("journal") || lower.includes("memory") || lower.includes("yaad") || lower.includes("डायरी")) {
+      return { type: "NAVIGATE", targetView: "journal", confirmationMessage: "Opening Memory Journal." };
+    }
+    if (lower.includes("routine") || lower.includes("dinacharya") || lower.includes("दिनचर्या") || lower.includes("ৰুটিন")) {
+      return { type: "NAVIGATE", targetView: "routine", confirmationMessage: "Opening Daily Routine." };
+    }
+    if (lower.includes("setting") || lower.includes("भाषा") || lower.includes("language")) {
+      return { type: "NAVIGATE", targetView: "settings", confirmationMessage: "Opening Settings." };
+    }
+    if (lower.includes("caregiver") || lower.includes("family") || lower.includes("परिवार")) {
+      return { type: "NAVIGATE", targetView: "family", confirmationMessage: "Opening Family Circle." };
+    }
   }
 
-  // 4. Took medicine
-  const tookKw = [
-    "took my medicine", "took medicine", "taken medicine", "i took it",
-    "dawa le li", "dawai le li", "dava lai lidhi", "dava khai lidhi",
-  ];
-  if (tookKw.some((kw) => lower.includes(kw))) {
+  // 3. Medicine queries: "What is my next medicine?" / "अगली दवा कौन सी है?"
+  if (
+    (lower.includes("next") && (lower.includes("medicine") || lower.includes("dawa") || lower.includes("pill"))) ||
+    lower.includes("अगली दवा") ||
+    lower.includes("পরের ঔষধ") ||
+    lower.includes("આગલી દવા") ||
+    lower.includes("पुढील औषध")
+  ) {
     const nextMed = store.medicines[0];
-    const confirmationMessage = pick(MED_CONFIRM, locale)(nextMed?.name || "your medicine");
-    return nextMed
-      ? { type: "TAKE_MEDICINE", medicineId: nextMed.id, medicineName: nextMed.name, confirmationMessage }
-      : { type: "TAKE_MEDICINE", medicineName: "Scheduled Medicine", confirmationMessage };
-  }
-
-  // 5. Navigation
-  if (lower.includes("show my medicines") || lower.includes("open medicines") || lower.includes("dawaiyan dikhao")) {
-    return { type: "NAVIGATE", targetView: "medicines", confirmationMessage: "" };
-  }
-  if (lower.includes("show games") || lower.includes("play games") || lower.includes("memory games")) {
-    return { type: "NAVIGATE", targetView: "games", confirmationMessage: "" };
-  }
-  if (lower.includes("show reminders") || lower.includes("my reminders")) {
-    return { type: "NAVIGATE", targetView: "reminders", confirmationMessage: "" };
-  }
-  if (lower.includes("open journal") || lower.includes("show journal")) {
-    return { type: "NAVIGATE", targetView: "journal", confirmationMessage: "" };
-  }
-  if (lower.includes("routine") || lower.includes("dinchrya")) {
-    return { type: "NAVIGATE", targetView: "routine", confirmationMessage: "" };
-  }
-
-  // 6. Simple questions: time / date / appointments / family
-  if (TIME_KW.some((kw) => lower.includes(kw.toLowerCase()))) {
-    const now = new Date();
-    const t = now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
-    return { type: "ANSWER", message: pick(TIME_NOW, locale)(t) };
-  }
-  if (DATE_KW.some((kw) => lower.includes(kw.toLowerCase()))) {
-    const d = new Date().toLocaleDateString(locale, {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-    return { type: "ANSWER", message: pick(DATE_TODAY, locale)(d) };
-  }
-  if (FAMILY_Q_KW.some((kw) => lower.includes(kw.toLowerCase()))) {
-    const names = store.contacts
-      .slice()
-      .sort((a, b) => a.priority - b.priority)
-      .map((c) => `${c.name} (${c.relationship})`)
-      .join(", ");
+    if (!nextMed) {
+      return { type: "QUERY_MEDICINE", message: pick(NO_MEDS_MSG, locale) };
+    }
+    const tMsg = pick(NEXT_MED_MSG, locale);
     return {
-      type: "ANSWER",
-      message: names ? pick(FAMILY_LIST, locale)(names) : pick(NO_FAMILY, locale),
+      type: "QUERY_MEDICINE",
+      message: tMsg(nextMed.name, nextMed.dosage, nextMed.times[0] || "08:30"),
     };
   }
-  if (APPT_Q_KW.some((kw) => lower.includes(kw.toLowerCase()))) {
-    const upcoming = store.appointments
-      .slice()
-      .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))[0];
+
+  // 4. Record taking medicine: "I took my medicine" / "दवा ले ली" / "ঔষধ খালোঁ"
+  if (
+    lower.includes("took my medicine") ||
+    lower.includes("taken my medicine") ||
+    lower.includes("took medicine") ||
+    lower.includes("dawa le li") ||
+    lower.includes("dawa kha li") ||
+    lower.includes("दवा ले ली") ||
+    lower.includes("दवा खा ली") ||
+    lower.includes("ঔষধ খালোঁ") ||
+    lower.includes("ঔষধ খেয়েছি") ||
+    lower.includes("દવા લઈ લીધી") ||
+    lower.includes("औषध घेतले")
+  ) {
+    const targetMed = store.medicines[0];
+    const medName = targetMed ? targetMed.name : "scheduled medicine";
+    const msgFn = pick(MED_CONFIRM, locale);
     return {
-      type: "ANSWER",
-      message: upcoming
-        ? pick(NEXT_APPT, locale)(upcoming.title, upcoming.date, upcoming.time)
-        : pick(NO_APPT, locale),
+      type: "TAKE_MEDICINE",
+      medicineId: targetMed?.id,
+      medicineName: medName,
+      confirmationMessage: msgFn(medName),
     };
   }
 
-  // 7. Medicine query
-  const medQKw = ["my medicine", "what medicine", "which medicine", "when is my medicine",
-    "meri dawai", "dawai kab", "meri dava", "dava kab"];
-  if (medQKw.some((kw) => lower.includes(kw))) {
-    const med = store.medicines[0];
-    const medTime = med?.times[0] || "08:30";
-    const responses: Record<string, string> = {
-      "hi-IN": med ? `आपकी ${med.name} (${med.dosage}) ${medTime} बजे लेनी है।` : "कोई दवाई scheduled नहीं है।",
-      "gu-IN": med ? `તમારી ${med.name} (${med.dosage}) ${medTime} વાગ્યે.` : "કોઈ દવા scheduled નથી.",
-      "bn-IN": med ? `আপনার ${med.name} (${med.dosage}) ${medTime} টায়।` : "কোন ওষুধ নেই।",
-      "ta-IN": med ? `${med.name} (${med.dosage}) ${medTime} மணிக்கு.` : "மருந்து இல்லை.",
-      "te-IN": med ? `${med.name} (${med.dosage}) ${medTime} కి.` : "మందులు లేవు.",
-      "mr-IN": med ? `तुमची ${med.name} (${med.dosage}) ${medTime} वाजता.` : "औषध नाही.",
-      "as-IN": med ? `আপোনাৰ ${med.name} (${med.dosage}) ${medTime} বজাত।` : "ঔষধ নাই।",
-      "en-IN": med ? `Your ${med.name} (${med.dosage}) is at ${medTime}.` : "No scheduled medicines.",
-    };
-    return { type: "QUERY_MEDICINE", message: pick(responses, locale) };
-  }
-
-  // 8. Query next reminder
-  const nextRemKw = ["what is my next reminder", "what's my next reminder", "next reminder",
-    "agli yaad", "next yaad", "next reminder kya hai"];
-  if (nextRemKw.some((kw) => lower.includes(kw))) {
-    const active = store.reminders.filter((r) => r.active)[0];
-    if (!active) return { type: "QUERY_NEXT_REMINDER", message: pick(NO_REMINDERS, locale) };
-    const responses: Record<string, string> = {
-      "hi-IN": `आपका अगला reminder "${active.title}" ${active.time} बजे है।`,
-      "gu-IN": `તમારો reminder "${active.title}" ${active.time} વાગ્યે.`,
-      "bn-IN": `পরবর্তী রিমাইন্ডার "${active.title}" ${active.time} টায়।`,
-      "ta-IN": `அடுத்த நினைவூட்டல் "${active.title}" ${active.time} மணிக்கு.`,
-      "te-IN": `తదుపరి రిమైండర్ "${active.title}" ${active.time} కి.`,
-      "mr-IN": `पुढील आठवण "${active.title}" ${active.time} वाजता.`,
-      "as-IN": `পৰৱৰ্তী ৰিমাইণ্ডাৰ "${active.title}" ${active.time} বজাত।`,
-      "en-IN": `Your next reminder is "${active.title}" at ${active.time}.`,
-    };
-    return { type: "QUERY_NEXT_REMINDER", message: pick(responses, locale) };
-  }
-
-  // 9. Appointments
-  const apptKw = ["appointment", "doctor", "hospital", "clinic", "apointment", "dawakhana", "meet doctor"];
-  if (apptKw.some((kw) => lower.includes(kw))) {
-    const time = extractTime(lower);
-    const cleanTitle =
-      text.replace(/remind me|schedule|create|appointment|doctor|hospital/gi, "").trim() || "Doctor Appointment";
-    const futureDate = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
+  // 5. Query next reminder: "What is my reminder?" / "रिमाइंडर क्या है?"
+  if (
+    lower.includes("reminder") &&
+    (lower.includes("what") || lower.includes("next") || lower.includes("kya hai") || lower.includes("क्या है") || lower.includes("কি আছে"))
+  ) {
+    const nextRem = store.reminders.find((r) => r.active);
+    if (!nextRem) {
+      return { type: "QUERY_NEXT_REMINDER", message: pick(NO_REMINDER_MSG, locale) };
+    }
+    const fn = pick(NEXT_REMINDER_MSG, locale);
     return {
-      type: "CREATE_APPOINTMENT",
-      title: cleanTitle,
-      date: futureDate,
-      time,
-      confirmationMessage: pick(APPT_CONFIRM, locale)(cleanTitle, time),
+      type: "QUERY_NEXT_REMINDER",
+      message: fn(nextRem.title, nextRem.time),
     };
   }
 
-  // 10. Reminders
-  const remKw = ["remind me", "reminder", "set reminder", "yaad dilana", "yaad karana", "mujhe yaad", "reminder chahiye",
-    "reminder lagao", "reminder set karo", "reminder seto", "yaad apav"];
-  if (remKw.some((kw) => lower.includes(kw))) {
-    const time = extractTime(lower);
-    let reminderType: "medicine" | "shopping" | "family_call" | "routine" | "hydration" | "custom" = "custom";
-    if (lower.includes("medicine") || lower.includes("pill") || lower.includes("tablet") || lower.includes("dawa") || lower.includes("dava"))
+  // 6. Create Reminder: "Remind me to..." / "याद दिलाना" / "মনত পেলাবা"
+  if (
+    lower.includes("remind me") ||
+    lower.includes("reminder") ||
+    lower.includes("yaad dilana") ||
+    lower.includes("याद दिलाना") ||
+    lower.includes("मनত পেলাবা") ||
+    lower.includes("মনে করিয়ে") ||
+    lower.includes("યાદ દેવડાવજો") ||
+    lower.includes("आठवण करा") ||
+    lower.includes("நினைவூட்டு") ||
+    lower.includes("గుర్తు చేయి")
+  ) {
+    const time = extractTime(text);
+    
+    // Categorize reminder
+    let reminderType: VoiceIntent extends { type: "CREATE_REMINDER"; reminderType: infer T } ? T : never = "custom";
+    if (lower.includes("water") || lower.includes("pani") || lower.includes("पानी") || lower.includes("জল") || lower.includes("પાણી")) {
+      reminderType = "hydration";
+    } else if (lower.includes("medicine") || lower.includes("dawa") || lower.includes("दवा") || lower.includes("ঔষধ") || lower.includes("દવા")) {
       reminderType = "medicine";
-    else if (lower.includes("buy") || lower.includes("shop") || lower.includes("vegetable") || lower.includes("bazar") || lower.includes("market"))
+    } else if (lower.includes("market") || lower.includes("vegetable") || lower.includes("sabzi") || lower.includes("shopping") || lower.includes("सब्जी") || lower.includes("શાકભાજી")) {
       reminderType = "shopping";
-    else if (lower.includes("call") || lower.includes("phone") || lower.includes("son") || lower.includes("daughter"))
+    } else if (lower.includes("call") || lower.includes("phone") || lower.includes("sunita") || lower.includes("बेटी") || lower.includes("ఫోన్")) {
       reminderType = "family_call";
-    else if (lower.includes("walk") || lower.includes("exercise") || lower.includes("water") || lower.includes("hydration"))
+    } else if (lower.includes("walk") || lower.includes("stretch") || lower.includes("exercise") || lower.includes("टहलना")) {
       reminderType = "routine";
-    let title = text.replace(/^remind me to\s*/i, "").replace(/^remind me\s*/i, "")
-      .replace(/at\s+\d+.*$/i, "").replace(/on\s+.*$/i, "").replace(/yaad dilana|yaad karana|reminder/gi, "").trim();
-    if (!title) title = "General Reminder";
+    }
+
+    // Clean reminder title
+    let cleanTitle = text
+      .replace(/^(please\s+)?(remind me to|set a reminder for|reminder for|remind me)\s*/i, "")
+      .replace(/कल सुबह|कल शाम|सुबह|शाम|बजे|याद दिलाना|याद दिलाओ/gi, "")
+      .replace(/at\s+\d{1,2}(:\d{2})?\s*(am|pm)?/i, "")
+      .replace(/tomorrow/i, "")
+      .trim();
+
+    if (!cleanTitle || cleanTitle.length < 3) {
+      if (reminderType === "hydration") cleanTitle = "Drink warm water";
+      else if (reminderType === "medicine") cleanTitle = "Take medicine";
+      else if (reminderType === "shopping") cleanTitle = "Pick up fresh vegetables";
+      else cleanTitle = "Daily task";
+    }
+
+    const msgFn = pick(REM_CONFIRM, locale);
     return {
       type: "CREATE_REMINDER",
-      title,
+      title: cleanTitle,
       time,
       reminderType,
-      confirmationMessage: pick(REM_CONFIRM, locale)(title, time),
+      confirmationMessage: msgFn(cleanTitle, time),
     };
   }
 
-  // 11. Unknown — never echo user words
-  return { type: "UNKNOWN", original: text, confirmationMessage: pick(UNK_RESPONSE, locale) };
+  // 7. Doctor Appointment: "Doctor appointment..." / "डॉक्टर की मुलाकात"
+  if (
+    lower.includes("doctor") ||
+    lower.includes("appointment") ||
+    lower.includes("clinic") ||
+    lower.includes("hospital") ||
+    lower.includes("डॉक्टर") ||
+    lower.includes("अपॉइंटमेंट")
+  ) {
+    const time = extractTime(text);
+    const date = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const msgFn = pick(APPT_CONFIRM, locale);
+    return {
+      type: "CREATE_APPOINTMENT",
+      title: "Doctor Consultation",
+      date,
+      time,
+      location: "Clinic",
+      confirmationMessage: msgFn("Doctor Consultation", time),
+    };
+  }
+
+  // 8. Memory / Journal Sharing: "Today my daughter visited" / "आज मेरी बेटी आई थी"
+  if (
+    lower.includes("beti") ||
+    lower.includes("daughter") ||
+    lower.includes("grandson") ||
+    lower.includes("family visited") ||
+    lower.includes("bihu") ||
+    lower.includes("bazaar") ||
+    lower.includes("garden") ||
+    lower.includes("flower") ||
+    lower.includes("बेटी") ||
+    lower.includes("পোতা") ||
+    lower.includes("দিदी") ||
+    lower.includes("याद")
+  ) {
+    const msgFn = pick(JOURNAL_CONFIRM, locale);
+    return {
+      type: "ADD_JOURNAL",
+      title: "Cherished Moment",
+      body: text,
+      confirmationMessage: msgFn(text),
+    };
+  }
+
+  // 9. Polite Greeting
+  if (
+    lower.includes("namaste") ||
+    lower.includes("hello") ||
+    lower.includes("hi") ||
+    lower.includes("kem cho") ||
+    lower.includes("vanakkam") ||
+    lower.includes("নমস্কাৰ") ||
+    lower.includes("नमस्ते")
+  ) {
+    const greetings: Record<string, string> = {
+      "hi-IN": "नमस्ते! आपका दिन शुभ हो। मैं आपकी क्या मदद करूँ?",
+      "as-IN": "নমস্কাৰ! আপোনাৰ দিনটো শান্তিময় হওক। মই কেনেকৈ সহায় কৰিব পাৰোঁ?",
+      "bn-IN": "নমস্কার! আপনার দিনটি সুন্দর হোক। আমি কীভাবে সাহায্য করতে পারি?",
+      "gu-IN": "નમસ્તે! તમારો દિવસ શુભ રહે. હું તમને કેવી રીતે મદદ કરી શકું?",
+      "mr-IN": "नमस्कार! आपला दिवस आनंदी जावो. मी काय मदत करू?",
+      "ta-IN": "வணக்கம்! உங்கள் நாள் இனிதாக அமையட்டும். நான் எப்படி உதவலாம்?",
+      "te-IN": "నమస్కారం! మీ రోజు ప్రశాంతంగా ఉండాలి. నేను ఎలా సహాయపడగలను?",
+      "kn-IN": "ನಮಸ್ಕಾರ! ನಿಮ್ಮ ದಿನವು ಶುಭವಾಗಿರಲಿ. ನಾನು ಹೇಗೆ ಸಹಾಯ ಮಾಡಲಿ?",
+      "ml-IN": "നമസ്കാരം! നിങ്ങളുടെ ദിവസം ശുഭകരമാകട്ടെ. ഞാൻ എങ്ങനെ സഹായിക്കണം?",
+      "pa-IN": "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ! ਤੁਹਾਡਾ ਦਿਨ ਵਧੀਆ ਰਹੇ। ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਮਦਦ ਕਰ ਸਕਦਾ ਹਾਂ?",
+      "or-IN": "ନମସ୍କାର! ଆପଣଙ୍କ ଦିନ ଶୁଭଙ୍କର ହେଉ। ମୁଁ କିପରି ସାହାଯ୍ୟ କରିବି?",
+      "en-IN": "Good day! Wishing you a peaceful day. How can I assist you today?",
+    };
+    return {
+      type: "CASUAL_CHAT",
+      message: pick(greetings, locale),
+    };
+  }
+
+  // Fallback
+  return {
+    type: "UNKNOWN",
+    original: text,
+    confirmationMessage: pick(UNKNOWN_MSG, locale),
+  };
 }
 
-export function journalSavedMessage(locale: string): string {
-  return pick(JOURNAL_SAVED, locale);
+// ---------------------------------------------------------------------------
+// Spoken Audio Engine with Elderly-Friendly Pace & Interruption Guard
+// ---------------------------------------------------------------------------
+let activeUtterance: SpeechSynthesisUtterance | null = null;
+
+export function stopSpeaking() {
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
+    activeUtterance = null;
+  }
 }
 
-// Text-to-speech with best-voice picker
 export function speakText(text: string, lang = "en-IN", onEnd?: () => void) {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-  window.speechSynthesis.cancel();
-  const doSpeak = () => {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang;
-    utterance.rate = 0.88;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
-    const voice = selectVoice(lang);
-    if (voice) utterance.voice = voice;
-    if (onEnd) utterance.onend = onEnd;
-    window.speechSynthesis.speak(utterance);
+  
+  // Stop existing audio first (echo guard)
+  stopSpeaking();
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  activeUtterance = utterance;
+
+  // Senior-friendly calm voice pacing (0.85x speed)
+  utterance.rate = 0.88;
+  utterance.pitch = 1.0;
+  utterance.lang = lang;
+
+  const matchedVoice = selectVoice(lang);
+  if (matchedVoice) utterance.voice = matchedVoice;
+
+  utterance.onend = () => {
+    activeUtterance = null;
+    if (onEnd) onEnd();
   };
-  if (window.speechSynthesis.getVoices().length === 0) {
-    window.speechSynthesis.onvoiceschanged = () => {
-      window.speechSynthesis.onvoiceschanged = null;
-      doSpeak();
-    };
-  } else {
-    doSpeak();
-  }
+
+  utterance.onerror = () => {
+    activeUtterance = null;
+    if (onEnd) onEnd();
+  };
+
+  window.speechSynthesis.speak(utterance);
 }

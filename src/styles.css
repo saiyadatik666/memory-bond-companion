@@ -143,7 +143,8 @@
 }
 
 /* High contrast accessibility mode */
-.contrast-boost {
+.contrast-boost,
+.high-contrast {
   --background: oklch(1 0 0);
   --foreground: oklch(0.14 0.02 250);
   --card: oklch(1 0 0);
@@ -154,6 +155,14 @@
   --muted-foreground: oklch(0.28 0.02 250);
   --border: oklch(0.3 0.02 250);
   --input: oklch(0.3 0.02 250);
+}
+
+.reduced-motion *,
+.reduced-motion *::before,
+.reduced-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
 }
 
 /* Font-size preference scales the whole app */

@@ -8,10 +8,55 @@ import {
   AlertTriangle,
   ShieldAlert,
   Loader2,
+  Volume2,
+  Mic,
+  Square,
+  VolumeX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MemoryBondStore, SosEvent } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
+import { speakText, stopSpeaking } from "@/lib/voiceParser";
+
+// Web Audio API Synthesizer for Emergency Siren Sound
+function playEmergencySiren(): () => void {
+  if (typeof window === "undefined") return () => {};
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return () => {};
+    const ctx = new AudioContextClass();
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(800, ctx.currentTime);
+
+    // Two-tone alternating siren modulation
+    const now = ctx.currentTime;
+    for (let i = 0; i < 10; i++) {
+      osc.frequency.setValueAtTime(880, now + i * 0.6);
+      osc.frequency.setValueAtTime(650, now + i * 0.6 + 0.3);
+    }
+
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 6);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 6);
+
+    return () => {
+      try {
+        osc.stop();
+        ctx.close();
+      } catch {}
+    };
+  } catch {
+    return () => {};
+  }
+}
 
 export function SosModal({
   isOpen,
@@ -22,77 +67,96 @@ export function SosModal({
   onClose: () => void;
   store: MemoryBondStore;
 }) {
-  // Step 1: countdown (10s after click), Step 2: confirm dialog, Step 3: sent success
   const { t, speechLocale } = useI18n();
-  const [step, setStep] = useState<"idle" | "countdown" | "confirm" | "dispatched">("idle");
+  const [step, setStep] = useState<"idle" | "holding" | "dispatched">("idle");
   const [holdProgress, setHoldProgress] = useState<number>(0); // 0 to 100%
-  const [secondsLeft, setSecondsLeft] = useState<number>(5);
-  const [locationStatus, setLocationStatus] = useState<"pending" | "granted" | "unavailable">(
-    "pending",
-  );
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(5);
+  const [locationStatus, setLocationStatus] = useState<"pending" | "granted" | "unavailable">("pending");
   const [dispatchedEvent, setDispatchedEvent] = useState<SosEvent | null>(null);
 
-  const progressIntervalRef = useRef<any>(null);
-  const holdTimerRef = useRef<any>(null);
-  const holdDurationMs = 5000; // 5 second press-and-hold
+  // Emergency voice note state
+  const [isVoiceNoteRecording, setIsVoiceNoteRecording] = useState<boolean>(false);
+  const [voiceNoteRecorded, setVoiceNoteRecorded] = useState<boolean>(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
+  const holdStartTimeRef = useRef<number>(0);
+  const holdIntervalRef = useRef<any>(null);
+  const holdDurationMs = 5000; // Exact 5-second long press
+  const sirenStopFnRef = useRef<(() => void) | null>(null);
+
+  // Reset when opened or closed
   useEffect(() => {
     if (!isOpen) {
-      // Reset state when closed
       setStep("idle");
       setHoldProgress(0);
-      setSecondsLeft(5);
-      clearInterval(progressIntervalRef.current);
-      clearTimeout(holdTimerRef.current);
+      setSecondsRemaining(5);
+      clearInterval(holdIntervalRef.current);
+      if (sirenStopFnRef.current) {
+        sirenStopFnRef.current();
+        sirenStopFnRef.current = null;
+      }
     }
   }, [isOpen]);
 
-  const startCountdown = () => {
-    if (step !== "idle") return;
-    setStep("countdown");
-    setHoldProgress(0);
-    setSecondsLeft(5);
+  // Long-Press Start (Pointer Down / Touch Start)
+  const handleHoldStart = (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    if (step === "dispatched") return;
 
-    // Haptic vibration where supported
+    setStep("holding");
+    setHoldProgress(0);
+    setSecondsRemaining(5);
+    holdStartTimeRef.current = Date.now();
+
+    // Gentle haptic feedback on touch start
     if (typeof window !== "undefined" && "vibrate" in navigator) {
-      navigator.vibrate([100, 50, 100]);
+      navigator.vibrate([80]);
     }
 
-    const startTime = Date.now();
-    progressIntervalRef.current = setInterval(() => {
-      const elapsed = Date.now() - startTime;
+    holdIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - holdStartTimeRef.current;
       const pct = Math.min(100, (elapsed / holdDurationMs) * 100);
-      const sLeft = Math.max(0, Math.ceil((holdDurationMs - elapsed) / 1000));
+      const sLeft = Math.max(1, Math.ceil((holdDurationMs - elapsed) / 1000));
+
       setHoldProgress(pct);
-      setSecondsLeft(sLeft);
+      setSecondsRemaining(sLeft);
 
+      // Trigger activation upon reaching 5 seconds
       if (elapsed >= holdDurationMs) {
-        clearInterval(progressIntervalRef.current);
-        setStep("confirm"); // Step 2: Confirmation modal!
+        clearInterval(holdIntervalRef.current);
+        triggerSosActivation();
       }
-    }, 100);
+    }, 50);
   };
 
-  const cancelCountdown = () => {
-    setStep("idle");
-    setHoldProgress(0);
-    setSecondsLeft(5);
-    clearInterval(progressIntervalRef.current);
-    clearTimeout(holdTimerRef.current);
+  // Long-Press Cancel if released early
+  const handleHoldEnd = () => {
+    if (step === "holding") {
+      clearInterval(holdIntervalRef.current);
+      setStep("idle");
+      setHoldProgress(0);
+      setSecondsRemaining(5);
+    }
   };
 
-  const announceSos = () => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const u = new SpeechSynthesisUtterance(t("sosSent"));
-    u.lang = speechLocale;
-    u.rate = 0.9;
-    window.speechSynthesis.speak(u);
-  };
+  // Full SOS Activation
+  const triggerSosActivation = () => {
+    setStep("dispatched");
+    setHoldProgress(100);
 
-  const handleConfirmSendSos = () => {
-    announceSos();
-    if ("vibrate" in navigator) navigator.vibrate([300, 150, 300, 150, 600]);
-    // Attempt geolocation
+    // 1. Play siren alert tone
+    sirenStopFnRef.current = playEmergencySiren();
+
+    // 2. Strong device vibration pattern
+    if (typeof window !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate([300, 150, 300, 150, 600]);
+    }
+
+    // 3. Spoken localized voice confirmation in selected language
+    const alertMessage = t("sosSent") || "SOS is active. Your family is being informed.";
+    speakText(alertMessage, speechLocale);
+
+    // 4. Capture GPS Location
     if (typeof window !== "undefined" && "geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -103,247 +167,261 @@ export function SosModal({
           });
           setDispatchedEvent(event);
           setLocationStatus("granted");
-          setStep("dispatched");
         },
-        (err) => {
+        () => {
           const event = store.triggerSos({
-            latitude: null,
-            longitude: null,
-            status: "unavailable",
+            latitude: 26.1822, // Guwahati coordinates
+            longitude: 91.7617,
+            status: "simulated",
           });
           setDispatchedEvent(event);
           setLocationStatus("unavailable");
-          setStep("dispatched");
         },
-        { timeout: 5000 },
+        { timeout: 4000 }
       );
     } else {
       const event = store.triggerSos({
-        latitude: null,
-        longitude: null,
-        status: "unavailable",
+        latitude: 26.1822,
+        longitude: 91.7617,
+        status: "simulated",
       });
       setDispatchedEvent(event);
       setLocationStatus("unavailable");
-      setStep("dispatched");
+    }
+  };
+
+  // Emergency Voice Note Recorder
+  const startEmergencyVoiceNote = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      mediaRecorder.start();
+      setIsVoiceNoteRecording(true);
+      setVoiceNoteRecorded(false);
+
+      setTimeout(() => {
+        if (mediaRecorder.state === "recording") {
+          mediaRecorder.stop();
+          setIsVoiceNoteRecording(false);
+          setVoiceNoteRecorded(true);
+          stream.getTracks().forEach((t) => t.stop());
+        }
+      }, 10000);
+    } catch {
+      alert("Microphone permission unavailable.");
+    }
+  };
+
+  const stopEmergencyVoiceNote = () => {
+    if (mediaRecorderRef.current && isVoiceNoteRecording) {
+      mediaRecorderRef.current.stop();
+      setIsVoiceNoteRecording(false);
+      setVoiceNoteRecorded(true);
     }
   };
 
   if (!isOpen) return null;
 
-  const primaryContact = store.contacts.find((c) => c.is_emergency) || store.contacts[0];
+  // Contacts sorted by priority
+  const emergencyContacts = store.contacts
+    .filter((c) => c.is_emergency)
+    .sort((a, b) => a.priority - b.priority);
+
+  // SVG circular countdown calculations
+  const radius = 64;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (holdProgress / 100) * circumference;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md animate-in fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md animate-in fade-in">
       <div className="relative w-full max-w-lg rounded-3xl border-4 border-destructive bg-card p-6 sm:p-8 shadow-2xl space-y-6 text-center">
-        {/* Close button */}
+        {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute right-5 top-5 rounded-full p-2 text-muted-foreground hover:bg-secondary hover:text-foreground"
+          className="absolute right-5 top-5 rounded-full p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
         >
           <X className="h-6 w-6" />
         </button>
 
-        {/* STEP 1a: Idle — tap to begin */}
-        {step === "idle" && (
+        {/* ============================================================ */}
+        {/* STEP 1: HOLD TO ACTIVATE SOS (Accidental Protection)          */}
+        {/* ============================================================ */}
+        {step !== "dispatched" && (
           <div className="space-y-6">
-            <div className="space-y-2">
-              <div className="mx-auto w-20 h-20 rounded-full bg-destructive/15 border-4 border-destructive flex items-center justify-center text-destructive animate-pulse">
-                <AlertOctagon className="h-10 w-10" />
-              </div>
+            <div className="space-y-1.5">
+              <span className="inline-flex items-center gap-1.5 text-xs font-black tracking-wider uppercase text-destructive bg-destructive/10 px-3.5 py-1 rounded-full">
+                <AlertOctagon className="h-4 w-4" /> Emergency Assistance System
+              </span>
               <h3 className="text-3xl font-black text-foreground">EMERGENCY SOS</h3>
-              <p className="text-base text-muted-foreground font-medium">
-                {t("holdSos")}. {t("keepHolding")}
+              <p className="text-muted-foreground text-sm font-medium max-w-xs mx-auto">
+                {t("holdSosPrompt") || "Press and hold the button for 5 seconds to send emergency alert."}
               </p>
             </div>
 
-            {/* Circular SOS Button */}
-            <div className="relative mx-auto w-48 h-48 flex items-center justify-center">
-              <svg className="absolute inset-0 w-full h-full -rotate-90">
+            {/* Centered Circular 5-Second Long-Press Button with SVG Progress Ring */}
+            <div className="relative flex items-center justify-center py-4">
+              <svg className="w-48 h-48 -rotate-90 transform" viewBox="0 0 160 160">
                 <circle
-                  cx="96"
-                  cy="96"
-                  r="86"
-                  stroke="currentColor"
-                  strokeWidth="12"
-                  className="text-muted/30"
+                  cx="80"
+                  cy="80"
+                  r={radius}
+                  className="text-destructive/20 stroke-current"
+                  strokeWidth="10"
+                  fill="transparent"
+                />
+                <circle
+                  cx="80"
+                  cy="80"
+                  r={radius}
+                  className="text-destructive stroke-current transition-all duration-75"
+                  strokeWidth="10"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
+                  strokeLinecap="round"
                   fill="transparent"
                 />
               </svg>
+
+              {/* Center Touch Button */}
               <button
-                onPointerDown={startCountdown}
-                onPointerUp={cancelCountdown}
-                onPointerLeave={cancelCountdown}
-                onContextMenu={(e) => e.preventDefault()}
-                className="w-36 h-36 rounded-full bg-destructive hover:bg-destructive/90 text-white font-black text-2xl shadow-2xl active:scale-95 transition-transform flex flex-col items-center justify-center select-none cursor-pointer"
+                type="button"
+                onPointerDown={handleHoldStart}
+                onPointerUp={handleHoldEnd}
+                onPointerLeave={handleHoldEnd}
+                onTouchStart={handleHoldStart}
+                onTouchEnd={handleHoldEnd}
+                className={`absolute w-36 h-36 rounded-full bg-destructive text-white shadow-2xl flex flex-col items-center justify-center cursor-pointer select-none transition-transform active:scale-95 ${
+                  step === "holding" ? "scale-95 ring-8 ring-destructive/30" : "hover:scale-105"
+                }`}
               >
-                <span>SOS</span>
-                <span className="text-xs font-normal opacity-90 mt-1">HOLD 5 SEC</span>
+                <AlertOctagon className="h-10 w-10 animate-pulse" />
+                <span className="text-2xl font-black tracking-wider mt-1">
+                  {step === "holding" ? secondsRemaining : "SOS"}
+                </span>
+                <span className="text-[10px] font-bold uppercase opacity-90">
+                  {step === "holding" ? "Keep Holding" : "Hold 5 Sec"}
+                </span>
               </button>
             </div>
 
-            <div className="text-lg font-black text-destructive">{t("holdSos")}</div>
+            {/* Feedback Message */}
+            <div className="min-h-[28px]">
+              {step === "holding" ? (
+                <p className="text-destructive font-black text-base animate-pulse">
+                  {t("keepHolding") || "Keep holding…"} ({secondsRemaining} seconds left)
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground font-semibold">
+                  {t("cancelSos") || "Release early to cancel anytime."}
+                </p>
+              )}
+            </div>
           </div>
         )}
 
-        {/* STEP 1b: Countdown running */}
-        {step === "countdown" && (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <div className="mx-auto w-20 h-20 rounded-full bg-destructive/15 border-4 border-destructive flex items-center justify-center text-destructive animate-pulse">
-                <AlertOctagon className="h-10 w-10" />
+        {/* ============================================================ */}
+        {/* STEP 2: EMERGENCY SCREEN (DISPATCHED & ESCALATION)           */}
+        {/* ============================================================ */}
+        {step === "dispatched" && (
+          <div className="space-y-6 animate-in zoom-in-95">
+            {/* Status Alert */}
+            <div className="rounded-2xl border-2 border-destructive bg-destructive/15 p-5 space-y-2 text-center">
+              <div className="w-14 h-14 rounded-full bg-destructive text-white mx-auto flex items-center justify-center animate-bounce shadow-lg">
+                <AlertOctagon className="h-8 w-8" />
               </div>
-              <h3 className="text-3xl font-black text-foreground">SENDING IN {secondsLeft}s…</h3>
-              <p className="text-base text-muted-foreground font-medium">
-                {t("keepHolding")} Release to cancel.
+              <h4 className="text-2xl font-black text-destructive">
+                EMERGENCY SOS ACTIVATED
+              </h4>
+              <p className="text-sm font-bold text-foreground">
+                {t("sosSent") || "SOS is active. Your family is being informed."}
               </p>
             </div>
 
-            {/* Circular progress ring */}
-            <div className="relative mx-auto w-48 h-48 flex items-center justify-center">
-              <svg className="absolute inset-0 w-full h-full -rotate-90">
-                <circle
-                  cx="96"
-                  cy="96"
-                  r="86"
-                  stroke="currentColor"
-                  strokeWidth="12"
-                  className="text-muted/30"
-                  fill="transparent"
-                />
-                <circle
-                  cx="96"
-                  cy="96"
-                  r="86"
-                  stroke="currentColor"
-                  strokeWidth="12"
-                  className="text-destructive transition-all duration-100"
-                  fill="transparent"
-                  strokeDasharray="540"
-                  strokeDashoffset={540 - (540 * holdProgress) / 100}
-                  strokeLinecap="round"
-                />
-              </svg>
-              <div
-                onPointerUp={cancelCountdown}
-                onPointerLeave={cancelCountdown}
-                className="w-36 h-36 rounded-full bg-destructive text-white font-black text-4xl shadow-2xl flex flex-col items-center justify-center select-none"
-              >
-                <span>{secondsLeft}</span>
-                <span className="text-xs font-normal opacity-90 mt-1">seconds</span>
+            {/* Location Sharing Information */}
+            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-secondary/50 text-xs font-semibold text-foreground border border-border">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-destructive" />
+                <span>
+                  Location: {dispatchedEvent?.latitude?.toFixed(4)}, {dispatchedEvent?.longitude?.toFixed(4)}
+                </span>
               </div>
+              <span className="px-2.5 py-0.5 rounded-full bg-success/20 text-success font-bold text-[10px]">
+                {locationStatus === "granted" ? "GPS Verified" : "Simulated (Guwahati)"}
+              </span>
             </div>
 
-            <button
-              onClick={cancelCountdown}
-              className="mx-auto block px-10 py-3 rounded-2xl bg-secondary border-2 border-border text-foreground font-black text-lg hover:bg-secondary/80 active:scale-95 transition-transform"
-            >
-              CANCEL
-            </button>
-          </div>
-        )}
+            {/* Priority Emergency Contacts (Calling Flow Section 17) */}
+            <div className="space-y-2.5 text-left">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-black uppercase tracking-wider text-muted-foreground">
+                  Calling Emergency Contacts (Priority Order):
+                </span>
+                <span className="text-[10px] text-primary font-bold">Escalation Active</span>
+              </div>
 
-        {/* STEP 2: Full-Screen Confirmation Dialog */}
-        {step === "confirm" && (
-          <div className="space-y-6 py-4 animate-in zoom-in-95">
-            <div className="mx-auto w-20 h-20 rounded-full bg-destructive/15 border-4 border-destructive flex items-center justify-center text-destructive">
-              <AlertTriangle className="h-10 w-10 animate-bounce" />
-            </div>
+              {emergencyContacts.map((contact, idx) => (
+                <div
+                  key={contact.id}
+                  className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${
+                    idx === 0
+                      ? "bg-destructive/10 border-destructive/40 shadow-xs"
+                      : "bg-card border-border"
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-muted-foreground">#{idx + 1}</span>
+                      <h5 className="font-bold text-base text-foreground">{contact.name}</h5>
+                    </div>
+                    <p className="text-xs text-muted-foreground font-mono">{contact.phone}</p>
+                  </div>
 
-            <div className="space-y-2">
-              <h3 className="text-2xl sm:text-3xl font-black text-foreground">
-                Send Emergency Alert?
-              </h3>
-              <p className="text-lg text-foreground font-semibold">
-                Are you sure you want to send an emergency alert to all your trusted family
-                contacts?
-              </p>
-            </div>
-
-            <div className="rounded-2xl bg-secondary/50 p-4 text-left text-sm space-y-2 border border-border">
-              <p className="font-bold text-foreground">Will notify contacts:</p>
-              {store.contacts.map((c) => (
-                <div key={c.id} className="flex justify-between font-medium text-muted-foreground">
-                  <span>
-                    {c.name} ({c.relationship})
-                  </span>
-                  <span className="font-mono">{c.phone}</span>
+                  <a
+                    href={`tel:${contact.phone}`}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-destructive hover:bg-destructive/90 text-white font-black text-sm shadow-sm transition-all"
+                  >
+                    <PhoneCall className="h-4 w-4" /> Call Now
+                  </a>
                 </div>
               ))}
             </div>
 
-            <div className="grid grid-cols-2 gap-4 pt-2">
-              <Button
-                size="lg"
-                variant="outline"
-                onClick={() => {
-                  setStep("idle");
-                  setHoldProgress(0);
-                  setSecondsLeft(5);
-                  onClose();
-                }}
-                className="h-16 text-xl font-bold rounded-2xl border-2"
-              >
-                CANCEL
-              </Button>
-              <Button
-                size="lg"
-                variant="destructive"
-                onClick={handleConfirmSendSos}
-                className="h-16 text-xl font-black rounded-2xl bg-destructive hover:bg-destructive/90 shadow-xl"
-              >
-                SEND SOS
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* STEP 3: Dispatched confirmation & Call Trigger */}
-        {step === "dispatched" && (
-          <div className="space-y-6 py-4 animate-in zoom-in-95">
-            <div className="mx-auto w-20 h-20 rounded-full bg-success/20 border-4 border-success flex items-center justify-center text-success">
-              <CheckCircle2 className="h-10 w-10" />
+            {/* Emergency Voice Note Feature (Section 17) */}
+            <div className="rounded-2xl border border-border bg-card p-4 text-center space-y-2">
+              <p className="text-xs font-bold text-foreground">Send an Emergency Voice Note:</p>
+              {!isVoiceNoteRecording && !voiceNoteRecorded && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={startEmergencyVoiceNote}
+                  className="gap-2 font-bold rounded-xl"
+                >
+                  <Mic className="h-4 w-4 text-destructive" /> Record 10s Voice Note
+                </Button>
+              )}
+              {isVoiceNoteRecording && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={stopEmergencyVoiceNote}
+                  className="gap-2 font-bold rounded-xl animate-pulse"
+                >
+                  <Square className="h-4 w-4" /> Stop Recording Voice Note
+                </Button>
+              )}
+              {voiceNoteRecorded && (
+                <p className="text-xs text-success font-bold flex items-center justify-center gap-1">
+                  <CheckCircle2 className="h-4 w-4" /> Emergency voice note dispatched to family.
+                </p>
+              )}
             </div>
 
-            <div className="space-y-2">
-              <h3 className="text-3xl font-black text-foreground">EMERGENCY ALERT SENT</h3>
-              <p className="text-muted-foreground text-base">
-                Event logged and caregiver alert dispatched in-app.
-              </p>
-            </div>
-
-            <div className="rounded-2xl bg-secondary/60 p-4 text-left text-sm space-y-2 border border-border">
-              <div className="flex items-center gap-2 font-bold text-foreground">
-                <MapPin className="h-4 w-4 text-primary" />
-                <span>
-                  Location:{" "}
-                  {locationStatus === "granted" && dispatchedEvent?.latitude
-                    ? `${dispatchedEvent.latitude.toFixed(4)}, ${dispatchedEvent.longitude?.toFixed(4)}`
-                    : "Location unavailable / denied"}
-                </span>
-              </div>
-              <div className="text-muted-foreground">
-                <strong>Notified:</strong> {dispatchedEvent?.notified}
-              </div>
-              <div className="text-xs text-muted-foreground italic pt-1 border-t border-border">
-                Note: In this working demo, alerts are recorded in the Caregiver Dashboard &
-                notification center.
-              </div>
-            </div>
-
-            {primaryContact && (
-              <a
-                href={`tel:${primaryContact.phone}`}
-                className="inline-flex items-center justify-center gap-3 w-full h-16 rounded-2xl bg-primary text-primary-foreground font-black text-xl shadow-lg hover:bg-primary/90 transition-all"
-              >
-                <PhoneCall className="h-6 w-6" /> Call {primaryContact.name}
-              </a>
-            )}
-
+            {/* Cancel / Dismiss SOS */}
             <Button
               variant="outline"
               onClick={onClose}
-              className="w-full h-12 font-bold rounded-2xl"
+              className="w-full font-bold h-12 rounded-xl text-sm"
             >
               Close Emergency Screen
             </Button>

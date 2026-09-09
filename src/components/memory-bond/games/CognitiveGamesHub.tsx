@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Gamepad2,
   ArrowLeft,
@@ -14,9 +14,12 @@ import {
   Eye,
   BookOpen,
   Link,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
+import { useI18n } from "@/lib/i18n";
+import { speakText } from "@/lib/voiceParser";
 
 import { MemoryCardMatch } from "./MemoryCardMatch";
 import { ObjectRecall } from "./ObjectRecall";
@@ -30,13 +33,36 @@ import { WordMemory } from "./WordMemory";
 import { MatchTheObject } from "./MatchTheObject";
 
 export function CognitiveGamesHub({ store }: { store: MemoryBondStore }) {
+  const { t, speechLocale } = useI18n();
   const [activeGame, setActiveGame] = useState<string | null>(null);
+  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "challenging">("easy");
+
+  // Calculate Adaptive Recommendation based on recent sessions
+  const adaptiveSuggestion = useMemo(() => {
+    if (store.gameSessions.length < 3) return null;
+    const recent = store.gameSessions.slice(-3);
+    const avgRatio = recent.reduce((sum, s) => sum + (s.total > 0 ? s.score / s.total : 1), 0) / recent.length;
+
+    if (avgRatio >= 0.85 && difficulty === "easy") {
+      return {
+        message: "You have been performing wonderfully! Try Medium difficulty for a gentle new stimulus.",
+        target: "medium" as const,
+      };
+    }
+    if (avgRatio <= 0.45 && difficulty !== "easy") {
+      return {
+        message: "Relax and enjoy. Let's switch back to Easy mode for calm and comfortable play.",
+        target: "easy" as const,
+      };
+    }
+    return null;
+  }, [store.gameSessions, difficulty]);
 
   const games = [
     {
       id: "card_match",
       title: "Memory Card Match",
-      description: "Flip peaceful cards and find identical pairs.",
+      description: "Flip peaceful cards and find identical matching pairs.",
       icon: Layers,
       color: "bg-teal-500/15 text-teal-600 dark:text-teal-400 border-teal-500/30",
       component: MemoryCardMatch,
@@ -44,7 +70,7 @@ export function CognitiveGamesHub({ store }: { store: MemoryBondStore }) {
     {
       id: "object_recall",
       title: "Object Recall",
-      description: "Memorize everyday items and recall which appeared.",
+      description: "Memorize everyday cultural items and recall which appeared.",
       icon: Search,
       color: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border-cyan-500/30",
       component: ObjectRecall,
@@ -52,7 +78,7 @@ export function CognitiveGamesHub({ store }: { store: MemoryBondStore }) {
     {
       id: "pattern_recall",
       title: "Pattern Recall",
-      description: "Watch soothing light sequences and repeat the pattern.",
+      description: "Watch soothing visual sequences and repeat the pattern.",
       icon: Sparkles,
       color: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30",
       component: PatternRecall,
@@ -60,7 +86,7 @@ export function CognitiveGamesHub({ store }: { store: MemoryBondStore }) {
     {
       id: "sequence_memory",
       title: "Number Sequence Memory",
-      description: "Remember short number sequences and enter them.",
+      description: "Remember short number sequences and enter them calmly.",
       icon: Hash,
       color: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
       component: SequenceMemory,
@@ -68,7 +94,7 @@ export function CognitiveGamesHub({ store }: { store: MemoryBondStore }) {
     {
       id: "routine_recall",
       title: "Daily Routine Recall",
-      description: "Questions reinforcing healthy and peaceful daily habits.",
+      description: "Gentle reflections reinforcing healthy daily habits.",
       icon: Sun,
       color: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
       component: RoutineRecall,
@@ -117,7 +143,8 @@ export function CognitiveGamesHub({ store }: { store: MemoryBondStore }) {
 
   const handleGameComplete = (score: number, total: number) => {
     if (activeGame) {
-      store.recordGameSession(activeGame, score, total, "easy");
+      store.recordGameSession(activeGame, score, total, difficulty);
+      speakText(`${t("wellDone") || "Well done!"} Score: ${score} of ${total}.`, speechLocale);
     }
   };
 
@@ -129,21 +156,30 @@ export function CognitiveGamesHub({ store }: { store: MemoryBondStore }) {
       <div className="flex items-start gap-3 rounded-2xl border border-primary/25 bg-primary/10 p-4 text-foreground text-sm">
         <ShieldAlert className="h-5 w-5 text-primary shrink-0 mt-0.5" />
         <div>
-          <span className="font-bold">Engagement Purpose Only: </span>
-          Memory Bond cognitive games are designed for enjoyable memory stimulation and companion engagement. They are
-          strictly not a medical diagnostic or dementia treatment tool.
+          <span className="font-bold">Cognitive Engagement Only: </span>
+          {t("notMedical") ||
+            "Memory Bond cognitive games are designed for enjoyable memory stimulation and companion engagement. They are strictly not a medical diagnostic or dementia treatment tool."}
         </div>
       </div>
 
       {activeGame && selectedGameObj ? (
         <div className="space-y-4">
-          <Button
-            variant="ghost"
-            onClick={() => setActiveGame(null)}
-            className="gap-2 text-foreground font-bold text-base hover:bg-secondary/60"
-          >
-            <ArrowLeft className="h-5 w-5" /> Back to All Memory Games
-          </Button>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <Button
+              variant="ghost"
+              onClick={() => setActiveGame(null)}
+              className="gap-2 text-foreground font-bold text-base hover:bg-secondary/60"
+            >
+              <ArrowLeft className="h-5 w-5" /> Back to All 10 Games
+            </Button>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-muted-foreground uppercase">Current Level:</span>
+              <span className="rounded-full bg-primary/15 text-primary font-bold px-3 py-1 text-xs uppercase">
+                {difficulty}
+              </span>
+            </div>
+          </div>
 
           <div className="rounded-3xl border border-border bg-card p-4 sm:p-8 shadow-sm">
             <selectedGameObj.component onComplete={handleGameComplete} />
@@ -161,15 +197,49 @@ export function CognitiveGamesHub({ store }: { store: MemoryBondStore }) {
                 10 gentle, senior-friendly exercises with no stressful timers.
               </p>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="rounded-2xl bg-card border border-border px-5 py-3 shadow-xs text-center">
-                <div className="text-2xl font-black text-primary">{store.gameSessions.length}</div>
-                <div className="text-xs font-bold text-muted-foreground uppercase">Activities Played</div>
+            <div className="flex items-center gap-3">
+              {/* Adaptive Difficulty Switcher */}
+              <div className="inline-flex rounded-2xl border border-border bg-card p-1 shadow-xs">
+                {(["easy", "medium", "challenging"] as const).map((lvl) => (
+                  <button
+                    key={lvl}
+                    onClick={() => setDifficulty(lvl)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      difficulty === lvl
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {lvl.charAt(0).toUpperCase() + lvl.slice(1)}
+                  </button>
+                ))}
+              </div>
+
+              <div className="rounded-2xl bg-card border border-border px-5 py-2.5 shadow-xs text-center">
+                <div className="text-xl font-black text-primary">{store.gameSessions.length}</div>
+                <div className="text-[10px] font-bold text-muted-foreground uppercase">Played</div>
               </div>
             </div>
           </div>
 
-          {/* 10 Games Grid */}
+          {/* Adaptive Feedback Recommendation Banner if available */}
+          {adaptiveSuggestion && (
+            <div className="rounded-2xl border-2 border-primary/30 bg-primary/10 p-4 flex items-center justify-between gap-4 animate-in fade-in">
+              <div className="flex items-center gap-3">
+                <TrendingUp className="h-6 w-6 text-primary shrink-0" />
+                <p className="text-sm font-semibold text-foreground">{adaptiveSuggestion.message}</p>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => setDifficulty(adaptiveSuggestion.target)}
+                className="font-bold rounded-xl shrink-0"
+              >
+                Switch to {adaptiveSuggestion.target}
+              </Button>
+            </div>
+          )}
+
+          {/* 10 Games Grid (All 10 Games Preserved & Accessible) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {games.map((g, idx) => {
               const Icon = g.icon;
@@ -195,8 +265,8 @@ export function CognitiveGamesHub({ store }: { store: MemoryBondStore }) {
                   </div>
 
                   <div className="pt-3 border-t border-border/60 flex items-center justify-between text-sm font-bold text-primary">
-                    <span>Play Activity</span>
-                    <span className="text-lg">→</span>
+                    <span>{t("play") || "Play Activity"}</span>
+                    <span className="text-lg">➔</span>
                   </div>
                 </button>
               );
