@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MemoryBondStore, SosEvent } from "@/lib/memoryBondStore";
+import { useI18n } from "@/lib/i18n";
 
 export function SosModal({
   isOpen,
@@ -22,22 +23,25 @@ export function SosModal({
   store: MemoryBondStore;
 }) {
   // Step 1: countdown (10s after click), Step 2: confirm dialog, Step 3: sent success
+  const { t, speechLocale } = useI18n();
   const [step, setStep] = useState<"idle" | "countdown" | "confirm" | "dispatched">("idle");
   const [holdProgress, setHoldProgress] = useState<number>(0); // 0 to 100%
-  const [secondsLeft, setSecondsLeft] = useState<number>(10);
-  const [locationStatus, setLocationStatus] = useState<"pending" | "granted" | "unavailable">("pending");
+  const [secondsLeft, setSecondsLeft] = useState<number>(5);
+  const [locationStatus, setLocationStatus] = useState<"pending" | "granted" | "unavailable">(
+    "pending",
+  );
   const [dispatchedEvent, setDispatchedEvent] = useState<SosEvent | null>(null);
 
   const progressIntervalRef = useRef<any>(null);
   const holdTimerRef = useRef<any>(null);
-  const holdDurationMs = 10000; // 10 full seconds
+  const holdDurationMs = 5000; // 5 second press-and-hold
 
   useEffect(() => {
     if (!isOpen) {
       // Reset state when closed
       setStep("idle");
       setHoldProgress(0);
-      setSecondsLeft(10);
+      setSecondsLeft(5);
       clearInterval(progressIntervalRef.current);
       clearTimeout(holdTimerRef.current);
     }
@@ -47,7 +51,7 @@ export function SosModal({
     if (step !== "idle") return;
     setStep("countdown");
     setHoldProgress(0);
-    setSecondsLeft(10);
+    setSecondsLeft(5);
 
     // Haptic vibration where supported
     if (typeof window !== "undefined" && "vibrate" in navigator) {
@@ -72,12 +76,22 @@ export function SosModal({
   const cancelCountdown = () => {
     setStep("idle");
     setHoldProgress(0);
-    setSecondsLeft(10);
+    setSecondsLeft(5);
     clearInterval(progressIntervalRef.current);
     clearTimeout(holdTimerRef.current);
   };
 
+  const announceSos = () => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const u = new SpeechSynthesisUtterance(t("sosSent"));
+    u.lang = speechLocale;
+    u.rate = 0.9;
+    window.speechSynthesis.speak(u);
+  };
+
   const handleConfirmSendSos = () => {
+    announceSos();
+    if ("vibrate" in navigator) navigator.vibrate([300, 150, 300, 150, 600]);
     // Attempt geolocation
     if (typeof window !== "undefined" && "geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -101,7 +115,7 @@ export function SosModal({
           setLocationStatus("unavailable");
           setStep("dispatched");
         },
-        { timeout: 5000 }
+        { timeout: 5000 },
       );
     } else {
       const event = store.triggerSos({
@@ -139,25 +153,36 @@ export function SosModal({
               </div>
               <h3 className="text-3xl font-black text-foreground">EMERGENCY SOS</h3>
               <p className="text-base text-muted-foreground font-medium">
-                Tap the SOS button once. A <strong>10-second</strong> countdown will begin, then the alert is sent.
+                {t("holdSos")}. {t("keepHolding")}
               </p>
             </div>
 
             {/* Circular SOS Button */}
             <div className="relative mx-auto w-48 h-48 flex items-center justify-center">
               <svg className="absolute inset-0 w-full h-full -rotate-90">
-                <circle cx="96" cy="96" r="86" stroke="currentColor" strokeWidth="12" className="text-muted/30" fill="transparent" />
+                <circle
+                  cx="96"
+                  cy="96"
+                  r="86"
+                  stroke="currentColor"
+                  strokeWidth="12"
+                  className="text-muted/30"
+                  fill="transparent"
+                />
               </svg>
               <button
-                onClick={startCountdown}
+                onPointerDown={startCountdown}
+                onPointerUp={cancelCountdown}
+                onPointerLeave={cancelCountdown}
+                onContextMenu={(e) => e.preventDefault()}
                 className="w-36 h-36 rounded-full bg-destructive hover:bg-destructive/90 text-white font-black text-2xl shadow-2xl active:scale-95 transition-transform flex flex-col items-center justify-center select-none cursor-pointer"
               >
                 <span>SOS</span>
-                <span className="text-xs font-normal opacity-90 mt-1">TAP TO START</span>
+                <span className="text-xs font-normal opacity-90 mt-1">HOLD 5 SEC</span>
               </button>
             </div>
 
-            <div className="text-lg font-black text-destructive">Tap SOS to begin</div>
+            <div className="text-lg font-black text-destructive">{t("holdSos")}</div>
           </div>
         )}
 
@@ -170,17 +195,28 @@ export function SosModal({
               </div>
               <h3 className="text-3xl font-black text-foreground">SENDING IN {secondsLeft}s…</h3>
               <p className="text-base text-muted-foreground font-medium">
-                Alert will be sent automatically. Tap <strong>CANCEL</strong> to stop.
+                {t("keepHolding")} Release to cancel.
               </p>
             </div>
 
             {/* Circular progress ring */}
             <div className="relative mx-auto w-48 h-48 flex items-center justify-center">
               <svg className="absolute inset-0 w-full h-full -rotate-90">
-                <circle cx="96" cy="96" r="86" stroke="currentColor" strokeWidth="12" className="text-muted/30" fill="transparent" />
                 <circle
-                  cx="96" cy="96" r="86"
-                  stroke="currentColor" strokeWidth="12"
+                  cx="96"
+                  cy="96"
+                  r="86"
+                  stroke="currentColor"
+                  strokeWidth="12"
+                  className="text-muted/30"
+                  fill="transparent"
+                />
+                <circle
+                  cx="96"
+                  cy="96"
+                  r="86"
+                  stroke="currentColor"
+                  strokeWidth="12"
                   className="text-destructive transition-all duration-100"
                   fill="transparent"
                   strokeDasharray="540"
@@ -188,7 +224,11 @@ export function SosModal({
                   strokeLinecap="round"
                 />
               </svg>
-              <div className="w-36 h-36 rounded-full bg-destructive text-white font-black text-4xl shadow-2xl flex flex-col items-center justify-center select-none">
+              <div
+                onPointerUp={cancelCountdown}
+                onPointerLeave={cancelCountdown}
+                className="w-36 h-36 rounded-full bg-destructive text-white font-black text-4xl shadow-2xl flex flex-col items-center justify-center select-none"
+              >
                 <span>{secondsLeft}</span>
                 <span className="text-xs font-normal opacity-90 mt-1">seconds</span>
               </div>
@@ -215,7 +255,8 @@ export function SosModal({
                 Send Emergency Alert?
               </h3>
               <p className="text-lg text-foreground font-semibold">
-                Are you sure you want to send an emergency alert to all your trusted family contacts?
+                Are you sure you want to send an emergency alert to all your trusted family
+                contacts?
               </p>
             </div>
 
@@ -223,7 +264,9 @@ export function SosModal({
               <p className="font-bold text-foreground">Will notify contacts:</p>
               {store.contacts.map((c) => (
                 <div key={c.id} className="flex justify-between font-medium text-muted-foreground">
-                  <span>{c.name} ({c.relationship})</span>
+                  <span>
+                    {c.name} ({c.relationship})
+                  </span>
                   <span className="font-mono">{c.phone}</span>
                 </div>
               ))}
@@ -236,7 +279,7 @@ export function SosModal({
                 onClick={() => {
                   setStep("idle");
                   setHoldProgress(0);
-                  setSecondsLeft(10);
+                  setSecondsLeft(5);
                   onClose();
                 }}
                 className="h-16 text-xl font-bold rounded-2xl border-2"
@@ -283,7 +326,8 @@ export function SosModal({
                 <strong>Notified:</strong> {dispatchedEvent?.notified}
               </div>
               <div className="text-xs text-muted-foreground italic pt-1 border-t border-border">
-                Note: In this working demo, alerts are recorded in the Caregiver Dashboard & notification center.
+                Note: In this working demo, alerts are recorded in the Caregiver Dashboard &
+                notification center.
               </div>
             </div>
 
