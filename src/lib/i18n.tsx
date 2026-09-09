@@ -9,6 +9,10 @@ export const LANGUAGES = [
   { code: "mr", label: "Marathi", native: "मराठी", speech: "mr-IN" },
   { code: "ta", label: "Tamil", native: "தமிழ்", speech: "ta-IN" },
   { code: "te", label: "Telugu", native: "తెలుగు", speech: "te-IN" },
+  { code: "kn", label: "Kannada", native: "ಕನ್ನಡ", speech: "kn-IN" },
+  { code: "ml", label: "Malayalam", native: "മലയാളം", speech: "ml-IN" },
+  { code: "pa", label: "Punjabi", native: "ਪੰਜਾਬੀ", speech: "pa-IN" },
+  { code: "or", label: "Odia", native: "ଓଡ଼ିଆ", speech: "or-IN" },
 ] as const;
 
 export type LangCode = (typeof LANGUAGES)[number]["code"];
