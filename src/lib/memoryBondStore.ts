@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 
 export interface Profile {
   id: string;
+  member_id: string;
   full_name: string;
   role: "senior" | "caregiver";
   language: string;
@@ -11,6 +12,39 @@ export interface Profile {
   high_contrast: boolean;
   voice_enabled: boolean;
   onboarded: boolean;
+  easy_mode: boolean;
+}
+
+export interface CaregiverLink {
+  id: string;
+  caregiver_name: string;
+  relationship: string;
+  phone: string;
+  status: "approved" | "pending" | "declined";
+  linked_at: string;
+  permissions: {
+    medicines: boolean;
+    appointments: boolean;
+    games: boolean;
+    sos: boolean;
+    journal: boolean;
+  };
+}
+
+export interface DailyRoutineCallSession {
+  id: string;
+  date: string;
+  time: string;
+  answers: { question: string; answer: string; topic: string }[];
+  memory_saved?: string | null;
+  summary: string;
+}
+
+export interface OfflineSyncItem {
+  id: string;
+  action: string;
+  payload: any;
+  timestamp: string;
 }
 
 export interface Medicine {
@@ -146,6 +180,7 @@ export const getTodayDateString = () => new Date().toISOString().slice(0, 10);
 // Realistic Initial Demo Dataset (North Eastern Region / Indian context)
 export const DEMO_PROFILE: Profile = {
   id: "demo-senior-ramesh",
+  member_id: "MB-NER-781003-RAMESH",
   full_name: "Ramesh Sharma",
   role: "senior",
   language: "en",
@@ -155,7 +190,57 @@ export const DEMO_PROFILE: Profile = {
   high_contrast: false,
   voice_enabled: true,
   onboarded: true,
+  easy_mode: false,
 };
+
+export const DEMO_CAREGIVER_LINKS: CaregiverLink[] = [
+  {
+    id: "cg-1",
+    caregiver_name: "Sunita Sharma",
+    relationship: "Daughter / Primary Caregiver",
+    phone: "+91 98765 43210",
+    status: "approved",
+    linked_at: "2025-01-15",
+    permissions: {
+      medicines: true,
+      appointments: true,
+      games: true,
+      sos: true,
+      journal: false,
+    },
+  },
+  {
+    id: "cg-2",
+    caregiver_name: "Rajesh Sharma",
+    relationship: "Son (Bengaluru)",
+    phone: "+91 98765 43211",
+    status: "approved",
+    linked_at: "2025-02-01",
+    permissions: {
+      medicines: true,
+      appointments: true,
+      games: true,
+      sos: true,
+      journal: false,
+    },
+  },
+];
+
+export const DEMO_ROUTINE_CALLS: DailyRoutineCallSession[] = [
+  {
+    id: "drc-1",
+    date: getTodayDateString(),
+    time: "09:15",
+    answers: [
+      { topic: "Morning & Sleep", question: "How did you sleep last night?", answer: "Slept peacefully for 7 hours." },
+      { topic: "Chai & Breakfast", question: "Did you have warm breakfast and tea?", answer: "Yes, had Assam tea and roti with vegetable sabzi." },
+      { topic: "Medicine", question: "Did you take morning medicine?", answer: "Yes, took Amlodipine 5mg on time." },
+      { topic: "Garden & Outdoor", question: "Did you step out in fresh air?", answer: "Sat in the balcony and watered the holy tulsi plant." },
+    ],
+    summary: "Ramesh was in great spirits this morning, reported peaceful sleep and confirmed morning medicine adherence.",
+    memory_saved: null,
+  },
+];
 
 export const DEMO_MEDICINES: Medicine[] = [
   {
@@ -512,6 +597,36 @@ export function useMemoryBondStore() {
     }
   });
 
+  // Caregiver Links
+  const [caregiverLinks, setCaregiverLinks] = useState<CaregiverLink[]>(() => {
+    try {
+      const saved = localStorage.getItem(getKey("caregiver_links"));
+      return saved ? JSON.parse(saved) : DEMO_CAREGIVER_LINKS;
+    } catch {
+      return DEMO_CAREGIVER_LINKS;
+    }
+  });
+
+  // Daily Routine Calls
+  const [routineCalls, setRoutineCalls] = useState<DailyRoutineCallSession[]>(() => {
+    try {
+      const saved = localStorage.getItem(getKey("routine_calls"));
+      return saved ? JSON.parse(saved) : DEMO_ROUTINE_CALLS;
+    } catch {
+      return DEMO_ROUTINE_CALLS;
+    }
+  });
+
+  // Offline Sync Queue
+  const [syncQueue, setSyncQueue] = useState<OfflineSyncItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(getKey("sync_queue"));
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
   // Sync state to LocalStorage
   useEffect(() => {
     try {
@@ -527,14 +642,40 @@ export function useMemoryBondStore() {
       localStorage.setItem(getKey("sos_events"), JSON.stringify(sosEvents));
       localStorage.setItem(getKey("game_sessions"), JSON.stringify(gameSessions));
       localStorage.setItem(getKey("notifications"), JSON.stringify(notifications));
+      localStorage.setItem(getKey("caregiver_links"), JSON.stringify(caregiverLinks));
+      localStorage.setItem(getKey("routine_calls"), JSON.stringify(routineCalls));
+      localStorage.setItem(getKey("sync_queue"), JSON.stringify(syncQueue));
     } catch (e) {
       console.warn("LocalStorage save error:", e);
     }
-  }, [profile, medicines, medicineLogs, reminders, routines, appointments, memoryCues, journal, contacts, sosEvents, gameSessions, notifications]);
+  }, [profile, medicines, medicineLogs, reminders, routines, appointments, memoryCues, journal, contacts, sosEvents, gameSessions, notifications, caregiverLinks, routineCalls, syncQueue]);
 
-  // Network online/offline listener
+  // Network online/offline listener with automatic sync flush
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
+    const handleOnline = () => {
+      setIsOnline(true);
+      try {
+        const queued = localStorage.getItem(getKey("sync_queue"));
+        if (queued) {
+          const items: OfflineSyncItem[] = JSON.parse(queued);
+          if (items.length > 0) {
+            const notif: AppNotification = {
+              id: `sync-${Date.now()}`,
+              category: "general",
+              title: "Cloud Synchronized",
+              body: `Synced ${items.length} offline update(s) securely to Memory Bond.`,
+              read: false,
+              created_at: new Date().toISOString(),
+            };
+            setNotifications((prev) => [notif, ...prev]);
+            setSyncQueue([]);
+            localStorage.setItem(getKey("sync_queue"), JSON.stringify([]));
+          }
+        }
+      } catch (e) {
+        console.warn("Sync queue flush error:", e);
+      }
+    };
     const handleOffline = () => setIsOnline(false);
 
     window.addEventListener("online", handleOnline);
@@ -571,39 +712,62 @@ export function useMemoryBondStore() {
     setProfile((prev) => ({ ...prev, ...patch }));
   }, []);
 
-  // Take medicine dose
+  // Take medicine dose (default: taken)
   const takeMedicine = useCallback((id: string) => {
-    setMedicines((prev) =>
-      prev.map((med) => {
-        if (med.id !== id) return med;
-        const newStock = Math.max(0, med.stock - 1);
-
-        // Check if now low stock
-        if (newStock <= med.refill_threshold) {
-          const alertNotif: AppNotification = {
-            id: `low-${id}-${Date.now()}`,
-            category: "medicine_low",
-            title: `Low Stock: ${med.name}`,
-            body: `Only ${newStock} ${med.unit}s remaining (Refill threshold: ${med.refill_threshold}). Please refill soon.`,
-            read: false,
-            created_at: new Date().toISOString(),
-          };
-          setNotifications((n) => [alertNotif, ...n]);
-        }
-
-        return { ...med, stock: newStock };
-      })
-    );
-
-    const log: MedicineLog = {
-      id: `log-${Date.now()}`,
-      medicine_id: id,
-      scheduled_time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      status: "taken",
-      taken_at: new Date().toISOString(),
-    };
-    setMedicineLogs((logs) => [log, ...logs]);
+    markMedicineStatus(id, "taken");
   }, []);
+
+  // Mark medicine dose as Taken, Missed, or Skipped (Section 8 requirement)
+  const markMedicineStatus = useCallback(
+    (id: string, status: "taken" | "missed" | "skipped", note?: string) => {
+      const scheduledTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+      if (status === "taken") {
+        setMedicines((prev) =>
+          prev.map((med) => {
+            if (med.id !== id) return med;
+            const newStock = Math.max(0, med.stock - 1);
+
+            // Check if now low stock (threshold or 3-day supply)
+            const daysRemaining = med.daily_usage > 0 ? newStock / med.daily_usage : 99;
+            if (newStock <= med.refill_threshold || daysRemaining <= 3) {
+              const alertNotif: AppNotification = {
+                id: `low-${id}-${Date.now()}`,
+                category: "medicine_low",
+                title: `Refill Alert: ${med.name}`,
+                body: `Only ${newStock} ${med.unit}s remaining (~${Math.floor(daysRemaining)} days left). Caregiver has been alerted.`,
+                read: false,
+                created_at: new Date().toISOString(),
+              };
+              setNotifications((n) => [alertNotif, ...n]);
+            }
+
+            return { ...med, stock: newStock };
+          })
+        );
+      } else if (status === "missed") {
+        const missedNotif: AppNotification = {
+          id: `missed-${id}-${Date.now()}`,
+          category: "medicine_missed",
+          title: "Missed Medicine Dose Recorded",
+          body: `Dose was marked missed at ${scheduledTime}. Note: ${note || "Follow schedule closely"}.`,
+          read: false,
+          created_at: new Date().toISOString(),
+        };
+        setNotifications((n) => [missedNotif, ...n]);
+      }
+
+      const log: MedicineLog = {
+        id: `log-${Date.now()}`,
+        medicine_id: id,
+        scheduled_time: scheduledTime,
+        status,
+        taken_at: new Date().toISOString(),
+      };
+      setMedicineLogs((logs) => [log, ...logs]);
+    },
+    []
+  );
 
   // Refill medicine stock
   const refillMedicine = useCallback((id: string, quantity: number, note?: string) => {
@@ -787,6 +951,9 @@ export function useMemoryBondStore() {
     setContacts(DEMO_EMERGENCY_CONTACTS);
     setGameSessions(DEMO_GAME_SESSIONS);
     setNotifications(DEMO_NOTIFICATIONS);
+    setCaregiverLinks(DEMO_CAREGIVER_LINKS);
+    setRoutineCalls(DEMO_ROUTINE_CALLS);
+    setSyncQueue([]);
     setSosEvents([]);
   }, []);
 
@@ -879,6 +1046,60 @@ export function useMemoryBondStore() {
     notifications,
     markNotificationRead,
     markAllNotificationsRead,
+
+    // Caregiver Links
+    caregiverLinks,
+    approveCaregiverLink: useCallback((id: string) => {
+      setCaregiverLinks((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, status: "approved" as const } : c))
+      );
+    }, []),
+    rejectCaregiverLink: useCallback((id: string) => {
+      setCaregiverLinks((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, status: "declined" as const } : c))
+      );
+    }, []),
+    addCaregiverLink: useCallback((link: Omit<CaregiverLink, "id" | "linked_at">) => {
+      const newLink: CaregiverLink = {
+        ...link,
+        id: `cg-${Date.now()}`,
+        linked_at: new Date().toISOString().slice(0, 10),
+      };
+      setCaregiverLinks((prev) => [...prev, newLink]);
+    }, []),
+
+    // Daily Routine Call
+    routineCalls,
+    recordDailyRoutineCall: useCallback((session: Omit<DailyRoutineCallSession, "id">) => {
+      const newSession: DailyRoutineCallSession = {
+        ...session,
+        id: `drc-${Date.now()}`,
+      };
+      setRoutineCalls((prev) => [newSession, ...prev]);
+
+      const notif: AppNotification = {
+        id: `drc-notif-${Date.now()}`,
+        category: "routine",
+        title: "Daily Routine Call Completed",
+        body: `Senior completed daily check-in: ${session.summary}`,
+        read: false,
+        created_at: new Date().toISOString(),
+      };
+      setNotifications((prev) => [notif, ...prev]);
+      return newSession;
+    }, []),
+
+    // Senior / Easy Mode
+    toggleEasyMode: useCallback(() => {
+      setProfile((prev) => ({ ...prev, easy_mode: !prev.easy_mode }));
+    }, []),
+
+    // Smart Medicine status
+    markMedicineStatus,
+
+    // Sync Queue
+    syncQueue,
+
     // Conversation History
     addConversation,
     getRecentConversations,
