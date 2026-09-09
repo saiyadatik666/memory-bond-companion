@@ -163,6 +163,14 @@ export function VoiceAssistantModal({
         notes: "Created via Voice Assistant",
       });
       speakText("Appointment saved.", speechLocale);
+    } else if (pendingIntent.type === "ADD_JOURNAL") {
+      store.addJournalEntry({
+        title: pendingIntent.title,
+        body: pendingIntent.body,
+        entry_date: new Date().toISOString().slice(0, 10),
+        kind: "voice",
+      });
+      speakText("Saved to your memory journal.", speechLocale);
     } else if (pendingIntent.type === "NAVIGATE") {
       if (onNavigate) {
         onNavigate(pendingIntent.targetView);
