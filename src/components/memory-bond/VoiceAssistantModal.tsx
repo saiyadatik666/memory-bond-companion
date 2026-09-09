@@ -2,7 +2,13 @@ import { useState, useEffect } from "react";
 import { Mic, MicOff, Send, X, Check, Edit3, Volume2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { parseVoiceIntent, speakText, type VoiceIntent, detectLanguage } from "@/lib/voiceParser";
+import {
+  parseVoiceIntent,
+  speakText,
+  isSpokenAnswer,
+  type VoiceIntent,
+  detectLanguage,
+} from "@/lib/voiceParser";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
 
