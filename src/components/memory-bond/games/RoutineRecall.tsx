@@ -100,7 +100,7 @@ export function RoutineRecall({
           <p className="text-sm text-muted-foreground">Calm questions to reinforce peaceful, healthy daily habits.</p>
         </div>
         <span className="rounded-xl bg-card px-4 py-2 font-bold shadow-xs">
-          Question {currentIdx + 1} / {QUESTIONS.length}
+          Question {currentIdx + 1} / {activeQuestions.length}
         </span>
       </div>
 
@@ -109,7 +109,7 @@ export function RoutineRecall({
           <Heart className="mx-auto h-16 w-16 text-success fill-success/20" />
           <h4 className="text-3xl font-extrabold text-foreground">Heartwarming effort!</h4>
           <p className="text-lg text-muted-foreground">
-            You completed the routine reflection with {score} / {QUESTIONS.length} thoughtful answers.
+            You completed the routine reflection with {score} / {activeQuestions.length} thoughtful answers.
           </p>
           <Button
             size="lg"
@@ -158,7 +158,7 @@ export function RoutineRecall({
               onClick={handleNext}
               className="px-8 font-bold"
             >
-              {currentIdx + 1 === QUESTIONS.length ? "Finish Activity" : "Next Question"}
+              {currentIdx + 1 === activeQuestions.length ? "Finish Activity" : "Next Question"}
             </Button>
           </div>
         </div>
