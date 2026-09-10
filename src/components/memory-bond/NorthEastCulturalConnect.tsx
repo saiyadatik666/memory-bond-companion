@@ -220,11 +220,11 @@ export function NorthEastCulturalConnect({ store }: { store: MemoryBondStore }) 
     } else {
       // Finished quiz! Record session into store
       setQuizFinished(true);
-      const finalScore = selectedAnswer === filteredItems[quizIndex].correctOption ? quizScore + 1 : quizScore;
+      const finalScore = quizScore;
       const total = filteredItems.length;
       store.recordGameSession("cultural_connect", finalScore, total, "easy", {
         gameType: "cultural",
-        accuracy: Math.round((finalScore / total) * 100),
+        accuracy: total > 0 ? Math.round((finalScore / total) * 100) : 100,
       });
     }
   };

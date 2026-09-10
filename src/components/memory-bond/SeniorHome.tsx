@@ -334,35 +334,32 @@ export function SeniorHome({
       </div>
 
       {/* DEDICATED CENTERED EMERGENCY SOS HERO (Section 4) */}
-      <div className="rounded-3xl border-3 border-destructive bg-destructive/10 p-6 sm:p-7 shadow-md flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
-        <div className="flex flex-col sm:flex-row items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-destructive text-white flex items-center justify-center shrink-0 shadow-md animate-pulse">
-            <AlertOctagon className="h-9 w-9" />
-          </div>
-          <div>
-            <div className="flex items-center justify-center sm:justify-start gap-2">
-              <span className="text-xs font-black uppercase tracking-wider text-destructive bg-destructive/20 px-2.5 py-0.5 rounded-full">
-                Priority Safety
-              </span>
-              <span className="text-xs text-muted-foreground font-semibold">10-Sec Protection or Direct Voice</span>
-            </div>
-            <h3 className="text-2xl font-black text-destructive mt-1">
-              Emergency SOS Assistance (आपत्कालीन मदद)
-            </h3>
-            <p className="text-sm font-medium text-foreground">
-              Immediately alerts daughter Sunita Sharma and priority contacts with your location.
-            </p>
-          </div>
+      <div className="rounded-3xl border-4 border-destructive bg-destructive/10 p-6 sm:p-8 shadow-lg text-center flex flex-col items-center justify-center space-y-4 mx-auto w-full">
+        <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-destructive bg-destructive/15 px-4 py-1.5 rounded-full">
+          <AlertOctagon className="h-4 w-4" /> Priority Safety & SOS Assistance (आपत्कालीन मदद)
+        </div>
+        
+        <div className="space-y-1 max-w-md mx-auto">
+          <h3 className="text-2xl sm:text-3xl font-black text-destructive tracking-tight">
+            NEED IMMEDIATE HELP? (मदद चाहिए?)
+          </h3>
+          <p className="text-sm sm:text-base font-semibold text-foreground">
+            One tap to speak with AI or instantly notify family & emergency services with your location.
+          </p>
         </div>
 
         <button
           type="button"
           onClick={onOpenSos}
-          className="w-full sm:w-auto px-8 h-14 rounded-2xl bg-destructive hover:bg-destructive/90 text-white font-black text-lg tracking-wider shadow-lg flex items-center justify-center gap-2.5 transition-transform active:scale-95 cursor-pointer shrink-0"
+          className="w-full sm:w-96 h-18 sm:h-20 rounded-3xl bg-destructive hover:bg-destructive/90 text-white font-black text-xl sm:text-2xl tracking-wider shadow-2xl flex items-center justify-center gap-3.5 transition-transform active:scale-95 cursor-pointer mx-auto"
         >
-          <AlertOctagon className="h-6 w-6" />
-          TAP FOR SOS
+          <AlertOctagon className="h-8 w-8 sm:h-9 sm:w-9 animate-pulse shrink-0" />
+          <span>{t("sos").toUpperCase()} (मदद लें / TAP FOR SOS)</span>
         </button>
+
+        <p className="text-xs text-muted-foreground font-semibold">
+          10-second hold protection or direct voice emergency interaction available.
+        </p>
       </div>
 
       {/* Critical Refill Warning Banner if any */}

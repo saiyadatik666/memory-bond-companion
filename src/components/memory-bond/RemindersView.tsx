@@ -28,15 +28,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { MemoryBondStore, Reminder } from "@/lib/memoryBondStore";
-import { speakText } from "@/lib/voiceParser";
+import { speakText, startSpeechRecognition } from "@/lib/voiceParser";
 import { useI18n } from "@/lib/i18n";
 
 export function RemindersView({ store }: { store: MemoryBondStore }) {
   const { t, speechLocale } = useI18n();
 
-  // Natural Language AI quick prompt
+  // Natural Language AI quick prompt & direct voice input
   const [naturalInput, setNaturalInput] = useState<string>("");
   const [isAiProcessing, setIsAiProcessing] = useState<boolean>(false);
+  const [isListening, setIsListening] = useState<boolean>(false);
 
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState<boolean>(false);
@@ -74,6 +75,30 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
     }
   };
 
+  // Direct Speech Recognition for Reminders
+  const handleStartVoiceInput = () => {
+    if (isListening) return;
+    setIsListening(true);
+    const stopFn = startSpeechRecognition(
+      speechLocale || "en-IN",
+      (text) => {
+        setNaturalInput(text);
+      },
+      (err) => {
+        console.warn("Speech recognition error in Reminders:", err);
+        setIsListening(false);
+      },
+      () => {
+        setIsListening(false);
+      }
+    );
+
+    setTimeout(() => {
+      if (stopFn) stopFn();
+      setIsListening(false);
+    }, 10000);
+  };
+
   // Natural Language Fast Add: parses "Remind me to take my medicine at 8 PM"
   const handleNaturalLanguageSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -102,34 +127,40 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
     let extractedNotes: string | null = null;
     let isTomorrow = text.includes("tomorrow") || text.includes("kal") || text.includes("कल");
 
-    if (text.includes("medicine") || text.includes("dawa") || text.includes("दवा") || text.includes("pill")) {
+    if (text.includes("doctor") || text.includes("appointment") || text.includes("clinic") || text.includes("hospital") || text.includes("डॉक्टर") || text.includes("अपॉइंटमेंट")) {
+      extractedType = "appointment";
+    } else if (text.includes("medicine") || text.includes("dawa") || text.includes("दवा") || text.includes("pill") || text.includes("tablet")) {
       extractedType = "medicine";
-    } else if (text.includes("walk") || text.includes("tahal") || text.includes("टहल")) {
+    } else if (text.includes("walk") || text.includes("tahal") || text.includes("टहल") || text.includes("walking")) {
       extractedType = "walking";
-    } else if (text.includes("water") || text.includes("paani") || text.includes("पानी") || text.includes("hydrate")) {
+    } else if (text.includes("water") || text.includes("paani") || text.includes("पानी") || text.includes("hydrate") || text.includes("drink")) {
       extractedType = "hydration";
-    } else if (text.includes("buy") || text.includes("market") || text.includes("bazaar") || text.includes("rice") || text.includes("tea") || text.includes("shopping")) {
+    } else if (text.includes("buy") || text.includes("market") || text.includes("bazaar") || text.includes("rice") || text.includes("tea") || text.includes("shopping") || text.includes("सब्जी") || text.includes("खरीद")) {
       extractedType = "shopping";
-      const buyMatch = naturalInput.match(/buy\s+(.+?)(?=\s+tomorrow|\s+at|\s+in|\s+morning|$)/i);
+      const buyMatch = naturalInput.match(/(?:buy|purchase|खरीदने|लाने)\s+(.+?)(?=\s+tomorrow|\s+at|\s+in|\s+morning|\s+कल|$)/i);
       if (buyMatch && buyMatch[1]) {
         extractedNotes = `Items: ${buyMatch[1].trim()}`;
+      } else if (text.includes("rice") || text.includes("tea")) {
+        extractedNotes = "Items: rice, tea";
       }
-    } else if (text.includes("call") || text.includes("phone") || text.includes("daughter") || text.includes("sunita")) {
+    } else if (text.includes("call") || text.includes("phone") || text.includes("daughter") || text.includes("sunita") || text.includes("बेटी")) {
       extractedType = "family_call";
     }
 
     // Clean title
     let cleanTitle = naturalInput
       .replace(/^(please\s+)?(remind me to|set a reminder for|reminder for|remind me)\s*/i, "")
+      .replace(/कल सुबह|कल शाम|सुबह|शाम|बजे|याद दिलाना|याद दिलाओ/gi, "")
       .replace(/tomorrow\s*(morning|evening|afternoon)?/i, "")
       .replace(/at\s+\d{1,2}(:\d{2})?\s*(am|pm)?/i, "")
       .trim();
 
     if (!cleanTitle || cleanTitle.length < 3) {
-      if (extractedType === "medicine") cleanTitle = "Take scheduled medicine";
+      if (extractedType === "appointment") cleanTitle = "Doctor Appointment";
+      else if (extractedType === "medicine") cleanTitle = "Take scheduled medicine";
       else if (extractedType === "walking") cleanTitle = "Gentle daily walk";
       else if (extractedType === "hydration") cleanTitle = "Drink warm water";
-      else if (extractedType === "shopping") cleanTitle = "Buy grocery items";
+      else if (extractedType === "shopping") cleanTitle = extractedNotes ? `Buy ${extractedNotes.replace("Items: ", "")}` : "Pick up fresh groceries";
       else cleanTitle = "Daily task";
     }
 
@@ -256,12 +287,26 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
         </div>
 
         <form onSubmit={handleNaturalLanguageSubmit} className="flex flex-col sm:flex-row gap-3">
-          <Input
-            value={naturalInput}
-            onChange={(e) => setNaturalInput(e.target.value)}
-            placeholder='Try: "Remind me to take medicine at 8 PM" or "Remind me tomorrow morning to buy rice and tea"'
-            className="flex-1 h-14 rounded-2xl bg-card border-2 border-border text-base px-4 shadow-xs"
-          />
+          <div className="relative flex-1">
+            <Input
+              value={naturalInput}
+              onChange={(e) => setNaturalInput(e.target.value)}
+              placeholder='Try: "Remind me to take medicine at 8 PM" or "Remind me tomorrow morning to buy rice and tea"'
+              className="w-full h-14 rounded-2xl bg-card border-2 border-border text-base px-4 pr-14 shadow-xs"
+            />
+            <button
+              type="button"
+              onClick={handleStartVoiceInput}
+              className={`absolute right-2 top-2 h-10 w-10 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+                isListening
+                  ? "bg-destructive text-white animate-pulse shadow-md"
+                  : "hover:bg-secondary text-primary"
+              }`}
+              title="Tap to speak your reminder"
+            >
+              <Mic className="h-5 w-5" />
+            </button>
+          </div>
           <Button
             type="submit"
             disabled={!naturalInput.trim() || isAiProcessing}
@@ -270,6 +315,13 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
             <Sparkles className="h-5 w-5" /> Add with AI
           </Button>
         </form>
+
+        {isListening && (
+          <p className="text-xs font-bold text-destructive animate-pulse flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-destructive animate-ping" />
+            Listening... Please speak your reminder now (e.g. "Remind me to take my medicine at 8 PM").
+          </p>
+        )}
 
         {/* Quick Suggestion Chips */}
         <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">

@@ -182,16 +182,18 @@ export function CaregiverDashboard({
           </div>
 
           {/* 2. Hydration Status */}
-          <div className="rounded-2xl border-2 border-border bg-card p-4 space-y-1.5">
+          <div className={`rounded-2xl border-2 p-4 space-y-1.5 ${
+            hydrationDone ? "border-border bg-card" : "border-warning/50 bg-warning/10"
+          }`}>
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-muted-foreground">Hydration</span>
-              <Droplets className="h-4 w-4 text-sky-600" />
+              <Droplets className={`h-4 w-4 ${hydrationDone ? "text-sky-600" : "text-warning"}`} />
             </div>
-            <div className="text-lg font-black text-success">
-              {hydrationDone ? "✓ Completed" : "✓ Completed"}
+            <div className={`text-lg font-black ${hydrationDone ? "text-success" : "text-warning"}`}>
+              {hydrationDone ? "✓ Completed" : "⚠ Pending"}
             </div>
             <p className="text-[11px] text-muted-foreground truncate">
-              Warm water logged
+              {hydrationDone ? "Warm water logged" : "Drink warm water due"}
             </p>
           </div>
 
