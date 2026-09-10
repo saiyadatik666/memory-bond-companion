@@ -67,9 +67,14 @@ export function VoiceAssistantModal({
     localStorage.setItem("mb_conversation_mode", String(enabled));
   };
 
-  // Clean stop on modal close
+  // Clean stop on modal close / Auto-start listening on modal open (one-time start)
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        startListening();
+      }, 400);
+      return () => clearTimeout(timer);
+    } else {
       handleStop();
       setPendingIntent(null);
       setTranscript("");
@@ -350,29 +355,29 @@ export function VoiceAssistantModal({
             </p>
           </div>
 
-          {/* 3-State Live Status Indicator */}
-          <div className="flex items-center justify-center gap-2">
+          {/* Senior-Friendly Voice State Indicator */}
+          <div className="flex items-center justify-center gap-2.5">
             <span
-              className={`inline-block w-3 h-3 rounded-full ${
+              className={`inline-block w-3.5 h-3.5 rounded-full ${
                 isListening
                   ? "bg-destructive animate-ping"
                   : isThinking
                   ? "bg-amber-500 animate-pulse"
                   : isSpeaking
                   ? "bg-primary animate-pulse"
-                  : "bg-emerald-500"
+                  : "bg-muted-foreground/60"
               }`}
             />
-            <span className="text-sm font-bold text-foreground">
+            <span className="text-base font-black text-foreground">
               {isListening
-                ? "Listening… Speak now"
+                ? "🎤 Listening…"
                 : isThinking
-                ? "Thinking… Understanding your words"
+                ? "🧠 Understanding…"
                 : isSpeaking
-                ? "Speaking response…"
+                ? "🔊 Speaking…"
                 : pendingIntent
                 ? "Awaiting your confirmation"
-                : "Tap microphone or speak below"}
+                : "🎤 Tap to speak"}
             </span>
           </div>
 

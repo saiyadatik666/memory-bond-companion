@@ -11,7 +11,7 @@ interface VoiceQuizItem {
   correct: number;
 }
 
-const QUIZ_ITEMS: VoiceQuizItem[] = [
+const ALL_VOICE_QUIZ_ITEMS: VoiceQuizItem[] = [
   {
     promptAudioText: "Baba, don't forget to take your warm ginger tea and your blood pressure tablet after breakfast!",
     question: "In the voice note, what two morning items were mentioned?",
@@ -36,12 +36,32 @@ const QUIZ_ITEMS: VoiceQuizItem[] = [
     options: ["Thursday at 10 AM", "Monday at 2 PM", "Saturday evening", "Friday morning"],
     correct: 0,
   },
+  {
+    promptAudioText: "Aarav is coming over at 5 PM to practice his Bihu dance steps with you in the living room.",
+    question: "What activity is grandson Aarav practicing with you at 5 PM?",
+    options: ["Bihu dance steps", "Cricket batting", "Math homework", "Playing video games"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "Please remind Sunita to buy organic Assam tea leaves and mustard oil from the market.",
+    question: "Which two grocery items should be purchased from the market?",
+    options: ["Assam tea leaves & mustard oil", "Rice & wheat flour", "Spices & sweets", "Apples & bananas"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "This evening at 6:30, the community radio will broadcast traditional Assamese folk songs.",
+    question: "What program will be on the radio at 6:30 PM?",
+    options: ["Traditional Assamese folk songs", "Evening political news", "Weather update", "Cricket match commentary"],
+    correct: 0,
+  },
 ];
 
 export function VoiceMemoryQuiz({
   onComplete,
+  level = 1,
 }: {
-  onComplete: (score: number, total: number) => void;
+  onComplete: (score: number, total: number, extra?: any) => void;
+  level?: number;
 }) {
   const { speechLocale } = useI18n();
   const [currentIdx, setCurrentIdx] = useState<number>(0);
@@ -50,7 +70,8 @@ export function VoiceMemoryQuiz({
   const [score, setScore] = useState<number>(0);
   const [isFinished, setIsFinished] = useState<boolean>(false);
 
-  const current = QUIZ_ITEMS[currentIdx];
+  const activeItems = ALL_VOICE_QUIZ_ITEMS.slice(0, Math.min(ALL_VOICE_QUIZ_ITEMS.length, Math.max(2, level + 1)));
+  const current = activeItems[currentIdx];
 
   if (!current) return null;
 
@@ -63,14 +84,15 @@ export function VoiceMemoryQuiz({
 
   const handleNext = () => {
     const isCorrect = selectedOpt === current.correct;
-    if (isCorrect) setScore((s) => s + 1);
+    const nextScore = score + (isCorrect ? 1 : 0);
+    if (isCorrect) setScore(nextScore);
 
     setSelectedOpt(null);
-    if (currentIdx + 1 < QUIZ_ITEMS.length) {
+    if (currentIdx + 1 < activeItems.length) {
       setCurrentIdx((i) => i + 1);
     } else {
       setIsFinished(true);
-      onComplete(score + (isCorrect ? 1 : 0), QUIZ_ITEMS.length);
+      onComplete(nextScore, activeItems.length);
     }
   };
 

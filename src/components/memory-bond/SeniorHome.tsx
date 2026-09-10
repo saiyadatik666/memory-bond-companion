@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Sun,
   Pill,
@@ -46,6 +46,60 @@ export function SeniorHome({
   const [currentTime, setCurrentTime] = useState<string>("");
   // Kept in state so server and first client render agree (no hydration mismatch)
   const [hour, setHour] = useState<number>(9);
+
+  // 5-Second Voice/SOS Hold State (Section 45)
+  const [sosHoldProgress, setSosHoldProgress] = useState<number>(0);
+  const [sosHoldSeconds, setSosHoldSeconds] = useState<number>(5);
+  const [isHoldingSos, setIsHoldingSos] = useState<boolean>(false);
+  const sosHoldTimerRef = useRef<any>(null);
+  const sosHoldStartRef = useRef<number>(0);
+
+  const handleSosHoldStart = () => {
+    setIsHoldingSos(true);
+    setSosHoldProgress(0);
+    setSosHoldSeconds(5);
+    sosHoldStartRef.current = Date.now();
+
+    if (typeof window !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate([80]);
+    }
+
+    const durationMs = 5000;
+    sosHoldTimerRef.current = setInterval(() => {
+      const elapsed = Date.now() - sosHoldStartRef.current;
+      const pct = Math.min(100, (elapsed / durationMs) * 100);
+      const secLeft = Math.max(0, Math.ceil((durationMs - elapsed) / 1000));
+      setSosHoldProgress(pct);
+      setSosHoldSeconds(secLeft);
+
+      if (elapsed >= durationMs) {
+        clearInterval(sosHoldTimerRef.current);
+        setIsHoldingSos(false);
+        setSosHoldProgress(0);
+        onOpenSos();
+      }
+    }, 50);
+  };
+
+  const handleSosHoldEnd = () => {
+    if (sosHoldTimerRef.current) {
+      clearInterval(sosHoldTimerRef.current);
+    }
+    const elapsed = Date.now() - sosHoldStartRef.current;
+    setIsHoldingSos(false);
+    setSosHoldProgress(0);
+
+    // If quick tap (< 400ms), also open SOS
+    if (elapsed < 400 && elapsed > 0) {
+      onOpenSos();
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (sosHoldTimerRef.current) clearInterval(sosHoldTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     const updateTime = () => {
@@ -362,15 +416,31 @@ export function SeniorHome({
 
         <button
           type="button"
-          onClick={onOpenSos}
-          className="w-full sm:w-96 h-18 sm:h-20 rounded-3xl bg-destructive hover:bg-destructive/90 text-white font-black text-xl sm:text-2xl tracking-wider shadow-2xl flex items-center justify-center gap-3.5 transition-transform active:scale-95 cursor-pointer mx-auto"
+          onPointerDown={handleSosHoldStart}
+          onPointerUp={handleSosHoldEnd}
+          onPointerLeave={handleSosHoldEnd}
+          onTouchStart={handleSosHoldStart}
+          onTouchEnd={handleSosHoldEnd}
+          className="relative overflow-hidden w-full sm:w-[420px] h-20 sm:h-22 rounded-3xl bg-destructive hover:bg-destructive/90 text-white font-black text-xl sm:text-2xl tracking-wider shadow-2xl flex items-center justify-center gap-3.5 transition-transform active:scale-95 cursor-pointer mx-auto border-2 border-white/20 select-none"
         >
-          <AlertOctagon className="h-8 w-8 sm:h-9 sm:w-9 animate-pulse shrink-0" />
-          <span>{t("sos").toUpperCase()} (मदद लें / TAP FOR SOS)</span>
+          {/* Real-time hold progress fill */}
+          {isHoldingSos && (
+            <div
+              className="absolute left-0 top-0 bottom-0 bg-white/30 transition-all duration-75 pointer-events-none"
+              style={{ width: `${sosHoldProgress}%` }}
+            />
+          )}
+
+          <AlertOctagon className="h-8 w-8 sm:h-9 sm:w-9 animate-pulse shrink-0 relative z-10" />
+          <span className="relative z-10">
+            {isHoldingSos
+              ? `HOLDING... ${sosHoldSeconds}s`
+              : `${t("sos").toUpperCase()} (HOLD 5s FOR SOS)`}
+          </span>
         </button>
 
         <p className="text-xs text-muted-foreground font-semibold">
-          10-second hold protection or direct voice emergency interaction available.
+          Hold for 5 seconds to open SOS screen, or tap directly for instant emergency alert.
         </p>
       </div>
 

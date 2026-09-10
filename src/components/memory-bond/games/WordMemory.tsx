@@ -2,41 +2,62 @@ import { useState, useEffect } from "react";
 import { Sparkles, RotateCcw, CheckCircle2, Clock, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const WORD_LISTS = [
+const ALL_WORD_LEVELS = [
   {
+    // Level 1: 3 words
+    targets: ["Chai", "Book", "Smile"],
+    choices: ["Chai", "Coffee", "Book", "Pen", "Smile", "Tears"],
+  },
+  {
+    // Level 2: 4 words
     targets: ["River", "Morning", "Breeze", "Jasmine"],
     choices: ["River", "Ocean", "Morning", "Night", "Breeze", "Storm", "Jasmine", "Rose"],
   },
   {
-    targets: ["Chai", "Book", "Garden", "Smile"],
-    choices: ["Chai", "Coffee", "Book", "Pen", "Garden", "Street", "Smile", "Tears"],
+    // Level 3: 5 words
+    targets: ["Tea", "Temple", "Bell", "Sun", "Flower"],
+    choices: ["Tea", "Juice", "Temple", "Palace", "Bell", "Drum", "Sun", "Moon", "Flower", "Grass"],
+  },
+  {
+    // Level 4: 6 words
+    targets: ["Bamboo", "Bihu", "Flute", "Mountain", "Stream", "Clouds"],
+    choices: ["Bamboo", "Pine", "Bihu", "Diwali", "Flute", "Guitar", "Mountain", "Valley", "Stream", "Desert", "Clouds", "Dust"],
+  },
+  {
+    // Level 5: 7 words
+    targets: ["Harvest", "Paddy", "Song", "Sister", "Diya", "Porch", "Rain"],
+    choices: ["Harvest", "Store", "Paddy", "Wheat", "Song", "Story", "Sister", "Cousin", "Diya", "Torch", "Porch", "Roof", "Rain", "Snow"],
+  },
+  {
+    // Level 6: 8 words
+    targets: ["Brahmaputra", "Sunrise", "Peace", "Family", "Health", "Harmony", "Wisdom", "Home"],
+    choices: ["Brahmaputra", "Ganga", "Sunrise", "Sunset", "Peace", "War", "Family", "Crowd", "Health", "Pills", "Harmony", "Noise", "Wisdom", "School", "Home", "Office"],
   },
 ];
 
 export function WordMemory({
   onComplete,
+  level = 1,
 }: {
-  onComplete: (score: number, total: number) => void;
+  onComplete: (score: number, total: number, extra?: any) => void;
+  level?: number;
 }) {
-  const [levelIdx, setLevelIdx] = useState<number>(0);
+  const safeLevelIdx = Math.min(ALL_WORD_LEVELS.length - 1, Math.max(0, level - 1));
+  const current = ALL_WORD_LEVELS[safeLevelIdx] || ALL_WORD_LEVELS[0];
+
   const [phase, setPhase] = useState<"read" | "recall" | "result">("read");
   const [countdown, setCountdown] = useState<number>(6);
   const [selectedWords, setSelectedWords] = useState<string[]>([]);
 
-  const current = WORD_LISTS[levelIdx];
-
-  if (!current) return null;
-
-  const startLevel = (idx = 0) => {
-    setLevelIdx(idx);
+  const startLevel = () => {
     setSelectedWords([]);
     setCountdown(6);
     setPhase("read");
   };
 
   useEffect(() => {
-    startLevel(0);
-  }, []);
+    startLevel();
+  }, [level]);
 
   useEffect(() => {
     if (phase !== "read") return;

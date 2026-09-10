@@ -9,13 +9,6 @@ interface RoutineQuestion {
   reflection: string;
 }
 
-interface RoutineQuestion {
-  question: string;
-  options: string[];
-  correct: number;
-  reflection: string;
-}
-
 const ALL_ROUTINE_QUESTIONS: RoutineQuestion[] = [
   {
     question: "Daily Sequence: Wake up ➔ Brush teeth ➔ Breakfast ➔ What comes right after breakfast?",

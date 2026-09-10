@@ -8,27 +8,43 @@ interface MatchPair {
   itemB: { name: string; icon: string };
 }
 
-const PAIRS: MatchPair[] = [
+const ALL_PAIRS: MatchPair[] = [
   { id: "p1", itemA: { name: "Door Lock", icon: "🔒" }, itemB: { name: "Key", icon: "🔑" } },
   { id: "p2", itemA: { name: "Hot Tea Pot", icon: "🫖" }, itemB: { name: "Tea Cup", icon: "☕" } },
   { id: "p3", itemA: { name: "Reading Book", icon: "📖" }, itemB: { name: "Spectacles", icon: "👓" } },
   { id: "p4", itemA: { name: "Heavy Rain", icon: "🌧️" }, itemB: { name: "Umbrella", icon: "☂️" } },
+  { id: "p5", itemA: { name: "Golden Diya", icon: "🪔" }, itemB: { name: "Wick & Oil", icon: "🕯️" } },
+  { id: "p6", itemA: { name: "Letter", icon: "✉️" }, itemB: { name: "Pen", icon: "✒️" } },
+  { id: "p7", itemA: { name: "Tree Blossom", icon: "🌸" }, itemB: { name: "Garland", icon: "📿" } },
+  { id: "p8", itemA: { name: "Sewing Needle", icon: "🪡" }, itemB: { name: "Thread", icon: "🧵" } },
 ];
 
 export function MatchTheObject({
   onComplete,
+  level = 1,
 }: {
-  onComplete: (score: number, total: number) => void;
+  onComplete: (score: number, total: number, extra?: any) => void;
+  level?: number;
 }) {
+  const activePairs = ALL_PAIRS.slice(0, Math.min(ALL_PAIRS.length, Math.max(3, level + 2))); // Level 1=3, Level 2=4, Level 3=5, Level 4=6, Level 5=7, Level 6=8
+
   const [selectedA, setSelectedA] = useState<string | null>(null);
   const [selectedB, setSelectedB] = useState<string | null>(null);
   const [matchedIds, setMatchedIds] = useState<string[]>([]);
   const [isFinished, setIsFinished] = useState<boolean>(false);
 
   // Shuffled right-side items
-  const [rightItems] = useState(() =>
-    [...PAIRS].sort(() => Math.random() - 0.5)
+  const [rightItems, setRightItems] = useState(() =>
+    [...activePairs].sort(() => Math.random() - 0.5)
   );
+
+  const resetGame = () => {
+    setSelectedA(null);
+    setSelectedB(null);
+    setMatchedIds([]);
+    setIsFinished(false);
+    setRightItems([...activePairs].sort(() => Math.random() - 0.5));
+  };
 
   const handleSelectA = (pairId: string) => {
     if (matchedIds.includes(pairId)) return;
@@ -48,9 +64,9 @@ export function MatchTheObject({
       setMatchedIds(nextMatched);
       setSelectedA(null);
       setSelectedB(null);
-      if (nextMatched.length === PAIRS.length) {
+      if (nextMatched.length === activePairs.length) {
         setIsFinished(true);
-        onComplete(PAIRS.length, PAIRS.length);
+        onComplete(activePairs.length, activePairs.length);
       }
     } else {
       setTimeout(() => {

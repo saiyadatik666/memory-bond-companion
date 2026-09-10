@@ -133,6 +133,22 @@ export function selectVoice(lang: string): SpeechSynthesisVoice | null {
   return voices.find((voice) => voice.lang.toLowerCase().startsWith("en")) ?? voices[0] ?? null;
 }
 
+// Spoken number words mapping across Indian languages
+const NUMBER_WORDS: Record<string, number> = {
+  "दस": 10, "দশ": 10, "દસ": 10, "ten": 10,
+  "नौ": 9, "নয়": 9, "નવ": 9, "nine": 9,
+  "आठ": 8, "আট": 8, "આઠ": 8, "eight": 8,
+  "सात": 7, "সাত": 7, "સાત": 7, "seven": 7,
+  "छह": 6, "छः": 6, "ছয়": 6, "છ": 6, "six": 6,
+  "पांच": 5, "पाँच": 5, "পাঁচ": 5, "પાંચ": 5, "five": 5,
+  "चार": 4, "চাৰি": 4, "চার": 4, "ચાર": 4, "four": 4,
+  "तीन": 3, "তিনি": 3, "তিন": 3, "ત્રણ": 3, "three": 3,
+  "दो": 2, "দুই": 2, "બે": 2, "two": 2,
+  "एक": 1, "এক": 1, "એક": 1, "one": 1,
+  "ग्यारह": 11, "এঘাৰ": 11, "এগারো": 11, "અગિયાર": 11, "eleven": 11,
+  "बारह": 12, "বাৰ": 12, "বারো": 12, "બાર": 12, "twelve": 12,
+};
+
 // Time extractor supporting Indian natural speech (Hindi, English, regional terms)
 export function extractTime(text: string): string {
   const t = text.toLowerCase();
@@ -160,6 +176,15 @@ export function extractTime(text: string): string {
       h += 12;
     }
     return `${h.toString().padStart(2, "0")}:00`;
+  }
+
+  // Spoken number words check e.g. "दस बजे", "सुबह दस बजे", "ten am", "দশ বজাত"
+  for (const [word, num] of Object.entries(NUMBER_WORDS)) {
+    if (t.includes(word)) {
+      const isPm = t.includes("pm") || t.includes("shaam") || t.includes("raat") || t.includes("evening") || t.includes("night");
+      const h = isPm && num < 12 ? num + 12 : num;
+      return `${h.toString().padStart(2, "0")}:00`;
+    }
   }
 
   // Pure number like "8" when user mentions time
@@ -437,6 +462,15 @@ export function parseVoiceIntent(
         confirmationMessage: pick(CANCELLED_MSG, locale),
       };
     }
+  }
+
+  // 1.5. Conversational Multi-Turn Dialogue Engine (Contextual appointment/reminder consent & time collection)
+  const multiTurn = conversationalAI.handleMultiTurnDialogue(text, store, locale, extractTime);
+  if (multiTurn && multiTurn.handled) {
+    return {
+      type: "ANSWER",
+      message: multiTurn.responseText,
+    };
   }
 
   // 2. Navigation Intent

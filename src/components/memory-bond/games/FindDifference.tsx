@@ -9,24 +9,29 @@ interface PuzzleGrid {
   oddIndex: number;
 }
 
-const PUZZLES: PuzzleGrid[] = [
-  { commonIcon: "🌸", oddIcon: "🌺", gridSize: 9, oddIndex: 4 },
-  { commonIcon: "🕊️", oddIcon: "🦜", gridSize: 12, oddIndex: 7 },
+const ALL_PUZZLES: PuzzleGrid[] = [
+  { commonIcon: "🌸", oddIcon: "🌻", gridSize: 6, oddIndex: 3 },
+  { commonIcon: "🕊️", oddIcon: "🦜", gridSize: 8, oddIndex: 5 },
   { commonIcon: "☕", oddIcon: "🍵", gridSize: 9, oddIndex: 2 },
-  { commonIcon: "🍎", oddIcon: "🍓", gridSize: 12, oddIndex: 10 },
+  { commonIcon: "🍎", oddIcon: "🍓", gridSize: 12, oddIndex: 8 },
+  { commonIcon: "👒", oddIcon: "🎓", gridSize: 16, oddIndex: 11 },
+  { commonIcon: "🪷", oddIcon: "🌷", gridSize: 20, oddIndex: 14 },
 ];
 
 export function FindDifference({
   onComplete,
+  level = 1,
 }: {
-  onComplete: (score: number, total: number) => void;
+  onComplete: (score: number, total: number, extra?: any) => void;
+  level?: number;
 }) {
   const [puzzleIdx, setPuzzleIdx] = useState<number>(0);
   const [found, setFound] = useState<boolean>(false);
   const [wrongTaps, setWrongTaps] = useState<number>(0);
   const [isFinished, setIsFinished] = useState<boolean>(false);
 
-  const current = PUZZLES[puzzleIdx];
+  const activePuzzles = ALL_PUZZLES.slice(0, Math.min(ALL_PUZZLES.length, Math.max(3, level + 1)));
+  const current = activePuzzles[puzzleIdx];
 
   if (!current) return null;
 
@@ -40,11 +45,11 @@ export function FindDifference({
 
   const handleNextPuzzle = () => {
     setFound(false);
-    if (puzzleIdx + 1 < PUZZLES.length) {
+    if (puzzleIdx + 1 < activePuzzles.length) {
       setPuzzleIdx((p) => p + 1);
     } else {
       setIsFinished(true);
-      onComplete(PUZZLES.length, PUZZLES.length);
+      onComplete(activePuzzles.length, activePuzzles.length);
     }
   };
 

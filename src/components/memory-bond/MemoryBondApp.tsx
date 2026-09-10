@@ -109,8 +109,8 @@ export function MemoryBondApp() {
         onNavigate={handleNavigate}
       />
 
-      {/* Main View Container */}
-      <main className="max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 flex-1 animate-in fade-in">
+      {/* Main View Container with safe bottom navigation clearance */}
+      <main className="max-w-7xl mx-auto w-full px-3 sm:px-6 pt-4 pb-24 sm:pb-28 flex-1 animate-in fade-in">
         {currentTab === "home" && (
           <SeniorHome
             store={store}

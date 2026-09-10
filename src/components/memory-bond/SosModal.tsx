@@ -99,14 +99,16 @@ export function SosModal({
   const sirenStopFnRef = useRef<(() => void) | null>(null);
   const recognitionRef = useRef<any>(null);
 
-  // Reset when opened or closed
+  // Reset and start 10-second confirmation on modal open
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+      goToConfirmation("Emergency SOS Activated");
+    } else {
       cleanupTimers();
       setStep("idle");
       setHoldProgress(0);
       setHoldSecondsRemaining(10);
-      setCancelCountdown(5);
+      setCancelCountdown(10);
       setSpokenEmergencyText("");
       setIsVoiceListening(false);
     }
@@ -233,21 +235,35 @@ export function SosModal({
   };
 
   // -------------------------------------------------------------------------
-  // 3. FULL-SCREEN CONFIRMATION FLOW (Cancel / I'm Safe)
+  // 3. FULL-SCREEN CONFIRMATION FLOW (10-Second Countdown & Cancel / I'm Safe)
   // -------------------------------------------------------------------------
   const goToConfirmation = (detail: string) => {
     setStep("confirming");
-    setCancelCountdown(5);
+    setCancelCountdown(10);
+
+    // Play emergency siren immediately
+    if (!sirenStopFnRef.current) {
+      sirenStopFnRef.current = playEmergencySiren();
+    }
+
+    // Strong vibration alert
+    if (typeof window !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate([400, 200, 400, 200, 600]);
+    }
 
     // Spoken voice cue
-    const cue = "Emergency alert is about to be sent. Tap cancel if safe.";
+    const cue = "Emergency SOS countdown active. Tap Cancel if you are safe.";
     speakText(cue, speechLocale);
 
-    // 5-second countdown to automatic dispatch
-    let remaining = 5;
+    // 10-second countdown to automatic emergency dispatch
+    let remaining = 10;
     cancelCountdownIntervalRef.current = setInterval(() => {
       remaining -= 1;
       setCancelCountdown(remaining);
+
+      if (typeof window !== "undefined" && "vibrate" in navigator) {
+        navigator.vibrate([200]);
+      }
 
       if (remaining <= 0) {
         clearInterval(cancelCountdownIntervalRef.current);
@@ -552,9 +568,12 @@ export function SosModal({
               <p className="text-sm font-bold text-foreground">
                 Dispatching to your configured emergency contacts in:
               </p>
-              <div className="text-5xl font-black text-destructive font-mono animate-pulse">
-                00:0{cancelCountdown}
+              <div className="text-6xl sm:text-7xl font-black text-destructive font-mono animate-pulse">
+                {cancelCountdown < 10 ? `0${cancelCountdown}` : cancelCountdown}
               </div>
+              <p className="text-xs font-bold uppercase tracking-wider text-destructive">
+                Seconds Remaining
+              </p>
               {spokenEmergencyText && (
                 <p className="text-xs font-semibold text-muted-foreground italic bg-card/70 p-2 rounded-xl border border-border">
                   Note: "{spokenEmergencyText}"
@@ -562,13 +581,13 @@ export function SosModal({
               )}
             </div>
 
-            {/* Cancel / I'm Safe Button (Prominent & High Contrast) */}
+            {/* Cancel / I'm Safe Button (Prominent, Extra Large & High Contrast) */}
             <button
               onClick={handleCancelAndImSafe}
-              className="w-full h-16 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xl tracking-wider shadow-lg flex items-center justify-center gap-3 transition-transform active:scale-95 cursor-pointer"
+              className="w-full h-20 sm:h-22 rounded-3xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xl sm:text-2xl tracking-wider shadow-2xl flex items-center justify-center gap-3 transition-transform active:scale-95 cursor-pointer border-2 border-emerald-400"
             >
-              <CheckCircle2 className="h-7 w-7" />
-              CANCEL / I'M SAFE (रद्द करें / सुरक्षित हूँ)
+              <CheckCircle2 className="h-9 w-9 shrink-0" />
+              <span>CANCEL / I'M SAFE (रद्द करें / सुरक्षित हूँ)</span>
             </button>
 
             <Button

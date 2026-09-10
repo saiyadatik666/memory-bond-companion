@@ -12,7 +12,7 @@ interface FamilyProfile {
   correctAnswer: string;
 }
 
-const FAMILY_PROFILES: FamilyProfile[] = [
+const ALL_FAMILY_PROFILES: FamilyProfile[] = [
   {
     name: "Sunita Sharma",
     relation: "Daughter (Primary Caregiver)",
@@ -40,32 +40,63 @@ const FAMILY_PROFILES: FamilyProfile[] = [
     options: ["Rajesh", "Vikram", "Suresh", "Manoj"],
     correctAnswer: "Rajesh",
   },
+  {
+    name: "Deepali Bora",
+    relation: "Lifelong Friend from Tezpur",
+    avatar: "👵",
+    detail: "Went to school together and shared memories of monsoon picnics.",
+    question: "Which cherished school friend from Tezpur visited during last Bihu?",
+    options: ["Deepali Bora", "Geeta Devi", "Rani Kalita", "Sita Sharma"],
+    correctAnswer: "Deepali Bora",
+  },
+  {
+    name: "Kamala",
+    relation: "Elder Sister",
+    avatar: "🧕",
+    detail: "Sings melodious Borgeet and sends Assam winter pitha sweets.",
+    question: "Who is your loving elder sister who sings soothing traditional hymns?",
+    options: ["Kamala", "Lata", "Usha", "Shanti"],
+    correctAnswer: "Kamala",
+  },
+  {
+    name: "Ancestral Brahmaputra Home",
+    relation: "Beloved Village Home",
+    avatar: "🏡",
+    detail: "Surrounded by swaying bamboo groves and fragrant tea gardens.",
+    question: "Where was your childhood ancestral home located?",
+    options: ["Near the Brahmaputra banks in Assam", "In Mumbai city", "In Delhi center", "In Chennai port"],
+    correctAnswer: "Near the Brahmaputra banks in Assam",
+  },
 ];
 
 export function FamilyPhotoMemory({
   onComplete,
+  level = 1,
 }: {
-  onComplete: (score: number, total: number) => void;
+  onComplete: (score: number, total: number, extra?: any) => void;
+  level?: number;
 }) {
   const [currentIdx, setCurrentIdx] = useState<number>(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [score, setScore] = useState<number>(0);
   const [isFinished, setIsFinished] = useState<boolean>(false);
 
-  const current = FAMILY_PROFILES[currentIdx];
+  const activeProfiles = ALL_FAMILY_PROFILES.slice(0, Math.min(ALL_FAMILY_PROFILES.length, Math.max(2, level + 1)));
+  const current = activeProfiles[currentIdx];
 
   if (!current) return null;
 
   const handleNext = () => {
     const isCorrect = selected === current.correctAnswer;
-    if (isCorrect) setScore((s) => s + 1);
+    const nextScore = score + (isCorrect ? 1 : 0);
+    if (isCorrect) setScore(nextScore);
 
     setSelected(null);
-    if (currentIdx + 1 < FAMILY_PROFILES.length) {
+    if (currentIdx + 1 < activeProfiles.length) {
       setCurrentIdx((i) => i + 1);
     } else {
       setIsFinished(true);
-      onComplete(score + (isCorrect ? 1 : 0), FAMILY_PROFILES.length);
+      onComplete(nextScore, activeProfiles.length);
     }
   };
 

@@ -1,6 +1,6 @@
 // ===========================================================================
 // Memory Bond — Conversational AI Engine (SIH 2026 — SIH26003)
-// Natural Multi-Turn Contextual Assistance, Empathy, and Localized Voice Dialogue
+// Natural Multi-Turn Contextual Assistance, Empathy, Dialogue Memory & Localized Voice
 // ===========================================================================
 
 import type { MemoryBondStore } from "./memoryBondStore";
@@ -10,6 +10,14 @@ export interface ConversationTurn {
   text: string;
   locale: string;
   timestamp: number;
+}
+
+export interface DialogueContext {
+  stage: "idle" | "awaiting_reminder_consent" | "awaiting_reminder_time";
+  topic?: string;
+  reminderType?: "appointment" | "medicine" | "shopping" | "hydration" | "routine" | "custom";
+  targetDate?: string | null;
+  targetTime?: string;
 }
 
 export interface ConversationContext {
@@ -22,90 +30,112 @@ export interface ConversationContext {
 }
 
 // Empathy & Companion Knowledge Bank for Elder Well-being across Indian Languages
-const EMPATHY_RESPONSES: Record<string, { loneliness: string; tired: string; happy: string; tea: string; weather: string }> = {
+const EMPATHY_RESPONSES: Record<
+  string,
+  { loneliness: string; tired: string; happy: string; tea: string; weather: string }
+> = {
   "hi-IN": {
-    loneliness: "मैं हमेशा आपके साथ हूँ। क्या आप परिवार की कोई प्यारी याद सुनना चाहेंगे या कोई शांत खेल खेलना चाहेंगे?",
-    tired: "कृपया थोड़ा आराम कर लीजिए। एक गिलास गुनगुना पानी पीजिए और शांति से बैठिए।",
+    loneliness:
+      "मैं हमेशा आपके साथ हूँ। क्या आप परिवार की कोई प्यारी याद सुनना चाहेंगे या कोई शांत खेल खेलना चाहेंगे?",
+    tired:
+      "कृपया थोड़ा आराम कर लीजिए। एक गिलास गुनगुना पानी पीजिए और शांति से बैठिए।",
     happy: "यह सुनकर मेरा दिल खुश हो गया! आपकी मुस्कान ही हमारी सबसे बड़ी खुशी है।",
     tea: "गर्म चाय की एक चुस्की मन को बहुत सुकून देती है। क्या आपने कुछ हल्का नाश्ता भी किया?",
-    weather: "आज का मौसम शांत और सुखद है। आप थोड़ी देर खिड़की के पास या बालकनी में बैठ सकते हैं।",
+    weather:
+      "आज का मौसम शांत और सुखद है। आप थोड़ी देर खिड़की के पास या बालकनी में बैठ सकते हैं।",
   },
   "as-IN": {
-    loneliness: "মই সদায় আপোনাৰ লগত আছোঁ। আপুনি পৰিয়ালৰ পুৰণি স্মৃতি মনত পেলাব খোজে নে শান্ত খেল এটা খেলিব?",
-    tired: "অনুগ্ৰহ কৰি অলপ জিৰণি লওক। এগিলাচ কুহুমীয়া পানী খাওক আৰু শান্তভাৱে বহক।",
+    loneliness:
+      "মই সদায় আপোনাৰ লগত আছোঁ। আপুনি পৰিয়ালৰ পুৰণি স্মৃতি মনত পেলাব খোজে নে শান্ত খেল এটা খেলিব?",
+    tired:
+      "অনুগ্ৰহ কৰি অলপ জিৰণি লওক। এগিলাচ কুহুমীয়া পানী খাওক আৰু শান্তভাৱে বহক।",
     happy: "শুনি বৰ আনন্দ পালোঁ! আপোনাৰ হাঁহিয়ে আমাৰ আটাইতকৈ ডাঙৰ সুখ।",
     tea: "গৰম অসম চাহৰ এক কাপে মনলৈ বৰ শান্তি আনে। লগত কিবা লঘু আহাৰ খালেনে?",
     weather: "আজিৰ বতৰ বৰ মনোৰম। আপুনি বাৰাণ্ডাত অলপ সময় বহিব পাৰে।",
   },
   "bn-IN": {
-    loneliness: "আমি সবসময় আপনার সাথে আছি। পরিবারের কোনো সুন্দর স্মৃতি শুনতে চান নাকি একটা শান্ত খেলা খেলবেন?",
-    tired: "অনুগ্রহ করে একটু বিশ্রাম নিন। এক গ্লাস ঈষদুষ্ণ জল পান করে শান্ত হয়ে বসুন।",
+    loneliness:
+      "আমি সবসময় আপনার সাথে আছি। পরিবারের কোনো সুন্দর স্মৃতি শুনতে চান নাকি একটা শান্ত খেলা খেলবেন?",
+    tired:
+      "অনুগ্রহ করে একটু বিশ্রাম নিন। এক গ্লাস ঈষদুষ্ণ জল পান করে শান্ত হয়ে বসুন।",
     happy: "শুনে খুব ভালো লাগলো! আপনার মুখের হাসিই আমাদের সবচেয়ে বড় আনন্দ।",
     tea: "এক কাপ গরম চা শরীর ও মন জুড়িয়ে দেয়। সাথে কিছু হালকা খেয়েছেন তো?",
-    weather: "আজকের আবহাওয়া খুব সুন্দর ও শান্ত। আপনি কিছুক্ষণ বারান্দায় বসতে পারেন।",
+    weather:
+      "আজকের আবহাওয়া খুব সুন্দর ও শান্ত। আপনি কিছুক্ষণ বারান্দায় বসতে পারেন।",
   },
   "gu-IN": {
-    loneliness: "હું હંમેશા તમારી સાથે છું. શું તમે પરિવારની કોઈ વહાલી યાદ સાંભળવા માંગો છો?",
+    loneliness: "હું હંમેશા તમારી સાથે છું. શું તમે પરિવારની કોઈ વહાली યાદ સાંભળવા માંગો છો?",
     tired: "કૃપા કરીને થોડો આરામ કરો. એક ગ્લાસ હુંફાળું પાણી પીઓ અને શાંતિથી બેસો.",
     happy: "આ સાંભળીને ખૂબ આનંદ થયો! તમારું હાસ્ય જ અમારું સાચું સુખ છે.",
     tea: "ગરમ ચા મનને ઘણી શાંતિ આપે છે. શું તમે સાથે કંઈક હળવો નાસ્તો લીધો?",
     weather: "આજનું હવામાન ઘણું શાંત છે. તમે થોડીવાર બાલકનીમાં બેસી શકો છો.",
   },
   "mr-IN": {
-    loneliness: "मी सदैव आपल्या सोबत आहे. आपल्याला कुटुंबाची एखादी छान आठवण ऐकायची आहे का?",
+    loneliness:
+      "मी सदैव आपल्या सोबत आहे. आपल्याला कुटुंबाची एखादी छान आठवण ऐकायची आहे का?",
     tired: "कृपया थोडी विश्रांती घ्या. एक ग्लास कोमट पाणी प्या आणि शांत बसा.",
     happy: "हे ऐकून खूप आनंद झाला! आपले हसू हीच आमची खरी ताकद आहे.",
     tea: "गरम चहाचा एक घोट मनाला खूप तृप्ती देतो. सोबत काही हलका खाल्ला का?",
     weather: "आजचे वातावरण शांत आणि आल्हाददायक आहे.",
   },
   "ta-IN": {
-    loneliness: "நான் எப்போதும் உங்களுடன் இருக்கிறேன். குடும்பத்தின் இனிய நினைவுகளைப் பகிரலாமா?",
+    loneliness:
+      "நான் எப்போதும் உங்களுடன் இருக்கிறேன். குடும்பத்தின் இனிய நினைவுகளைப் பகிரலாமா?",
     tired: "தயவுசெய்து சிறிது ஓய்வெடுங்கள். கொஞ்சம் வெதுவெதுப்பான நீர் அருந்துங்கள்.",
     happy: "இதைக் கேட்டு மிக்க மகிழ்ச்சி! உங்கள் புன்னகையே எங்கள் செல்வம்.",
     tea: "சூடான தேநீர் மனதிற்கு அமைதி தரும். ஏதாவது சிற்றுண்டி சாப்பிட்டீர்களா?",
     weather: "இன்றைய வானிலை மிகவும் இனிமையாக உள்ளது.",
   },
   "te-IN": {
-    loneliness: "నేను ఎల్లప్పుడూ మీతోనే ఉన్నాను. కుటుంబ మధుర జ్ఞాపకాలను గుర్తుచేసుకుందామా?",
+    loneliness:
+      "నేను ఎల్లప్పుడూ మీతోనే ఉన్నాను. కుటుంబ మధుర జ్ఞాపకాలను గుర్తుచేసుకుందామా?",
     tired: "దయచేసి కాసేపు విశ్రాంతి తీసుకోండి. కొద్దిగా గోరువెచ్చని నీరు త్రాగండి.",
     happy: "ఇది విని చాలా సంతోషంగా ఉంది! మీ చిరునవ్వే మా ఆనందం.",
     tea: "వేడి టీ మనసుకు ఎంతో ప్రశాంతతను ఇస్తుంది.",
     weather: "ఈ రోజు వాతావరణం చాలా ఆహ్లాదకరంగా ఉంది.",
   },
   "kn-IN": {
-    loneliness: "ನಾನು ಸದಾ ನಿಮ್ಮೊಂದಿಗಿದ್ದೇನೆ. ಕುಟುಂಬದ ಸುಂದರ ನೆನಪುಗಳನ್ನು ಕೇಳಲು ಇಷ್ಟಪಡುವಿರಾ?",
+    loneliness:
+      "ನಾನು ಸದಾ ನಿಮ್ಮೊಂದಿಗಿದ್ದೇನೆ. ಕುಟುಂಬದ ಸುಂದರ ನೆನಪುಗಳನ್ನು ಕೇಳಲು ಇಷ್ಟಪಡುವಿರಾ?",
     tired: "ದಯವಿಟ್ಟು ಸ್ವಲ್ಪ ವಿಶ್ರಾಂತಿ ಪಡೆಯಿರಿ. ಸ್ವಲ್ಪ ಬೆಚ್ಚಗಿನ ನೀರನ್ನು ಕುಡಿಯಿರಿ.",
     happy: "ಇದನ್ನು ಕೇಳಿ ತುಂಬಾ ಸಂತೋಷವಾಯಿತು! ನಿಮ್ಮ ನಗುವೇ ನಮ್ಮ ಶಕ್ತಿ.",
     tea: "ಬಿಸಿ ಚಹಾ ಮನಸ್ಸಿಗೆ ಹಿತ ನೀಡುತ್ತದೆ.",
     weather: "ಇಂದಿನ ಹವಾಮಾನವು ತುಂಬಾ ಆಹ್ಲಾದಕರವಾಗಿದೆ.",
   },
   "ml-IN": {
-    loneliness: "ഞാൻ എപ്പോഴും നിങ്ങളോടൊപ്പമുണ്ട്. കുടുംബത്തിന്റെ നല്ല ഓർമ്മകൾ പങ്കുവെക്കണോ?",
+    loneliness:
+      "ഞാൻ എപ്പോഴും നിങ്ങളോടൊപ്പമുണ്ട്. കുടുംബത്തിന്റെ നല്ല ഓർമ്മകൾ പങ്കുവെക്കണോ?",
     tired: "ദയവായി അല്പം വിശ്രമിക്കൂ. ചൂടുവെള്ളം കുടിച്ച് ശാന്തമായി ഇരിക്കൂ.",
     happy: "ഇത് കേട്ടതിൽ അതിയായ സന്തോഷം!",
     tea: "ഒരു കപ്പ് ചൂടുചായ മനസ്സിന് സമാധാനം നൽകുന്നു.",
     weather: "ഇന്നത്തെ കാലാവസ്ഥ ശാന്തവും സുഖകരവുമാണ്.",
   },
   "pa-IN": {
-    loneliness: "ਮੈਂ ਹਮੇਸ਼ਾ ਤੁਹਾਡੇ ਨਾਲ ਹਾਂ। ਕੀ ਤੁਸੀਂ ਪਰਿਵਾਰ ਦੀ ਕੋਈ ਮਿੱਠੀ ਯਾਦ ਸੁਣਨਾ ਚਾਹੋਗੇ?",
+    loneliness:
+      "ਮੈਂ ਹਮੇਸ਼ਾ ਤੁਹਾਡੇ ਨਾਲ ਹਾਂ। ਕੀ ਤੁਸੀਂ ਪਰਿਵਾਰ ਦੀ ਕੋਈ ਮਿੱਠੀ ਯਾਦ ਸੁਣਨਾ ਚਾਹੋਗੇ?",
     tired: "ਕਿਰਪਾ ਕਰਕੇ ਥੋੜ੍ਹਾ ਆਰਾਮ ਕਰੋ। ਗਰਮ ਪਾਣੀ ਪੀ ਕੇ ਸ਼ਾਂਤੀ ਨਾਲ ਬੈਠੋ।",
     happy: "ਇਹ ਸੁਣ ਕੇ ਬਹੁਤ ਖੁਸ਼ੀ ਹੋਈ! ਤੁਹਾਡੀ ਮੁਸਕਰਾਹਟ ਹੀ ਸਾਡਾ ਸਰਮਾਇਆ ਹੈ।",
     tea: "ਗਰਮ ਚਾਹ ਮਨ ਨੂੰ ਬੜਾ ਸਕੂਨ ਦਿੰਦੀ ਹੈ।",
     weather: "ਅੱਜ ਦਾ ਮੌਸਮ ਬਹੁਤ ਸੁਹਾਵਣਾ ਹੈ।",
   },
   "or-IN": {
-    loneliness: "ମୁଁ ସବୁବେଳେ ଆପଣଙ୍କ ସହିତ ଅଛି। ପରିବାରର କୌଣସି ସୁନ୍ଦର ସ୍ମୃତି ମନେ ପକାଇବା କି?",
+    loneliness:
+      "ମୁଁ ସବୁବେଳେ ଆପଣଙ୍କ ସହିତ ଅଛି। ପରିବାରର କୌଣସି ସୁନ୍ଦର ସ୍ମୃତି ମନେ ପକାଇବା କି?",
     tired: "ଦୟାକରି ଟିକେ ବିଶ୍ରାମ ନିଅନ୍ତୁ। ଗ୍ଲାସେ ଉଷୁମ ପାଣି ପିଇ ଶାନ୍ତ ଭାବେ ବସନ୍ତୁ।",
     happy: "ଏହା ଶୁଣି ବହୁତ ଖୁସି ଲାଗିଲା!",
     tea: "ଗରମ ଚାହା ମନକୁ ଶାନ୍ତି ଦିଏ।",
     weather: "ଆଜିର ପାଣିପାଗ ବହୁତ ଶାନ୍ତ ଓ ସୁନ୍ଦର।",
   },
   "en-IN": {
-    loneliness: "I am always right here with you. Would you like to hear a cherished family memory or play a peaceful game?",
-    tired: "Please take a comfortable rest. Drink a glass of warm water and relax peacefully.",
-    happy: "It brings me such joy to hear that! Your cheerful spirit brightens the entire day.",
+    loneliness:
+      "I am always right here with you. Would you like to hear a cherished family memory or play a peaceful game?",
+    tired:
+      "Please take a comfortable rest. Drink a glass of warm water and relax peacefully.",
+    happy:
+      "It brings me such joy to hear that! Your cheerful spirit brightens the entire day.",
     tea: "A warm cup of tea brings so much comfort. Did you also have a light snack with it?",
-    weather: "The day feels calm and peaceful. Sitting near the window or balcony might be lovely.",
+    weather:
+      "The day feels calm and peaceful. Sitting near the window or balcony might be lovely.",
   },
 };
 
@@ -114,8 +144,20 @@ export class ConversationalAIEngine {
     turns: [],
   };
 
+  private _dialogue: DialogueContext = {
+    stage: "idle",
+  };
+
   public getContext(): ConversationContext {
     return this._context;
+  }
+
+  public getDialogueState(): DialogueContext {
+    return this._dialogue;
+  }
+
+  public resetDialogue(): void {
+    this._dialogue = { stage: "idle" };
   }
 
   public recordTurn(role: "user" | "assistant", text: string, locale: string) {
@@ -125,8 +167,7 @@ export class ConversationalAIEngine {
       locale,
       timestamp: Date.now(),
     });
-    // Keep last 10 turns in session memory
-    if (this._context.turns.length > 10) {
+    if (this._context.turns.length > 12) {
       this._context.turns.shift();
     }
   }
@@ -139,6 +180,176 @@ export class ConversationalAIEngine {
     this._context.lastActionPrompt = undefined;
   }
 
+  /**
+   * Multi-turn Dialogue Handler
+   * Handles natural flows like:
+   * User: "कल डॉक्टर के पास जाना है।"
+   * AI: "ठीक है। क्या मैं आपको इसकी याद दिलाऊँ?"
+   * User: "हाँ।"
+   * AI: "ज़रूर। किस समय याद दिलाऊँ?"
+   * User: "सुबह दस बजे।"
+   * AI: "ठीक है। मैं आपको कल सुबह दस बजे याद दिलाऊँगा।"
+   */
+  public handleMultiTurnDialogue(
+    text: string,
+    store: MemoryBondStore,
+    locale: string,
+    extractedTimeFn: (t: string) => string
+  ): { handled: boolean; responseText: string } | null {
+    const raw = text.trim();
+    const t = raw.toLowerCase();
+    const lang = locale.split("-")[0] || "en";
+
+    // Affirmative checking
+    const isYes =
+      /^(हाँ|हा|हाँजी|हाँ जी|yes|yeah|sure|ok|okay|yep|हয়|হাঁ|হ্যাঁ|હા|હાજી|होय|हो|ஆம்|சரி|అవును|సరే|ಹೌದು|ಸರಿ|അതെ|ശരി|ਹਾਂ|ਹਾਂਜੀ|ହଁ)(\s|$)/i.test(
+        t
+      ) ||
+      t.includes("याद दिलाओ") ||
+      t.includes("कर दो") ||
+      t.includes("लगा दो") ||
+      t.includes("remind me");
+
+    // Negative checking
+    const isNo =
+      /^(नहीं|ना|नहीं जी|no|nope|cancel|stop|dont|নহয়|না|নালাগে|ના|નહીં|नाही|নকো|இல்லை|வேண்டாம்|వద్దు|కాదు|ಬೇಡ|ಇಲ್ಲ|വേണ്ട|ਨਹੀਂ|ନାହିଁ)(\s|$)/i.test(
+        t
+      ) ||
+      t.includes("मत करो") ||
+      t.includes("रहने दो");
+
+    // 1. If currently awaiting user consent to set a reminder
+    if (this._dialogue.stage === "awaiting_reminder_consent") {
+      if (isYes) {
+        // User confirmed they want a reminder! Now ask for the time
+        this._dialogue.stage = "awaiting_reminder_time";
+        let askTime = "Sure. At what time should I remind you?";
+        if (lang === "hi") askTime = "ज़रूर। किस समय याद दिलाऊँ?";
+        else if (lang === "gu") askTime = "ચોક્કસ. કયા સમયે યાદ કરાવું?";
+        else if (lang === "as") askTime = "নিশ্চয়। কি সময়ত মনত পেলাই দিম?";
+        else if (lang === "bn") askTime = "নিশ্চয়ই। কোন সময়ে মনে করিয়ে দেব?";
+        return { handled: true, responseText: askTime };
+      } else if (isNo) {
+        this.resetDialogue();
+        let cancelMsg = "Alright, no problem. What else can I help you with?";
+        if (lang === "hi") cancelMsg = "ठीक है, कोई बात नहीं। मैं आपकी और क्या मदद करूँ?";
+        else if (lang === "gu") cancelMsg = "ઠીક છે, કોઈ વાંધો નહીં.";
+        else if (lang === "as") cancelMsg = "ঠিক আছে, কোনো কথা নাই।";
+        else if (lang === "bn") cancelMsg = "ঠিক আছে, কোনো অসুবিধা নেই।";
+        return { handled: true, responseText: cancelMsg };
+      }
+    }
+
+    // 2. If currently awaiting the time for the agreed reminder
+    if (this._dialogue.stage === "awaiting_reminder_time") {
+      const time = extractedTimeFn(raw);
+      const targetDate = this._dialogue.targetDate || new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+      const title = this._dialogue.topic || "Scheduled Reminder";
+      const remType = this._dialogue.reminderType || "appointment";
+
+      // Actually create the reminder in store
+      store.addReminder({
+        title,
+        time,
+        date: targetDate,
+        repeat: "none",
+        type: remType,
+        notes: "Created via Memory Bond conversational dialogue",
+        active: true,
+      });
+
+      // Localized human-like confirmation (e.g. "ठीक है। मैं आपको कल सुबह दस बजे याद दिलाऊँगा।")
+      let confirmMsg = `Alright. I will remind you tomorrow at ${time}.`;
+      if (lang === "hi") {
+        const timePhrase = raw.includes("दस") || time === "10:00" ? "सुबह दस बजे" : `${time} बजे`;
+        confirmMsg = `ठीक है। मैं आपको कल ${timePhrase} याद दिलाऊँगा।`;
+      } else if (lang === "gu") {
+        confirmMsg = `ઠીક છે. હું તમને કાલે ${time} વાગ્યે યાદ દેવડાવીશ.`;
+      } else if (lang === "as") {
+        confirmMsg = `ঠিক আছে। মই কাইলৈ ${time} বজাত আপোনাক মনত পেলাই দিম।`;
+      } else if (lang === "bn") {
+        confirmMsg = `ঠিক আছে। আমি কাল ${time} টায় আপনাকে মনে করিয়ে দেব।`;
+      }
+
+      this.resetDialogue();
+      return { handled: true, responseText: confirmMsg };
+    }
+
+    // 3. Detect natural intent to initiate reminder consent (WITHOUT user giving direct command)
+    // E.g.: "कल डॉक्टर के पास जाना है" or "Tomorrow I have to visit the doctor"
+    const hasTomorrow =
+      t.includes("tomorrow") ||
+      t.includes("कल") ||
+      t.includes("কাল") ||
+      t.includes("কাইলৈ") ||
+      t.includes("કાલે") ||
+      t.includes("उद्या");
+
+    const mentionsDoctor =
+      t.includes("doctor") ||
+      t.includes("डॉक्टर") ||
+      t.includes("clinic") ||
+      t.includes("hospital") ||
+      t.includes("ডাক্তাৰ") ||
+      t.includes("ডাক্তার") ||
+      t.includes("ડોક્ટર");
+
+    const mentionsMarket =
+      t.includes("market") ||
+      t.includes("bazaar") ||
+      t.includes("बाज़ार") ||
+      t.includes("दुकान") ||
+      t.includes("shopping") ||
+      t.includes("বজাৰ") ||
+      t.includes("বাজার");
+
+    // If user says "have to go" / "जाना है" / "visit" without directly asking "remind me to..."
+    const isCasualStatement =
+      t.includes("jana hai") ||
+      t.includes("जाना है") ||
+      t.includes("have to go") ||
+      t.includes("need to visit") ||
+      t.includes("যাব লাগে") ||
+      t.includes("যেতে হবে") ||
+      t.includes("જવાનું છે");
+
+    if (hasTomorrow && mentionsDoctor && isCasualStatement) {
+      this._dialogue = {
+        stage: "awaiting_reminder_consent",
+        topic: "Doctor Appointment",
+        reminderType: "appointment",
+        targetDate: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+      };
+
+      let askConsent = "Alright. Would you like me to set a reminder for this?";
+      if (lang === "hi") askConsent = "ठीक है। क्या मैं आपको इसकी याद दिलाऊँ?";
+      else if (lang === "gu") askConsent = "ઠીક છે. શું હું તમને આની યાદ દેવડાવું?";
+      else if (lang === "as") askConsent = "ঠিক আছে। মই আপোনাক ইয়াৰ সংকেত দিয়াটো বিচাৰে নেকি?";
+      else if (lang === "bn") askConsent = "ঠিক আছে। আমি কি আপনাকে এটা মনে করিয়ে দেব?";
+
+      return { handled: true, responseText: askConsent };
+    }
+
+    if (hasTomorrow && mentionsMarket && isCasualStatement) {
+      this._dialogue = {
+        stage: "awaiting_reminder_consent",
+        topic: "Market & Groceries",
+        reminderType: "shopping",
+        targetDate: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+      };
+
+      let askConsent = "Alright. Would you like me to set a reminder for the market?";
+      if (lang === "hi") askConsent = "ठीक है। क्या मैं आपको बाज़ार जाने की याद दिलाऊँ?";
+      else if (lang === "gu") askConsent = "ઠીક છે. શું હું તમને બજાર માટે યાદ દેવડાવું?";
+      else if (lang === "as") askConsent = "ঠিক আছে। মই আপোনাক বজাৰৰ সংকেত দিয়াটো বিচাৰে নেকি?";
+      else if (lang === "bn") askConsent = "ঠিক আছে। আমি কি আপনাকে বাজারে যাওয়ার কথা মনে করিয়ে দেব?";
+
+      return { handled: true, responseText: askConsent };
+    }
+
+    return null;
+  }
+
   // Generates natural conversational response when standard intent is conversational
   public generateConversationalReply(
     userText: string,
@@ -147,7 +358,10 @@ export class ConversationalAIEngine {
   ): string {
     const t = userText.toLowerCase().trim();
     const lang = locale.split("-")[0] || "en";
-    const bank = EMPATHY_RESPONSES[locale] || EMPATHY_RESPONSES[`${lang}-IN`] || EMPATHY_RESPONSES["en-IN"];
+    const bank =
+      EMPATHY_RESPONSES[locale] ||
+      EMPATHY_RESPONSES[`${lang}-IN`] ||
+      EMPATHY_RESPONSES["en-IN"];
 
     // 1. Feelings of Loneliness or Isolation
     if (
