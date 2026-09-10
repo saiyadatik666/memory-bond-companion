@@ -521,6 +521,7 @@ export interface AppNotification {
     | "appointment"
     | "caregiver_alert"
     | "reminder"
+    | "routine"
     | "general";
   title: string;
   body: string;

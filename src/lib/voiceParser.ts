@@ -564,7 +564,7 @@ export function parseVoiceIntent(
     const time = extractTime(text);
     
     // Categorize reminder
-    let reminderType: VoiceIntent extends { type: "CREATE_REMINDER"; reminderType: infer T } ? T : never = "custom";
+    let reminderType: Extract<VoiceIntent, { type: "CREATE_REMINDER" }>["reminderType"] = "custom";
     if (lower.includes("water") || lower.includes("pani") || lower.includes("पानी") || lower.includes("জল") || lower.includes("પાણી")) {
       reminderType = "hydration";
     } else if (lower.includes("medicine") || lower.includes("dawa") || lower.includes("दवा") || lower.includes("ঔষধ") || lower.includes("દવા")) {
