@@ -73,7 +73,6 @@ export function SeniorHome({
     (l) => l.taken_at?.slice(0, 10) === todayStr && l.status === "taken"
   ).length;
 
-  const hour = new Date().getHours();
   const greeting = (() => {
     if (hour < 12) return "Good Morning";
     if (hour < 17) return "Good Afternoon";
