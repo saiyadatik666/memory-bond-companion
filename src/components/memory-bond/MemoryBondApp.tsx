@@ -89,7 +89,7 @@ export function MemoryBondApp() {
 
   return (
     <div
-      className={`min-h-screen bg-background text-foreground flex flex-col justify-between pb-24 ${fontClass} ${
+      className={`min-h-screen overflow-x-hidden bg-background text-foreground flex flex-col justify-between pb-24 ${fontClass} ${
         store.profile.high_contrast ? "high-contrast contrast-boost" : ""
       } ${store.profile.reduced_motion ? "reduced-motion" : ""}`}
     >
