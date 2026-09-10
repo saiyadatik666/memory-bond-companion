@@ -120,29 +120,93 @@ export class WebSpeechVoiceProvider implements VoiceProvider {
     window.speechSynthesis.speak(utterance);
   }
 
-  // Match native voice based on Indian regional language preferences
+  // Match native voice based on Indian regional language preferences without forcing English
   private getBestMatchingVoice(locale: string): SpeechSynthesisVoice | null {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
     const voices = window.speechSynthesis.getVoices();
     if (!voices || voices.length === 0) return null;
 
-    const lower = locale.toLowerCase();
+    const lower = locale.toLowerCase().replace("_", "-");
     const prefix = lower.split("-")[0] || "en";
 
-    // 1. Exact locale match (e.g. "hi-IN", "bn-IN", "ta-IN")
-    let match = voices.find((v) => v.lang.toLowerCase() === lower);
+    // 1. Exact locale match (e.g. "gu-IN", "hi-IN", "bn-IN", "ta-IN", "mr-IN")
+    let match = voices.find((v) => {
+      const vLang = v.lang.toLowerCase().replace("_", "-");
+      return vLang === lower;
+    });
     if (match) return match;
 
-    // 2. Language prefix match
-    match = voices.find((v) => v.lang.toLowerCase().startsWith(prefix));
+    // 2. Language prefix match (e.g. "gu", "hi", "bn", "ta", "te", "mr", "kn")
+    match = voices.find((v) => {
+      const vLang = v.lang.toLowerCase().replace("_", "-");
+      return vLang.startsWith(prefix);
+    });
     if (match) return match;
 
-    // 3. Indian English fallback
-    match = voices.find((v) => v.lang.toLowerCase() === "en-in");
-    if (match) return match;
+    // 3. Name match for natural neural / online voices (Google ગુજરાતી, Microsoft Niranjan, Google हिन्दी, etc.)
+    const langNameMap: Record<string, string[]> = {
+      gu: ["gujarat", "ગુજરાતી", "niranjan", "dhwani"],
+      hi: ["hindi", "हिन्दी", "मधुर", "swara", "kalpana", "hemant"],
+      bn: ["bengal", "বাংলা", "bashkar", "tanishaa"],
+      as: ["assamese", "অসমীয়া"],
+      mr: ["marathi", "मराठी", "aarohi", "manohar"],
+      ta: ["tamil", "தமிழ்", "pallavi", "valluvar"],
+      te: ["telugu", "తెలుగు", "mohan", "shruti"],
+      kn: ["kannada", "ಕನ್ನಡ", "gagan", "sapna"],
+      ml: ["malayalam", "മലയാളം", "sobhana", "midhun"],
+      pa: ["punjabi", "ਪੰਜਾਬੀ", "raaj", "harman"],
+      or: ["odia", "oriya", "ଓଡ଼ିଆ"],
+    };
 
-    // 4. Any English voice
-    return voices.find((v) => v.lang.toLowerCase().startsWith("en")) || voices[0] || null;
+    const keywords = langNameMap[prefix] || [];
+    if (keywords.length > 0) {
+      match = voices.find((v) => {
+        const vName = v.name.toLowerCase();
+        return keywords.some((k) => vName.includes(k));
+      });
+      if (match) return match;
+    }
+
+    // 4. Compatible Sibling Indic Phonetic Match (NEVER use English for Indic text)
+    // Assamese shares Eastern Indic phonetics with Bengali
+    if (prefix === "as") {
+      match = voices.find((v) => v.lang.toLowerCase().startsWith("bn"));
+      if (match) return match;
+    }
+    // Marathi shares Devanagari script & phonetics with Hindi
+    if (prefix === "mr") {
+      match = voices.find((v) => v.lang.toLowerCase().startsWith("hi"));
+      if (match) return match;
+    }
+    // Gujarati, Odia, Punjabi fallback to Hindi Indic phonetic engine if exact engine missing
+    if (["gu", "or", "pa"].includes(prefix)) {
+      match = voices.find((v) => v.lang.toLowerCase().startsWith("hi"));
+      if (match) return match;
+    }
+    // Dravidian siblings
+    if (prefix === "kn") {
+      match = voices.find((v) => v.lang.toLowerCase().startsWith("te") || v.lang.toLowerCase().startsWith("ta"));
+      if (match) return match;
+    }
+    if (prefix === "ml") {
+      match = voices.find((v) => v.lang.toLowerCase().startsWith("ta"));
+      if (match) return match;
+    }
+
+    // Any available Indic voice for non-English Indian speech
+    if (prefix !== "en") {
+      match = voices.find((v) => /^(hi|bn|gu|mr|ta|te|kn|ml|pa|as)/i.test(v.lang));
+      if (match) return match;
+    }
+
+    // 5. English only if requested language is English
+    if (prefix === "en") {
+      match = voices.find((v) => v.lang.toLowerCase() === "en-in");
+      if (match) return match;
+      return voices.find((v) => v.lang.toLowerCase().startsWith("en")) || voices[0] || null;
+    }
+
+    return voices[0] || null;
   }
 
   // Start continuous speech recognition
@@ -177,6 +241,7 @@ export class WebSpeechVoiceProvider implements VoiceProvider {
       };
 
       recognition.onresult = (event: any) => {
+        if (this._isSpeaking) return; // Echo prevention: ignore speech recognition while assistant is speaking
         let interim = "";
         let finalTranscript = "";
 
