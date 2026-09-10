@@ -10,19 +10,23 @@ interface Card {
   matched: boolean;
 }
 
-const ICONS = [
+const ICONS_POOL = [
   { icon: "🪷", name: "Lotus" },
   { icon: "☕", name: "Tea Cup" },
   { icon: "🪔", name: "Diya" },
   { icon: "🌳", name: "Tree" },
   { icon: "🕊️", name: "Dove" },
   { icon: "📖", name: "Book" },
+  { icon: "🌾", name: "Paddy" },
+  { icon: "🍎", name: "Apple" },
 ];
 
 export function MemoryCardMatch({
   onComplete,
+  level = 1,
 }: {
-  onComplete: (score: number, total: number) => void;
+  onComplete: (score: number, total: number, extra?: any) => void;
+  level?: number;
 }) {
   const [cards, setCards] = useState<Card[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
@@ -30,11 +34,13 @@ export function MemoryCardMatch({
   const [moves, setMoves] = useState<number>(0);
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
 
+  const pairCount = Math.min(8, Math.max(3, level + 2)); // Level 1=3 pairs, Level 2=4, Level 3=5, Level 4=6, Level 5=7, Level 6=8
+
   const initGame = () => {
-    // 6 pairs = 12 cards
+    const activeIcons = ICONS_POOL.slice(0, pairCount);
     const deck: Card[] = [];
     let id = 0;
-    ICONS.forEach((item) => {
+    activeIcons.forEach((item) => {
       deck.push({ id: id++, icon: item.icon, name: item.name, flipped: false, matched: false });
       deck.push({ id: id++, icon: item.icon, name: item.name, flipped: false, matched: false });
     });
@@ -49,7 +55,7 @@ export function MemoryCardMatch({
 
   useEffect(() => {
     initGame();
-  }, []);
+  }, [level]);
 
   const handleCardClick = (index: number) => {
     const card = cards[index];
@@ -79,9 +85,9 @@ export function MemoryCardMatch({
           });
           setMatches((prev) => {
             const nextMatches = prev + 1;
-            if (nextMatches === ICONS.length) {
+            if (nextMatches === pairCount) {
               setIsCompleted(true);
-              onComplete(ICONS.length, ICONS.length);
+              onComplete(pairCount, pairCount);
             }
             return nextMatches;
           });
@@ -105,12 +111,12 @@ export function MemoryCardMatch({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-secondary/40 p-4">
         <div>
-          <h3 className="text-xl font-bold text-foreground">Game 1: Memory Card Match</h3>
-          <p className="text-sm text-muted-foreground">Tap any two cards to find matching pairs.</p>
+          <h3 className="text-xl font-bold text-foreground">Game 1: Memory Card Match (Level {level})</h3>
+          <p className="text-sm text-muted-foreground">Tap any two cards to find matching pairs ({pairCount} pairs to find).</p>
         </div>
         <div className="flex items-center gap-4">
           <span className="rounded-xl bg-card px-4 py-2 font-bold shadow-xs">
-            Pairs: {matches} / {ICONS.length}
+            Pairs: {matches} / {pairCount}
           </span>
           <Button variant="outline" onClick={initGame} className="gap-2">
             <RotateCcw className="h-4 w-4" /> Reset

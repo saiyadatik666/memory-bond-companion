@@ -9,7 +9,20 @@ interface RoutineQuestion {
   reflection: string;
 }
 
-const QUESTIONS: RoutineQuestion[] = [
+interface RoutineQuestion {
+  question: string;
+  options: string[];
+  correct: number;
+  reflection: string;
+}
+
+const ALL_ROUTINE_QUESTIONS: RoutineQuestion[] = [
+  {
+    question: "Daily Sequence: Wake up ➔ Brush teeth ➔ Breakfast ➔ What comes right after breakfast?",
+    options: ["Morning Medicine & Water", "Running a marathon", "Going to deep sleep", "Skipping the day"],
+    correct: 0,
+    reflection: "Taking scheduled medicine right after breakfast ensures your stomach is protected and comfortable!",
+  },
   {
     question: "What is typically the healthiest thing to drink right after waking up in the morning?",
     options: ["A warm glass of water or lemon water", "Cold soda with ice", "Heavy sugary syrup", "Direct bitter medicine"],
@@ -28,19 +41,34 @@ const QUESTIONS: RoutineQuestion[] = [
     correct: 1,
     reflection: "Early morning or mild evening walks give fresh oxygen and keep joints flexible.",
   },
+  {
+    question: "After returning from your gentle evening walk, what is the best routine step?",
+    options: ["Drink a glass of water and rest calmly", "Eat heavy oily food immediately", "Do heavy lifting", "Skip dinner entirely"],
+    correct: 0,
+    reflection: "Hydrating and resting after walking lets heart rate settle gently.",
+  },
+  {
+    question: "Before preparing for sleep at night, which habit promotes peaceful rest?",
+    options: ["Watching loud screens in the dark", "Dimming the lights and reflecting calmly", "Drinking strong coffee", "Checking stressful news"],
+    correct: 1,
+    reflection: "Dimming lights and quiet reflection helps the brain transition naturally to rejuvenating sleep.",
+  },
 ];
 
 export function RoutineRecall({
   onComplete,
+  level = 1,
 }: {
-  onComplete: (score: number, total: number) => void;
+  onComplete: (score: number, total: number, extra?: any) => void;
+  level?: number;
 }) {
   const [currentIdx, setCurrentIdx] = useState<number>(0);
   const [selectedOpt, setSelectedOpt] = useState<number | null>(null);
   const [score, setScore] = useState<number>(0);
   const [isFinished, setIsFinished] = useState<boolean>(false);
 
-  const currentQ = QUESTIONS[currentIdx];
+  const activeQuestions = ALL_ROUTINE_QUESTIONS.slice(0, Math.min(ALL_ROUTINE_QUESTIONS.length, Math.max(3, level + 1)));
+  const currentQ = activeQuestions[currentIdx];
 
   if (!currentQ) return null;
 
@@ -49,15 +77,19 @@ export function RoutineRecall({
   };
 
   const handleNext = () => {
-    if (selectedOpt === currentQ.correct) {
-      setScore((s) => s + 1);
+    const isCorrect = selectedOpt === currentQ.correct;
+    const nextScore = score + (isCorrect ? 1 : 0);
+    if (isCorrect) {
+      setScore(nextScore);
     }
     setSelectedOpt(null);
-    if (currentIdx + 1 < QUESTIONS.length) {
+    if (currentIdx + 1 < activeQuestions.length) {
       setCurrentIdx((i) => i + 1);
     } else {
       setIsFinished(true);
-      onComplete(score + (selectedOpt === currentQ.correct ? 1 : 0), QUESTIONS.length);
+      onComplete(nextScore, activeQuestions.length);
+    }
+  };
     }
   };
 

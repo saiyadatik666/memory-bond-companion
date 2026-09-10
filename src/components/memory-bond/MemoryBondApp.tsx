@@ -39,15 +39,18 @@ export function MemoryBondApp() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState<boolean>(false);
   const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
 
-  // Sync tab if user switches role (Senior, Caregiver, Healthcare Worker, Admin)
+  // Sync tab if user switches role (Senior, Caregiver, Admin / Healthcare Worker)
   useEffect(() => {
     if (store.profile.role === "caregiver" && currentTab === "home") {
       setCurrentTab("caregiver");
     } else if (store.profile.role === "senior" && (currentTab === "caregiver" || currentTab === "healthcare")) {
       setCurrentTab("home");
-    } else if (store.profile.role === "healthcare_worker" && (currentTab === "home" || currentTab === "caregiver")) {
-      setCurrentTab("healthcare");
-    } else if (store.profile.role === "admin" && currentTab === "home") {
+    } else if (
+      (store.profile.role === "admin_healthcare_worker" ||
+        store.profile.role === "healthcare_worker" ||
+        store.profile.role === "admin") &&
+      (currentTab === "home" || currentTab === "caregiver")
+    ) {
       setCurrentTab("healthcare");
     }
   }, [store.profile.role]);

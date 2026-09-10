@@ -28,9 +28,9 @@ export function BottomNavigation({
 
   let tabs: { id: string; label: string; icon: any }[] = [];
 
-  if (role === "healthcare_worker") {
+  if (role === "admin_healthcare_worker" || role === "healthcare_worker" || role === "admin") {
     tabs = [
-      { id: "healthcare", label: "Triage", icon: Stethoscope },
+      { id: "healthcare", label: "Triage & Admin", icon: Stethoscope },
       { id: "medicines", label: t("medicines") || "Meds", icon: Pill },
       { id: "appointments", label: "Clinics", icon: Calendar },
       { id: "checkin", label: "CES", icon: Activity },
@@ -43,14 +43,6 @@ export function BottomNavigation({
       { id: "appointments", label: t("appointments") || "Appointments", icon: Bell },
       { id: "routine", label: t("routine") || "Routine", icon: Sun },
       { id: "family", label: t("family") || "Family", icon: Users },
-    ];
-  } else if (role === "admin") {
-    tabs = [
-      { id: "healthcare", label: "Clinical", icon: Stethoscope },
-      { id: "caregiver", label: "Caregiver", icon: Home },
-      { id: "medicines", label: "Medicines", icon: Pill },
-      { id: "social", label: "Family Feed", icon: Heart },
-      { id: "settings", label: "Settings", icon: Settings },
     ];
   } else {
     // Senior (default)

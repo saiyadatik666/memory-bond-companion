@@ -11,12 +11,18 @@ const OBJECT_POOL = [
   { id: "book", icon: "📖", name: "Holy Book" },
   { id: "keys", icon: "🔑", name: "Door Keys" },
   { id: "apple", icon: "🍎", name: "Red Apple" },
+  { id: "jaapi", icon: "👒", name: "Assam Jaapi" },
+  { id: "lamp", icon: "🪔", name: "Brass Diya" },
+  { id: "bag", icon: "👜", name: "Market Bag" },
+  { id: "bell", icon: "🔔", name: "Temple Bell" },
 ];
 
 export function ObjectRecall({
   onComplete,
+  level = 1,
 }: {
-  onComplete: (score: number, total: number) => void;
+  onComplete: (score: number, total: number, extra?: any) => void;
+  level?: number;
 }) {
   const [phase, setPhase] = useState<"memorize" | "recall" | "result">("memorize");
   const [targetObjects, setTargetObjects] = useState<typeof OBJECT_POOL>([]);
@@ -24,12 +30,12 @@ export function ObjectRecall({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [countdown, setCountdown] = useState<number>(6);
 
+  const targetCount = Math.min(8, Math.max(3, level + 2)); // Level 1=3, Level 2=4, Level 3=5, Level 4=6, Level 5=7, Level 6=8
+
   const startRound = () => {
-    // Pick 4 target objects
     const shuffled = [...OBJECT_POOL].sort(() => Math.random() - 0.5);
-    const targets = shuffled.slice(0, 4);
-    // Pick 4 distractors (total 8 options)
-    const options = shuffled.slice(0, 8).sort(() => Math.random() - 0.5);
+    const targets = shuffled.slice(0, targetCount);
+    const options = shuffled.slice(0, Math.min(OBJECT_POOL.length, targetCount + 4)).sort(() => Math.random() - 0.5);
 
     setTargetObjects(targets);
     setDistractorOptions(options);
@@ -40,7 +46,7 @@ export function ObjectRecall({
 
   useEffect(() => {
     startRound();
-  }, []);
+  }, [level]);
 
   useEffect(() => {
     if (phase !== "memorize") return;

@@ -22,11 +22,14 @@ import {
   Footprints,
   Compass,
   MessageCircle,
+  Droplets,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
 import { speakText, stopSpeaking } from "@/lib/voiceParser";
+import { MemoryGarden } from "./MemoryGarden";
 
 export function SeniorHome({
   store,
@@ -59,6 +62,13 @@ export function SeniorHome({
   const nextMedicine = store.medicines[0];
   const nextReminder = store.reminders.find((r) => r.active && r.last_done !== todayStr);
   const lowStockMeds = store.medicines.filter((m) => m.stock <= m.refill_threshold);
+  const nextAppointment = store.appointments[0];
+  const primaryCaregiver = store.caregiverLinks[0];
+  const hydrationReminder = store.reminders.find((r) => r.type === "hydration");
+  const isHydrated = hydrationReminder ? hydrationReminder.last_done === todayStr : false;
+  const medsDoneToday = store.medicineLogs.filter(
+    (l) => l.date === todayStr && l.status === "taken"
+  ).length;
 
   const hour = new Date().getHours();
   const greeting = (() => {
@@ -383,67 +393,123 @@ export function SeniorHome({
         </div>
       )}
 
-      {/* Senior Status Overview Ribbon: Next Med, Next Reminder, Cognitive Score */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Next Medicine */}
+      {/* Senior Status Overview Ribbon: Next Med, Reminder/Tasks, Appointment, Hydration, Caregiver, CES Score */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+        {/* 1. Medicine Status */}
         <div
           onClick={() => onNavigate("medicines")}
-          className="rounded-3xl border-2 border-border bg-card p-5 shadow-xs space-y-2 cursor-pointer hover:border-primary/50 transition-all"
+          className="rounded-3xl border-2 border-border bg-card p-4 sm:p-5 shadow-xs space-y-1.5 cursor-pointer hover:border-primary/50 transition-all flex flex-col justify-between"
         >
           <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-bold uppercase tracking-wider">{t("nextMedicine")}</span>
-            <Pill className="h-5 w-5 text-teal-600" />
-          </div>
-          {nextMedicine ? (
-            <div>
-              <div className="text-xl font-bold text-foreground">{nextMedicine.name}</div>
-              <div className="text-sm font-semibold text-primary">
-                {nextMedicine.dosage} • Scheduled: {nextMedicine.times[0] || "08:30"}
-              </div>
-            </div>
-          ) : (
-            <div className="text-sm text-muted-foreground">No upcoming dose</div>
-          )}
-        </div>
-
-        {/* Next Reminder */}
-        <div
-          onClick={() => onNavigate("reminders")}
-          className="rounded-3xl border-2 border-border bg-card p-5 shadow-xs space-y-2 cursor-pointer hover:border-primary/50 transition-all"
-        >
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-bold uppercase tracking-wider">{t("nextReminder")}</span>
-            <Bell className="h-5 w-5 text-sky-600" />
-          </div>
-          {nextReminder ? (
-            <div>
-              <div className="text-xl font-bold text-foreground truncate">{nextReminder.title}</div>
-              <div className="text-sm font-semibold text-primary">At {nextReminder.time} ({nextReminder.type})</div>
-            </div>
-          ) : (
-            <div className="text-sm text-muted-foreground">All reminders completed today</div>
-          )}
-        </div>
-
-        {/* Cognitive Engagement Score (CES) Live Card */}
-        <div
-          onClick={() => onNavigate("games")}
-          className="rounded-3xl border-2 border-border bg-card p-5 shadow-xs space-y-2 cursor-pointer hover:border-primary/50 transition-all"
-        >
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-bold uppercase tracking-wider">Cognitive Score (CES)</span>
-            <Sparkles className="h-5 w-5 text-indigo-600" />
+            <span className="text-[11px] font-bold uppercase tracking-wider">{t("medicines")}</span>
+            <Pill className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <div className="text-xl font-black text-foreground">
+            <div className="text-lg font-bold text-foreground truncate">{nextMedicine ? nextMedicine.name : "Meds"}</div>
+            <div className="text-xs font-semibold text-primary">
+              {medsDoneToday > 0 ? `✓ ${medsDoneToday} Taken Today` : nextMedicine?.times[0] ? `At ${nextMedicine.times[0]}` : "All Done"}
+            </div>
+          </div>
+        </div>
+
+        {/* 2. Next Reminder & Tasks */}
+        <div
+          onClick={() => onNavigate("reminders")}
+          className="rounded-3xl border-2 border-border bg-card p-4 sm:p-5 shadow-xs space-y-1.5 cursor-pointer hover:border-primary/50 transition-all flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-[11px] font-bold uppercase tracking-wider">Reminder</span>
+            <Bell className="h-4 w-4 text-sky-500" />
+          </div>
+          <div>
+            <div className="text-lg font-bold text-foreground truncate">
+              {nextReminder ? nextReminder.title : "Daily Tasks"}
+            </div>
+            <div className="text-xs font-semibold text-primary">
+              {nextReminder ? `${nextReminder.time}` : "Completed"}
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Appointment Status */}
+        <div
+          onClick={() => onNavigate("appointments")}
+          className="rounded-3xl border-2 border-border bg-card p-4 sm:p-5 shadow-xs space-y-1.5 cursor-pointer hover:border-primary/50 transition-all flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-[11px] font-bold uppercase tracking-wider">Appointment</span>
+            <Calendar className="h-4 w-4 text-amber-500" />
+          </div>
+          <div>
+            <div className="text-lg font-bold text-foreground truncate">
+              {nextAppointment ? nextAppointment.title : "Doctor Visit"}
+            </div>
+            <div className="text-xs font-semibold text-primary">
+              {nextAppointment ? `${nextAppointment.date} • ${nextAppointment.time}` : "No clinic today"}
+            </div>
+          </div>
+        </div>
+
+        {/* 4. Hydration Status */}
+        <div
+          onClick={() => onNavigate("routine")}
+          className="rounded-3xl border-2 border-border bg-card p-4 sm:p-5 shadow-xs space-y-1.5 cursor-pointer hover:border-primary/50 transition-all flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-[11px] font-bold uppercase tracking-wider">Hydration</span>
+            <Droplets className="h-4 w-4 text-blue-400" />
+          </div>
+          <div>
+            <div className="text-lg font-bold text-foreground">
+              {isHydrated ? "Hydrated" : "Drink Water"}
+            </div>
+            <div className="text-xs font-semibold text-primary">
+              {isHydrated ? "✓ Goal Met Today" : "💧 Warm glass advised"}
+            </div>
+          </div>
+        </div>
+
+        {/* 5. Family & Caregiver Connection Status */}
+        <div
+          onClick={() => onNavigate("family")}
+          className="rounded-3xl border-2 border-border bg-card p-4 sm:p-5 shadow-xs space-y-1.5 cursor-pointer hover:border-primary/50 transition-all flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-[11px] font-bold uppercase tracking-wider">Caregiver</span>
+            <ShieldCheck className="h-4 w-4 text-emerald-500" />
+          </div>
+          <div>
+            <div className="text-lg font-bold text-foreground truncate">
+              {primaryCaregiver ? primaryCaregiver.caregiver_name.split(" ")[0] : "Family"}
+            </div>
+            <div className="text-xs font-semibold text-emerald-400">
+              ● Connected & Safe
+            </div>
+          </div>
+        </div>
+
+        {/* 6. Cognitive Engagement Score (CES) */}
+        <div
+          onClick={() => onNavigate("games")}
+          className="rounded-3xl border-2 border-border bg-card p-4 sm:p-5 shadow-xs space-y-1.5 cursor-pointer hover:border-primary/50 transition-all flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-[11px] font-bold uppercase tracking-wider">Mind CES</span>
+            <Sparkles className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <div className="text-lg font-black text-foreground">
               {store.cognitiveScore.overall} / 100
             </div>
             <div className="text-xs font-bold text-success">
-              Active Engagement • Non-diagnostic
+              Active Engagement
             </div>
           </div>
         </div>
       </div>
+
+      {/* Memory Garden (Section 1 & 5) */}
+      <MemoryGarden store={store} onNavigate={onNavigate} compact={true} />
 
       {/* 8 PRIMARY LARGE ACTION TILES */}
       <div>

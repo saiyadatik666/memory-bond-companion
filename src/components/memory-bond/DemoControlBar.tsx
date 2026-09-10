@@ -78,29 +78,19 @@ export function DemoControlBar({
             </button>
             <button
               onClick={() => {
-                store.setRole("healthcare_worker");
+                store.setRole("admin_healthcare_worker");
                 onNavigate?.("healthcare");
               }}
               className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                store.profile.role === "healthcare_worker"
-                  ? "bg-card text-primary shadow-xs font-black"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              🩺 Healthcare Worker
-            </button>
-            <button
-              onClick={() => {
-                store.setRole("admin");
-                onNavigate?.("healthcare");
-              }}
-              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                store.profile.role === "admin_healthcare_worker" ||
+                store.profile.role === "healthcare_worker" ||
                 store.profile.role === "admin"
                   ? "bg-card text-primary shadow-xs font-black"
                   : "text-muted-foreground hover:text-foreground"
               }`}
+              title="Combined Admin & Healthcare Worker role (SIH Section 30)"
             >
-              🛡️ Admin
+              🩺 Admin / Healthcare Worker
             </button>
           </div>
 

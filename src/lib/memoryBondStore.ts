@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 
-export type UserRole = "senior" | "caregiver" | "healthcare_worker" | "admin";
+export type UserRole = "senior" | "caregiver" | "admin_healthcare_worker" | "healthcare_worker" | "admin";
 
 export interface Profile {
   id: string;

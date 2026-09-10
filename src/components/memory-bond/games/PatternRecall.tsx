@@ -11,16 +11,20 @@ const TILES = [
 
 export function PatternRecall({
   onComplete,
+  level = 1,
 }: {
-  onComplete: (score: number, total: number) => void;
+  onComplete: (score: number, total: number, extra?: any) => void;
+  level?: number;
 }) {
+  const seqLength = Math.min(8, Math.max(3, level + 2)); // Level 1=3, Level 2=4, Level 3=5, Level 4=6, Level 5=7, Level 6=8
+
   const [sequence, setSequence] = useState<number[]>([]);
   const [userSequence, setUserSequence] = useState<number[]>([]);
   const [activeTile, setActiveTile] = useState<number | null>(null);
   const [isPlayingSeq, setIsPlayingSeq] = useState<boolean>(false);
   const [status, setStatus] = useState<"idle" | "watching" | "repeating" | "success" | "retry">("idle");
 
-  const startLevel = (length = 3) => {
+  const startLevel = (length = seqLength) => {
     const newSeq = Array.from({ length }, () => Math.floor(Math.random() * 4));
     setSequence(newSeq);
     setUserSequence([]);
@@ -43,8 +47,8 @@ export function PatternRecall({
   };
 
   useEffect(() => {
-    startLevel(3);
-  }, []);
+    startLevel(seqLength);
+  }, [level]);
 
   const handleTileClick = (tileId: number) => {
     if (isPlayingSeq || status !== "repeating") return;

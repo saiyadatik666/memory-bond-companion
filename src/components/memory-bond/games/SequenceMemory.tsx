@@ -4,15 +4,19 @@ import { Button } from "@/components/ui/button";
 
 export function SequenceMemory({
   onComplete,
+  level = 1,
 }: {
-  onComplete: (score: number, total: number) => void;
+  onComplete: (score: number, total: number, extra?: any) => void;
+  level?: number;
 }) {
+  const digitLength = Math.min(8, Math.max(3, level + 2)); // Level 1=3, Level 2=4, Level 3=5, Level 4=6, Level 5=7, Level 6=8
+
   const [digits, setDigits] = useState<number[]>([]);
   const [userInput, setUserInput] = useState<string>("");
   const [phase, setPhase] = useState<"show" | "input" | "result">("show");
   const [countdown, setCountdown] = useState<number>(4);
 
-  const generateSequence = (length = 4) => {
+  const generateSequence = (length = digitLength) => {
     const seq = Array.from({ length }, () => Math.floor(Math.random() * 9) + 1);
     setDigits(seq);
     setUserInput("");
@@ -21,8 +25,8 @@ export function SequenceMemory({
   };
 
   useEffect(() => {
-    generateSequence(4);
-  }, []);
+    generateSequence(digitLength);
+  }, [level]);
 
   useEffect(() => {
     if (phase !== "show") return;

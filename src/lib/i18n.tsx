@@ -14,13 +14,19 @@ export const LANGUAGES = [
   { code: "as", label: "Assamese", native: "অসমীয়া", speech: "as-IN" },
   { code: "bn", label: "Bengali", native: "বাংলা", speech: "bn-IN" },
   { code: "gu", label: "Gujarati", native: "ગુજરાતી", speech: "gu-IN" },
+  { code: "brx", label: "Bodo", native: "बड़ो", speech: "hi-IN" },
+  { code: "kha", label: "Khasi", native: "Ka Ktien Khasi", speech: "en-IN" },
+  { code: "grt", label: "Garo", native: "A·chik", speech: "en-IN" },
+  { code: "lus", label: "Mizo", native: "Mizo ṭawng", speech: "en-IN" },
+  { code: "mni", label: "Manipuri / Meitei", native: "মৈতৈলোন্", speech: "bn-IN" },
+  { code: "nag", label: "Nagamese", native: "Nagamese", speech: "as-IN" },
   { code: "mr", label: "Marathi", native: "मराठी", speech: "mr-IN" },
+  { code: "or", label: "Odia", native: "ଓଡ଼ିଆ", speech: "or-IN" },
+  { code: "pa", label: "Punjabi", native: "ਪੰਜਾਬੀ", speech: "pa-IN" },
   { code: "ta", label: "Tamil", native: "தமிழ்", speech: "ta-IN" },
   { code: "te", label: "Telugu", native: "తెలుగు", speech: "te-IN" },
   { code: "kn", label: "Kannada", native: "ಕನ್ನಡ", speech: "kn-IN" },
   { code: "ml", label: "Malayalam", native: "മലയാളം", speech: "ml-IN" },
-  { code: "pa", label: "Punjabi", native: "ਪੰਜਾਬੀ", speech: "pa-IN" },
-  { code: "or", label: "Odia", native: "ଓଡ଼ିଆ", speech: "or-IN" },
 ] as const;
 
 export type LangCode = (typeof LANGUAGES)[number]["code"];
@@ -1736,7 +1742,227 @@ const or: Dict = {
   bargeInHint: "କହିବା ପାଇଁ ମାଇକ୍ ଦବାନ୍ତୁ",
 };
 
-const DICTS: Record<LangCode, Dict> = { en, hi, as, bn, gu, mr, ta, te, kn, ml, pa, or };
+const brx: Dict = {
+  ...en,
+  appName: "Memory Bond",
+  home: "न' (Home)",
+  today: "दिनै (Today)",
+  medicines: "मुली (Medicines)",
+  reminders: "गोसोखांथि (Reminders)",
+  games: "गेलेमु (Games)",
+  cues: "गोसोखां सिगनेल",
+  journal: "दिनलेखा",
+  sos: "SOS आपत्कालीन",
+  routine: "दिननि हाबा",
+  appointments: "साखि (Appointments)",
+  wellDone: "साबास! (Well done)",
+  greatEffort: "मोजां खामानि!",
+  tryAnother: "गावनि लेभेल खौ नाजा!",
+  play: "गेले",
+  speak: "बुं आरो खोनासं",
+};
+
+const kha: Dict = {
+  ...en,
+  appName: "Memory Bond",
+  home: "Ing (Home)",
+  today: "Mynta (Today)",
+  medicines: "Dawai (Medicines)",
+  reminders: "Jingkynmaw (Reminders)",
+  games: "Jinglehkai (Games)",
+  cues: "Dak Kynmaw",
+  journal: "Kot Jingkynmaw",
+  sos: "SOS Kyrkieh",
+  routine: "Ka Riti Ka Dustur",
+  appointments: "Jingiatreilang",
+  wellDone: "Khublei shibun! (Well done)",
+  greatEffort: "Leh bha bha!",
+  tryAnother: "Pyrshang ia ka level ba bud!",
+  play: "Lehkai",
+  speak: "Kren mynta",
+};
+
+const grt: Dict = {
+  ...en,
+  appName: "Memory Bond",
+  home: "Nok (Home)",
+  today: "Da·al (Today)",
+  medicines: "Sam (Medicines)",
+  reminders: "Gisik Ra·ani (Reminders)",
+  games: "Kal·ani (Games)",
+  cues: "Gisik Ra·atani",
+  journal: "Salanti Sastro",
+  sos: "SOS Nangchongmot",
+  routine: "Salanti Kam",
+  appointments: "Grongani",
+  wellDone: "Namgipa kam! (Well done)",
+  greatEffort: "Nama krip krip!",
+  tryAnother: "Gipin level-ko tarie nina!",
+  play: "Kal·bo",
+  speak: "Agangipa man·bo",
+};
+
+const lus: Dict = {
+  ...en,
+  appName: "Memory Bond",
+  home: "In (Home)",
+  today: "Vawiin (Today)",
+  medicines: "Damdawi (Medicines)",
+  reminders: "Hriatnawmna (Reminders)",
+  games: "Infiamna (Games)",
+  cues: "Hriatrengna",
+  journal: "Ni Tin Diary",
+  sos: "SOS Rangkachak",
+  routine: "Ni tin Dan",
+  appointments: "Inhmuh hun",
+  wellDone: "I ti tha hle mai! (Well done)",
+  greatEffort: "A ropui hle!",
+  tryAnother: "Level dawt leh chhin ang aw!",
+  play: "Khel rawh",
+  speak: "Tawng rawh",
+};
+
+const mni: Dict = {
+  ...en,
+  appName: "Memory Bond",
+  home: "য়ুম (Home)",
+  today: "ঙসি (Today)",
+  medicines: "হিদাক (Medicines)",
+  reminders: "নীংশিংবা (Reminders)",
+  games: "শান্নপোৎ (Games)",
+  cues: "নীংশিংবা খুদম",
+  journal: "পুন্সি বারোল",
+  sos: "SOS খঙহৌদবা",
+  routine: "নোংমগী থবক",
+  appointments: "উননবা মতম",
+  wellDone: "য়াম্না ফরে! (Well done)",
+  greatEffort: "থোইদোক হেন্দোক্লে!",
+  tryAnother: "মথংগী তাঙ্কক হোৎনসি!",
+  play: "শান্নৌ",
+  speak: "ৱা ঙাংবীয়ু",
+};
+
+const nag: Dict = {
+  ...en,
+  appName: "Memory Bond",
+  home: "Ghar (Home)",
+  today: "Aji (Today)",
+  medicines: "Dawai (Medicines)",
+  reminders: "Yaad kora (Reminders)",
+  games: "Khel (Games)",
+  cues: "Yaad nishani",
+  journal: "Yaad Diary",
+  sos: "SOS Bipod",
+  routine: "Roj laga kaam",
+  appointments: "Milina thaka",
+  wellDone: "Bhal hoise! (Well done)",
+  greatEffort: "Bhal kori ase!",
+  tryAnother: "Aro aage level try koribo!",
+  play: "Kheli lobi",
+  speak: "Kotha koibi",
+};
+
+const DICTS: Record<LangCode, Dict> = { en, hi, as, bn, gu, brx, kha, grt, lus, mni, nag, mr, or, pa, ta, te, kn, ml };
+
+export function getMotivationalFeedback(
+  lang: string,
+  level: number,
+  accuracy: number,
+  isAdvance: boolean
+): { headline: string; spoken: string; nextRecommendation: string } {
+  const code = (lang || "en").slice(0, 2).toLowerCase();
+
+  if (code === "hi") {
+    if (accuracy >= 80) {
+      return {
+        headline: "बहुत बढ़िया! आप बहुत अच्छा कर रहे हैं।",
+        spoken: "बहुत बढ़िया! आप बहुत अच्छा कर रहे हैं। क्या आप अगला लेवल आज़माना चाहेंगे?",
+        nextRecommendation: `शाबाश! लेवल ${level + 1} के लिए तैयार हैं?`,
+      };
+    } else if (accuracy >= 50) {
+      return {
+        headline: "शाबाश! आपने अच्छा प्रयास किया।",
+        spoken: "शाबाश! आपने अच्छा प्रयास किया। ऐसे ही शांति से जारी रखिए।",
+        nextRecommendation: `संतुलित अभ्यास! क्या आप दोबारा खेलना चाहते हैं?`,
+      };
+    } else {
+      return {
+        headline: "कोई बात नहीं! शांत मन से फिर से प्रयास करें।",
+        spoken: "कोई जल्दबाज़ी नहीं। चलिए आसान गति से दोबारा अभ्यास करते हैं।",
+        nextRecommendation: `आराम से जारी रखें। अगला अभ्यास तैयार है।`,
+      };
+    }
+  }
+
+  if (code === "gu") {
+    if (accuracy >= 80) {
+      return {
+        headline: "ખૂબ સરસ! તમે ખૂબ સારું કરી રહ્યા છો.",
+        spoken: "ખૂબ સરસ! તમે ખૂબ સારું કરી રહ્યા છો. ચાલો આગળનું લેવલ અજમાવીએ.",
+        nextRecommendation: `શાબાશ! લેવલ ${level + 1} માટે તૈયાર છો?`,
+      };
+    } else {
+      return {
+        headline: "શાબાશ! સારો પ્રયાસ કર્યો.",
+        spoken: "શાબાશ! સારો પ્રયાસ કર્યો. શાંતિથી આગળ વધો.",
+        nextRecommendation: `સરસ પ્રેક્ટિસ! ફરીથી રમો અથવા આગળ વધો.`,
+      };
+    }
+  }
+
+  if (code === "as") {
+    if (accuracy >= 80) {
+      return {
+        headline: "বৰ ধুনীয়া! আপুনি বহুত ভাল কৰিছে।",
+        spoken: "বৰ ধুনীয়া! আপুনি বহুত ভাল কৰিছে। আহক পৰৱৰ্তী স্তৰ চেষ্টা কৰোঁ।",
+        nextRecommendation: `বঢ়িয়া! লেভেল ${level + 1} ৰ বাবে সাজুনে?`,
+      };
+    } else {
+      return {
+        headline: "অপূৰ্ব! এনেদৰেই আগবাঢ়ক।",
+        spoken: "অপূৰ্ব! ধীৰে ধীৰে এনেদৰেই আগবাঢ়ক।",
+        nextRecommendation: `সুন্দৰ অভ্যাস! পুনৰ খেলি চাওক।`,
+      };
+    }
+  }
+
+  if (code === "bn") {
+    if (accuracy >= 80) {
+      return {
+        headline: "দারুণ! আপনি খুব ভালো করছেন।",
+        spoken: "দারুণ! আপনি খুব ভালো করছেন। আসুন পরের স্তর চেষ্টা করি।",
+        nextRecommendation: `সাবাশ! লেভেল ${level + 1} এর জন্য প্রস্তুত?`,
+      };
+    } else {
+      return {
+        headline: "চমৎকার! এভাবেই এগিয়ে চলুন।",
+        spoken: "চমৎকার! শান্তভাবে এভাবেই এগিয়ে চলুন।",
+        nextRecommendation: `ভালো অভ্যাস! আবার চেষ্টা করতে পারেন।`,
+      };
+    }
+  }
+
+  // Default English
+  if (accuracy >= 80) {
+    return {
+      headline: "Excellent! You're doing very well!",
+      spoken: "Excellent! You're doing very well. Let's try the next level.",
+      nextRecommendation: `Great job! Ready for Level ${level + 1}?`,
+    };
+  } else if (accuracy >= 50) {
+    return {
+      headline: "Wonderful! Keep going.",
+      spoken: "Wonderful! Keep going at your own comfortable pace.",
+      nextRecommendation: `Balanced practice! Would you like to try again?`,
+    };
+  } else {
+    return {
+      headline: "Good effort! Take your time.",
+      spoken: "Good effort. There is no rush. Let's practice calmly together.",
+      nextRecommendation: `Relaxed pace. Ready for gentle practice?`,
+    };
+  }
+}
 
 type I18nValue = {
   lang: LangCode;
