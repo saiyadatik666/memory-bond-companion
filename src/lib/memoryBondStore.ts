@@ -511,6 +511,24 @@ export const DEMO_EMERGENCY_CONTACTS: EmergencyContact[] = [
   },
 ];
 
+export interface AppNotification {
+  id: string;
+  category:
+    | "sos"
+    | "medicine_low"
+    | "medicine_missed"
+    | "medicine_due"
+    | "appointment"
+    | "caregiver_alert"
+    | "reminder"
+    | "routine"
+    | "general";
+  title: string;
+  body: string;
+  read: boolean;
+  created_at: string;
+}
+
 export const DEMO_NOTIFICATIONS: AppNotification[] = [
   {
     id: "notif-1",
