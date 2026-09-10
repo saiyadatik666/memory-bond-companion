@@ -44,10 +44,13 @@ export function SeniorHome({
 }) {
   const { t, lang, speechLocale } = useI18n();
   const [currentTime, setCurrentTime] = useState<string>("");
+  // Kept in state so server and first client render agree (no hydration mismatch)
+  const [hour, setHour] = useState<number>(9);
 
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
+      setHour(now.getHours());
       setCurrentTime(
         now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
       );
