@@ -437,8 +437,8 @@ export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
               </h3>
               {!callCompleted && (
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                  {t("routineCallQuestion") || "Question"} {callStep + 1} of {routineQuestions.length} •{" "}
-                  {routineQuestions[callStep]?.topic}
+                  {t("routineCallQuestion") || "Question"} {callStep + 1} of {activeRoutineQuestions.length} •{" "}
+                  {activeRoutineQuestions[callStep]?.topic}
                 </p>
               )}
             </div>
@@ -450,7 +450,7 @@ export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
                 <div className="rounded-2xl border-2 border-primary/30 bg-primary/10 p-5 space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <p className="text-lg sm:text-xl font-black text-foreground leading-snug">
-                      "{routineQuestions[callStep]?.question}"
+                      "{activeRoutineQuestions[callStep]?.question}"
                     </p>
                     <button
                       onClick={() =>
