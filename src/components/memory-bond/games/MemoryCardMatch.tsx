@@ -129,7 +129,7 @@ export function MemoryCardMatch({
           <Award className="mx-auto h-16 w-16 text-success" />
           <h4 className="text-3xl font-extrabold text-foreground">Well done! Excellent effort!</h4>
           <p className="text-lg text-muted-foreground">
-            You found all {ICONS.length} pairs in {moves} turns. Your memory engagement is wonderful!
+            You found all {pairCount} pairs in {moves} turns. Your memory engagement is wonderful!
           </p>
           <Button size="lg" onClick={initGame} className="gap-2 font-bold px-8 py-6 text-lg">
             <Sparkles className="h-5 w-5" /> Play Again

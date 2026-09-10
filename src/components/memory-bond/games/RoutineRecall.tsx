@@ -90,8 +90,7 @@ export function RoutineRecall({
       onComplete(nextScore, activeQuestions.length);
     }
   };
-    }
-  };
+
 
   return (
     <div className="space-y-6">
