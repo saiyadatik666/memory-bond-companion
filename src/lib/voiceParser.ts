@@ -1,6 +1,6 @@
 import type { MemoryBondStore } from "./memoryBondStore";
 import { conversationalAI } from "./conversationalAI";
-import { voiceManager } from "./voiceProvider";
+import { voiceManager, getBestMatchingVoice } from "./voiceProvider";
 
 // ---------------------------------------------------------------------------
 // Intent types
@@ -72,27 +72,107 @@ export function intentSpeech(intent: VoiceIntent): string {
   return intent.confirmationMessage;
 }
 
-// Language detection from Unicode script ranges
-export function detectLanguage(text: string): string {
-  const t = text.trim();
-  if (/[\u0A80-\u0AFF]/.test(t)) return "gu-IN"; // Gujarati
-  if (/[\u0900-\u097F]/.test(t)) return "hi-IN"; // Hindi / Marathi / Sanskrit
-  if (/[\u0980-\u09FF]/.test(t)) {
-    // Bengali or Assamese (Assamese distinctive characters: ৱ, ৰ)
-    if (/[ৱৰ]/.test(t)) return "as-IN";
+// ---------------------------------------------------------------------------
+// Universal Language Detection Engine (Unicode Scripts + Transliterations)
+// ---------------------------------------------------------------------------
+export function detectLanguage(text: string, currentSessionLocale?: string): string {
+  const raw = text.trim();
+  const t = raw.toLowerCase();
+  if (!t) return currentSessionLocale || "en-IN";
+
+  // 1. Explicit user language switch commands
+  if (/\b(switch to|speak in|change to)\s+gujarati\b/i.test(t) || /\b(gujarati ma|ગુજરાતીમાં)\b/i.test(t)) return "gu-IN";
+  if (/\b(switch to|speak in|change to)\s+hindi\b/i.test(t) || /\b(hindi me|हिन्दी में)\b/i.test(t)) return "hi-IN";
+  if (/\b(switch to|speak in|change to)\s+marathi\b/i.test(t) || /\b(marathit|मराठीत)\b/i.test(t)) return "mr-IN";
+  if (/\b(switch to|speak in|change to)\s+bengali\b/i.test(t) || /\b(bangla te|বাংলায়)\b/i.test(t)) return "bn-IN";
+  if (/\b(switch to|speak in|change to)\s+assamese\b/i.test(t) || /\b(axomiya|অসমীয়াত)\b/i.test(t)) return "as-IN";
+  if (/\b(switch to|speak in|change to)\s+tamil\b/i.test(t) || /\b(tamilil|தமிழில்)\b/i.test(t)) return "ta-IN";
+  if (/\b(switch to|speak in|change to)\s+telugu\b/i.test(t) || /\b(telugulo|తెలుగులో)\b/i.test(t)) return "te-IN";
+  if (/\b(switch to|speak in|change to)\s+kannada\b/i.test(t) || /\b(kannadadalli|ಕನ್ನಡದಲ್ಲಿ)\b/i.test(t)) return "kn-IN";
+  if (/\b(switch to|speak in|change to)\s+malayalam\b/i.test(t) || /\b(malayalathil|മലയാളത്തിൽ)\b/i.test(t)) return "ml-IN";
+  if (/\b(switch to|speak in|change to)\s+punjabi\b/i.test(t) || /\b(punjabi vich|ਪੰਜਾਬੀ ਵਿੱਚ)\b/i.test(t)) return "pa-IN";
+  if (/\b(switch to|speak in|change to)\s+odia\b/i.test(t) || /\b(odia re|ଓଡ଼ିଆରେ)\b/i.test(t)) return "or-IN";
+  if (/\b(switch to|speak in|change to)\s+english\b/i.test(t) || /\benglish please\b/i.test(t)) return "en-IN";
+
+  // 2. Native Unicode Script Detection
+  if (/[\u0A80-\u0AFF]/.test(raw)) return "gu-IN"; // Gujarati
+  if (/[\u0900-\u097F]/.test(raw)) {
+    // Marathi specific words / inflectional markers
+    if (/\b(आहे|आहोत|नाही|कसे|कसा|केले|झाले|पाहिजे|वाजता|दुपारी|सकाळी|औषध|घेते|घेतले|करा)\b/.test(raw)) {
+      return "mr-IN";
+    }
+    return "hi-IN"; // Hindi
+  }
+  if (/[\u0980-\u09FF]/.test(raw)) {
+    // Assamese specific characters: ৱ, ৰ or common Assamese words
+    if (/[ৱৰ]/.test(raw) || /\b(কাইলৈ|পুৱা|খালোঁ|আছিল|কৰিম|হ’ল|হয়|বজাত|কেনে)\b/.test(raw)) {
+      return "as-IN";
+    }
+    return "bn-IN"; // Bengali
+  }
+  if (/[\u0B80-\u0BFF]/.test(raw)) return "ta-IN"; // Tamil
+  if (/[\u0C00-\u0C7F]/.test(raw)) return "te-IN"; // Telugu
+  if (/[\u0C80-\u0CFF]/.test(raw)) return "kn-IN"; // Kannada
+  if (/[\u0D00-\u0D7F]/.test(raw)) return "ml-IN"; // Malayalam
+  if (/[\u0A00-\u0A7F]/.test(raw)) return "pa-IN"; // Punjabi
+  if (/[\u0B00-\u0B7F]/.test(raw)) return "or-IN"; // Odia
+
+  // 3. Transliteration Markers in Latin Script
+  if (/\b(kem cho|ketla|vagye|vage|savare|kale savare|dawa levi|dava levi|levi che|maare|tamare|haji|haaji|nathi|aaje|bapore|saanje|chhe)\b/i.test(t)) {
+    return "gu-IN";
+  }
+  if (/\b(namaste|kaise|kya|dawa leni|subah|shaam|baje|kripya|haanji|nahin|theek hai|kholo|chalo|bahut)\b/i.test(t)) {
+    return "hi-IN";
+  }
+  if (/\b(kasa ahes|sakali|sandhyakali|aushadh|vajta|kuthe|kadhi|ahe)\b/i.test(t)) {
+    return "mr-IN";
+  }
+  if (/\b(kemon|aajke|oshudh|koto|shokal|shondhe|bikel|khabo|kheyechi|aami)\b/i.test(t)) {
     return "bn-IN";
   }
-  if (/[\u0B80-\u0BFF]/.test(t)) return "ta-IN"; // Tamil
-  if (/[\u0C00-\u0C7F]/.test(t)) return "te-IN"; // Telugu
-  if (/[\u0C80-\u0CFF]/.test(t)) return "kn-IN"; // Kannada
-  if (/[\u0D00-\u0D7F]/.test(t)) return "ml-IN"; // Malayalam
-  if (/[\u0A00-\u0A7F]/.test(t)) return "pa-IN"; // Punjabi
-  if (/[\u0B00-\u0B7F]/.test(t)) return "or-IN"; // Odia
-  return "en-IN";
+  if (/\b(kene aasa|kailoi|puwa|khalu|khabor|bozat)\b/i.test(t)) {
+    return "as-IN";
+  }
+  if (/\b(vanakkam|eppadi|marunthu|naalai|kalai|neram|manikku)\b/i.test(t)) {
+    return "ta-IN";
+  }
+  if (/\b(namaskaram|ela unnaru|mandhu|repu|udhayam|eppudu|gantalaku)\b/i.test(t)) {
+    return "te-IN";
+  }
+  if (/\b(hegiddira|oushadha|naale|beligge|eshtu|gantege)\b/i.test(t)) {
+    return "kn-IN";
+  }
+  if (/\b(sukhamano|marunnu|naale|ravile|ethra|manikku)\b/i.test(t)) {
+    return "ml-IN";
+  }
+  if (/\b(sat sri akal|kiddan|dawai|savere|vaje)\b/i.test(t)) {
+    return "pa-IN";
+  }
+  if (/\b(kemiti|oushadha|kali|sakale|tare)\b/i.test(t)) {
+    return "or-IN";
+  }
+
+  // 4. Preserve current session language during short multi-turn continuations
+  // e.g. "8", "8:30", "yes", "no", "ok", "confirm", "sure"
+  const isShortContinuation =
+    raw.length <= 8 ||
+    /^(yes|no|ok|okay|sure|confirm|cancel|8|9|10|7|6|5|4|3|2|1|pm|am|\d{1,2}([:.]\d{2})?)$/i.test(t);
+
+  if (isShortContinuation && currentSessionLocale && currentSessionLocale !== "en-IN") {
+    return currentSessionLocale;
+  }
+
+  // 5. Explicit English phrasing
+  if (/\b(what|remind|medicine|doctor|appointment|how|hello|today|tomorrow|morning|evening|night|water|routine|help|game|social)\b/i.test(t)) {
+    return "en-IN";
+  }
+
+  // 6. Default fallback preserves active session locale if available
+  return currentSessionLocale || "en-IN";
 }
 
 /** Pick a localized value: exact locale, then fallback */
-function pick<T>(map: Record<string, T>, locale: string): T {
+export function pick<T>(map: Record<string, T>, locale: string): T {
   const base = (locale.split("-")[0] ?? "en").toLowerCase();
   const sibling: Record<string, string> = {
     as: "bn-IN",
@@ -111,49 +191,48 @@ function pick<T>(map: Record<string, T>, locale: string): T {
   );
 }
 
-// Best voice picker for elderly accessibility
+// Best voice picker for elderly accessibility using central voice engine
 export function selectVoice(lang: string): SpeechSynthesisVoice | null {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
-  const voices = window.speechSynthesis.getVoices();
-  if (!voices.length) return null;
+  return getBestMatchingVoice(lang);
+}
 
-  // Exact match
-  let v = voices.find((voice) => voice.lang.toLowerCase() === lang.toLowerCase());
-  if (v) return v;
-
-  // Language prefix match (e.g. "hi", "bn", "ta")
-  const prefix = lang.split("-")[0]?.toLowerCase() ?? "en";
-  v = voices.find((voice) => voice.lang.toLowerCase().startsWith(prefix));
-  if (v) return v;
-
-  // Regional Indian English fallback
-  v = voices.find((voice) => voice.lang.toLowerCase() === "en-in");
-  if (v) return v;
-
-  return voices.find((voice) => voice.lang.toLowerCase().startsWith("en")) ?? voices[0] ?? null;
+// Normalize regional numeral characters to standard digits
+export function normalizeNumerals(str: string): string {
+  return str
+    .replace(/[૦०০੦]/g, "0")
+    .replace(/[૧१১੧]/g, "1")
+    .replace(/[૨२২੨]/g, "2")
+    .replace(/[૩३৩੩]/g, "3")
+    .replace(/[૪४৪੪]/g, "4")
+    .replace(/[૫५৫੫]/g, "5")
+    .replace(/[૬६৬੬]/g, "6")
+    .replace(/[૭७৭੭]/g, "7")
+    .replace(/[૮८৮੮]/g, "8")
+    .replace(/[૯९৯੯]/g, "9");
 }
 
 // Spoken number words mapping across Indian languages
 const NUMBER_WORDS: Record<string, number> = {
-  "दस": 10, "দশ": 10, "દસ": 10, "ten": 10,
-  "नौ": 9, "নয়": 9, "નવ": 9, "nine": 9,
+  "दस": 10, "দশ": 10, "દસ": 10, "দहा": 10, "ten": 10,
+  "नौ": 9, "নয়": 9, "નવ": 9, "नऊ": 9, "nine": 9,
   "आठ": 8, "আট": 8, "આઠ": 8, "eight": 8,
   "सात": 7, "সাত": 7, "સાત": 7, "seven": 7,
-  "छह": 6, "छः": 6, "ছয়": 6, "છ": 6, "six": 6,
-  "पांच": 5, "पाँच": 5, "পাঁচ": 5, "પાંચ": 5, "five": 5,
+  "छह": 6, "छः": 6, "ছয়": 6, "છ": 6, "सहा": 6, "six": 6,
+  "पांच": 5, "पाँच": 5, "পাঁচ": 5, "પાંચ": 5, "पाच": 5, "five": 5,
   "चार": 4, "চাৰি": 4, "চার": 4, "ચાર": 4, "four": 4,
   "तीन": 3, "তিনি": 3, "তিন": 3, "ત્રણ": 3, "three": 3,
-  "दो": 2, "দুই": 2, "બે": 2, "two": 2,
+  "दो": 2, "দুই": 2, "બે": 2, "दोन": 2, "two": 2,
   "एक": 1, "এক": 1, "એક": 1, "one": 1,
-  "ग्यारह": 11, "এঘাৰ": 11, "এগারো": 11, "અગિયાર": 11, "eleven": 11,
-  "बारह": 12, "বাৰ": 12, "বারো": 12, "બાર": 12, "twelve": 12,
+  "ग्यारह": 11, "এঘাৰ": 11, "এগারো": 11, "અગિયાર": 11, "अकरा": 11, "eleven": 11,
+  "बारह": 12, "বাৰ": 12, "বারো": 12, "બાર": 12, "बारा": 12, "twelve": 12,
 };
 
-// Time extractor supporting Indian natural speech (Hindi, English, regional terms)
+// Time extractor supporting Indian natural speech (Hindi, Gujarati, English, regional terms)
 export function extractTime(text: string): string {
-  const t = text.toLowerCase();
+  const norm = normalizeNumerals(text);
+  const t = norm.toLowerCase();
   
-  // Format: 8:30 AM / 8.30 PM
+  // Format: 8:30 AM / 8.30 PM / 8:30
   const m1 = t.match(/(\d{1,2})[:.](\d{2})\s*(am|pm)?/);
   if (m1 && m1[1] && m1[2]) {
     let h = parseInt(m1[1], 10);
@@ -164,24 +243,27 @@ export function extractTime(text: string): string {
     return `${h.toString().padStart(2, "0")}:${min}`;
   }
 
-  // Format: 8 AM / 8 PM / 8 baje / 8 বজাত
-  const m2 = t.match(/(\d{1,2})\s*(am|pm|baje|बजे|বজাত|વાગ્યે|वाजता|மணிக்கு|గంటలకు|ಗಂಟೆಗೆ)/);
+  // Format: 8 AM / 8 PM / 8 baje / 8 વાગ્યે / 8 বজাত / 8 वाजता
+  const m2 = t.match(/(\d{1,2})\s*(am|pm|baje|बजे|বজাত|টায়|વાગ્યે|વાગે|वाजता|மணிக்கு|గంటలకు|ಗಂಟೆಗೆ|മണിക്ക്|ਵਜੇ|ଟାରେ)?/);
   if (m2 && m2[1]) {
     let h = parseInt(m2[1], 10);
-    const word = m2[2];
-    if (word === "pm" && h < 12) h += 12;
-    if (word === "am" && h === 12) h = 0;
-    // Contextual AM/PM check
-    if ((t.includes("shaam") || t.includes("raat") || t.includes("evening") || t.includes("night") || t.includes("दुपार")) && h < 12) {
-      h += 12;
+    if (h >= 1 && h <= 12) {
+      const isMorning = t.includes("morning") || t.includes("subah") || t.includes("सुबह") || t.includes("સવારે") || t.includes("savare") || t.includes("সকাল") || t.includes("পুৱা") || t.includes("सकाळी") || t.includes("am");
+      const isEvening = t.includes("evening") || t.includes("shaam") || t.includes("शाम") || t.includes("સાંજે") || t.includes("saanje") || t.includes("সন্ধ্যা") || t.includes("संध्याकाळी") || t.includes("pm");
+      const isNight = t.includes("night") || t.includes("raat") || t.includes("रात") || t.includes("રાત્રે") || t.includes("રાત") || t.includes("राती") || t.includes("রাত্রে");
+      const isAfternoon = t.includes("afternoon") || t.includes("dopahar") || t.includes("दोपहर") || t.includes("બપોરે") || t.includes("દુપારી") || t.includes("দুপুর");
+
+      if ((isEvening || isNight || isAfternoon) && h < 12) {
+        h += 12;
+      }
+      return `${h.toString().padStart(2, "0")}:00`;
     }
-    return `${h.toString().padStart(2, "0")}:00`;
   }
 
-  // Spoken number words check e.g. "दस बजे", "सुबह दस बजे", "ten am", "দশ বজাত"
+  // Spoken number words check e.g. "દસ વાગ્યે", "આઠ વાગ્યે", "दस बजे", "सुबह आठ बजे", "eight am"
   for (const [word, num] of Object.entries(NUMBER_WORDS)) {
     if (t.includes(word)) {
-      const isPm = t.includes("pm") || t.includes("shaam") || t.includes("raat") || t.includes("evening") || t.includes("night");
+      const isPm = t.includes("pm") || t.includes("shaam") || t.includes("शाम") || t.includes("સાંજ") || t.includes("રાત") || t.includes("raat") || t.includes("evening") || t.includes("night") || t.includes("બપોર");
       const h = isPm && num < 12 ? num + 12 : num;
       return `${h.toString().padStart(2, "0")}:00`;
     }
@@ -192,19 +274,19 @@ export function extractTime(text: string): string {
   if (m3 && m3[1]) {
     const num = parseInt(m3[1], 10);
     if (num >= 1 && num <= 12) {
-      const isPm = t.includes("pm") || t.includes("shaam") || t.includes("raat") || t.includes("evening") || t.includes("night");
+      const isPm = t.includes("pm") || t.includes("shaam") || t.includes("સાંજ") || t.includes("રાત") || t.includes("raat") || t.includes("evening") || t.includes("night") || t.includes("બપોર");
       const h = isPm && num < 12 ? num + 12 : num;
       return `${h.toString().padStart(2, "0")}:00`;
     }
   }
 
   // Natural colloquial terms
-  if (t.includes("raat") || t.includes("night") || t.includes("tonight") || t.includes("राती")) return "20:30";
-  if (t.includes("morning") || t.includes("subah") || t.includes("savare") || t.includes("पुৱা") || t.includes("সকাল")) return "08:30";
-  if (t.includes("afternoon") || t.includes("dopahar") || t.includes("दुपारी") || t.includes("দুপুর")) return "13:00";
-  if (t.includes("evening") || t.includes("shaam") || t.includes("saanj") || t.includes("সন্ধ্যা")) return "17:30";
+  if (t.includes("raat") || t.includes("night") || t.includes("tonight") || t.includes("રાત") || t.includes("राती")) return "20:30";
+  if (t.includes("morning") || t.includes("subah") || t.includes("savare") || t.includes("સવાર") || t.includes("પુৱা") || t.includes("সকাল") || t.includes("सकाळ")) return "08:30";
+  if (t.includes("afternoon") || t.includes("dopahar") || t.includes("બપોર") || t.includes("दुपारी") || t.includes("দুপুর")) return "13:00";
+  if (t.includes("evening") || t.includes("shaam") || t.includes("સાંજ") || t.includes("সন্ধ্যা") || t.includes("संध्याकाळ")) return "17:30";
 
-  return "09:00";
+  return "08:30";
 }
 
 // ---------------------------------------------------------------------------
@@ -345,7 +427,7 @@ const UNKNOWN_MSG: Record<string, string> = {
   "en-IN": "I didn't quite catch that. You can ask about medicines, reminders, or routine.",
 };
 
-const CANCELLED_MSG: Record<string, string> = {
+export const CANCELLED_MSG: Record<string, string> = {
   "hi-IN": "ठीक है, रद्द कर दिया गया।",
   "as-IN": "ঠিক আছে, বাতিল কৰা হ’ল।",
   "bn-IN": "ঠিক আছে, বাতিল করা হলো।",
@@ -358,6 +440,111 @@ const CANCELLED_MSG: Record<string, string> = {
   "pa-IN": "ਠੀਕ ਹੈ, ਰੱਦ ਕਰ ਦਿੱਤਾ ਗਿਆ।",
   "or-IN": "ଠିକ୍ ଅଛି, ବାତିଲ୍ କରାଗଲା।",
   "en-IN": "Action cancelled.",
+};
+
+export const MEDICINE_TAKEN_SUCCESS_MSG: Record<string, string> = {
+  "gu-IN": "દવા લેવાઈ ગઈ તરીકે નોંધાઈ ગઈ છે. ખૂબ સરસ!",
+  "hi-IN": "दवा ले ली गई के रूप में दर्ज कर ली गई है। बहुत बढ़िया!",
+  "as-IN": "ঔষধ খোৱা হৈছে বুলি সংৰক্ষণ কৰা হ’ল। বৰ ভাল!",
+  "bn-IN": "ঔষধ খাওয়া হয়েছে হিসেবে নথিবদ্ধ করা হয়েছে। খুব ভালো!",
+  "mr-IN": "औषध घेतले म्हणून नोंदवले गेले आहे. खूप छान!",
+  "ta-IN": "மருந்து உட்கொண்டதாகப் பதிவு செய்யப்பட்டது. மிக நன்று!",
+  "te-IN": "మందు తీసుకున్నట్లు నమోదు చేయబడింది. చాలా మంచిది!",
+  "kn-IN": "ಔಷಧಿಯನ್ನು ತೆಗೆದುಕೊಂಡಿದ್ದೀರಿ ಎಂದು ದಾಖಲಿಸಲಾಗಿದೆ. ತುಂಬಾ ಒಳ್ಳೆಯದು!",
+  "ml-IN": "മരുന്ന് കഴിച്ചതായി രേഖപ്പെടുത്തി. വളരെ നല്ലത്!",
+  "pa-IN": "ਦਵਾਈ ਲੈਣ ਵਜੋਂ ਦਰਜ ਕਰ ਲਈ ਗਈ ਹੈ। ਬਹੁਤ ਵਧੀਆ!",
+  "or-IN": "ଔଷଧ ନିଆଯାଇଛି ବୋଲି ଲିପିବଦ୍ଧ କରାଗଲା। ବହୁତ ଭଲ!",
+  "en-IN": "Medicine recorded as taken. Very well done!",
+};
+
+export const REMINDER_SAVED_SUCCESS_MSG: Record<string, (time: string) => string> = {
+  "gu-IN": (t) => `મેં ${t} વાગ્યા માટે રિમાઇન્ડર સાચવી લીધું છે.`,
+  "hi-IN": (t) => `मैंने ${t} बजे के लिए रिमाइंडर सेव कर दिया है।`,
+  "as-IN": (t) => `মই ${t} বজাৰ বাবে সংকেত সাঁচি ৰাখিলোঁ।`,
+  "bn-IN": (t) => `আমি ${t} টার জন্য রিমাইন্ডার সংরক্ষণ করেছি।`,
+  "mr-IN": (t) => `मी ${t} वाजतासाठी आठवण जतन केली आहे.`,
+  "ta-IN": (t) => `நான் ${t} மணிக்கு நினைவூட்டலைச் சேமித்துள்ளேன்.`,
+  "te-IN": (t) => `నేను ${t} గంటలకు రిమైండర్‌ను సేవ్ చేశాను.`,
+  "kn-IN": (t) => `ನಾನು ${t} ಗಂಟೆಗೆ ಜ್ಞಾಪನೆಯನ್ನು ಉಳಿಸಿದ್ದೇನೆ.`,
+  "ml-IN": (t) => `ഞാൻ ${t} നുള്ള ഓർമ്മപ്പെടുത്തൽ സൂക്ഷിച്ചു.`,
+  "pa-IN": (t) => `ਮੈਂ ${t} ਵਜੇ ਲਈ ਰੀਮਾਈਂਡਰ ਸੰਭਾਲ ਲਿਆ ਹੈ।`,
+  "or-IN": (t) => `ମୁଁ ${t} ଟା ପାଇଁ ରିମାଇଣ୍ଡର ସଞ୍ଚୟ କରିଛି।`,
+  "en-IN": (t) => `Saved reminder for ${t}.`,
+};
+
+export const APPOINTMENT_SAVED_SUCCESS_MSG: Record<string, string> = {
+  "gu-IN": "ડૉક્ટરની મુલાકાત સાચવી લેવામાં આવી છે.",
+  "hi-IN": "डॉक्टर अपॉइंटमेंट सफलतापूर्वक सेव कर ली गई है।",
+  "as-IN": "ডাক্তাৰৰ নিযুক্তি সফলভাৱে সংৰক্ষণ কৰা হ’ল।",
+  "bn-IN": "ডাক্তারের অ্যাপয়েন্টমেন্ট সফলভাবে সংরক্ষণ করা হয়েছে।",
+  "mr-IN": "डॉक्टरांची भेट यशस्वीरित्या जतन केली आहे.",
+  "ta-IN": "மருத்துவர் சந்திப்பு வெற்றிகரமாகச் சேமிக்கப்பட்டது.",
+  "te-IN": "డాక్టర్ అపాయింట్‌మెంట్ విజయవంతంగా సేవ్ చేయబడింది.",
+  "kn-IN": "ವೈದ್ಯರ ನೇಮಕಾತಿಯನ್ನು ಯಶಸ್ವಿಯಾಗಿ ಉಳಿಸಲಾಗಿದೆ.",
+  "ml-IN": "ഡോക്ടറുടെ കൂടിക്കാഴ്ച വിജയകരമായി സേവ് ചെയ്തു.",
+  "pa-IN": "ਡਾਕਟਰ ਮੁਲਾਕਾਤ ਸਫਲਤਾਪੂਰਵਕ ਸੰਭਾਲ ਲਈ ਗਈ ਹੈ।",
+  "or-IN": "ଡାକ୍ତରଙ୍କ ସାକ୍ଷାତ ସଫଳତାର ସହିତ ସଞ୍ଚୟ କରାଗଲା।",
+  "en-IN": "Doctor appointment confirmed and saved.",
+};
+
+export const JOURNAL_SAVED_SUCCESS_MSG: Record<string, string> = {
+  "gu-IN": "તમારી વહાલી યાદ Memory Bond માં સાચવી લીધી છે.",
+  "hi-IN": "आपकी प्यारी याद Memory Bond में सुरक्षित कर ली गई है।",
+  "as-IN": "আপোনাৰ মধুৰ স্মৃতি Memory Bond ত সাঁচি ৰখা হ’ল।",
+  "bn-IN": "আপনার সুন্দর স্মৃতি Memory Bond এ সংরক্ষণ করা হয়েছে।",
+  "mr-IN": "आपली गोड आठवण Memory Bond मध्ये जतन केली आहे.",
+  "ta-IN": "உங்கள் இனிய நினைவு Memory Bond இல் சேமிக்கப்பட்டது.",
+  "te-IN": "మీ మధుర జ్ఞాపకం Memory Bond లో భద్రపరచబడింది.",
+  "kn-IN": "ನಿಮ್ಮ ಮಧುರ ನೆನಪನ್ನು Memory Bond ನಲ್ಲಿ ಉಳಿಸಲಾಗಿದೆ.",
+  "ml-IN": "നിങ്ങളുടെ നല്ല ഓർമ്മ Memory Bond-ൽ സൂക്ഷിച്ചു.",
+  "pa-IN": "ਤੁਹਾਡੀ ਪਿਆਰੀ ਯਾਦ Memory Bond ਵਿੱਚ ਸੰਭਾਲ ਲਈ ਗਈ ਹੈ।",
+  "or-IN": "ଆପଣଙ୍କ ମଧୁର ସ୍ମୃତି Memory Bond ରେ ସାଇତି ରଖାଗଲା।",
+  "en-IN": "Cherished memory saved to your Memory Bond journal.",
+};
+
+export const ERROR_HEARING_MSG: Record<string, string> = {
+  "gu-IN": "અવાજ સ્પષ્ટ સંભળાયો નથી. કૃપા કરીને ફરી બોલો અથવા નીચે લખો.",
+  "hi-IN": "आवाज़ साफ़ सुनाई नहीं दी। कृपया पुनः बोलें या नीचे लिखें।",
+  "as-IN": "মাত স্পষ্টকৈ শুনা নগ’ল। অনুগ্ৰহ কৰি পুনৰ কওক বা তলত লিখক।",
+  "bn-IN": "কথা স্পষ্টভাবে শোনা যায়নি। অনুগ্রহ করে আবার বলুন বা নিচে লিখুন।",
+  "mr-IN": "आवाज स्पष्ट ऐकू आला नाही. कृपया पुन्हा बोला किंवा खाली लिहा.",
+  "ta-IN": "குரல் தெளிவாகக் கேட்கவில்லை. தயவுசெய்து மீண்டும் பேசவும் அல்லது கீழே எழுதவும்.",
+  "te-IN": "వాయిస్ స్పష్టంగా వినబడలేదు. దయచేసి మళ్లీ మాట్లాడండి లేదా క్రింద టైప్ చేయండి.",
+  "kn-IN": "ಧ್ವನಿ ಸ್ಪಷ್ಟವಾಗಿ ಕೇಳಿಸಲಿಲ್ಲ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಮಾತನಾಡಿ ಅಥವಾ ಕೆಳಗೆ ಬರೆಯಿರಿ.",
+  "ml-IN": "ശബ്ദം വ്യക്തമായി കേട്ടില്ല. ദയവായി വീണ്ടും സംസാരിക്കുക അല്ലെങ്കിൽ താഴെ എഴുതുക.",
+  "pa-IN": "ਆਵਾਜ਼ ਸਾਫ਼ ਸੁਣਾਈ ਨਹੀਂ ਦਿੱਤੀ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਬੋਲੋ ਜਾਂ ਹੇਠਾਂ ਲਿਖੋ।",
+  "or-IN": "ସ୍ୱର ସ୍ପଷ୍ଟ ଶୁଣାଗଲା ନାହିଁ। ଦୟାକରି ପୁଣି କୁହନ୍ତୁ ବା ତଳେ ଲେଖନ୍ତୁ।",
+  "en-IN": "Could not hear audio clearly. Please try speaking again or type below.",
+};
+
+export const RETRY_LABEL_MSG: Record<string, string> = {
+  "gu-IN": "ફરી પ્રયાસ કરો",
+  "hi-IN": "पुनः प्रयास करें",
+  "as-IN": "পুনৰ চেষ্টা কৰক",
+  "bn-IN": "আবার চেষ্টা করুন",
+  "mr-IN": "पुन्हा प्रयत्न करा",
+  "ta-IN": "மீண்டும் முயற்சிக்கவும்",
+  "te-IN": "మళ్లీ ప్రయత్నించండి",
+  "kn-IN": "ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ",
+  "ml-IN": "വീണ്ടും ശ്രമിക്കുക",
+  "pa-IN": "ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ",
+  "or-IN": "ପୁନର୍ବାର ଚେଷ୍ଟା କରନ୍ତୁ",
+  "en-IN": "Try Again",
+};
+
+export const BARGE_IN_HINT_MSG: Record<string, string> = {
+  "gu-IN": "બોલતી વખતે રોકવા માટે સ્ક્રીન પર ગમે ત્યાં ટેપ કરો",
+  "hi-IN": "बोलते समय रोकने के लिए स्क्रीन पर कहीं भी टैप करें",
+  "as-IN": "কথা কওঁতে বন্ধ কৰিবলৈ স্ক্ৰীণত যিকোনো ঠাইত স্পৰ্শ কৰক",
+  "bn-IN": "কথা বলার সময় থামাতে স্ক্রিনে যেকোনো জায়গায় ট্যাপ করুন",
+  "mr-IN": "बोलताना थांबवण्यासाठी स्क्रीनवर कुठेही टॅप करा",
+  "ta-IN": "பேசும்போது குறுக்கிட திரையைத் தொடவும்",
+  "te-IN": "మాట్లాడుతున్నప్పుడు ఆపడానికి స్క్రీన్‌పై ఎక్కడైనా తాకండి",
+  "kn-IN": "ಮಾತನಾಡುವಾಗ ನಿಲ್ಲಿಸಲು ಪರದೆಯ ಮೇಲೆ ಎಲ್ಲಿಯಾದರೂ ಟ್ಯಾಪ್ ಮಾಡಿ",
+  "ml-IN": "സംസാരിക്കുമ്പോൾ തടസ്സപ്പെടുത്താൻ സ്ക്രീനിൽ തൊടുക",
+  "pa-IN": "ਬੋਲਦੇ ਸਮੇਂ ਰੋਕਣ ਲਈ ਸਕ੍ਰੀਨ 'ਤੇ ਕਿਤੇ ਵੀ ਟੈਪ ਕਰੋ",
+  "or-IN": "କହିବା ସମୟରେ ଅଟକାଇବାକୁ ସ୍କ୍ରିନରେ କୌଣସି ସ୍ଥାନରେ ଟ୍ୟାପ୍ କରନ୍ତୁ",
+  "en-IN": "Tap anywhere on screen to interrupt speech",
 };
 
 // ---------------------------------------------------------------------------

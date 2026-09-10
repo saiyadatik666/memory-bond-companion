@@ -35,6 +35,93 @@ export interface VoiceProvider {
 }
 
 // ---------------------------------------------------------------------------
+// Universal Indian Regional Voice Matcher (Strictly prevents English for Indic)
+// ---------------------------------------------------------------------------
+export function getBestMatchingVoice(locale: string): SpeechSynthesisVoice | null {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices || voices.length === 0) return null;
+
+  const lower = locale.toLowerCase().replace("_", "-");
+  const prefix = lower.split("-")[0] || "en";
+
+  // 1. Exact locale match (e.g. "gu-IN", "hi-IN", "bn-IN", "ta-IN", "mr-IN")
+  let match = voices.find((v) => {
+    const vLang = v.lang.toLowerCase().replace("_", "-");
+    return vLang === lower;
+  });
+  if (match) return match;
+
+  // 2. Language prefix match (e.g. "gu", "hi", "bn", "ta", "te", "mr", "kn")
+  match = voices.find((v) => {
+    const vLang = v.lang.toLowerCase().replace("_", "-");
+    return vLang.startsWith(prefix);
+  });
+  if (match) return match;
+
+  // 3. Name match for natural neural / online voices (Google ગુજરાતી, Microsoft Niranjan, Google हिन्दी, etc.)
+  const langNameMap: Record<string, string[]> = {
+    gu: ["gujarat", "ગુજરાતી", "niranjan", "dhwani"],
+    hi: ["hindi", "हिन्दी", "मधुर", "swara", "kalpana", "hemant"],
+    bn: ["bengal", "বাংলা", "bashkar", "tanishaa"],
+    as: ["assamese", "অসমীয়া"],
+    mr: ["marathi", "मराठी", "aarohi", "manohar"],
+    ta: ["tamil", "தமிழ்", "pallavi", "valluvar"],
+    te: ["telugu", "తెలుగు", "mohan", "shruti"],
+    kn: ["kannada", "ಕನ್ನಡ", "gagan", "sapna"],
+    ml: ["malayalam", "മലയാളം", "sobhana", "midhun"],
+    pa: ["punjabi", "ਪੰਜਾਬੀ", "raaj", "harman"],
+    or: ["odia", "oriya", "ଓଡ଼ିଆ"],
+  };
+
+  const keywords = langNameMap[prefix] || [];
+  if (keywords.length > 0) {
+    match = voices.find((v) => {
+      const vName = v.name.toLowerCase();
+      return keywords.some((k) => vName.includes(k));
+    });
+    if (match) return match;
+  }
+
+  // 4. Compatible Sibling Indic Phonetic Match (NEVER use English for Indic text)
+  if (prefix === "as") {
+    match = voices.find((v) => v.lang.toLowerCase().startsWith("bn"));
+    if (match) return match;
+  }
+  if (prefix === "mr") {
+    match = voices.find((v) => v.lang.toLowerCase().startsWith("hi"));
+    if (match) return match;
+  }
+  if (["gu", "or", "pa"].includes(prefix)) {
+    match = voices.find((v) => v.lang.toLowerCase().startsWith("hi"));
+    if (match) return match;
+  }
+  if (prefix === "kn") {
+    match = voices.find((v) => v.lang.toLowerCase().startsWith("te") || v.lang.toLowerCase().startsWith("ta"));
+    if (match) return match;
+  }
+  if (prefix === "ml") {
+    match = voices.find((v) => v.lang.toLowerCase().startsWith("ta"));
+    if (match) return match;
+  }
+
+  // Any available Indic voice for non-English Indian speech
+  if (prefix !== "en") {
+    match = voices.find((v) => /^(hi|bn|gu|mr|ta|te|kn|ml|pa|as)/i.test(v.lang));
+    if (match) return match;
+  }
+
+  // 5. English only if requested language is English
+  if (prefix === "en") {
+    match = voices.find((v) => v.lang.toLowerCase() === "en-in");
+    if (match) return match;
+    return voices.find((v) => v.lang.toLowerCase().startsWith("en")) || voices[0] || null;
+  }
+
+  return voices[0] || null;
+}
+
+// ---------------------------------------------------------------------------
 // 1. Web Speech Provider (Built-in, zero-latency, offline-capable)
 // ---------------------------------------------------------------------------
 export class WebSpeechVoiceProvider implements VoiceProvider {
@@ -122,91 +209,7 @@ export class WebSpeechVoiceProvider implements VoiceProvider {
 
   // Match native voice based on Indian regional language preferences without forcing English
   private getBestMatchingVoice(locale: string): SpeechSynthesisVoice | null {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
-    const voices = window.speechSynthesis.getVoices();
-    if (!voices || voices.length === 0) return null;
-
-    const lower = locale.toLowerCase().replace("_", "-");
-    const prefix = lower.split("-")[0] || "en";
-
-    // 1. Exact locale match (e.g. "gu-IN", "hi-IN", "bn-IN", "ta-IN", "mr-IN")
-    let match = voices.find((v) => {
-      const vLang = v.lang.toLowerCase().replace("_", "-");
-      return vLang === lower;
-    });
-    if (match) return match;
-
-    // 2. Language prefix match (e.g. "gu", "hi", "bn", "ta", "te", "mr", "kn")
-    match = voices.find((v) => {
-      const vLang = v.lang.toLowerCase().replace("_", "-");
-      return vLang.startsWith(prefix);
-    });
-    if (match) return match;
-
-    // 3. Name match for natural neural / online voices (Google ગુજરાતી, Microsoft Niranjan, Google हिन्दी, etc.)
-    const langNameMap: Record<string, string[]> = {
-      gu: ["gujarat", "ગુજરાતી", "niranjan", "dhwani"],
-      hi: ["hindi", "हिन्दी", "मधुर", "swara", "kalpana", "hemant"],
-      bn: ["bengal", "বাংলা", "bashkar", "tanishaa"],
-      as: ["assamese", "অসমীয়া"],
-      mr: ["marathi", "मराठी", "aarohi", "manohar"],
-      ta: ["tamil", "தமிழ்", "pallavi", "valluvar"],
-      te: ["telugu", "తెలుగు", "mohan", "shruti"],
-      kn: ["kannada", "ಕನ್ನಡ", "gagan", "sapna"],
-      ml: ["malayalam", "മലയാളം", "sobhana", "midhun"],
-      pa: ["punjabi", "ਪੰਜਾਬੀ", "raaj", "harman"],
-      or: ["odia", "oriya", "ଓଡ଼ିଆ"],
-    };
-
-    const keywords = langNameMap[prefix] || [];
-    if (keywords.length > 0) {
-      match = voices.find((v) => {
-        const vName = v.name.toLowerCase();
-        return keywords.some((k) => vName.includes(k));
-      });
-      if (match) return match;
-    }
-
-    // 4. Compatible Sibling Indic Phonetic Match (NEVER use English for Indic text)
-    // Assamese shares Eastern Indic phonetics with Bengali
-    if (prefix === "as") {
-      match = voices.find((v) => v.lang.toLowerCase().startsWith("bn"));
-      if (match) return match;
-    }
-    // Marathi shares Devanagari script & phonetics with Hindi
-    if (prefix === "mr") {
-      match = voices.find((v) => v.lang.toLowerCase().startsWith("hi"));
-      if (match) return match;
-    }
-    // Gujarati, Odia, Punjabi fallback to Hindi Indic phonetic engine if exact engine missing
-    if (["gu", "or", "pa"].includes(prefix)) {
-      match = voices.find((v) => v.lang.toLowerCase().startsWith("hi"));
-      if (match) return match;
-    }
-    // Dravidian siblings
-    if (prefix === "kn") {
-      match = voices.find((v) => v.lang.toLowerCase().startsWith("te") || v.lang.toLowerCase().startsWith("ta"));
-      if (match) return match;
-    }
-    if (prefix === "ml") {
-      match = voices.find((v) => v.lang.toLowerCase().startsWith("ta"));
-      if (match) return match;
-    }
-
-    // Any available Indic voice for non-English Indian speech
-    if (prefix !== "en") {
-      match = voices.find((v) => /^(hi|bn|gu|mr|ta|te|kn|ml|pa|as)/i.test(v.lang));
-      if (match) return match;
-    }
-
-    // 5. English only if requested language is English
-    if (prefix === "en") {
-      match = voices.find((v) => v.lang.toLowerCase() === "en-in");
-      if (match) return match;
-      return voices.find((v) => v.lang.toLowerCase().startsWith("en")) || voices[0] || null;
-    }
-
-    return voices[0] || null;
+    return getBestMatchingVoice(locale);
   }
 
   // Start continuous speech recognition
@@ -363,6 +366,8 @@ class VoiceManagerService {
     engine: "webspeech",
     speechPace: 0.88,
   };
+  private _lastSpokenText = "";
+  private _lastSpokenTime = 0;
 
   constructor() {
     if (typeof window !== "undefined") {
@@ -407,6 +412,30 @@ class VoiceManagerService {
     return this._provider;
   }
 
+  public isSpeaking(): boolean {
+    return this._provider.isSpeaking();
+  }
+
+  public getLastSpokenText(): string {
+    return this._lastSpokenText;
+  }
+
+  /**
+   * Rejects microphone audio if it was generated by the assistant's own TTS output
+   */
+  public isEcho(transcript: string): boolean {
+    if (this._provider.isSpeaking()) return true;
+    const now = Date.now();
+    // Reverberation window of 450ms after TTS completes
+    if (now - this._lastSpokenTime < 450) {
+      const clean = transcript.trim().toLowerCase();
+      const last = this._lastSpokenText.trim().toLowerCase();
+      if (!clean) return true;
+      if (last.includes(clean) || clean.includes(last)) return true;
+    }
+    return false;
+  }
+
   // Safe speak with echo guard
   public speak(
     text: string,
@@ -415,19 +444,40 @@ class VoiceManagerService {
     onEnd?: () => void,
     onError?: (err: any) => void
   ) {
+    this._lastSpokenText = text;
+    this._lastSpokenTime = Date.now();
+
     // 1. Interrupt any active mic listening to avoid picking up TTS
     this._provider.stopTranscription();
-    // 2. Speak
-    this._provider.synthesizeSpeech(text, locale, onStart, onEnd, onError);
+
+    // 2. Speak with audio state synchronization
+    this._provider.synthesizeSpeech(
+      text,
+      locale,
+      () => {
+        this._lastSpokenTime = Date.now();
+        if (onStart) onStart();
+      },
+      () => {
+        this._lastSpokenTime = Date.now();
+        if (onEnd) onEnd();
+      },
+      (err) => {
+        this._lastSpokenTime = Date.now();
+        if (onError) onError(err);
+      }
+    );
   }
 
   // Barge-In: immediately halts spoken output
   public bargeIn() {
     this._provider.cancelSpeech();
+    this._lastSpokenTime = 0;
   }
 
   public stopSpeaking() {
     this._provider.cancelSpeech();
+    this._lastSpokenTime = 0;
   }
 }
 
