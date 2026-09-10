@@ -15,9 +15,11 @@ import {
   BookOpen,
   Link,
   TrendingUp,
+  Brain,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { MemoryBondStore } from "@/lib/memoryBondStore";
+import { type MemoryBondStore, getRecommendedDifficulty } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
 import { speakText } from "@/lib/voiceParser";
 
@@ -32,31 +34,21 @@ import { FindDifference } from "./FindDifference";
 import { WordMemory } from "./WordMemory";
 import { MatchTheObject } from "./MatchTheObject";
 
-export function CognitiveGamesHub({ store }: { store: MemoryBondStore }) {
+export function CognitiveGamesHub({
+  store,
+  onNavigate,
+}: {
+  store: MemoryBondStore;
+  onNavigate?: (tab: string) => void;
+}) {
   const { t, speechLocale } = useI18n();
   const [activeGame, setActiveGame] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "challenging">("easy");
 
-  // Calculate Adaptive Recommendation based on recent sessions
-  const adaptiveSuggestion = useMemo(() => {
-    if (store.gameSessions.length < 3) return null;
-    const recent = store.gameSessions.slice(-3);
-    const avgRatio = recent.reduce((sum, s) => sum + (s.total > 0 ? s.score / s.total : 1), 0) / recent.length;
-
-    if (avgRatio >= 0.85 && difficulty === "easy") {
-      return {
-        message: "You have been performing wonderfully! Try Medium difficulty for a gentle new stimulus.",
-        target: "medium" as const,
-      };
-    }
-    if (avgRatio <= 0.45 && difficulty !== "easy") {
-      return {
-        message: "Relax and enjoy. Let's switch back to Easy mode for calm and comfortable play.",
-        target: "easy" as const,
-      };
-    }
-    return null;
-  }, [store.gameSessions, difficulty]);
+  // Dynamic Difficulty Adaptation Engine from MemoryBondStore
+  const adaptiveRecommendation = useMemo(() => {
+    return getRecommendedDifficulty(activeGame || "", store.gameSessions, difficulty);
+  }, [activeGame, store.gameSessions, difficulty]);
 
   const games = [
     {
@@ -141,14 +133,25 @@ export function CognitiveGamesHub({ store }: { store: MemoryBondStore }) {
     },
   ];
 
-  const handleGameComplete = (score: number, total: number) => {
+  const handleGameComplete = (score: number, total: number, extra?: any) => {
     if (activeGame) {
-      store.recordGameSession(activeGame, score, total, difficulty);
+      let gameType: "memory" | "attention" | "recognition" | "recall" | "cultural" = "memory";
+      if (activeGame === "pattern_recall" || activeGame === "find_difference") gameType = "attention";
+      else if (activeGame === "match_object" || activeGame === "family_photo") gameType = "recognition";
+      else if (activeGame === "object_recall" || activeGame === "routine_recall" || activeGame === "voice_quiz") gameType = "recall";
+      else if (activeGame === "sequence_memory" || activeGame === "word_memory" || activeGame === "card_match") gameType = "memory";
+
+      store.recordGameSession(activeGame, score, total, difficulty, {
+        gameType,
+        accuracy: total > 0 ? Math.round((score / total) * 100) : 100,
+        ...extra,
+      });
       speakText(`${t("wellDone") || "Well done!"} Score: ${score} of ${total}.`, speechLocale);
     }
   };
 
   const selectedGameObj = games.find((g) => g.id === activeGame);
+  const ces = store.cognitiveScore;
 
   return (
     <div className="space-y-6">
@@ -173,11 +176,25 @@ export function CognitiveGamesHub({ store }: { store: MemoryBondStore }) {
               <ArrowLeft className="h-5 w-5" /> Back to All 10 Games
             </Button>
 
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-muted-foreground uppercase">Current Level:</span>
-              <span className="rounded-full bg-primary/15 text-primary font-bold px-3 py-1 text-xs uppercase">
-                {difficulty}
-              </span>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  speakText(`${selectedGameObj.title}. ${selectedGameObj.description}`, speechLocale)
+                }
+                className="rounded-2xl gap-2 font-bold text-xs h-10 px-4 text-primary border-primary/30 hover:bg-primary/10"
+                title="Hear game instructions read aloud"
+              >
+                <Volume2 className="h-4 w-4" /> Listen to Instructions
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-muted-foreground uppercase">Current Level:</span>
+                <span className="rounded-full bg-primary/15 text-primary font-bold px-3 py-1 text-xs uppercase">
+                  {difficulty}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -198,15 +215,15 @@ export function CognitiveGamesHub({ store }: { store: MemoryBondStore }) {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              {/* Adaptive Difficulty Switcher */}
+              {/* Difficulty Switcher */}
               <div className="inline-flex rounded-2xl border border-border bg-card p-1 shadow-xs">
                 {(["easy", "medium", "challenging"] as const).map((lvl) => (
                   <button
                     key={lvl}
                     onClick={() => setDifficulty(lvl)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       difficulty === lvl
-                        ? "bg-primary text-primary-foreground shadow-xs"
+                        ? "bg-primary text-primary-foreground shadow-xs font-black"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -215,26 +232,66 @@ export function CognitiveGamesHub({ store }: { store: MemoryBondStore }) {
                 ))}
               </div>
 
-              <div className="rounded-2xl bg-card border border-border px-5 py-2.5 shadow-xs text-center">
-                <div className="text-xl font-black text-primary">{store.gameSessions.length}</div>
+              {/* Sessions count */}
+              <div className="rounded-2xl bg-card border border-border px-4 py-2 shadow-xs text-center">
+                <div className="text-lg font-black text-primary">{store.gameSessions.length}</div>
                 <div className="text-[10px] font-bold text-muted-foreground uppercase">Played</div>
+              </div>
+
+              {/* Live CES score mini badge */}
+              <div className="rounded-2xl bg-card border border-border px-4 py-2 shadow-xs text-center">
+                <div className="text-lg font-black text-emerald-600 dark:text-emerald-400">{ces.overall}</div>
+                <div className="text-[10px] font-bold text-muted-foreground uppercase">CES Score</div>
               </div>
             </div>
           </div>
 
-          {/* Adaptive Feedback Recommendation Banner if available */}
-          {adaptiveSuggestion && (
-            <div className="rounded-2xl border-2 border-primary/30 bg-primary/10 p-4 flex items-center justify-between gap-4 animate-in fade-in">
+          {/* Dynamic Difficulty Adaptation Banner */}
+          <div className="rounded-3xl border-2 border-primary/30 bg-primary/10 p-5 flex flex-wrap items-center justify-between gap-4 animate-in fade-in">
+            <div className="flex items-center gap-3 max-w-xl">
+              <TrendingUp className="h-6 w-6 text-primary shrink-0" />
+              <div>
+                <div className="text-xs font-black text-primary uppercase tracking-wider">
+                  AI Adaptive Difficulty Recommendation
+                </div>
+                <p className="text-sm font-bold text-foreground mt-0.5">
+                  {adaptiveRecommendation.rationale} Suggested: {adaptiveRecommendation.recommended.toUpperCase()} (Progression: {adaptiveRecommendation.nextItemsCount} target items).
+                </p>
+              </div>
+            </div>
+            {adaptiveRecommendation.recommended !== difficulty && (
+              <Button
+                size="sm"
+                onClick={() => setDifficulty(adaptiveRecommendation.recommended)}
+                className="font-black rounded-xl text-xs"
+              >
+                Switch to {adaptiveRecommendation.recommended.toUpperCase()}
+              </Button>
+            )}
+          </div>
+
+          {/* Quick Cultural Connect Banner */}
+          {onNavigate && (
+            <div className="rounded-3xl border-2 border-emerald-500/30 bg-emerald-500/10 p-5 flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <TrendingUp className="h-6 w-6 text-primary shrink-0" />
-                <p className="text-sm font-semibold text-foreground">{adaptiveSuggestion.message}</p>
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 flex items-center justify-center text-xl">
+                  🌸
+                </div>
+                <div>
+                  <h4 className="text-base font-black text-foreground">
+                    Try North Eastern Cultural Heritage Recall
+                  </h4>
+                  <p className="text-xs text-muted-foreground">
+                    Recall familiar Assamese and North East items (Jaapi, Gamosa, Kaji Nemu) to boost your CES Recognition domain.
+                  </p>
+                </div>
               </div>
               <Button
                 size="sm"
-                onClick={() => setDifficulty(adaptiveSuggestion.target)}
-                className="font-bold rounded-xl shrink-0"
+                onClick={() => onNavigate("cultural")}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs"
               >
-                Switch to {adaptiveSuggestion.target}
+                Open Heritage Hub ➔
               </Button>
             </div>
           )}
@@ -244,19 +301,31 @@ export function CognitiveGamesHub({ store }: { store: MemoryBondStore }) {
             {games.map((g, idx) => {
               const Icon = g.icon;
               return (
-                <button
+                <div
                   key={g.id}
-                  onClick={() => setActiveGame(g.id)}
-                  className="group relative rounded-3xl border-2 border-border bg-card p-6 text-left shadow-sm transition-all hover:border-primary hover:shadow-md active:scale-[0.98] flex flex-col justify-between h-56"
+                  className="group relative rounded-3xl border-2 border-border bg-card p-6 text-left shadow-xs transition-all hover:border-primary hover:shadow-md flex flex-col justify-between h-56"
                 >
-                  <div>
+                  <div onClick={() => setActiveGame(g.id)} className="cursor-pointer">
                     <div className="flex items-center justify-between mb-3">
                       <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center ${g.color}`}>
                         <Icon className="h-6 w-6" />
                       </div>
-                      <span className="text-xs font-bold px-3 py-1 rounded-full bg-secondary text-muted-foreground">
-                        Game #{idx + 1}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            speakText(`${g.title}. ${g.description}`, speechLocale);
+                          }}
+                          className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                          title="Read aloud"
+                        >
+                          <Volume2 className="h-4 w-4" />
+                        </button>
+                        <span className="text-xs font-bold px-3 py-1 rounded-full bg-secondary text-muted-foreground">
+                          Game #{idx + 1}
+                        </span>
+                      </div>
                     </div>
                     <h3 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">
                       {g.title}
@@ -264,11 +333,14 @@ export function CognitiveGamesHub({ store }: { store: MemoryBondStore }) {
                     <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{g.description}</p>
                   </div>
 
-                  <div className="pt-3 border-t border-border/60 flex items-center justify-between text-sm font-bold text-primary">
+                  <div
+                    onClick={() => setActiveGame(g.id)}
+                    className="pt-3 border-t border-border/60 flex items-center justify-between text-sm font-bold text-primary cursor-pointer"
+                  >
                     <span>{t("play") || "Play Activity"}</span>
                     <span className="text-lg">➔</span>
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>

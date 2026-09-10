@@ -15,6 +15,7 @@ import {
   PhoneCall,
   Volume2,
   Mic,
+  MicOff,
   BookmarkCheck,
   Check,
   X,
@@ -27,6 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { speakText, stopSpeaking } from "@/lib/voiceParser";
 import { useI18n } from "@/lib/i18n";
+import { useRef } from "react";
 
 export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
   const { t, speechLocale } = useI18n();
@@ -43,10 +45,13 @@ export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
   const [promptToSaveMemory, setPromptToSaveMemory] = useState<string | null>(null);
   const [memorySavedBadge, setMemorySavedBadge] = useState<boolean>(false);
   const [callCompleted, setCallCompleted] = useState<boolean>(false);
+  const [isCallListening, setIsCallListening] = useState<boolean>(false);
+  const recognitionRef = useRef<any>(null);
 
   const todayStr = new Date().toISOString().split("T")[0];
 
-  const routineQuestions = [
+  // Comprehensive question pool to ensure questions do not repeat identically every day
+  const allRoutineQuestions = [
     {
       topic: "Sleep & Morning",
       question: t("routineQuestion1") || "Good day! How was your morning today? Did you sleep peacefully?",
@@ -73,13 +78,82 @@ export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
       quickOptions: ["Spoke to my daughter Sunita on the phone", "Waved to my kind neighbor Mr. Gogoi", "Quiet peaceful morning so far"],
     },
     {
+      topic: "Hydration Check",
+      question: "Staying hydrated is so important for health. Did you drink a fresh glass of water recently?",
+      quickOptions: ["Just drank a full glass of water", "Drinking warm water right now", "Will have a cup after our chat"],
+    },
+    {
+      topic: "Cherished Moment",
+      question: "Did anything sweet, amusing, or memorable happen today that made you smile?",
+      quickOptions: ["My daughter called and shared good news", "Watched pretty birds singing in the garden", "Listened to classic soothing songs"],
+    },
+    {
       topic: "Important Reminders",
       question: t("routineQuestion6") || "Is there anything special or important you want to remember for today?",
       quickOptions: ["Everything is under control", "Need to buy fresh coriander from market", "Doctor appointment review in a few days"],
     },
   ];
 
+  // Active question set dynamically chosen on each call to prevent identical repetitive prompts
+  const [activeRoutineQuestions, setActiveRoutineQuestions] = useState<typeof allRoutineQuestions>(allRoutineQuestions.slice(0, 5));
+
+  const startCallSpeech = () => {
+    stopSpeaking();
+    if (typeof window === "undefined") return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Microphone recognition is not supported in this browser. Please type or tap an option.");
+      return;
+    }
+
+    try {
+      if (recognitionRef.current) {
+        try { recognitionRef.current.abort(); } catch {}
+      }
+
+      const rec = new SpeechRecognition();
+      recognitionRef.current = rec;
+      rec.lang = speechLocale || "en-IN";
+      rec.interimResults = true;
+      rec.continuous = false;
+
+      rec.onstart = () => {
+        setIsCallListening(true);
+      };
+
+      rec.onresult = (e: any) => {
+        const text = e.results[0]?.[0]?.transcript;
+        if (text) {
+          setCurrentInput(text);
+        }
+      };
+
+      rec.onerror = () => {
+        setIsCallListening(false);
+      };
+
+      rec.onend = () => {
+        setIsCallListening(false);
+      };
+
+      rec.start();
+    } catch {
+      setIsCallListening(false);
+    }
+  };
+
+  const stopCallSpeech = () => {
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch {}
+    }
+    setIsCallListening(false);
+  };
+
   const startRoutineCall = () => {
+    // Dynamic selection: pick 5 diverse questions shuffled so order is never identical every day
+    const shuffled = [...allRoutineQuestions].sort(() => Math.random() - 0.5).slice(0, 5);
+    setActiveRoutineQuestions(shuffled);
+
     setIsCallActive(true);
     setCallStep(0);
     setAnswers([]);
@@ -89,7 +163,7 @@ export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
     setCallCompleted(false);
 
     // Speak initial question
-    const firstQ = routineQuestions[0]?.question;
+    const firstQ = shuffled[0]?.question;
     if (firstQ) {
       speakText(firstQ, speechLocale);
     }
@@ -101,7 +175,8 @@ export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
   };
 
   const submitAnswer = (userAns: string) => {
-    const qObj = routineQuestions[callStep];
+    stopCallSpeech();
+    const qObj = activeRoutineQuestions[callStep];
     if (!qObj || !userAns.trim()) return;
 
     const newAnswers = [...answers, { topic: qObj.topic, question: qObj.question, answer: userAns.trim() }];
@@ -109,7 +184,10 @@ export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
 
     // Section 12: Daily Routine + Voice Memory Connection
     // Check if the answer contains something meaningful to offer saving
-    const meaningfulKeywords = ["daughter", "sunita", "aarav", "grandson", "bihu", "garden", "tulsi", "friend", "flower", "বেটি", "নাতি", "সুনীতা"];
+    const meaningfulKeywords = [
+      "daughter", "sunita", "aarav", "grandson", "son", "bihu", "garden", "tulsi", "friend", "flower",
+      "বেটি", "নাতি", "সুনীতা", "बेटी", "बेटा", "दोस्त", "बागीचा", "फूल", "পুৱা"
+    ];
     const isMeaningful = meaningfulKeywords.some((k) => userAns.toLowerCase().includes(k));
 
     if (isMeaningful && !promptToSaveMemory) {
@@ -121,17 +199,27 @@ export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
       return;
     }
 
-    proceedToNextQuestion(newAnswers);
+    // Natural empathetic voice reply before next question
+    const feedbacks = [
+      "Wonderful! Thank you for sharing.",
+      "Glad to hear that. You are doing great!",
+      "Good to know! Taking care of your daily rhythm is so helpful.",
+    ];
+    const pickedFeedback = feedbacks[callStep % feedbacks.length] || "Wonderful!";
+
+    speakText(pickedFeedback, speechLocale, () => {
+      proceedToNextQuestion(newAnswers);
+    });
   };
 
   const proceedToNextQuestion = (currentAnswersList: typeof answers) => {
     setPromptToSaveMemory(null);
     setCurrentInput("");
 
-    if (callStep + 1 < routineQuestions.length) {
+    if (callStep + 1 < activeRoutineQuestions.length) {
       const nextStep = callStep + 1;
       setCallStep(nextStep);
-      const nextQ = routineQuestions[nextStep]?.question;
+      const nextQ = activeRoutineQuestions[nextStep]?.question;
       if (nextQ) {
         speakText(nextQ, speechLocale);
       }
@@ -171,6 +259,7 @@ export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
   };
 
   const closeCall = () => {
+    stopCallSpeech();
     stopSpeaking();
     setIsCallActive(false);
   };
@@ -410,7 +499,7 @@ export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
                     <div className="space-y-2">
                       <p className="text-xs font-bold text-muted-foreground uppercase">Tap a quick response:</p>
                       <div className="space-y-2">
-                        {routineQuestions[callStep]?.quickOptions.map((opt, i) => (
+                        {activeRoutineQuestions[callStep]?.quickOptions.map((opt, i) => (
                           <button
                             key={i}
                             onClick={() => handleSelectQuickAnswer(opt)}
@@ -422,28 +511,55 @@ export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
                       </div>
                     </div>
 
-                    {/* Or Type / Speak Custom Answer */}
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        submitAnswer(currentInput);
-                      }}
-                      className="flex gap-2 pt-1"
-                    >
-                      <Input
-                        value={currentInput}
-                        onChange={(e) => setCurrentInput(e.target.value)}
-                        placeholder="Or speak / type your answer..."
-                        className="h-12 rounded-2xl text-sm"
-                      />
-                      <Button
-                        type="submit"
-                        disabled={!currentInput.trim()}
-                        className="h-12 px-5 font-bold rounded-2xl"
+                    {/* Speak or Type Your Custom Answer */}
+                    <div className="pt-2 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-muted-foreground uppercase">
+                          Or Speak / Type your response:
+                        </span>
+                        {isCallListening && (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-destructive animate-pulse">
+                            <span className="w-2 h-2 rounded-full bg-destructive animate-ping" /> Listening to you...
+                          </span>
+                        )}
+                      </div>
+
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          submitAnswer(currentInput);
+                        }}
+                        className="flex items-center gap-2"
                       >
-                        Next
-                      </Button>
-                    </form>
+                        <Button
+                          type="button"
+                          onClick={isCallListening ? stopCallSpeech : startCallSpeech}
+                          className={`h-12 w-12 rounded-2xl shrink-0 font-bold transition-all shadow-md ${
+                            isCallListening
+                              ? "bg-destructive hover:bg-destructive/90 text-white animate-pulse scale-105"
+                              : "bg-primary hover:bg-primary/90 text-white"
+                          }`}
+                          title="Speak your answer"
+                        >
+                          {isCallListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                        </Button>
+
+                        <Input
+                          value={currentInput}
+                          onChange={(e) => setCurrentInput(e.target.value)}
+                          placeholder="Speak or type your answer..."
+                          className="h-12 rounded-2xl text-sm font-medium"
+                        />
+
+                        <Button
+                          type="submit"
+                          disabled={!currentInput.trim()}
+                          className="h-12 px-5 font-bold rounded-2xl shadow-sm shrink-0"
+                        >
+                          Next
+                        </Button>
+                      </form>
+                    </div>
                   </>
                 )}
               </div>

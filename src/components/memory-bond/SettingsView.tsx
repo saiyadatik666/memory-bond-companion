@@ -67,11 +67,11 @@ export function SettingsView({ store }: { store: MemoryBondStore }) {
     setTestSpeechStatus("Playing voice sample...");
     const sampleText =
       lang === "hi"
-        ? "नमस्ते! मैं आपका मेमोरी बॉन्ड साथी हूँ।"
+        ? "नमस्ते! मैं आपका Memory Bond साथी हूँ।"
         : lang === "as"
-        ? "নমস্কাৰ! মই আপোনাৰ মেম'ৰি বণ্ড সংগী।"
+        ? "নমস্কাৰ! মই আপোনাৰ Memory Bond সংগী।"
         : lang === "bn"
-        ? "নমস্কার! আমি আপনার মেমোরি বন্ড সঙ্গী।"
+        ? "নমস্কার! আমি আপনার Memory Bond সঙ্গী।"
         : "Namaste! I am your Memory Bond companion, here to assist your peaceful day.";
 
     speakText(sampleText, speechLocale || "en-IN", () => {

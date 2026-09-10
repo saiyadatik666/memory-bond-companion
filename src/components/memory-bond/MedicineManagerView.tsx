@@ -137,6 +137,15 @@ export function MedicineManagerView({ store }: { store: MemoryBondStore }) {
         </div>
       </div>
 
+      {/* Statutory Non-Diagnostic Disclaimer (Section 6) */}
+      <div className="flex items-start gap-3 rounded-2xl border border-primary/25 bg-primary/10 p-4 text-foreground text-sm">
+        <AlertCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+        <div>
+          <span className="font-bold">Medical Disclaimer: </span>
+          Memory Bond is a daily companion and reminder assistant for seniors and caregivers. It does not provide medical diagnoses or prescribe medications. Please consult qualified healthcare professionals for medical advice.
+        </div>
+      </div>
+
       {/* Critical Low Stock Warning Banner (Section 8: 2-3 days remaining) */}
       {lowStockMeds.length > 0 && (
         <div className="rounded-3xl border-2 border-destructive/50 bg-destructive/10 p-6 space-y-3 animate-in fade-in">

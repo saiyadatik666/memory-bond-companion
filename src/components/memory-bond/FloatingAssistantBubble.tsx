@@ -49,9 +49,9 @@ export function FloatingAssistantBubble({
     setIsPressed(true);
     setHoldProgress(0);
 
-    // Progress tick towards 1.5s hold for SOS
+    // Progress tick towards 3s hold for SOS (Section 18 of prompt)
     const startTime = Date.now();
-    const duration = 1500;
+    const duration = 3000;
 
     progressIntervalRef.current = setInterval(() => {
       const elapsed = Date.now() - startTime;

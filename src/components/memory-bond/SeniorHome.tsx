@@ -19,6 +19,9 @@ import {
   Sliders,
   Check,
   HeartHandshake,
+  Footprints,
+  Compass,
+  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
@@ -55,32 +58,43 @@ export function SeniorHome({
   const routinesDone = store.routines.filter((r) => r.done_date === todayStr).length;
   const nextMedicine = store.medicines[0];
   const nextReminder = store.reminders.find((r) => r.active && r.last_done !== todayStr);
-  const nextAppointment = store.appointments[0];
   const lowStockMeds = store.medicines.filter((m) => m.stock <= m.refill_threshold);
 
+  const hour = new Date().getHours();
   const greeting = (() => {
-    const hour = new Date().getHours();
     if (hour < 12) return "Good Morning";
     if (hour < 17) return "Good Afternoon";
     return "Good Evening";
   })();
 
-  const speakEasyModeWelcome = () => {
+  // Proactive Personalized AI Recommendation (Section 12)
+  const proactiveAiPrompt = (() => {
+    if (hour >= 8 && hour < 12) {
+      return lang === "hi"
+        ? `शुभ प्रभात ${store.profile.full_name} जी। क्या आप आज का शांत मेमोरी गेम खेलना चाहेंगे?`
+        : `Good morning ${store.profile.full_name}. Would you like to play your morning memory activity?`;
+    } else if (hour >= 16 && hour < 19) {
+      return lang === "hi"
+        ? `${store.profile.full_name} जी, शाम की ताज़ा हवा में 20 मिनट टहलने का समय हो गया है।`
+        : `${store.profile.full_name}, it is a pleasant time for your gentle 20-minute evening walk.`;
+    }
+    return lang === "hi"
+      ? `${store.profile.full_name} जी, आपकी दवाइयाँ और दिनचर्या पूरी तरह तैयार हैं।`
+      : `${store.profile.full_name}, everything is calm and safe. What would you like to do?`;
+  })();
+
+  const speakWelcome = () => {
     stopSpeaking();
-    const speech =
-      lang === "hi"
-        ? `नमस्ते ${store.profile.full_name} जी। समय है ${currentTime}। आज के लिए आपकी दवाइयाँ और दिनचर्या तैयार हैं।`
-        : `Namaste ${store.profile.full_name}. The time is ${currentTime}. Your daily routine and medicines are ready. Tap any large button.`;
-    speakText(speech, speechLocale || "en-IN");
+    speakText(proactiveAiPrompt, speechLocale || "en-IN");
   };
 
   // -------------------------------------------------------------------------
-  // 1. SENIOR EASY MODE VIEW (Ultra-simplified 2-column massive tiles)
+  // 1. SENIOR EASY MODE VIEW (Ultra-simplified large tiles, high contrast)
   // -------------------------------------------------------------------------
   if (store.profile.easy_mode) {
     return (
       <div className="space-y-6 max-w-4xl mx-auto animate-in fade-in">
-        {/* Easy Mode Top Ribbon */}
+        {/* Easy Mode Top Banner */}
         <div className="flex items-center justify-between bg-primary/10 border-2 border-primary/30 p-4 rounded-3xl">
           <div className="flex items-center gap-2 text-primary font-black text-sm">
             <Sparkles className="h-5 w-5" /> Senior Easy Mode Active (सरल मोड)
@@ -95,11 +109,11 @@ export function SeniorHome({
           </Button>
         </div>
 
-        {/* Easy Mode Massive Hero */}
+        {/* Easy Mode Massive Hero Card */}
         <div className="rounded-3xl border-3 border-foreground/30 bg-card p-6 sm:p-8 shadow-md text-card-foreground space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <div className="text-3xl sm:text-5xl font-black tracking-tight text-foreground">
+              <div className="text-4xl sm:text-6xl font-black tracking-tight text-foreground">
                 {currentTime || "10:00 AM"}
               </div>
               <div className="text-lg sm:text-xl font-bold text-muted-foreground mt-1">
@@ -113,7 +127,7 @@ export function SeniorHome({
 
             <Button
               size="lg"
-              onClick={speakEasyModeWelcome}
+              onClick={speakWelcome}
               className="rounded-2xl font-black gap-2 h-14 px-6 text-base bg-secondary hover:bg-secondary/80 text-foreground border-2 border-border shadow-xs"
             >
               <Volume2 className="h-6 w-6 text-primary" /> Read Aloud
@@ -124,10 +138,31 @@ export function SeniorHome({
             <h2 className="text-2xl sm:text-3xl font-black text-foreground">
               {greeting}, {store.profile.full_name}
             </h2>
-            <p className="text-base font-semibold text-muted-foreground mt-0.5">
-              Everything is calm and safe. Tap a button below for what you need.
+            <p className="text-base font-bold text-primary mt-1">
+              ✨ {proactiveAiPrompt}
             </p>
           </div>
+        </div>
+
+        {/* EMERGENCY SOS SECTION — CENTERED & HIGHLY PROMINENT (Section 4) */}
+        <div className="rounded-3xl border-4 border-destructive bg-destructive/10 p-6 sm:p-8 shadow-lg text-center flex flex-col items-center justify-center space-y-4">
+          <span className="text-xs font-black uppercase tracking-widest text-destructive bg-destructive/15 px-4 py-1 rounded-full">
+            Emergency Assistance System
+          </span>
+          <h3 className="text-2xl sm:text-3xl font-black text-destructive">
+            NEED HELP IMMEDIATELY?
+          </h3>
+          <p className="text-sm font-bold text-foreground max-w-sm mx-auto">
+            One tap to speak with AI or call your family & emergency services.
+          </p>
+          <button
+            type="button"
+            onClick={onOpenSos}
+            className="w-full sm:w-80 h-20 rounded-3xl bg-destructive hover:bg-destructive/90 text-white font-black text-2xl tracking-wider shadow-2xl flex items-center justify-center gap-3 transition-transform active:scale-95 cursor-pointer"
+          >
+            <AlertOctagon className="h-9 w-9 animate-pulse" />
+            {t("sos").toUpperCase()} (मदद लें)
+          </button>
         </div>
 
         {/* 4 Massive Essential Action Tiles (2-Column Layout) */}
@@ -135,7 +170,7 @@ export function SeniorHome({
           {/* Tile 1: Routine & Today */}
           <button
             onClick={() => onNavigate("routine")}
-            className="rounded-3xl border-3 border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20 p-6 sm:p-8 text-left space-y-3 hover:border-amber-500 hover:scale-[1.02] active:scale-95 transition-all shadow-sm flex flex-col justify-between min-h-[200px]"
+            className="rounded-3xl border-3 border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20 p-6 sm:p-8 text-left space-y-3 hover:border-amber-500 hover:scale-[1.02] active:scale-95 transition-all shadow-sm flex flex-col justify-between min-h-[190px]"
           >
             <div className="flex items-center justify-between">
               <div className="w-16 h-16 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md">
@@ -158,14 +193,14 @@ export function SeniorHome({
           {/* Tile 2: Medicines */}
           <button
             onClick={() => onNavigate("medicines")}
-            className="rounded-3xl border-3 border-teal-500/50 bg-teal-50/50 dark:bg-teal-950/20 p-6 sm:p-8 text-left space-y-3 hover:border-teal-500 hover:scale-[1.02] active:scale-95 transition-all shadow-sm flex flex-col justify-between min-h-[200px]"
+            className="rounded-3xl border-3 border-teal-500/50 bg-teal-50/50 dark:bg-teal-950/20 p-6 sm:p-8 text-left space-y-3 hover:border-teal-500 hover:scale-[1.02] active:scale-95 transition-all shadow-sm flex flex-col justify-between min-h-[190px]"
           >
             <div className="flex items-center justify-between">
               <div className="w-16 h-16 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-md">
                 <Pill className="h-9 w-9" />
               </div>
               <span className="text-sm font-black uppercase tracking-wider px-3 py-1 rounded-full bg-teal-500/20 text-teal-900 dark:text-teal-200">
-                2. MEDICINE
+                2. MEDICINES
               </span>
             </div>
             <div>
@@ -178,17 +213,17 @@ export function SeniorHome({
             </div>
           </button>
 
-          {/* Tile 3: Tap & Speak Assistant */}
+          {/* Tile 3: Voice Companion */}
           <button
             onClick={onOpenVoiceAssistant}
-            className="rounded-3xl border-3 border-primary/50 bg-primary/10 p-6 sm:p-8 text-left space-y-3 hover:border-primary hover:scale-[1.02] active:scale-95 transition-all shadow-sm flex flex-col justify-between min-h-[200px]"
+            className="rounded-3xl border-3 border-primary/50 bg-primary/10 p-6 sm:p-8 text-left space-y-3 hover:border-primary hover:scale-[1.02] active:scale-95 transition-all shadow-sm flex flex-col justify-between min-h-[190px]"
           >
             <div className="flex items-center justify-between">
               <div className="w-16 h-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-md">
                 <Mic className="h-9 w-9" />
               </div>
               <span className="text-sm font-black uppercase tracking-wider px-3 py-1 rounded-full bg-primary/20 text-primary">
-                3. VOICE
+                3. VOICE AI
               </span>
             </div>
             <div>
@@ -196,52 +231,52 @@ export function SeniorHome({
                 SPEAK TO COMPANION
               </div>
               <p className="text-base font-bold text-muted-foreground mt-1">
-                Tap here and ask anything in your language
+                Tap and talk naturally in your language
               </p>
             </div>
           </button>
 
-          {/* Tile 4: High-Visibility SOS */}
+          {/* Tile 4: Reminders & Walk */}
           <button
-            onClick={onOpenSos}
-            className="rounded-3xl border-3 border-destructive bg-destructive/15 p-6 sm:p-8 text-left space-y-3 hover:bg-destructive hover:text-white hover:scale-[1.02] active:scale-95 transition-all shadow-md flex flex-col justify-between min-h-[200px] group cursor-pointer"
+            onClick={() => onNavigate("reminders")}
+            className="rounded-3xl border-3 border-sky-500/50 bg-sky-50/50 dark:bg-sky-950/20 p-6 sm:p-8 text-left space-y-3 hover:border-sky-500 hover:scale-[1.02] active:scale-95 transition-all shadow-sm flex flex-col justify-between min-h-[190px]"
           >
             <div className="flex items-center justify-between">
-              <div className="w-16 h-16 rounded-2xl bg-destructive text-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
-                <AlertOctagon className="h-9 w-9" />
+              <div className="w-16 h-16 rounded-2xl bg-sky-600 text-white flex items-center justify-center shadow-md">
+                <Bell className="h-9 w-9" />
               </div>
-              <span className="text-sm font-black uppercase tracking-wider px-3 py-1 rounded-full bg-destructive text-white">
-                4. EMERGENCY
+              <span className="text-sm font-black uppercase tracking-wider px-3 py-1 rounded-full bg-sky-500/20 text-sky-900 dark:text-sky-200">
+                4. REMINDERS
               </span>
             </div>
             <div>
-              <div className="text-2xl sm:text-3xl font-black text-destructive group-hover:text-white">
-                {t("sos").toUpperCase()} (मदद)
+              <div className="text-2xl sm:text-3xl font-black text-foreground">
+                SMART REMINDERS
               </div>
-              <p className="text-base font-bold text-destructive/80 group-hover:text-white/90 mt-1">
-                Call caregiver & send emergency location
+              <p className="text-base font-bold text-muted-foreground mt-1">
+                Medicines, walking, hydration, shopping
               </p>
             </div>
           </button>
         </div>
 
-        {/* Quick Games & Memories Button in Easy Mode */}
+        {/* Quick Cultural Connect & Games */}
         <div className="grid grid-cols-2 gap-4 pt-2">
           <Button
             size="lg"
             variant="outline"
-            onClick={() => onNavigate("games")}
-            className="rounded-2xl h-16 text-lg font-bold border-2 border-border gap-2"
+            onClick={() => onNavigate("cultural")}
+            className="rounded-2xl h-16 text-lg font-bold border-2 border-emerald-500/40 gap-2 bg-emerald-500/10 text-foreground"
           >
-            <Gamepad2 className="h-6 w-6 text-indigo-600" /> Play Memory Games
+            <Compass className="h-6 w-6 text-emerald-600" /> North-East Cultural Hub
           </Button>
           <Button
             size="lg"
             variant="outline"
-            onClick={() => onNavigate("journal")}
-            className="rounded-2xl h-16 text-lg font-bold border-2 border-border gap-2"
+            onClick={() => onNavigate("social")}
+            className="rounded-2xl h-16 text-lg font-bold border-2 border-rose-500/40 gap-2 bg-rose-500/10 text-foreground"
           >
-            <HeartHandshake className="h-6 w-6 text-rose-600" /> Cherished Memories
+            <MessageCircle className="h-6 w-6 text-rose-600" /> Family Voice Feed
           </Button>
         </div>
       </div>
@@ -249,21 +284,20 @@ export function SeniorHome({
   }
 
   // -------------------------------------------------------------------------
-  // 2. STANDARD COMPREHENSIVE VIEW (All Features + Easy Mode Switcher)
+  // 2. STANDARD COMPREHENSIVE VIEW
   // -------------------------------------------------------------------------
   return (
     <div className="space-y-6 sm:space-y-8 animate-in fade-in">
-      {/* Friendly Warm Hero Card */}
+      {/* Friendly Warm Hero Card with Proactive Personalization */}
       <div className="relative overflow-hidden rounded-3xl aurora-surface p-6 sm:p-10 shadow-lg text-white">
         <div className="relative z-10 max-w-2xl space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-1 text-xs font-bold tracking-wider uppercase backdrop-blur-md">
               <Sparkles className="h-3.5 w-3.5" /> Memory Bond Companion
             </div>
-            {/* Quick Senior Easy Mode Toggle on Hero */}
             <button
               onClick={() => store.updateProfile({ easy_mode: true })}
-              className="inline-flex items-center gap-1.5 rounded-full bg-white/25 hover:bg-white/35 px-3 py-1 text-xs font-bold transition-all"
+              className="inline-flex items-center gap-1.5 rounded-full bg-white/25 hover:bg-white/35 px-3 py-1 text-xs font-bold transition-all cursor-pointer"
               title="Activate Senior Easy Mode"
             >
               <Sliders className="h-3.5 w-3.5" /> Switch to Easy Mode
@@ -273,16 +307,15 @@ export function SeniorHome({
           <h2 className="text-3xl sm:text-4xl font-black tracking-tight">
             {greeting}, {store.profile.full_name}
           </h2>
-          <p className="text-base sm:text-lg text-white/90 font-medium leading-relaxed">
-            Wishing you a peaceful and cheerful day. Everything you need is right here.
+          <p className="text-base sm:text-lg text-white/95 font-semibold leading-relaxed">
+            ✨ {proactiveAiPrompt}
           </p>
 
-          {/* Quick AI Voice Trigger button right on the banner */}
           <div className="pt-2 flex flex-wrap gap-3">
             <Button
               size="lg"
               onClick={onOpenVoiceAssistant}
-              className="bg-white text-foreground hover:bg-white/90 font-bold rounded-2xl gap-2.5 h-14 px-6 text-base shadow-md"
+              className="bg-white text-foreground hover:bg-white/90 font-black rounded-2xl gap-2.5 h-14 px-6 text-base shadow-md"
             >
               <Mic className="h-5 w-5 text-primary" /> {t("speak") || "Tap & Speak to Assistant"}
             </Button>
@@ -297,8 +330,39 @@ export function SeniorHome({
           </div>
         </div>
 
-        {/* Decorative background orb */}
         <div className="absolute -right-12 -bottom-12 w-64 h-64 rounded-full bg-white/10 blur-2xl pointer-events-none" />
+      </div>
+
+      {/* DEDICATED CENTERED EMERGENCY SOS HERO (Section 4) */}
+      <div className="rounded-3xl border-3 border-destructive bg-destructive/10 p-6 sm:p-7 shadow-md flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
+        <div className="flex flex-col sm:flex-row items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-destructive text-white flex items-center justify-center shrink-0 shadow-md animate-pulse">
+            <AlertOctagon className="h-9 w-9" />
+          </div>
+          <div>
+            <div className="flex items-center justify-center sm:justify-start gap-2">
+              <span className="text-xs font-black uppercase tracking-wider text-destructive bg-destructive/20 px-2.5 py-0.5 rounded-full">
+                Priority Safety
+              </span>
+              <span className="text-xs text-muted-foreground font-semibold">10-Sec Protection or Direct Voice</span>
+            </div>
+            <h3 className="text-2xl font-black text-destructive mt-1">
+              Emergency SOS Assistance (आपत्कालीन मदद)
+            </h3>
+            <p className="text-sm font-medium text-foreground">
+              Immediately alerts daughter Sunita Sharma and priority contacts with your location.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onOpenSos}
+          className="w-full sm:w-auto px-8 h-14 rounded-2xl bg-destructive hover:bg-destructive/90 text-white font-black text-lg tracking-wider shadow-lg flex items-center justify-center gap-2.5 transition-transform active:scale-95 cursor-pointer shrink-0"
+        >
+          <AlertOctagon className="h-6 w-6" />
+          TAP FOR SOS
+        </button>
       </div>
 
       {/* Critical Refill Warning Banner if any */}
@@ -314,7 +378,7 @@ export function SeniorHome({
                 {t("medicineLow") || "Your medicine is running low."}
               </h4>
               <p className="text-sm text-muted-foreground font-medium">
-                {lowStockMeds[0]?.name} has {lowStockMeds[0]?.stock} {lowStockMeds[0]?.unit}s remaining. Tap to check refill.
+                {lowStockMeds[0]?.name} has {lowStockMeds[0]?.stock} {lowStockMeds[0]?.unit}s remaining (~{Math.floor(lowStockMeds[0]?.stock / (lowStockMeds[0]?.daily_usage || 1))} days). Caregiver notified.
               </p>
             </div>
           </div>
@@ -322,7 +386,7 @@ export function SeniorHome({
         </div>
       )}
 
-      {/* Senior Status Overview Ribbon: Next Med, Next Reminder, Appts */}
+      {/* Senior Status Overview Ribbon: Next Med, Next Reminder, Cognitive Score */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Next Medicine */}
         <div
@@ -337,7 +401,7 @@ export function SeniorHome({
             <div>
               <div className="text-xl font-bold text-foreground">{nextMedicine.name}</div>
               <div className="text-sm font-semibold text-primary">
-                {nextMedicine.dosage} • {nextMedicine.times[0] || "08:30"}
+                {nextMedicine.dosage} • Scheduled: {nextMedicine.times[0] || "08:30"}
               </div>
             </div>
           ) : (
@@ -357,39 +421,41 @@ export function SeniorHome({
           {nextReminder ? (
             <div>
               <div className="text-xl font-bold text-foreground truncate">{nextReminder.title}</div>
-              <div className="text-sm font-semibold text-primary">At {nextReminder.time}</div>
+              <div className="text-sm font-semibold text-primary">At {nextReminder.time} ({nextReminder.type})</div>
             </div>
           ) : (
             <div className="text-sm text-muted-foreground">All reminders completed today</div>
           )}
         </div>
 
-        {/* Today's Appointments & Routine */}
+        {/* Cognitive Engagement Score (CES) Live Card */}
         <div
-          onClick={() => onNavigate("routine")}
+          onClick={() => onNavigate("games")}
           className="rounded-3xl border-2 border-border bg-card p-5 shadow-xs space-y-2 cursor-pointer hover:border-primary/50 transition-all"
         >
           <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-bold uppercase tracking-wider">{t("progressToday")}</span>
-            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+            <span className="text-xs font-bold uppercase tracking-wider">Cognitive Score (CES)</span>
+            <Sparkles className="h-5 w-5 text-indigo-600" />
           </div>
           <div>
-            <div className="text-xl font-bold text-foreground">
-              {routinesDone} of {store.routines.length} Done
+            <div className="text-xl font-black text-foreground">
+              {store.cognitiveScore.overall} / 100
             </div>
-            <div className="text-sm font-semibold text-muted-foreground">Daily routine rhythm</div>
+            <div className="text-xs font-bold text-success">
+              Active Engagement • Non-diagnostic
+            </div>
           </div>
         </div>
       </div>
 
-      {/* 8 PRIMARY LARGE ACTION CARDS (Per Section 5 of Spec) */}
+      {/* 8 PRIMARY LARGE ACTION TILES */}
       <div>
-        <h3 className="text-xl font-black text-foreground mb-4">Quick Activities</h3>
+        <h3 className="text-xl font-black text-foreground mb-4">Daily Activities & Memory Support</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
           {/* 1. TODAY */}
           <button
             onClick={() => onNavigate("routine")}
-            className="group rounded-3xl border-2 border-border bg-card p-6 text-center space-y-3 shadow-sm hover:border-primary hover:shadow-md active:scale-95 transition-all flex flex-col items-center justify-center h-44"
+            className="group rounded-3xl border-2 border-border bg-card p-6 text-center space-y-3 shadow-sm hover:border-primary hover:shadow-md active:scale-95 transition-all flex flex-col items-center justify-center h-44 cursor-pointer"
           >
             <div className="w-16 h-16 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-600 group-hover:scale-110 transition-transform">
               <Sun className="h-8 w-8" />
@@ -402,7 +468,7 @@ export function SeniorHome({
           {/* 2. MEDICINES */}
           <button
             onClick={() => onNavigate("medicines")}
-            className="group rounded-3xl border-2 border-border bg-card p-6 text-center space-y-3 shadow-sm hover:border-primary hover:shadow-md active:scale-95 transition-all flex flex-col items-center justify-center h-44"
+            className="group rounded-3xl border-2 border-border bg-card p-6 text-center space-y-3 shadow-sm hover:border-primary hover:shadow-md active:scale-95 transition-all flex flex-col items-center justify-center h-44 cursor-pointer"
           >
             <div className="w-16 h-16 rounded-2xl bg-teal-500/15 border border-teal-500/30 flex items-center justify-center text-teal-600 group-hover:scale-110 transition-transform">
               <Pill className="h-8 w-8" />
@@ -415,7 +481,7 @@ export function SeniorHome({
           {/* 3. MY REMINDERS */}
           <button
             onClick={() => onNavigate("reminders")}
-            className="group rounded-3xl border-2 border-border bg-card p-6 text-center space-y-3 shadow-sm hover:border-primary hover:shadow-md active:scale-95 transition-all flex flex-col items-center justify-center h-44"
+            className="group rounded-3xl border-2 border-border bg-card p-6 text-center space-y-3 shadow-sm hover:border-primary hover:shadow-md active:scale-95 transition-all flex flex-col items-center justify-center h-44 cursor-pointer"
           >
             <div className="w-16 h-16 rounded-2xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-600 group-hover:scale-110 transition-transform">
               <Bell className="h-8 w-8" />
@@ -428,7 +494,7 @@ export function SeniorHome({
           {/* 4. MEMORY GAMES */}
           <button
             onClick={() => onNavigate("games")}
-            className="group rounded-3xl border-2 border-border bg-card p-6 text-center space-y-3 shadow-sm hover:border-primary hover:shadow-md active:scale-95 transition-all flex flex-col items-center justify-center h-44"
+            className="group rounded-3xl border-2 border-border bg-card p-6 text-center space-y-3 shadow-sm hover:border-primary hover:shadow-md active:scale-95 transition-all flex flex-col items-center justify-center h-44 cursor-pointer"
           >
             <div className="w-16 h-16 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
               <Gamepad2 className="h-8 w-8" />
@@ -438,70 +504,70 @@ export function SeniorHome({
             </span>
           </button>
 
-          {/* 5. MEMORY CUES */}
+          {/* 5. NER CULTURAL CONNECT (Section 14) */}
+          <button
+            onClick={() => onNavigate("cultural")}
+            className="group rounded-3xl border-2 border-emerald-500/30 bg-emerald-500/5 p-6 text-center space-y-3 shadow-sm hover:border-emerald-500 hover:shadow-md active:scale-95 transition-all flex flex-col items-center justify-center h-44 cursor-pointer"
+          >
+            <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
+              <Compass className="h-8 w-8" />
+            </div>
+            <span className="text-lg font-black text-foreground group-hover:text-emerald-600">
+              5. CULTURAL HUB
+            </span>
+          </button>
+
+          {/* 6. SOCIAL & FAMILY FEED (Section 18) */}
+          <button
+            onClick={() => onNavigate("social")}
+            className="group rounded-3xl border-2 border-rose-500/30 bg-rose-500/5 p-6 text-center space-y-3 shadow-sm hover:border-rose-500 hover:shadow-md active:scale-95 transition-all flex flex-col items-center justify-center h-44 cursor-pointer"
+          >
+            <div className="w-16 h-16 rounded-2xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-600 group-hover:scale-110 transition-transform">
+              <MessageCircle className="h-8 w-8" />
+            </div>
+            <span className="text-lg font-black text-foreground group-hover:text-rose-600">
+              6. FAMILY GREETINGS
+            </span>
+          </button>
+
+          {/* 7. MEMORY CUES */}
           <button
             onClick={() => onNavigate("cues")}
-            className="group rounded-3xl border-2 border-border bg-card p-6 text-center space-y-3 shadow-sm hover:border-primary hover:shadow-md active:scale-95 transition-all flex flex-col items-center justify-center h-44"
+            className="group rounded-3xl border-2 border-border bg-card p-6 text-center space-y-3 shadow-sm hover:border-primary hover:shadow-md active:scale-95 transition-all flex flex-col items-center justify-center h-44 cursor-pointer"
           >
             <div className="w-16 h-16 rounded-2xl bg-violet-500/15 border border-violet-500/30 flex items-center justify-center text-violet-600 group-hover:scale-110 transition-transform">
               <HelpCircle className="h-8 w-8" />
             </div>
             <span className="text-lg font-black text-foreground group-hover:text-primary">
-              5. {t("cues").toUpperCase()}
+              7. {t("cues").toUpperCase()}
             </span>
           </button>
 
-          {/* 6. VOICE NOTE / JOURNAL */}
+          {/* 8. MEMORY JOURNAL */}
           <button
             onClick={() => onNavigate("journal")}
-            className="group rounded-3xl border-2 border-border bg-card p-6 text-center space-y-3 shadow-sm hover:border-primary hover:shadow-md active:scale-95 transition-all flex flex-col items-center justify-center h-44"
+            className="group rounded-3xl border-2 border-border bg-card p-6 text-center space-y-3 shadow-sm hover:border-primary hover:shadow-md active:scale-95 transition-all flex flex-col items-center justify-center h-44 cursor-pointer"
           >
-            <div className="w-16 h-16 rounded-2xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-600 group-hover:scale-110 transition-transform">
-              <Mic className="h-8 w-8" />
+            <div className="w-16 h-16 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-600 group-hover:scale-110 transition-transform">
+              <HeartHandshake className="h-8 w-8" />
             </div>
             <span className="text-lg font-black text-foreground group-hover:text-primary">
-              6. {t("voiceNote").toUpperCase()}
-            </span>
-          </button>
-
-          {/* 7. FAMILY */}
-          <button
-            onClick={() => onNavigate("family")}
-            className="group rounded-3xl border-2 border-border bg-card p-6 text-center space-y-3 shadow-sm hover:border-primary hover:shadow-md active:scale-95 transition-all flex flex-col items-center justify-center h-44"
-          >
-            <div className="w-16 h-16 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
-              <Users className="h-8 w-8" />
-            </div>
-            <span className="text-lg font-black text-foreground group-hover:text-primary">
-              7. {t("family").toUpperCase()}
-            </span>
-          </button>
-
-          {/* 8. SOS (High Visibility Emergency Button) */}
-          <button
-            onClick={onOpenSos}
-            className="group rounded-3xl border-3 border-destructive bg-destructive/10 p-6 text-center space-y-3 shadow-md hover:bg-destructive hover:text-white active:scale-95 transition-all flex flex-col items-center justify-center h-44 cursor-pointer"
-          >
-            <div className="w-16 h-16 rounded-2xl bg-destructive text-white flex items-center justify-center group-hover:scale-110 transition-transform animate-pulse">
-              <AlertOctagon className="h-9 w-9" />
-            </div>
-            <span className="text-lg font-black text-destructive group-hover:text-white">
-              8. {t("sos").toUpperCase()}
+              8. CHERISHED NOTES
             </span>
           </button>
         </div>
       </div>
 
-      {/* Memory Check-in Quick Card */}
+      {/* Memory Check-in Baseline Quick Card */}
       <div className="rounded-3xl border-2 border-primary/30 bg-primary/5 p-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center">
             <ClipboardCheck className="h-6 w-6" />
           </div>
           <div>
-            <h4 className="text-xl font-bold text-foreground">{t("checkin")}</h4>
+            <h4 className="text-xl font-bold text-foreground">{t("checkin")} & Baseline Profile</h4>
             <p className="text-sm text-muted-foreground font-medium">
-              5-minute non-diagnostic mental agility and orientation check.
+              5-minute non-diagnostic mental agility and orientation check-in.
             </p>
           </div>
         </div>

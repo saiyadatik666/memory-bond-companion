@@ -7,6 +7,9 @@ import { BottomNavigation } from "./BottomNavigation";
 // Views
 import { SeniorHome } from "./SeniorHome";
 import { CaregiverDashboard } from "./CaregiverDashboard";
+import { HealthcareWorkerDashboard } from "./HealthcareWorkerDashboard";
+import { NorthEastCulturalConnect } from "./NorthEastCulturalConnect";
+import { SocialEngagementModule } from "./SocialEngagementModule";
 import { MedicineManagerView } from "./MedicineManagerView";
 import { RemindersView } from "./RemindersView";
 import { CognitiveGamesHub } from "./games/CognitiveGamesHub";
@@ -36,12 +39,16 @@ export function MemoryBondApp() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState<boolean>(false);
   const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
 
-  // Sync tab if user switches role to caregiver or senior
+  // Sync tab if user switches role (Senior, Caregiver, Healthcare Worker, Admin)
   useEffect(() => {
     if (store.profile.role === "caregiver" && currentTab === "home") {
       setCurrentTab("caregiver");
-    } else if (store.profile.role === "senior" && currentTab === "caregiver") {
+    } else if (store.profile.role === "senior" && (currentTab === "caregiver" || currentTab === "healthcare")) {
       setCurrentTab("home");
+    } else if (store.profile.role === "healthcare_worker" && (currentTab === "home" || currentTab === "caregiver")) {
+      setCurrentTab("healthcare");
+    } else if (store.profile.role === "admin" && currentTab === "home") {
+      setCurrentTab("healthcare");
     }
   }, [store.profile.role]);
 
@@ -84,7 +91,11 @@ export function MemoryBondApp() {
       } ${store.profile.reduced_motion ? "reduced-motion" : ""}`}
     >
       {/* Top Demo Bar for Evaluators & Judges */}
-      <DemoControlBar store={store} onOpenSos={() => setIsSosOpen(true)} />
+      <DemoControlBar
+        store={store}
+        onOpenSos={() => setIsSosOpen(true)}
+        onNavigate={handleNavigate}
+      />
 
       {/* Main Header */}
       <Header
@@ -110,11 +121,25 @@ export function MemoryBondApp() {
           <CaregiverDashboard store={store} onNavigate={handleNavigate} />
         )}
 
+        {currentTab === "healthcare" && (
+          <HealthcareWorkerDashboard store={store} onNavigate={handleNavigate} />
+        )}
+
+        {currentTab === "cultural" && (
+          <NorthEastCulturalConnect store={store} />
+        )}
+
+        {currentTab === "social" && (
+          <SocialEngagementModule store={store} />
+        )}
+
         {currentTab === "medicines" && <MedicineManagerView store={store} />}
 
         {currentTab === "reminders" && <RemindersView store={store} />}
 
-        {currentTab === "games" && <CognitiveGamesHub store={store} />}
+        {currentTab === "games" && (
+          <CognitiveGamesHub store={store} onNavigate={handleNavigate} />
+        )}
 
         {currentTab === "checkin" && <CognitiveCheckIn store={store} />}
 
@@ -183,4 +208,3 @@ export function MemoryBondApp() {
     </div>
   );
 }
-

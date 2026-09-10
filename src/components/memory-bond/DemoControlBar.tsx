@@ -9,6 +9,11 @@ import {
   AlertOctagon,
   ChevronDown,
   ChevronUp,
+  Stethoscope,
+  ShieldCheck,
+  MapPin,
+  Heart,
+  ClipboardCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
@@ -16,9 +21,11 @@ import type { MemoryBondStore } from "@/lib/memoryBondStore";
 export function DemoControlBar({
   store,
   onOpenSos,
+  onNavigate,
 }: {
   store: MemoryBondStore;
   onOpenSos: () => void;
+  onNavigate?: (tab: string) => void;
 }) {
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
@@ -37,31 +44,63 @@ export function DemoControlBar({
           <span className="w-2.5 h-2.5 rounded-full bg-success animate-pulse" />
           <span className="text-primary font-black uppercase tracking-wider">Demo Evaluator Bar</span>
           <span className="text-muted-foreground hidden sm:inline">|</span>
-          <span className="text-muted-foreground hidden sm:inline">SIH26003 Dementia Care Prototype</span>
+          <span className="text-muted-foreground hidden sm:inline">SIH26003 North East Dementia Care Prototype</span>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Role Switcher */}
+        <div className="flex items-center flex-wrap gap-2">
+          {/* 4-Role Switcher (Section 16 & 21) */}
           <div className="flex items-center bg-secondary/80 rounded-xl p-1 font-bold">
             <button
-              onClick={() => store.setRole("senior")}
-              className={`px-3 py-1 rounded-lg transition-all ${
+              onClick={() => {
+                store.setRole("senior");
+                onNavigate?.("home");
+              }}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                 store.profile.role === "senior"
                   ? "bg-card text-primary shadow-xs font-black"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              👴 Senior View
+              👴 Senior
             </button>
             <button
-              onClick={() => store.setRole("caregiver")}
-              className={`px-3 py-1 rounded-lg transition-all ${
+              onClick={() => {
+                store.setRole("caregiver");
+                onNavigate?.("caregiver");
+              }}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                 store.profile.role === "caregiver"
                   ? "bg-card text-primary shadow-xs font-black"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              👩‍⚕️ Caregiver View
+              👩‍⚕️ Caregiver
+            </button>
+            <button
+              onClick={() => {
+                store.setRole("healthcare_worker");
+                onNavigate?.("healthcare");
+              }}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                store.profile.role === "healthcare_worker"
+                  ? "bg-card text-primary shadow-xs font-black"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              🩺 Healthcare Worker
+            </button>
+            <button
+              onClick={() => {
+                store.setRole("admin");
+                onNavigate?.("healthcare");
+              }}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                store.profile.role === "admin"
+                  ? "bg-card text-primary shadow-xs font-black"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              🛡️ Admin
             </button>
           </div>
 
@@ -89,9 +128,9 @@ export function DemoControlBar({
           {/* Network Simulator Toggle */}
           <button
             onClick={() => store.setOfflineModeForced(!store.offlineModeForced)}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl font-bold border transition-all ${
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl font-bold border transition-all cursor-pointer ${
               store.offlineModeForced
-                ? "bg-destructive/10 border-destructive text-destructive"
+                ? "bg-destructive/10 border-destructive text-destructive font-black"
                 : "bg-secondary border-border text-foreground hover:bg-secondary/70"
             }`}
             title="Toggle Offline Simulation"
@@ -106,7 +145,7 @@ export function DemoControlBar({
             onClick={() => setIsExpanded(!isExpanded)}
             className="h-8 rounded-xl text-xs gap-1 font-bold"
           >
-            Judge Quick Tests {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            Judge Tests {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
           </Button>
         </div>
       </div>
@@ -114,8 +153,8 @@ export function DemoControlBar({
       {/* Expanded Quick Tests Tray */}
       {isExpanded && (
         <div className="border-t border-border bg-secondary/40 px-4 py-3 animate-in slide-in-from-top-2">
-          <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-3">
-            <span className="text-xs font-bold text-muted-foreground">Simulation Shortcuts:</span>
+          <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-2.5">
+            <span className="text-xs font-bold text-muted-foreground">Evaluation Shortcuts:</span>
 
             <Button
               size="sm"
@@ -123,7 +162,7 @@ export function DemoControlBar({
               onClick={simulateLowStock}
               className="h-8 text-xs font-bold rounded-xl gap-1.5"
             >
-              <Pill className="h-3.5 w-3.5 text-warning" /> Trigger Low Medicine Stock Alert
+              <Pill className="h-3.5 w-3.5 text-warning" /> Trigger Low Medicine Stock
             </Button>
 
             <Button
@@ -134,6 +173,37 @@ export function DemoControlBar({
             >
               <AlertOctagon className="h-3.5 w-3.5" /> Test 5-Second SOS Emergency
             </Button>
+
+            {onNavigate && (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onNavigate("cultural")}
+                  className="h-8 text-xs font-bold rounded-xl gap-1.5 text-emerald-600 border-emerald-500/40 hover:bg-emerald-500/10"
+                >
+                  <MapPin className="h-3.5 w-3.5" /> North East Cultural Hub
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onNavigate("social")}
+                  className="h-8 text-xs font-bold rounded-xl gap-1.5 text-rose-600 border-rose-500/40 hover:bg-rose-500/10"
+                >
+                  <Heart className="h-3.5 w-3.5" /> Family Greetings Feed
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onNavigate("checkin")}
+                  className="h-8 text-xs font-bold rounded-xl gap-1.5 text-primary border-primary/40 hover:bg-primary/10"
+                >
+                  <ClipboardCheck className="h-3.5 w-3.5" /> Cognitive Baseline & CES
+                </Button>
+              </>
+            )}
 
             <Button
               size="sm"

@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 
+export type UserRole = "senior" | "caregiver" | "healthcare_worker" | "admin";
+
 export interface Profile {
   id: string;
   member_id: string;
   full_name: string;
-  role: "senior" | "caregiver";
+  role: UserRole;
   language: string;
   age_range: string;
   phone: string;
@@ -16,6 +18,21 @@ export interface Profile {
   reduced_motion?: boolean;
   voice_provider?: "web_speech" | "bhashini" | "google_cloud";
   floating_bubble?: boolean;
+  baseline_assessment?: {
+    completed_at: string;
+    overall_score: number;
+    memory_score: number;
+    attention_score: number;
+    orientation_score: number;
+    recall_score: number;
+    notes?: string;
+  };
+  caregiver_alerts?: {
+    missed_medicines: boolean;
+    low_stock: boolean;
+    sos_emergency: boolean;
+    daily_routine: boolean;
+  };
 }
 
 export interface CaregiverLink {
@@ -89,7 +106,7 @@ export interface MedicineRefill {
 export interface Reminder {
   id: string;
   title: string;
-  type: "medicine" | "appointment" | "shopping" | "routine" | "personal" | "family_call" | "hydration" | "meal" | "custom";
+  type: "medicine" | "appointment" | "shopping" | "routine" | "personal" | "family_call" | "hydration" | "walking" | "meal" | "custom";
   time: string;
   date: string | null;
   repeat: "daily" | "weekly" | "none";
@@ -151,6 +168,7 @@ export interface SosEvent {
   longitude: number | null;
   location_status: "granted" | "denied" | "unavailable" | "simulated";
   notified: string;
+  emergency_description?: string;
   demo: boolean;
   created_at: string;
 }
@@ -161,24 +179,62 @@ export interface GameSession {
   score: number;
   total: number;
   difficulty: "easy" | "medium" | "challenging";
+  accuracy?: number; // 0-100%
+  response_time_ms?: number; // Response time in ms
+  attempts?: number;
+  errors?: number;
+  completion_rate?: number; // 0-100%
+  game_type?: "memory" | "attention" | "recognition" | "recall" | "cultural";
+  engagement_level?: "high" | "normal" | "low";
   created_at: string;
 }
 
-export interface AppNotification {
+export interface SocialPost {
   id: string;
-  category: "medicine_due" | "medicine_low" | "medicine_missed" | "appointment" | "routine" | "caregiver_alert" | "sos" | "game_reminder" | "general";
+  author_name: string;
+  relationship: string;
   title: string;
-  body: string;
-  read: boolean;
+  content: string;
+  media_type: "photo" | "voice" | "story" | "song";
+  media_url?: string;
+  audio_duration?: number;
   created_at: string;
+  reactions: { id: string; user_name: string; reaction: string; timestamp: string }[];
+  voice_replies: { id: string; audio_url?: string; transcript: string; created_at: string }[];
+}
+
+export interface ClinicalNote {
+  id: string;
+  worker_name: string;
+  designation: string;
+  date: string;
+  observation: string;
+  triage_status: "green" | "yellow" | "red";
+  action_plan: string;
+  follow_up_date: string;
+}
+
+export interface CognitiveEngagementScore {
+  overall: number; // 0 - 100
+  memory: number; // 30%
+  attention: number; // 20%
+  recognition: number; // 20%
+  recall: number; // 15%
+  response_time: number; // 10%
+  engagement: number; // 5%
+  disclaimer: string;
 }
 
 // STORAGE KEYS
-const STORAGE_PREFIX = "mb_app_v1_";
+const STORAGE_PREFIX = "mb_app_v2_";
 const getKey = (key: string) => `${STORAGE_PREFIX}${key}`;
 
 // Helper: Today YYYY-MM-DD
 export const getTodayDateString = () => new Date().toISOString().slice(0, 10);
+
+// Statutory non-diagnostic disclaimer
+export const CES_DISCLAIMER =
+  "This score is for tracking cognitive engagement, daily activity participation, and memory exercise performance. It is NOT a medical diagnosis and should never be used to diagnose dementia or any neurological disease.";
 
 // Realistic Initial Demo Dataset (North Eastern Region / Indian context)
 export const DEMO_PROFILE: Profile = {
@@ -197,6 +253,21 @@ export const DEMO_PROFILE: Profile = {
   reduced_motion: false,
   voice_provider: "web_speech",
   floating_bubble: true,
+  baseline_assessment: {
+    completed_at: "2026-02-10",
+    overall_score: 76,
+    memory_score: 75,
+    attention_score: 80,
+    orientation_score: 85,
+    recall_score: 70,
+    notes: "Initial cognitive baseline established. Normal alert responses with pleasant orientation.",
+  },
+  caregiver_alerts: {
+    missed_medicines: true,
+    low_stock: true,
+    sos_emergency: true,
+    daily_routine: true,
+  },
 };
 
 export const DEMO_CAREGIVER_LINKS: CaregiverLink[] = [
@@ -206,7 +277,7 @@ export const DEMO_CAREGIVER_LINKS: CaregiverLink[] = [
     relationship: "Daughter / Primary Caregiver",
     phone: "+91 98765 43210",
     status: "approved",
-    linked_at: "2025-01-15",
+    linked_at: "2026-01-15",
     permissions: {
       medicines: true,
       appointments: true,
@@ -221,7 +292,7 @@ export const DEMO_CAREGIVER_LINKS: CaregiverLink[] = [
     relationship: "Son (Bengaluru)",
     phone: "+91 98765 43211",
     status: "approved",
-    linked_at: "2025-02-01",
+    linked_at: "2026-02-01",
     permissions: {
       medicines: true,
       appointments: true,
@@ -260,7 +331,7 @@ export const DEMO_MEDICINES: Medicine[] = [
     warn_days: 5,
     times: ["08:30"],
     frequency: "daily",
-    start_date: "2025-01-01",
+    start_date: "2026-01-01",
     end_date: null,
     instructions: "Take once daily in the morning with a full glass of water after breakfast.",
     doctor: "Dr. Deepen Barua (Cardiologist)",
@@ -271,13 +342,13 @@ export const DEMO_MEDICINES: Medicine[] = [
     name: "Donepezil Hydrochloride",
     dosage: "5 mg",
     unit: "tablet",
-    stock: 5, // LOW STOCK - will trigger alert!
+    stock: 4, // LOW STOCK - triggers warning!
     daily_usage: 1,
     refill_threshold: 6,
     warn_days: 5,
     times: ["20:30"],
     frequency: "daily",
-    start_date: "2025-02-15",
+    start_date: "2026-02-15",
     end_date: null,
     instructions: "Take 1 tablet every night before sleep. With or without food.",
     doctor: "Dr. Nilotpal Dutta (Neurologist)",
@@ -294,7 +365,7 @@ export const DEMO_MEDICINES: Medicine[] = [
     warn_days: 4,
     times: ["13:00"],
     frequency: "daily",
-    start_date: "2025-01-10",
+    start_date: "2026-01-10",
     end_date: null,
     instructions: "Take with lunch for optimal absorption.",
     doctor: "Dr. Deepen Barua",
@@ -304,21 +375,23 @@ export const DEMO_MEDICINES: Medicine[] = [
 
 export const DEMO_ROUTINES: DailyRoutine[] = [
   { id: "rt-1", time: "07:00", activity: "Morning Gentle Stretching & Breathing", icon: "sun", done_date: getTodayDateString() },
-  { id: "rt-2", time: "07:45", activity: "Warm Assam Chai & Breakfast", icon: "coffee", done_date: getTodayDateString() },
+  { id: "rt-2", time: "07:45", activity: "Warm Assam Chai & Light Breakfast", icon: "coffee", done_date: getTodayDateString() },
   { id: "rt-3", time: "08:30", activity: "Morning Blood Pressure Medicine", icon: "pill", done_date: getTodayDateString() },
   { id: "rt-4", time: "10:30", activity: "Cognitive Memory Game & Brain Exercise", icon: "brain", done_date: null },
   { id: "rt-5", time: "13:00", activity: "Nutritious Lunch & Vitamin B-Complex", icon: "utensils", done_date: null },
-  { id: "rt-6", time: "17:00", activity: "Evening Tea & Call with Daughter Sunita", icon: "phone", done_date: null },
-  { id: "rt-7", time: "20:30", activity: "Dinner & Night Memory Medicine", icon: "moon", done_date: null },
-  { id: "rt-8", time: "22:00", activity: "Relaxing Flute Music & Rest", icon: "bed", done_date: null },
+  { id: "rt-6", time: "16:30", activity: "Evening Balcony Walk (20 minutes)", icon: "footprints", done_date: null },
+  { id: "rt-7", time: "17:30", activity: "Evening Tea & Call with Daughter Sunita", icon: "phone", done_date: null },
+  { id: "rt-8", time: "20:30", activity: "Dinner & Night Memory Medicine", icon: "moon", done_date: null },
+  { id: "rt-9", time: "22:00", activity: "Relaxing Flute Music & Rest", icon: "bed", done_date: null },
 ];
 
 export const DEMO_REMINDERS: Reminder[] = [
-  { id: "rem-1", title: "Drink warm water with lemon", type: "hydration", time: "07:15", date: null, repeat: "daily", notes: "Keeps digestion active", active: true },
-  { id: "rem-2", title: "Take Amlodipine 5mg", type: "medicine", time: "08:30", date: null, repeat: "daily", notes: "After morning toast", active: true },
+  { id: "rem-1", title: "Drink warm water with lemon", type: "hydration", time: "07:15", date: null, repeat: "daily", notes: "Keeps digestion active", active: true, last_done: getTodayDateString() },
+  { id: "rem-2", title: "Take Amlodipine 5mg", type: "medicine", time: "08:30", date: null, repeat: "daily", notes: "After morning toast", active: true, last_done: getTodayDateString() },
   { id: "rem-3", title: "Play 1 Memory Card Match game", type: "routine", time: "10:30", date: null, repeat: "daily", notes: "Keeps focus sharp", active: true },
-  { id: "rem-4", title: "Pick up fresh vegetables & ginger", type: "shopping", time: "16:30", date: null, repeat: "none", notes: "From colony market", active: true },
-  { id: "rem-5", title: "Take Donepezil 5mg", type: "medicine", time: "20:30", date: null, repeat: "daily", notes: "Before sleep", active: true },
+  { id: "rem-4", title: "Gentle 20-minute evening walk", type: "walking", time: "16:30", date: null, repeat: "daily", notes: "In balcony or apartment garden", active: true },
+  { id: "rem-5", title: "Pick up fresh ginger & tea from colony market", type: "shopping", time: "17:00", date: null, repeat: "none", notes: "From colony market", active: true },
+  { id: "rem-6", title: "Take Donepezil 5mg", type: "medicine", time: "20:30", date: null, repeat: "daily", notes: "Before sleep", active: true },
 ];
 
 export const DEMO_APPOINTMENTS: Appointment[] = [
@@ -326,7 +399,7 @@ export const DEMO_APPOINTMENTS: Appointment[] = [
     id: "app-1",
     title: "Dr. Nilotpal Dutta - Neurological Review",
     kind: "doctor",
-    date: (new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10) || ""),
+    date: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
     time: "10:30",
     location: "Guwahati Neurological Clinic, Room 204, GS Road",
     notes: "Bring previous prescription, blood reports, and 2-week memory log.",
@@ -335,7 +408,7 @@ export const DEMO_APPOINTMENTS: Appointment[] = [
     id: "app-2",
     title: "Fasting Blood Sugar & Lipid Profile",
     kind: "test",
-    date: (new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10) || ""),
+    date: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
     time: "08:00",
     location: "Apollo Diagnostics Center, Silpukhuri",
     notes: "Fasting required from 10 PM night before. Water is allowed.",
@@ -380,21 +453,21 @@ export const DEMO_JOURNAL: MemoryJournalItem[] = [
     id: "jou-1",
     title: "Rongali Bihu Celebration with Family",
     body: "Grandson Aarav wore a traditional Assamese kurta and danced Bihu. Sunita brought homemade pitha and laru. A joyful sunny afternoon filled with laughter.",
-    entry_date: "2025-04-14",
+    entry_date: "2026-04-14",
     kind: "text",
   },
   {
     id: "jou-2",
     title: "Kaziranga Safari with Children",
     body: "We saw two one-horned rhinos near the water stream and wild elephants. The morning mist was magical over the tall elephant grass.",
-    entry_date: "2024-11-20",
+    entry_date: "2025-11-20",
     kind: "text",
   },
   {
     id: "jou-3",
     title: "Voice Note: Sunita's Sunday Reminder",
     body: "Baba, don't worry about the grocery list! I have ordered your herbal tea and will bring it over this Sunday. Love you!",
-    entry_date: getTodayDateString() || "",
+    entry_date: getTodayDateString(),
     kind: "voice",
     audio_duration: 12,
   },
@@ -443,7 +516,7 @@ export const DEMO_NOTIFICATIONS: AppNotification[] = [
     id: "notif-1",
     category: "medicine_low",
     title: "Medicine Running Low: Donepezil 5mg",
-    body: "Only 5 tablets remaining (Threshold: 6). Please arrange a refill soon. Caregiver has been alerted.",
+    body: "Only 4 tablets remaining (Threshold: 6). Please arrange a refill soon. Caregiver Sunita has been notified.",
     read: false,
     created_at: new Date(Date.now() - 3600000).toISOString(),
   },
@@ -465,17 +538,193 @@ export const DEMO_NOTIFICATIONS: AppNotification[] = [
   },
 ];
 
+// Rich 4-week cognitive sessions for healthcare trends (Week 1 = 52, Week 2 = 58, Week 3 = 53, Week 4 = 60)
 export const DEMO_GAME_SESSIONS: GameSession[] = [
-  { id: "gs-1", game_key: "card_match", score: 6, total: 6, difficulty: "easy", created_at: new Date(Date.now() - 86400000).toISOString() },
-  { id: "gs-2", game_key: "object_recall", score: 4, total: 4, difficulty: "easy", created_at: new Date(Date.now() - 172800000).toISOString() },
-  { id: "gs-3", game_key: "pattern_recall", score: 5, total: 6, difficulty: "medium", created_at: new Date(Date.now() - 259200000).toISOString() },
+  // Week 4 (Most recent) - average ~60
+  { id: "gs-w4-1", game_key: "card_match", score: 6, total: 6, difficulty: "easy", accuracy: 100, response_time_ms: 3200, attempts: 6, errors: 0, completion_rate: 100, game_type: "memory", engagement_level: "high", created_at: new Date(Date.now() - 86400000).toISOString() },
+  { id: "gs-w4-2", game_key: "cultural_ner", score: 4, total: 5, difficulty: "medium", accuracy: 80, response_time_ms: 4100, attempts: 5, errors: 1, completion_rate: 100, game_type: "cultural", engagement_level: "high", created_at: new Date(Date.now() - 172800000).toISOString() },
+  { id: "gs-w4-3", game_key: "object_recall", score: 5, total: 6, difficulty: "easy", accuracy: 83, response_time_ms: 3800, attempts: 6, errors: 1, completion_rate: 100, game_type: "recall", engagement_level: "high", created_at: new Date(Date.now() - 259200000).toISOString() },
+
+  // Week 3 - average ~53
+  { id: "gs-w3-1", game_key: "pattern_recall", score: 3, total: 6, difficulty: "medium", accuracy: 50, response_time_ms: 5400, attempts: 6, errors: 3, completion_rate: 85, game_type: "attention", engagement_level: "normal", created_at: new Date(Date.now() - 7 * 86400000).toISOString() },
+  { id: "gs-w3-2", game_key: "word_memory", score: 3, total: 5, difficulty: "easy", accuracy: 60, response_time_ms: 4900, attempts: 5, errors: 2, completion_rate: 90, game_type: "memory", engagement_level: "normal", created_at: new Date(Date.now() - 9 * 86400000).toISOString() },
+
+  // Week 2 - average ~58
+  { id: "gs-w2-1", game_key: "card_match", score: 5, total: 6, difficulty: "easy", accuracy: 83, response_time_ms: 3900, attempts: 7, errors: 1, completion_rate: 100, game_type: "memory", engagement_level: "high", created_at: new Date(Date.now() - 14 * 86400000).toISOString() },
+  { id: "gs-w2-2", game_key: "routine_recall", score: 4, total: 5, difficulty: "easy", accuracy: 80, response_time_ms: 3600, attempts: 5, errors: 1, completion_rate: 100, game_type: "recall", engagement_level: "high", created_at: new Date(Date.now() - 17 * 86400000).toISOString() },
+
+  // Week 1 - average ~52
+  { id: "gs-w1-1", game_key: "card_match", score: 3, total: 6, difficulty: "easy", accuracy: 50, response_time_ms: 5800, attempts: 8, errors: 3, completion_rate: 80, game_type: "memory", engagement_level: "normal", created_at: new Date(Date.now() - 21 * 86400000).toISOString() },
+  { id: "gs-w1-2", game_key: "sequence_memory", score: 3, total: 5, difficulty: "easy", accuracy: 60, response_time_ms: 5100, attempts: 6, errors: 2, completion_rate: 85, game_type: "attention", engagement_level: "normal", created_at: new Date(Date.now() - 25 * 86400000).toISOString() },
 ];
 
 export const DEMO_MEDICINE_LOGS: MedicineLog[] = [
   { id: "ml-1", medicine_id: "med-1", scheduled_time: "08:30", status: "taken", taken_at: new Date().toISOString() },
   { id: "ml-2", medicine_id: "med-1", scheduled_time: "08:30", status: "taken", taken_at: new Date(Date.now() - 86400000).toISOString() },
   { id: "ml-3", medicine_id: "med-2", scheduled_time: "20:30", status: "taken", taken_at: new Date(Date.now() - 86400000).toISOString() },
+  { id: "ml-4", medicine_id: "med-3", scheduled_time: "13:00", status: "taken", taken_at: new Date(Date.now() - 86400000).toISOString() },
 ];
+
+export const DEMO_SOCIAL_POSTS: SocialPost[] = [
+  {
+    id: "sp-1",
+    author_name: "Sunita Sharma",
+    relationship: "Daughter (Beltola)",
+    title: "Aarav in his Bihu dress!",
+    content: "Baba, looking at how big Aarav has gotten! He is practicing his Bihu dhol beats for you. We are bringing homemade pitha this Sunday afternoon!",
+    media_type: "photo",
+    media_url: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80",
+    created_at: new Date(Date.now() - 14400000).toISOString(),
+    reactions: [
+      { id: "rx-1", user_name: "Ramesh Sharma", reaction: "❤️ Loved", timestamp: new Date(Date.now() - 7200000).toISOString() },
+    ],
+    voice_replies: [
+      { id: "vr-1", transcript: "Aarav looks like a prince! Sunita, please bring sesame laru if you can. Love you all.", created_at: new Date(Date.now() - 3600000).toISOString() },
+    ],
+  },
+  {
+    id: "sp-2",
+    author_name: "Rajesh Sharma",
+    relationship: "Son (Bengaluru)",
+    title: "Morning Flute & Wishing you a peaceful day",
+    content: "Namaste Pitaji! Sending you this relaxing 20-second melody recorded by grandson Vivek. Please remember to drink your morning warm water!",
+    media_type: "voice",
+    audio_duration: 20,
+    created_at: new Date(Date.now() - 86400000).toISOString(),
+    reactions: [
+      { id: "rx-2", user_name: "Ramesh Sharma", reaction: "🙏 Blessed", timestamp: new Date(Date.now() - 82000000).toISOString() },
+    ],
+    voice_replies: [],
+  },
+];
+
+export const DEMO_CLINICAL_NOTES: ClinicalNote[] = [
+  {
+    id: "cn-1",
+    worker_name: "Ananya Goswami, CHW",
+    designation: "Community Healthcare Worker (ASHA / PHC Beltola)",
+    date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
+    observation: "Home visit completed. Blood pressure 128/82 mmHg. Ramesh Sharma confirmed regular adherence to morning Amlodipine. Cognitive engagement scores trending upward with good orientation. High social interaction with family.",
+    triage_status: "green",
+    action_plan: "Continue daily routine reminders and weekly cognitive card match exercises. Next checkup scheduled with Dr. Nilotpal Dutta.",
+    follow_up_date: new Date(Date.now() + 12 * 86400000).toISOString().slice(0, 10),
+  },
+  {
+    id: "cn-2",
+    worker_name: "Dr. Nilotpal Dutta",
+    designation: "Consultant Neurologist (GNRC Clinic)",
+    date: new Date(Date.now() - 16 * 86400000).toISOString().slice(0, 10),
+    observation: "Routine memory assessment. Patient demonstrates good recognition of familiar faces and cultural cues. Donepezil tolerance satisfactory. Caregiver Sunita reports good adherence.",
+    triage_status: "green",
+    action_plan: "Maintain current medicine dosage. Encourage daily hydration and interactive routine calls.",
+    follow_up_date: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
+  },
+];
+
+// Cognitive Engagement Score (CES) Calculator
+export function calculateCES(sessions: GameSession[], routinesDoneCount: number, routinesTotal: number): CognitiveEngagementScore {
+  if (sessions.length === 0) {
+    return {
+      overall: 72,
+      memory: 74,
+      attention: 70,
+      recognition: 75,
+      recall: 68,
+      response_time: 72,
+      engagement: 75,
+      disclaimer: CES_DISCLAIMER,
+    };
+  }
+
+  // Split sessions by type
+  const memorySessions = sessions.filter((s) => s.game_type === "memory" || s.game_key === "card_match" || s.game_key === "word_memory");
+  const attentionSessions = sessions.filter((s) => s.game_type === "attention" || s.game_key === "pattern_recall" || s.game_key === "find_difference");
+  const recognitionSessions = sessions.filter((s) => s.game_type === "recognition" || s.game_key === "match_object" || s.game_key === "family_photo" || s.game_type === "cultural");
+  const recallSessions = sessions.filter((s) => s.game_type === "recall" || s.game_key === "object_recall" || s.game_key === "routine_recall" || s.game_key === "voice_quiz");
+
+  const calcAvg = (items: GameSession[], defaultVal: number) => {
+    if (items.length === 0) return defaultVal;
+    const sum = items.reduce((acc, curr) => {
+      const accScore = curr.accuracy !== undefined ? curr.accuracy : (curr.total > 0 ? (curr.score / curr.total) * 100 : 70);
+      return acc + accScore;
+    }, 0);
+    return Math.round(sum / items.length);
+  };
+
+  const memScore = calcAvg(memorySessions, 74);
+  const attScore = calcAvg(attentionSessions, 72);
+  const recScore = calcAvg(recognitionSessions, 76);
+  const recallScore = calcAvg(recallSessions, 70);
+
+  // Response Time score: < 4000ms is 85+, 4000-7000ms is 70, > 7000ms is 55
+  const avgResponseTime = sessions.reduce((acc, s) => acc + (s.response_time_ms || 4200), 0) / sessions.length;
+  let responseTimeScore = 75;
+  if (avgResponseTime < 3500) responseTimeScore = 90;
+  else if (avgResponseTime < 5000) responseTimeScore = 78;
+  else if (avgResponseTime < 7000) responseTimeScore = 65;
+  else responseTimeScore = 50;
+
+  // Engagement score: based on routines completion + session count
+  const routineRatio = routinesTotal > 0 ? routinesDoneCount / routinesTotal : 0.5;
+  const engagementScore = Math.min(100, Math.round(routineRatio * 60 + Math.min(sessions.length * 8, 40)));
+
+  // Weighted Overall: Memory 30%, Attention 20%, Recognition 20%, Recall 15%, ResponseTime 10%, Engagement 5%
+  const overall = Math.round(
+    memScore * 0.30 +
+    attScore * 0.20 +
+    recScore * 0.20 +
+    recallScore * 0.15 +
+    responseTimeScore * 0.10 +
+    engagementScore * 0.05
+  );
+
+  return {
+    overall: Math.max(10, Math.min(100, overall)),
+    memory: memScore,
+    attention: attScore,
+    recognition: recScore,
+    recall: recallScore,
+    response_time: responseTimeScore,
+    engagement: engagementScore,
+    disclaimer: CES_DISCLAIMER,
+  };
+}
+
+// Dynamic Difficulty Adaptation Engine
+export function getRecommendedDifficulty(
+  gameKey: string,
+  sessions: GameSession[],
+  currentDifficulty: "easy" | "medium" | "challenging" = "easy"
+): { recommended: "easy" | "medium" | "challenging"; rationale: string; nextItemsCount: number } {
+  const relevant = sessions.filter((s) => s.game_key === gameKey || !gameKey).slice(0, 3);
+  if (relevant.length === 0) {
+    return { recommended: "easy", rationale: "Standard relaxed starting pace.", nextItemsCount: 3 };
+  }
+
+  const avgAccuracy = relevant.reduce((sum, s) => sum + (s.accuracy !== undefined ? s.accuracy : (s.score / s.total) * 100), 0) / relevant.length;
+  const avgTime = relevant.reduce((sum, s) => sum + (s.response_time_ms || 4000), 0) / relevant.length;
+
+  if (avgAccuracy > 80 && avgTime < 4500) {
+    const nextDiff = currentDifficulty === "easy" ? "medium" : "challenging";
+    return {
+      recommended: nextDiff,
+      rationale: "Accuracy > 80% with prompt responses. AI adapted difficulty higher for cognitive stimulus.",
+      nextItemsCount: nextDiff === "challenging" ? 7 : 5,
+    };
+  } else if (avgAccuracy < 50) {
+    return {
+      recommended: "easy",
+      rationale: "Accuracy < 50%. AI reduced difficulty for a gentle, pressure-free experience.",
+      nextItemsCount: 3,
+    };
+  }
+
+  return {
+    recommended: currentDifficulty,
+    rationale: "Accuracy between 50%–80%. Current difficulty maintained for balanced practice.",
+    nextItemsCount: currentDifficulty === "challenging" ? 7 : currentDifficulty === "medium" ? 5 : 3,
+  };
+}
 
 // Memory Bond Reactive Store
 export function useMemoryBondStore() {
@@ -623,6 +872,26 @@ export function useMemoryBondStore() {
     }
   });
 
+  // Social Engagement Posts
+  const [socialFeed, setSocialFeed] = useState<SocialPost[]>(() => {
+    try {
+      const saved = localStorage.getItem(getKey("social_feed"));
+      return saved ? JSON.parse(saved) : DEMO_SOCIAL_POSTS;
+    } catch {
+      return DEMO_SOCIAL_POSTS;
+    }
+  });
+
+  // Clinical Notes (Healthcare Worker)
+  const [clinicalNotes, setClinicalNotes] = useState<ClinicalNote[]>(() => {
+    try {
+      const saved = localStorage.getItem(getKey("clinical_notes"));
+      return saved ? JSON.parse(saved) : DEMO_CLINICAL_NOTES;
+    } catch {
+      return DEMO_CLINICAL_NOTES;
+    }
+  });
+
   // Offline Sync Queue
   const [syncQueue, setSyncQueue] = useState<OfflineSyncItem[]>(() => {
     try {
@@ -650,11 +919,13 @@ export function useMemoryBondStore() {
       localStorage.setItem(getKey("notifications"), JSON.stringify(notifications));
       localStorage.setItem(getKey("caregiver_links"), JSON.stringify(caregiverLinks));
       localStorage.setItem(getKey("routine_calls"), JSON.stringify(routineCalls));
+      localStorage.setItem(getKey("social_feed"), JSON.stringify(socialFeed));
+      localStorage.setItem(getKey("clinical_notes"), JSON.stringify(clinicalNotes));
       localStorage.setItem(getKey("sync_queue"), JSON.stringify(syncQueue));
     } catch (e) {
       console.warn("LocalStorage save error:", e);
     }
-  }, [profile, medicines, medicineLogs, reminders, routines, appointments, memoryCues, journal, contacts, sosEvents, gameSessions, notifications, caregiverLinks, routineCalls, syncQueue]);
+  }, [profile, medicines, medicineLogs, reminders, routines, appointments, memoryCues, journal, contacts, sosEvents, gameSessions, notifications, caregiverLinks, routineCalls, socialFeed, clinicalNotes, syncQueue]);
 
   // Network online/offline listener with automatic sync flush
   useEffect(() => {
@@ -710,7 +981,7 @@ export function useMemoryBondStore() {
 
   // --- ACTIONS ---
 
-  const setRole = useCallback((role: "senior" | "caregiver") => {
+  const setRole = useCallback((role: UserRole) => {
     setProfile((prev) => ({ ...prev, role }));
   }, []);
 
@@ -718,12 +989,7 @@ export function useMemoryBondStore() {
     setProfile((prev) => ({ ...prev, ...patch }));
   }, []);
 
-  // Take medicine dose (default: taken)
-  const takeMedicine = useCallback((id: string) => {
-    markMedicineStatus(id, "taken");
-  }, []);
-
-  // Mark medicine dose as Taken, Missed, or Skipped (Section 8 requirement)
+  // Smart Medicine Dose status (taken, missed, skipped)
   const markMedicineStatus = useCallback(
     (id: string, status: "taken" | "missed" | "skipped", note?: string) => {
       const scheduledTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -733,9 +999,8 @@ export function useMemoryBondStore() {
           prev.map((med) => {
             if (med.id !== id) return med;
             const newStock = Math.max(0, med.stock - 1);
-
-            // Check if now low stock (threshold or 3-day supply)
             const daysRemaining = med.daily_usage > 0 ? newStock / med.daily_usage : 99;
+
             if (newStock <= med.refill_threshold || daysRemaining <= 3) {
               const alertNotif: AppNotification = {
                 id: `low-${id}-${Date.now()}`,
@@ -775,7 +1040,10 @@ export function useMemoryBondStore() {
     []
   );
 
-  // Refill medicine stock
+  const takeMedicine = useCallback((id: string) => {
+    markMedicineStatus(id, "taken");
+  }, [markMedicineStatus]);
+
   const refillMedicine = useCallback((id: string, quantity: number, note?: string) => {
     setMedicines((prev) =>
       prev.map((med) => {
@@ -796,7 +1064,6 @@ export function useMemoryBondStore() {
     setNotifications((n) => [notif, ...n]);
   }, []);
 
-  // Add new medicine
   const addMedicine = useCallback((med: Omit<Medicine, "id">) => {
     const newMed: Medicine = {
       ...med,
@@ -823,12 +1090,24 @@ export function useMemoryBondStore() {
     setReminders((prev) => [...prev, newRem]);
   }, []);
 
+  const updateReminder = useCallback((id: string, patch: Partial<Reminder>) => {
+    setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  }, []);
+
   const toggleReminder = useCallback((id: string) => {
     setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, active: !r.active } : r)));
   }, []);
 
   const markReminderDone = useCallback((id: string) => {
     setReminders((prev) => prev.map((r): Reminder => (r.id === id ? { ...r, last_done: getTodayDateString() } : r)));
+  }, []);
+
+  const snoozeReminder = useCallback((id: string, minutes: number) => {
+    const now = new Date(Date.now() + minutes * 60000);
+    const newTime = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+    setReminders((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, time: newTime, last_done: null } : r))
+    );
   }, []);
 
   const deleteReminder = useCallback((id: string) => {
@@ -878,7 +1157,7 @@ export function useMemoryBondStore() {
     setJournal((prev) => prev.filter((j) => j.id !== id));
   }, []);
 
-  // Contacts
+  // Emergency Contacts
   const addContact = useCallback((contact: Omit<EmergencyContact, "id">) => {
     const newContact: EmergencyContact = { ...contact, id: `em-${Date.now()}` };
     setContacts((prev) => [...prev, newContact]);
@@ -892,14 +1171,34 @@ export function useMemoryBondStore() {
     setContacts((prev) => prev.filter((c) => c.id !== id));
   }, []);
 
-  // Game Sessions
-  const recordGameSession = useCallback((gameKey: string, score: number, total: number, difficulty: "easy" | "medium" | "challenging") => {
+  // Game Sessions with rich cognitive metrics
+  const recordGameSession = useCallback((
+    gameKey: string,
+    score: number,
+    total: number,
+    difficulty: "easy" | "medium" | "challenging",
+    extra?: {
+      accuracy?: number;
+      responseTimeMs?: number;
+      attempts?: number;
+      errors?: number;
+      gameType?: "memory" | "attention" | "recognition" | "recall" | "cultural";
+    }
+  ) => {
+    const accuracy = extra?.accuracy !== undefined ? extra.accuracy : (total > 0 ? Math.round((score / total) * 100) : 100);
     const session: GameSession = {
       id: `gs-${Date.now()}`,
       game_key: gameKey,
       score,
       total,
       difficulty,
+      accuracy,
+      response_time_ms: extra?.responseTimeMs || 3500,
+      attempts: extra?.attempts || total,
+      errors: extra?.errors || Math.max(0, total - score),
+      completion_rate: 100,
+      game_type: extra?.gameType || "memory",
+      engagement_level: accuracy >= 75 ? "high" : "normal",
       created_at: new Date().toISOString(),
     };
     setGameSessions((prev) => [session, ...prev]);
@@ -907,13 +1206,19 @@ export function useMemoryBondStore() {
 
   // SOS Trigger
   const triggerSos = useCallback(
-    (coords?: { latitude: number | null; longitude: number | null; status: "granted" | "denied" | "unavailable" | "simulated" }) => {
+    (params?: {
+      latitude: number | null;
+      longitude: number | null;
+      status: "granted" | "denied" | "unavailable" | "simulated";
+      emergencyDescription?: string;
+    }) => {
       const newEvent: SosEvent = {
         id: `sos-${Date.now()}`,
-        latitude: coords?.latitude ?? 26.1822, // Guwahati coordinates as realistic default
-        longitude: coords?.longitude ?? 91.7617,
-        location_status: coords?.status ?? "simulated",
+        latitude: params?.latitude ?? 26.1822, // Guwahati coordinates as realistic default
+        longitude: params?.longitude ?? 91.7617,
+        location_status: params?.status ?? "simulated",
         notified: contacts.filter((c) => c.is_emergency).map((c) => c.name).join(", ") || "All Emergency Contacts",
+        emergency_description: params?.emergencyDescription,
         demo: true,
         created_at: new Date().toISOString(),
       };
@@ -924,7 +1229,7 @@ export function useMemoryBondStore() {
         id: `sos-alert-${Date.now()}`,
         category: "sos",
         title: "EMERGENCY SOS ALERT ACTIVATED",
-        body: `Senior ${profile.full_name} initiated an emergency call. Notified: ${newEvent.notified}. Location: ${newEvent.latitude?.toFixed(4)}, ${newEvent.longitude?.toFixed(4)}`,
+        body: `Senior ${profile.full_name} triggered an SOS. Details: ${params?.emergencyDescription || "Assistance requested"}. Notified: ${newEvent.notified}.`,
         read: false,
         created_at: new Date().toISOString(),
       };
@@ -934,6 +1239,62 @@ export function useMemoryBondStore() {
     },
     [contacts, profile.full_name]
   );
+
+  // Social Engagement Actions
+  const addSocialPost = useCallback((post: Omit<SocialPost, "id" | "created_at" | "reactions" | "voice_replies">) => {
+    const newPost: SocialPost = {
+      ...post,
+      id: `sp-${Date.now()}`,
+      created_at: new Date().toISOString(),
+      reactions: [],
+      voice_replies: [],
+    };
+    setSocialFeed((prev) => [newPost, ...prev]);
+  }, []);
+
+  const addSocialReaction = useCallback((postId: string, reaction: string) => {
+    setSocialFeed((prev) =>
+      prev.map((post) => {
+        if (post.id !== postId) return post;
+        const newReaction = {
+          id: `rx-${Date.now()}`,
+          user_name: profile.full_name,
+          reaction,
+          timestamp: new Date().toISOString(),
+        };
+        return { ...post, reactions: [newReaction, ...post.reactions] };
+      })
+    );
+  }, [profile.full_name]);
+
+  const addSocialVoiceReply = useCallback((postId: string, transcript: string) => {
+    setSocialFeed((prev) =>
+      prev.map((post) => {
+        if (post.id !== postId) return post;
+        const newReply = {
+          id: `vr-${Date.now()}`,
+          transcript,
+          created_at: new Date().toISOString(),
+        };
+        return { ...post, voice_replies: [...post.voice_replies, newReply] };
+      })
+    );
+  }, []);
+
+  // Clinical Notes Actions (Healthcare Worker)
+  const addClinicalNote = useCallback((note: Omit<ClinicalNote, "id" | "date">) => {
+    const newNote: ClinicalNote = {
+      ...note,
+      id: `cn-${Date.now()}`,
+      date: getTodayDateString(),
+    };
+    setClinicalNotes((prev) => [newNote, ...prev]);
+  }, []);
+
+  // Baseline Cognitive Assessment Action
+  const updateBaselineAssessment = useCallback((assessment: Profile["baseline_assessment"]) => {
+    setProfile((prev) => ({ ...prev, baseline_assessment: assessment }));
+  }, []);
 
   // Notifications
   const markNotificationRead = useCallback((id: string) => {
@@ -959,6 +1320,8 @@ export function useMemoryBondStore() {
     setNotifications(DEMO_NOTIFICATIONS);
     setCaregiverLinks(DEMO_CAREGIVER_LINKS);
     setRoutineCalls(DEMO_ROUTINE_CALLS);
+    setSocialFeed(DEMO_SOCIAL_POSTS);
+    setClinicalNotes(DEMO_CLINICAL_NOTES);
     setSyncQueue([]);
     setSosEvents([]);
   }, []);
@@ -968,15 +1331,17 @@ export function useMemoryBondStore() {
   // Conversation History for Voice Assistant
   const [conversationHistory, setConversationHistory] = useState<string[]>(() => {
     try {
-      const saved = localStorage.getItem(getKey('conversationHistory'));
+      const saved = localStorage.getItem(getKey("conversationHistory"));
       return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
+    } catch {
+      return [];
+    }
   });
 
   const addConversation = useCallback((entry: string) => {
     setConversationHistory((prev) => {
       const next = [...prev, entry];
-      localStorage.setItem(getKey('conversationHistory'), JSON.stringify(next));
+      localStorage.setItem(getKey("conversationHistory"), JSON.stringify(next));
       return next;
     });
   }, []);
@@ -984,6 +1349,11 @@ export function useMemoryBondStore() {
   const getRecentConversations = useCallback((limit = 10) => {
     return conversationHistory.slice(-limit);
   }, [conversationHistory]);
+
+  // Dynamic Cognitive Engagement Score
+  const todayStr = getTodayDateString();
+  const routinesDoneToday = routines.filter((r) => r.done_date === todayStr).length;
+  const cognitiveScore = calculateCES(gameSessions, routinesDoneToday, routines.length);
 
   return {
     // Network & Demo state
@@ -997,6 +1367,7 @@ export function useMemoryBondStore() {
     profile,
     setRole,
     updateProfile,
+    updateBaselineAssessment,
 
     // Medicines
     medicines,
@@ -1006,12 +1377,15 @@ export function useMemoryBondStore() {
     addMedicine,
     updateMedicine,
     deleteMedicine,
+    markMedicineStatus,
 
     // Reminders
     reminders,
     addReminder,
+    updateReminder,
     toggleReminder,
     markReminderDone,
+    snoozeReminder,
     deleteReminder,
 
     // Daily Routines
@@ -1044,9 +1418,20 @@ export function useMemoryBondStore() {
     sosEvents,
     triggerSos,
 
-    // Games
+    // Games & Cognitive Scores
     gameSessions,
     recordGameSession,
+    cognitiveScore,
+
+    // Social Feed (Family Engagement)
+    socialFeed,
+    addSocialPost,
+    addSocialReaction,
+    addSocialVoiceReply,
+
+    // Clinical Notes (Healthcare Worker)
+    clinicalNotes,
+    addClinicalNote,
 
     // Notifications
     notifications,
@@ -1099,9 +1484,6 @@ export function useMemoryBondStore() {
     toggleEasyMode: useCallback(() => {
       setProfile((prev) => ({ ...prev, easy_mode: !prev.easy_mode }));
     }, []),
-
-    // Smart Medicine status
-    markMedicineStatus,
 
     // Sync Queue
     syncQueue,

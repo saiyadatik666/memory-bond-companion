@@ -1,6 +1,19 @@
-import { Home, Pill, Bell, Gamepad2, Users, Sun, Settings } from "lucide-react";
+import {
+  Home,
+  Pill,
+  Bell,
+  Gamepad2,
+  Users,
+  Sun,
+  Stethoscope,
+  Activity,
+  Heart,
+  Compass,
+  Calendar,
+  Settings,
+} from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { useEffect, useState } from "react";
+import type { UserRole } from "@/lib/memoryBondStore";
 
 export function BottomNavigation({
   currentTab,
@@ -9,40 +22,46 @@ export function BottomNavigation({
 }: {
   currentTab: string;
   onSelectTab: (tab: string) => void;
-  role: "senior" | "caregiver";
+  role: UserRole;
 }) {
   const { t } = useI18n();
 
-  const [isConversationMode, setIsConversationMode] = useState(false);
+  let tabs: { id: string; label: string; icon: any }[] = [];
 
-  useEffect(() => {
-    setIsConversationMode(localStorage.getItem("conversationMode") === "true");
-  }, []);
-
-  const toggleConversationMode = () => {
-    setIsConversationMode((prev) => {
-      const next = !prev;
-      localStorage.setItem("conversationMode", String(next));
-      return next;
-    });
-  };
-
-  const tabs =
-    role === "senior"
-      ? [
-          { id: "home", label: t("home") || "Home", icon: Home },
-          { id: "medicines", label: t("medicines") || "Medicines", icon: Pill },
-          { id: "reminders", label: t("reminders") || "Reminders", icon: Bell },
-          { id: "games", label: t("games") || "Games", icon: Gamepad2 },
-          { id: "family", label: t("family") || "Family", icon: Users },
-        ]
-      : [
-          { id: "caregiver", label: "Dashboard", icon: Home },
-          { id: "medicines", label: t("medicines") || "Medicines", icon: Pill },
-          { id: "appointments", label: t("appointments") || "Appointments", icon: Bell },
-          { id: "routine", label: t("routine") || "Routine", icon: Sun },
-          { id: "family", label: t("family") || "Family", icon: Users },
-        ];
+  if (role === "healthcare_worker") {
+    tabs = [
+      { id: "healthcare", label: "Triage", icon: Stethoscope },
+      { id: "medicines", label: t("medicines") || "Meds", icon: Pill },
+      { id: "appointments", label: "Clinics", icon: Calendar },
+      { id: "checkin", label: "CES", icon: Activity },
+      { id: "settings", label: "Settings", icon: Settings },
+    ];
+  } else if (role === "caregiver") {
+    tabs = [
+      { id: "caregiver", label: "Dashboard", icon: Home },
+      { id: "medicines", label: t("medicines") || "Medicines", icon: Pill },
+      { id: "appointments", label: t("appointments") || "Appointments", icon: Bell },
+      { id: "routine", label: t("routine") || "Routine", icon: Sun },
+      { id: "family", label: t("family") || "Family", icon: Users },
+    ];
+  } else if (role === "admin") {
+    tabs = [
+      { id: "healthcare", label: "Clinical", icon: Stethoscope },
+      { id: "caregiver", label: "Caregiver", icon: Home },
+      { id: "medicines", label: "Medicines", icon: Pill },
+      { id: "social", label: "Family Feed", icon: Heart },
+      { id: "settings", label: "Settings", icon: Settings },
+    ];
+  } else {
+    // Senior (default)
+    tabs = [
+      { id: "home", label: t("home") || "Home", icon: Home },
+      { id: "medicines", label: t("medicines") || "Medicines", icon: Pill },
+      { id: "reminders", label: t("reminders") || "Reminders", icon: Bell },
+      { id: "games", label: t("games") || "Games", icon: Gamepad2 },
+      { id: "cultural", label: "Culture", icon: Compass },
+    ];
+  }
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-30 bg-card/95 backdrop-blur-md border-t border-border shadow-lg">
@@ -72,30 +91,6 @@ export function BottomNavigation({
             </button>
           );
         })}
-        {/* Conversation Mode Toggle */}
-        <button
-          onClick={toggleConversationMode}
-          className={`flex flex-col items-center justify-center gap-1 py-1.5 px-3 rounded-2xl transition-all ${
-            isConversationMode ? "bg-success/20 text-success" : "bg-muted/20 text-muted-foreground"
-          }`}
-        >
-          <div className="p-1.5 rounded-xl">
-            <span className="text-xs font-medium">
-              {isConversationMode ? "Conversation ON" : "Conversation OFF"}
-            </span>
-          </div>
-        </button>
-        {/* STOP Button for speech */}
-        <button
-          onClick={() => {
-            window.speechSynthesis.cancel();
-          }}
-          className="flex flex-col items-center justify-center gap-1 py-1.5 px-3 rounded-2xl bg-destructive/20 text-destructive hover:bg-destructive/30"
-        >
-          <div className="p-1.5 rounded-xl">
-            <span className="text-xs font-medium">STOP</span>
-          </div>
-        </button>
       </div>
     </nav>
   );

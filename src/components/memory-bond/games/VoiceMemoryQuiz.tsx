@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Volume2, VolumeX, Sparkles, RotateCcw, CheckCircle2, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { speakText } from "@/lib/voiceParser";
+import { speakText, stopSpeaking } from "@/lib/voiceParser";
+import { useI18n } from "@/lib/i18n";
 
 interface VoiceQuizItem {
   promptAudioText: string;
@@ -12,15 +13,27 @@ interface VoiceQuizItem {
 
 const QUIZ_ITEMS: VoiceQuizItem[] = [
   {
-    promptAudioText: "Baba, don't forget to take your morning ginger tea and your blood pressure tablet!",
+    promptAudioText: "Baba, don't forget to take your warm ginger tea and your blood pressure tablet after breakfast!",
     question: "In the voice note, what two morning items were mentioned?",
-    options: ["Ginger tea & Blood pressure tablet", "Coffee & Ice cream", "Cold water & Vitamins", "Sandwich & Apple"],
+    options: ["Ginger tea & Blood pressure tablet", "Cold milk & Biscuit", "Apple juice & Multivitamin", "Coffee & Ice cream"],
     correct: 0,
   },
   {
-    promptAudioText: "Grandpa, I will come on Sunday evening to show you my new painting of birds!",
-    question: "When did the grandchild say they are visiting to show their drawing?",
-    options: ["Sunday evening", "Monday morning", "Friday afternoon", "Next month"],
+    promptAudioText: "Dadaji, your daughter Sunita called to say she is bringing fresh homemade pitha and sweets for Bihu this Sunday!",
+    question: "What is daughter Sunita bringing this Sunday?",
+    options: ["Homemade pitha and sweets for Bihu", "New clothes from the market", "Books from the library", "Gardening tools"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "Grandpa, don't forget to water the holy tulsi plant in the balcony before the sunshine gets too warm!",
+    question: "Which plant in the balcony did the voice note remind to water?",
+    options: ["Holy tulsi plant in the balcony", "Rose bush in the backyard", "Money plant near the television", "Fern in the kitchen"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "Maaji, Dr. Barua confirmed your routine health checkup is on Thursday morning at 10 AM.",
+    question: "When is the scheduled consultation with Dr. Barua?",
+    options: ["Thursday at 10 AM", "Monday at 2 PM", "Saturday evening", "Friday morning"],
     correct: 0,
   },
 ];
@@ -30,6 +43,7 @@ export function VoiceMemoryQuiz({
 }: {
   onComplete: (score: number, total: number) => void;
 }) {
+  const { speechLocale } = useI18n();
   const [currentIdx, setCurrentIdx] = useState<number>(0);
   const [selectedOpt, setSelectedOpt] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -42,8 +56,9 @@ export function VoiceMemoryQuiz({
 
   const handlePlayVoice = () => {
     setIsPlaying(true);
-    speakText(current.promptAudioText);
-    setTimeout(() => setIsPlaying(false), 4000);
+    speakText(current.promptAudioText, speechLocale, () => {
+      setIsPlaying(false);
+    });
   };
 
   const handleNext = () => {

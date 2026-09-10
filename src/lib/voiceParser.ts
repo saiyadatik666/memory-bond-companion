@@ -1,4 +1,6 @@
 import type { MemoryBondStore } from "./memoryBondStore";
+import { conversationalAI } from "./conversationalAI";
+import { voiceManager } from "./voiceProvider";
 
 // ---------------------------------------------------------------------------
 // Intent types
@@ -14,6 +16,8 @@ export type VoiceIntent =
       type: "CREATE_REMINDER";
       title: string;
       time: string;
+      date?: string | null;
+      notes?: string;
       reminderType:
         | "medicine"
         | "shopping"
@@ -22,6 +26,7 @@ export type VoiceIntent =
         | "family_call"
         | "routine"
         | "hydration"
+        | "walking"
         | "meal"
         | "custom";
       confirmationMessage: string;
@@ -655,52 +660,23 @@ export function parseVoiceIntent(
     };
   }
 
-  // Fallback
+  // Fallback: Natural Conversational AI with Session Empathy
+  const conversationalReply = conversationalAI.generateConversationalReply(text, locale, store);
   return {
-    type: "UNKNOWN",
-    original: text,
-    confirmationMessage: pick(UNKNOWN_MSG, locale),
+    type: "CASUAL_CHAT",
+    message: conversationalReply,
   };
 }
 
 // ---------------------------------------------------------------------------
-// Spoken Audio Engine with Elderly-Friendly Pace & Interruption Guard
+// Spoken Audio Engine with Elderly-Friendly Pace, Echo Guard & Barge-In
 // ---------------------------------------------------------------------------
-let activeUtterance: SpeechSynthesisUtterance | null = null;
-
 export function stopSpeaking() {
-  if (typeof window !== "undefined" && "speechSynthesis" in window) {
-    window.speechSynthesis.cancel();
-    activeUtterance = null;
-  }
+  voiceManager.stopSpeaking();
 }
 
 export function speakText(text: string, lang = "en-IN", onEnd?: () => void) {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-  
-  // Stop existing audio first (echo guard)
-  stopSpeaking();
-
-  const utterance = new SpeechSynthesisUtterance(text);
-  activeUtterance = utterance;
-
-  // Senior-friendly calm voice pacing (0.85x speed)
-  utterance.rate = 0.88;
-  utterance.pitch = 1.0;
-  utterance.lang = lang;
-
-  const matchedVoice = selectVoice(lang);
-  if (matchedVoice) utterance.voice = matchedVoice;
-
-  utterance.onend = () => {
-    activeUtterance = null;
+  voiceManager.speak(text, lang, undefined, onEnd, () => {
     if (onEnd) onEnd();
-  };
-
-  utterance.onerror = () => {
-    activeUtterance = null;
-    if (onEnd) onEnd();
-  };
-
-  window.speechSynthesis.speak(utterance);
+  });
 }

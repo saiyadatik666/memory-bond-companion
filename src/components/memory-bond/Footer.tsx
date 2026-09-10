@@ -201,11 +201,29 @@ export function Footer({
               </li>
               <li>
                 <button
+                  onClick={() => onNavigate("cultural")}
+                  className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium text-emerald-600 dark:text-emerald-400 font-bold"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-emerald-500" />
+                  North East Heritage Hub (NER)
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => onNavigate("social")}
+                  className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium text-rose-600 dark:text-rose-400 font-bold"
+                >
+                  <Heart className="h-3.5 w-3.5 text-rose-500" />
+                  Family Greetings & Audio Feed
+                </button>
+              </li>
+              <li>
+                <button
                   onClick={() => onNavigate("checkin")}
                   className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
                 >
                   <Brain className="h-3.5 w-3.5 text-teal-500" />
-                  {t("checkin") || "Cognitive Agility Check-in"}
+                  {t("checkin") || "Cognitive Agility & Baseline Check-in"}
                 </button>
               </li>
               <li>
@@ -224,7 +242,7 @@ export function Footer({
           <div className="lg:col-span-2 space-y-3">
             <h4 className="text-sm font-extrabold uppercase tracking-wider text-foreground/90 flex items-center gap-2">
               <Users className="h-4 w-4 text-cyan-500" />
-              Family & Care
+              Family & Clinical Care
             </h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
@@ -234,6 +252,15 @@ export function Footer({
                 >
                   <Activity className="h-3.5 w-3.5 text-cyan-500" />
                   {t("caregiverDashboard") || "Caregiver Console"}
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => onNavigate("healthcare")}
+                  className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-bold text-teal-600 dark:text-teal-400"
+                >
+                  <Activity className="h-3.5 w-3.5 text-teal-500" />
+                  Healthcare Worker Triage
                 </button>
               </li>
               <li>

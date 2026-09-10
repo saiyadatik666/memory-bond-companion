@@ -128,8 +128,27 @@ export function MemoryJournalView({ store }: { store: MemoryBondStore }) {
 
   const handleGenerateSummary = () => {
     if (!body.trim()) return;
-    const summary = `AI Reflection: A joyful and meaningful moment reflecting connection and gratitude. Preserved safely in Memory Bond.`;
-    setBody((prev) => `${prev}\n\n[Summary: ${summary}]`);
+    const lang = (speechLocale || "en").split("-")[0];
+    let summary = "AI Reflection: A heartwarming and meaningful moment reflecting connection and gratitude. Preserved safely in Memory Bond.";
+
+    if (lang === "hi") {
+      summary = "स्मृति सारांश: यह एक अनमोल और आत्मीय पल है, जो परिवार के प्यार और खुशी को दर्शाता है। Memory Bond में सुरक्षित।";
+    } else if (lang === "as") {
+      summary = "স্মৃতি সাৰাংশ: ই এক মৰমৰ আৰু অৰ্থপূৰ্ণ মুহূৰ্ত, যিয়ে আনন্দ আৰু আত্মীয়তাক প্ৰকাশ কৰে। Memory Bond ত সংৰক্ষিত।";
+    } else if (lang === "bn") {
+      summary = "স্মৃতি সারাংশ: এটি একটি পরম আনন্দময় ও আন্তরিক মুহূর্ত, যা ভালোবাসা ও স্নেহ প্রকাশ করে। Memory Bond এ সংরক্ষিত।";
+    } else if (lang === "gu") {
+      summary = "સ્મૃતિ સારાંશ: આ એક સ્નેહભર્યો અને વહાલો ક્ષણ છે, જે ખુશી અને કૃતજ્ઞતા દર્શાવે છે। Memory Bond માં સુરક્ષિત.";
+    } else if (lang === "mr") {
+      summary = "आठवण सारांश: हा एक अत्यंत गोड आणि आत्मीय क्षण आहे, जो कौटुंबिक स्नेह दर्शवतो। Memory Bond मध्ये सुरक्षित.";
+    } else if (lang === "ta") {
+      summary = "நினைவுச் சுருக்கம்: இது குடும்ப அன்பையும் அமைதியையும் வெளிப்படுத்தும் இனிய தருணம்। Memory Bond இல் பாதுகாக்கப்பட்டது.";
+    } else if (lang === "te") {
+      summary = "జ్ఞాపక సారాంశం: ఇది కుటుంబ ఆప్యాయత మరియు సంతోషాన్ని ప్రతిబింబించే మధుర క్షణం. Memory Bond లో భద్రపరచబడింది.";
+    }
+
+    setBody((prev) => `${prev}\n\n[${summary}]`);
+    speakText(summary, speechLocale);
   };
 
   const handleSaveMemory = (e: React.FormEvent) => {

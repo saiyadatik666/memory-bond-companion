@@ -38,6 +38,7 @@ export function VoiceAssistantModal({
 }) {
   const { lang, speechLocale, setLang, t } = useI18n();
   const [isListening, setIsListening] = useState<boolean>(false);
+  const [isThinking, setIsThinking] = useState<boolean>(false);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [currentLocale, setCurrentLocale] = useState<string>(speechLocale || "en-IN");
   const [transcript, setTranscript] = useState<string>("");
@@ -73,6 +74,7 @@ export function VoiceAssistantModal({
       setPendingIntent(null);
       setTranscript("");
       setFeedbackMessage("");
+      setIsThinking(false);
     }
   }, [isOpen]);
 
@@ -92,6 +94,7 @@ export function VoiceAssistantModal({
   const startListening = () => {
     handleBargeIn();
     setRecognitionError(null);
+    setIsThinking(false);
 
     if (!SpeechRecognition) {
       setRecognitionError(
@@ -157,6 +160,7 @@ export function VoiceAssistantModal({
       } catch {}
     }
     setIsListening(false);
+    setIsThinking(false);
     stopSpeaking();
     setIsSpeaking(false);
   };
@@ -169,6 +173,7 @@ export function VoiceAssistantModal({
       } catch {}
     }
     setIsListening(false);
+    setIsThinking(false);
     setIsSpeaking(true);
 
     speakText(msg, locale, () => {
@@ -189,35 +194,42 @@ export function VoiceAssistantModal({
   const processCommand = (text: string, locale?: string) => {
     if (!text.trim()) return;
     handleBargeIn();
+    setIsListening(false);
+    setIsThinking(true);
 
     if (store && typeof store.addConversation === "function") {
       store.addConversation(`User: ${text}`);
     }
 
     const usedLocale = locale || currentLocale || "en-IN";
-    const intent = parseVoiceIntent(text, store, usedLocale, pendingIntent);
 
-    // If intent was confirming the previous pending action
-    if (intent.type === "CONFIRM_ACTION") {
-      handleConfirmIntent();
-      return;
-    }
+    // Natural cognitive thinking delay
+    setTimeout(() => {
+      setIsThinking(false);
+      const intent = parseVoiceIntent(text, store, usedLocale, pendingIntent);
 
-    // If intent was cancelling the previous pending action
-    if (intent.type === "CANCEL_ACTION") {
-      handleCancelIntent();
-      return;
-    }
+      // If intent was confirming the previous pending action
+      if (intent.type === "CONFIRM_ACTION") {
+        handleConfirmIntent();
+        return;
+      }
 
-    if (isSpokenAnswer(intent)) {
-      setPendingIntent(null);
-      setFeedbackMessage(intent.message);
-      speakWithEchoGuard(intent.message, usedLocale);
-    } else {
-      setPendingIntent(intent);
-      setFeedbackMessage("");
-      speakWithEchoGuard(intent.confirmationMessage, usedLocale);
-    }
+      // If intent was cancelling the previous pending action
+      if (intent.type === "CANCEL_ACTION") {
+        handleCancelIntent();
+        return;
+      }
+
+      if (isSpokenAnswer(intent)) {
+        setPendingIntent(null);
+        setFeedbackMessage(intent.message);
+        speakWithEchoGuard(intent.message, usedLocale);
+      } else {
+        setPendingIntent(intent);
+        setFeedbackMessage("");
+        speakWithEchoGuard(intent.confirmationMessage, usedLocale);
+      }
+    }, 320);
   };
 
   const handleConfirmIntent = () => {
@@ -234,9 +246,9 @@ export function VoiceAssistantModal({
         title: pendingIntent.title,
         time: pendingIntent.time,
         type: pendingIntent.reminderType,
-        date: null,
-        repeat: "daily",
-        notes: "Created by Memory Bond Voice Assistant",
+        date: pendingIntent.date || null,
+        repeat: pendingIntent.date ? "none" : "daily",
+        notes: pendingIntent.notes || "Created by Memory Bond Voice Assistant",
         active: true,
       });
       speakWithEchoGuard(`Saved reminder for ${pendingIntent.time}.`, currentLocale);
@@ -307,55 +319,109 @@ export function VoiceAssistantModal({
           </button>
         </div>
 
-        {/* Header & Status */}
-        <div className="text-center space-y-2">
+        {/* Header & 3-State Visualizer (Listening, Thinking, Speaking) */}
+        <div className="text-center space-y-3">
           <div
-            className={`mx-auto w-20 h-20 rounded-full border-3 flex items-center justify-center transition-all ${
+            className={`mx-auto w-22 h-22 rounded-full border-3 flex items-center justify-center transition-all ${
               isListening
-                ? "bg-destructive/15 border-destructive text-destructive scale-110 shadow-lg shadow-destructive/20 animate-pulse"
+                ? "bg-destructive/15 border-destructive text-destructive scale-110 shadow-xl shadow-destructive/25 animate-pulse"
+                : isThinking
+                ? "bg-amber-500/15 border-amber-500 text-amber-600 scale-105 shadow-xl shadow-amber-500/20"
                 : isSpeaking
-                ? "bg-primary/15 border-primary text-primary animate-pulse"
+                ? "bg-primary/20 border-primary text-primary scale-105 shadow-xl shadow-primary/25 animate-pulse"
                 : "bg-primary/10 border-primary/30 text-primary"
             }`}
           >
             {isListening ? (
-              <Mic className="h-10 w-10" />
+              <Mic className="h-11 w-11 animate-pulse" />
+            ) : isThinking ? (
+              <Sparkles className="h-11 w-11 animate-spin text-amber-500" />
             ) : isSpeaking ? (
-              <Volume2 className="h-10 w-10" />
+              <Volume2 className="h-11 w-11 animate-bounce" />
             ) : (
-              <MicOff className="h-10 w-10 opacity-70" />
+              <MicOff className="h-11 w-11 opacity-70" />
             )}
           </div>
 
-          <h3 className="text-2xl font-black text-foreground">AI Voice Companion</h3>
-          
+          <div className="space-y-1">
+            <h3 className="text-2xl font-black text-foreground">AI Voice Companion</h3>
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+              Two-Way Multilingual Voice • SIH26003
+            </p>
+          </div>
+
+          {/* 3-State Live Status Indicator */}
           <div className="flex items-center justify-center gap-2">
             <span
-              className={`inline-block w-2.5 h-2.5 rounded-full ${
-                isListening ? "bg-destructive animate-ping" : isSpeaking ? "bg-primary animate-pulse" : "bg-emerald-500"
+              className={`inline-block w-3 h-3 rounded-full ${
+                isListening
+                  ? "bg-destructive animate-ping"
+                  : isThinking
+                  ? "bg-amber-500 animate-pulse"
+                  : isSpeaking
+                  ? "bg-primary animate-pulse"
+                  : "bg-emerald-500"
               }`}
             />
             <span className="text-sm font-bold text-foreground">
               {isListening
                 ? "Listening… Speak now"
+                : isThinking
+                ? "Thinking… Understanding your words"
                 : isSpeaking
-                ? "Speaking…"
+                ? "Speaking response…"
                 : pendingIntent
                 ? "Awaiting your confirmation"
-                : "Tap microphone or type below"}
+                : "Tap microphone or speak below"}
             </span>
+          </div>
+
+          {/* Voice Engine Architecture Indicator */}
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary/70 border border-border text-[11px] font-bold text-muted-foreground">
+            <Sparkles className="h-3 w-3 text-primary" />
+            <span>Voice Engine: Web Speech API • BHASHINI Compatible</span>
           </div>
         </div>
 
-        {/* Quick Suggestion Chips */}
+        {/* Quick Suggestion Chips (Localized for Indian regional elders) */}
         <div className="flex flex-wrap gap-2 justify-center text-xs">
-          {[
-            "Remind me to take medicine at 8 PM",
-            "कल सुबह 8 बजे दवा याद दिलाना",
-            "What's my next reminder?",
-            "I took my medicine",
-            "Doctor appointment tomorrow 10 AM",
-          ].map((sample, i) => (
+          {(currentLocale.startsWith("hi")
+            ? [
+                "कल सुबह 8 बजे दवा याद दिलाना",
+                "मेरी अगली दवा कौन सी है?",
+                "आज मेरी बेटी घर आई थी",
+                "मुझे थोड़ा अकेला लग रहा है",
+                "डॉक्टर अपॉइंटमेंट कल 10 बजे",
+              ]
+            : currentLocale.startsWith("as")
+            ? [
+                "পুৱা ৮ বজাত ঔষধৰ সংকেত দিয়া",
+                "মোৰ পৰৱৰ্তী ঔষধ কি?",
+                "মই ঔষধ খালোঁ",
+                "আজি মোৰ বৰ শান্তি লাগিছে",
+              ]
+            : currentLocale.startsWith("bn")
+            ? [
+                "কাল সকাল ৮ টায় ঔষধ মনে করিয়ে দিও",
+                "আমার পরের ঔষধ কি?",
+                "আমি ঔষধ খেয়েছি",
+                "আজ মনটা খুব ভালো",
+              ]
+            : currentLocale.startsWith("gu")
+            ? [
+                "મને સવારે ૮ વાગ્યે દવા યાદ દેવડાવજો",
+                "મારી આગલી દવા કઈ છે?",
+                "મેં દવા લઈ લીધી",
+                "આજે મને ઘણો આનંદ છે",
+              ]
+            : [
+                "Remind me to take medicine at 8 PM",
+                "What's my next reminder?",
+                "I took my scheduled medicine",
+                "Doctor appointment tomorrow 10 AM",
+                "I'm feeling a bit lonely today",
+              ]
+          ).map((sample, i) => (
             <button
               key={i}
               onClick={() => {
