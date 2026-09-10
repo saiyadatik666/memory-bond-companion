@@ -454,7 +454,7 @@ export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
                     </p>
                     <button
                       onClick={() =>
-                        speakText(routineQuestions[callStep]?.question || "", speechLocale)
+                        speakText(activeRoutineQuestions[callStep]?.question || "", speechLocale)
                       }
                       className="p-2 rounded-xl bg-card border border-primary/30 text-primary hover:bg-primary/20 shrink-0 shadow-xs"
                       title="Read aloud"
