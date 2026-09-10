@@ -453,8 +453,23 @@ export function parseVoiceIntent(
     if (lower.includes("medicine") || lower.includes("dawa") || lower.includes("दवा") || lower.includes("ঔষধ")) {
       return { type: "NAVIGATE", targetView: "medicines", confirmationMessage: "Opening Medicine Manager." };
     }
+    if (lower.includes("reminder") || lower.includes("alarm") || lower.includes("याद")) {
+      return { type: "NAVIGATE", targetView: "reminders", confirmationMessage: "Opening Smart Reminders." };
+    }
+    if (lower.includes("culture") || lower.includes("assam") || lower.includes("heritage") || lower.includes("bihu") || lower.includes("সংস্কৃতি")) {
+      return { type: "NAVIGATE", targetView: "cultural", confirmationMessage: "Opening North East Heritage Hub." };
+    }
+    if (lower.includes("social") || lower.includes("greeting") || lower.includes("photo") || lower.includes("family feed")) {
+      return { type: "NAVIGATE", targetView: "social", confirmationMessage: "Opening Family Greetings Feed." };
+    }
     if (lower.includes("game") || lower.includes("khel") || lower.includes("खेल") || lower.includes("খেল")) {
       return { type: "NAVIGATE", targetView: "games", confirmationMessage: "Opening Cognitive Games Hub." };
+    }
+    if (lower.includes("checkin") || lower.includes("check in") || lower.includes("assessment") || lower.includes("score")) {
+      return { type: "NAVIGATE", targetView: "checkin", confirmationMessage: "Opening Cognitive Check-in." };
+    }
+    if (lower.includes("healthcare") || lower.includes("triage") || lower.includes("doctor dashboard") || lower.includes("clinical")) {
+      return { type: "NAVIGATE", targetView: "healthcare", confirmationMessage: "Opening Healthcare Worker Dashboard." };
     }
     if (lower.includes("journal") || lower.includes("memory") || lower.includes("yaad") || lower.includes("डायरी")) {
       return { type: "NAVIGATE", targetView: "journal", confirmationMessage: "Opening Memory Journal." };
@@ -467,6 +482,9 @@ export function parseVoiceIntent(
     }
     if (lower.includes("caregiver") || lower.includes("family") || lower.includes("परिवार")) {
       return { type: "NAVIGATE", targetView: "family", confirmationMessage: "Opening Family Circle." };
+    }
+    if (lower.includes("home") || lower.includes("ghar") || lower.includes("घर")) {
+      return { type: "NAVIGATE", targetView: "home", confirmationMessage: "Going to Home screen." };
     }
   }
 
