@@ -67,7 +67,7 @@ export function SeniorHome({
   const hydrationReminder = store.reminders.find((r) => r.type === "hydration");
   const isHydrated = hydrationReminder ? hydrationReminder.last_done === todayStr : false;
   const medsDoneToday = store.medicineLogs.filter(
-    (l) => l.date === todayStr && l.status === "taken"
+    (l) => l.taken_at?.slice(0, 10) === todayStr && l.status === "taken"
   ).length;
 
   const hour = new Date().getHours();

@@ -45,7 +45,7 @@ export function MemoryGarden({
   // 1. Medicines taken today
   const medsTotal = store.medicines.length;
   const medsDone = store.medicineLogs.filter(
-    (l) => l.date === todayStr && l.status === "taken"
+    (l) => l.taken_at?.slice(0, 10) === todayStr && l.status === "taken"
   ).length;
   const medsBloomed = medsTotal > 0 && medsDone >= medsTotal;
 
