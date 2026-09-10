@@ -564,7 +564,7 @@ export function parseVoiceIntent(
     const time = extractTime(text);
     
     // Categorize reminder
-    let reminderType: VoiceIntent extends { type: "CREATE_REMINDER"; reminderType: infer T } ? T : never = "custom";
+    let reminderType: Extract<VoiceIntent, { type: "CREATE_REMINDER" }>["reminderType"] = "custom";
     if (lower.includes("water") || lower.includes("pani") || lower.includes("पानी") || lower.includes("জল") || lower.includes("પાણી")) {
       reminderType = "hydration";
     } else if (lower.includes("medicine") || lower.includes("dawa") || lower.includes("दवा") || lower.includes("ঔষধ") || lower.includes("દવા")) {
@@ -697,4 +697,56 @@ export function speakText(text: string, lang = "en-IN", onEnd?: () => void) {
   voiceManager.speak(text, lang, undefined, onEnd, () => {
     if (onEnd) onEnd();
   });
+}
+
+/**
+ * Start browser speech recognition. Returns a stop function (or null if unsupported).
+ */
+export function startSpeechRecognition(
+  lang = "en-IN",
+  onResult?: (text: string) => void,
+  onError?: (error: string) => void,
+  onEnd?: () => void,
+): (() => void) | null {
+  if (typeof window === "undefined") return null;
+  const SR =
+    (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  if (!SR) {
+    if (onError) onError("unsupported");
+    if (onEnd) onEnd();
+    return null;
+  }
+
+  try {
+    const rec = new SR();
+    rec.lang = lang || "en-IN";
+    rec.interimResults = true;
+    rec.continuous = false;
+
+    rec.onresult = (e: any) => {
+      const text = Array.from(e.results)
+        .map((r: any) => r[0]?.transcript || "")
+        .join(" ")
+        .trim();
+      if (text && onResult) onResult(text);
+    };
+    rec.onerror = (e: any) => {
+      if (onError) onError(e?.error || "speech-error");
+    };
+    rec.onend = () => {
+      if (onEnd) onEnd();
+    };
+
+    rec.start();
+
+    return () => {
+      try {
+        rec.stop();
+      } catch {}
+    };
+  } catch (err) {
+    if (onError) onError("start-failed");
+    if (onEnd) onEnd();
+    return null;
+  }
 }
