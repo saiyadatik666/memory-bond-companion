@@ -563,17 +563,57 @@ export function parseVoiceIntent(
   ) {
     const time = extractTime(text);
     
+    // Extract date if tomorrow/future day is spoken
+    let reminderDate: string | null = null;
+    if (
+      lower.includes("tomorrow") ||
+      lower.includes("कल") ||
+      lower.includes("কাল") ||
+      lower.includes("কাইলৈ") ||
+      lower.includes("કાલે") ||
+      lower.includes("उद्या") ||
+      lower.includes("நாளை") ||
+      lower.includes("రేపు")
+    ) {
+      reminderDate = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    }
+
     // Categorize reminder
     let reminderType: VoiceIntent extends { type: "CREATE_REMINDER"; reminderType: infer T } ? T : never = "custom";
-    if (lower.includes("water") || lower.includes("pani") || lower.includes("पानी") || lower.includes("জল") || lower.includes("પાણી")) {
+    let extractedNotes = "";
+
+    if (lower.includes("water") || lower.includes("hydration") || lower.includes("drink") || lower.includes("pani") || lower.includes("पानी") || lower.includes("जल") || lower.includes("પાણી")) {
       reminderType = "hydration";
-    } else if (lower.includes("medicine") || lower.includes("dawa") || lower.includes("दवा") || lower.includes("ঔষধ") || lower.includes("દવા")) {
+    } else if (lower.includes("medicine") || lower.includes("dawa") || lower.includes("pill") || lower.includes("tablet") || lower.includes("दवा") || lower.includes("ঔষধ") || lower.includes("દવા")) {
       reminderType = "medicine";
-    } else if (lower.includes("market") || lower.includes("vegetable") || lower.includes("sabzi") || lower.includes("shopping") || lower.includes("सब्जी") || lower.includes("શાકભાજી")) {
+    } else if (
+      lower.includes("buy") ||
+      lower.includes("purchase") ||
+      lower.includes("shopping") ||
+      lower.includes("market") ||
+      lower.includes("vegetable") ||
+      lower.includes("sabzi") ||
+      lower.includes("rice") ||
+      lower.includes("tea") ||
+      lower.includes("grocery") ||
+      lower.includes("kirana") ||
+      lower.includes("bazaar") ||
+      lower.includes("सब्जी") ||
+      lower.includes("खरीद") ||
+      lower.includes("দোকান") ||
+      lower.includes("বজাৰ") ||
+      lower.includes("বাজার")
+    ) {
       reminderType = "shopping";
-    } else if (lower.includes("call") || lower.includes("phone") || lower.includes("sunita") || lower.includes("बेटी") || lower.includes("ఫోన్")) {
+      const buyMatch = text.match(/(?:buy|purchase|खरीदने|लाने|কিনিবলৈ|কিনতে)\s+([a-zA-Z\u0900-\u09FF\s,]+)/i);
+      if (buyMatch && buyMatch[1]) {
+        extractedNotes = `Items: ${buyMatch[1].trim()}`;
+      } else if (lower.includes("rice") || lower.includes("tea")) {
+        extractedNotes = "Items: rice, tea";
+      }
+    } else if (lower.includes("call") || lower.includes("phone") || lower.includes("sunita") || lower.includes("बेटी") || lower.includes("daughter") || lower.includes("ఫోన్")) {
       reminderType = "family_call";
-    } else if (lower.includes("walk") || lower.includes("stretch") || lower.includes("exercise") || lower.includes("टहलना")) {
+    } else if (lower.includes("walk") || lower.includes("walking") || lower.includes("stretch") || lower.includes("exercise") || lower.includes("टहलना")) {
       reminderType = "routine";
     }
 
@@ -582,14 +622,18 @@ export function parseVoiceIntent(
       .replace(/^(please\s+)?(remind me to|set a reminder for|reminder for|remind me)\s*/i, "")
       .replace(/कल सुबह|कल शाम|सुबह|शाम|बजे|याद दिलाना|याद दिलाओ/gi, "")
       .replace(/at\s+\d{1,2}(:\d{2})?\s*(am|pm)?/i, "")
-      .replace(/tomorrow/i, "")
+      .replace(/tomorrow(\s+morning|\s+evening|\s+afternoon)?(\s+to)?/gi, "")
+      .replace(/^(morning|evening|afternoon)\s+to\s+/i, "")
+      .replace(/^to\s+/i, "")
       .trim();
 
     if (!cleanTitle || cleanTitle.length < 3) {
       if (reminderType === "hydration") cleanTitle = "Drink warm water";
       else if (reminderType === "medicine") cleanTitle = "Take medicine";
-      else if (reminderType === "shopping") cleanTitle = "Pick up fresh vegetables";
+      else if (reminderType === "shopping") cleanTitle = extractedNotes ? `Buy ${extractedNotes.replace("Items: ", "")}` : "Pick up fresh groceries";
       else cleanTitle = "Daily task";
+    } else {
+      cleanTitle = cleanTitle.charAt(0).toUpperCase() + cleanTitle.slice(1);
     }
 
     const msgFn = pick(REM_CONFIRM, locale);
@@ -597,6 +641,8 @@ export function parseVoiceIntent(
       type: "CREATE_REMINDER",
       title: cleanTitle,
       time,
+      date: reminderDate,
+      notes: extractedNotes || undefined,
       reminderType,
       confirmationMessage: msgFn(cleanTitle, time),
     };
@@ -612,14 +658,23 @@ export function parseVoiceIntent(
     lower.includes("अपॉइंटमेंट")
   ) {
     const time = extractTime(text);
-    const date = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const isTomorrow =
+      lower.includes("tomorrow") ||
+      lower.includes("कल") ||
+      lower.includes("কাল") ||
+      lower.includes("কাইলৈ") ||
+      lower.includes("કાલે") ||
+      lower.includes("उद्या");
+    const date = isTomorrow
+      ? new Date(Date.now() + 86400000).toISOString().slice(0, 10)
+      : new Date().toISOString().slice(0, 10);
     const msgFn = pick(APPT_CONFIRM, locale);
     return {
       type: "CREATE_APPOINTMENT",
       title: "Doctor Consultation",
       date,
       time,
-      location: "Clinic",
+      location: "City Health Clinic",
       confirmationMessage: msgFn("Doctor Consultation", time),
     };
   }

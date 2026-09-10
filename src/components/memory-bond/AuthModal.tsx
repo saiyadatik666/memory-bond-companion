@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import type { MemoryBondStore } from "@/lib/memoryBondStore";
+import type { MemoryBondStore, UserRole } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
 
 export function AuthModal({
@@ -32,7 +32,7 @@ export function AuthModal({
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [fullName, setFullName] = useState<string>("");
-  const [role, setRole] = useState<"senior" | "caregiver">("senior");
+  const [role, setRole] = useState<UserRole>("senior");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -77,9 +77,10 @@ export function AuthModal({
         if (error) throw error;
 
         if (data.user) {
+          const userRole = (data.user.user_metadata?.["role"] as UserRole) || "senior";
           store.updateProfile({
             full_name: data.user.user_metadata?.["full_name"] || email.split("@")[0] || "Memory Bond User",
-            role: data.user.user_metadata?.["role"] === "caregiver" ? "caregiver" : "senior",
+            role: userRole,
           });
         }
         setSuccessMessage("Signed in successfully!");
@@ -95,14 +96,18 @@ export function AuthModal({
     }
   };
 
-  const handleDemoSignIn = (selectedRole: "senior" | "caregiver") => {
+  const handleDemoSignIn = (selectedRole: UserRole) => {
     store.setRole(selectedRole);
     if (selectedRole === "senior") {
       store.updateProfile({ full_name: "Ramesh Sharma", role: "senior" });
-    } else {
+    } else if (selectedRole === "caregiver") {
       store.updateProfile({ full_name: "Sunita Sharma (Caregiver)", role: "caregiver" });
+    } else if (selectedRole === "healthcare_worker") {
+      store.updateProfile({ full_name: "Ananya Goswami, CHW", role: "healthcare_worker" });
+    } else {
+      store.updateProfile({ full_name: "Admin Coordinator", role: "admin" });
     }
-    setSuccessMessage(`Logged in as Demo ${selectedRole === "senior" ? "Senior" : "Caregiver"}!`);
+    setSuccessMessage(`Logged in as Demo ${selectedRole.replace("_", " ").toUpperCase()}!`);
     setTimeout(() => {
       onClose();
     }, 800);
@@ -147,29 +152,47 @@ export function AuthModal({
           </p>
         </div>
 
-        {/* Quick Demo Login Option for Judges */}
+        {/* Quick Demo Login Option for Judges & Evaluators */}
         <div className="rounded-2xl border border-dashed border-primary/40 bg-primary/5 p-3 space-y-2 text-center">
           <span className="text-xs font-bold text-primary flex items-center justify-center gap-1">
-            <Sparkles className="h-3.5 w-3.5" /> One-Click Demo Access for Evaluators:
+            <Sparkles className="h-3.5 w-3.5" /> One-Click Role Access (Section 19):
           </span>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => handleDemoSignIn("senior")}
-              className="text-xs font-bold rounded-xl"
+              className="text-xs font-bold rounded-xl h-10 px-1"
             >
-              👴 Senior User
+              👴 Senior
             </Button>
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => handleDemoSignIn("caregiver")}
-              className="text-xs font-bold rounded-xl"
+              className="text-xs font-bold rounded-xl h-10 px-1"
             >
               👩‍⚕️ Caregiver
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handleDemoSignIn("healthcare_worker")}
+              className="text-xs font-bold rounded-xl h-10 px-1"
+            >
+              🩺 Healthcare
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handleDemoSignIn("admin")}
+              className="text-xs font-bold rounded-xl h-10 px-1"
+            >
+              🛡️ Admin
             </Button>
           </div>
         </div>
@@ -224,29 +247,51 @@ export function AuthModal({
 
           {mode === "signup" && (
             <div>
-              <Label>Your Role</Label>
+              <Label>Select Role (Section 19 Architecture)</Label>
               <div className="grid grid-cols-2 gap-2 mt-1">
                 <button
                   type="button"
                   onClick={() => setRole("senior")}
-                  className={`p-2.5 rounded-xl border-2 font-bold text-xs transition-all ${
+                  className={`p-2 rounded-xl border-2 font-bold text-xs transition-all text-left flex items-center gap-1.5 ${
                     role === "senior"
                       ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-secondary/40 border-border"
+                      : "bg-secondary/40 border-border text-foreground"
                   }`}
                 >
-                  {t("iAmSenior") || "I am a Senior"}
+                  👴 Patient / Senior
                 </button>
                 <button
                   type="button"
                   onClick={() => setRole("caregiver")}
-                  className={`p-2.5 rounded-xl border-2 font-bold text-xs transition-all ${
+                  className={`p-2 rounded-xl border-2 font-bold text-xs transition-all text-left flex items-center gap-1.5 ${
                     role === "caregiver"
                       ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-secondary/40 border-border"
+                      : "bg-secondary/40 border-border text-foreground"
                   }`}
                 >
-                  {t("iAmCaregiver") || "I am a Caregiver"}
+                  👩‍⚕️ Caregiver
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole("healthcare_worker")}
+                  className={`p-2 rounded-xl border-2 font-bold text-xs transition-all text-left flex items-center gap-1.5 ${
+                    role === "healthcare_worker"
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-secondary/40 border-border text-foreground"
+                  }`}
+                >
+                  🩺 Health Worker
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole("admin")}
+                  className={`p-2 rounded-xl border-2 font-bold text-xs transition-all text-left flex items-center gap-1.5 ${
+                    role === "admin"
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-secondary/40 border-border text-foreground"
+                  }`}
+                >
+                  🛡️ Administrator
                 </button>
               </div>
             </div>
