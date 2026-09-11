@@ -54,6 +54,138 @@ const ALL_VOICE_QUIZ_ITEMS: VoiceQuizItem[] = [
     options: ["Traditional Assamese folk songs", "Evening political news", "Weather update", "Cricket match commentary"],
     correct: 0,
   },
+  {
+    promptAudioText: "Rajesh called from Bengaluru to say he will video call you this Saturday at 7 PM after dinner.",
+    question: "At what time is son Rajesh calling on Saturday?",
+    options: ["Saturday at 7 PM", "Sunday morning", "Monday afternoon", "Friday night"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "Your neighbor Mrs. Kalita brought fresh garden mint leaves and lemons for your afternoon digestive drink.",
+    question: "What garden items did Mrs. Kalita bring for you?",
+    options: ["Fresh mint leaves & lemons", "Heavy spices", "Packaged chips", "Flowers only"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "The colony pharmacy called to confirm that your Amlodipine blood pressure refill will be delivered at 11 AM tomorrow.",
+    question: "What is arriving from the pharmacy at 11 AM tomorrow?",
+    options: ["Blood pressure medicine refill", "Eyeglasses", "New clothes", "Newspaper"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "The weather announcement noted pleasant breezes and mild sunshine throughout the morning.",
+    question: "What kind of weather is expected for the morning?",
+    options: ["Pleasant breezes and mild sunshine", "Heavy snowfall", "Blazing heat wave", "Dust storm"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "Sunita reminded you to take a glass of lukewarm water before your peaceful afternoon rest.",
+    question: "What healthy habit did Sunita suggest before afternoon rest?",
+    options: ["Drinking a glass of lukewarm water", "Drinking strong coffee", "Eating heavy sweets", "Skipping water"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "Granddaughter Ananya is performing a peaceful classical sitar piece at the school music hall on Friday at 4 PM.",
+    question: "What musical instrument is Ananya playing on Friday?",
+    options: ["Classical sitar", "Electric guitar", "Heavy drums", "Trumpet"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "Your routine fasting blood test at Apollo Clinic is scheduled for Monday morning at 8:00 AM.",
+    question: "When is the scheduled morning fasting blood test?",
+    options: ["Monday morning at 8:00 AM", "Wednesday afternoon", "Saturday evening", "Sunday night"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "The neighborhood community temple has an evening bhajan chanting session at 5:30 PM today.",
+    question: "What evening spiritual event takes place at 5:30 PM?",
+    options: ["Community bhajan chanting session", "Soccer match", "Movie screening", "Shopping market"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "The postman delivered a heartfelt handwritten postcard from your childhood friend Deepali Bora in Tezpur.",
+    question: "Who sent the handwritten postcard from Tezpur?",
+    options: ["Childhood friend Deepali Bora", "Tax officer", "Unknown stranger", "Store clerk"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "Dr. Barua suggested wearing anti-skid cotton slippers inside the house to keep your steps steady and safe.",
+    question: "What footwear did the doctor recommend for safety at home?",
+    options: ["Anti-skid slippers with firm grip", "High heels", "Slippery socks", "Heavy boots"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "Sunita placed your silver anniversary photo album on the middle shelf of the living room bookcase.",
+    question: "Where is the cherished anniversary album kept?",
+    options: ["Middle shelf of the living room bookcase", "Under the floorboards", "Outside in the garden", "In the dark attic"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "Before bed tonight at 9:30, remember to enjoy a cup of warm chamomile tea and take your night Donepezil tablet.",
+    question: "What two night items were mentioned before sleep?",
+    options: ["Warm chamomile tea & night tablet", "Cold soda & spicy chips", "Heavy dinner only", "Coffee & ice cream"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "Your brother Vikram sent a wooden box containing organic orthodox green tea leaves from his garden in Jorhat.",
+    question: "What gift did brother Vikram send from Jorhat?",
+    options: ["Organic green tea leaves", "Old books", "Tools", "Shoes"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "Grandson Aarav won first prize at school for his watercolor painting of a sunrise over the tea gardens!",
+    question: "What won first prize in Aarav's school art competition?",
+    options: ["Watercolor painting of tea garden sunrise", "Paper airplane", "Math test", "Clay pot"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "Cousin Manoj invited you and Sunita to visit his organic litchi orchard during next month's holiday.",
+    question: "Where did cousin Manoj invite you to visit?",
+    options: ["Organic litchi orchard", "Busy airport", "Crowded cinema", "Office building"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "The evening sandhya aarti lamp in the sacred veranda should be lit at 6:00 PM as the sun sets.",
+    question: "At what time should the evening brass lamp be lit?",
+    options: ["6:00 PM at sunset", "Noon at 12 PM", "Midnight", "3 AM"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "After tonight's light dinner, take a relaxing 15-minute indoor stroll to help smooth digestion.",
+    question: "What activity is recommended after dinner for digestion?",
+    options: ["A relaxing 15-minute indoor stroll", "Running sprint", "Heavy weightlifting", "Loud shouting"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "Sunita checked the calendar and noted that the family Bihu feast will be celebrated at home this Sunday afternoon.",
+    question: "When will the family Bihu feast take place?",
+    options: ["This Sunday afternoon", "Next year", "Last month", "On Tuesday night"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "The morning delivery brought the Assam Tribune newspaper with the daily memory crossword puzzle.",
+    question: "What newspaper arrived with the daily crossword?",
+    options: ["Assam Tribune newspaper", "Magazine only", "Comic book", "Flyer"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "The radio announcer announced a half-hour program of calming bamboo flute music starting at 2 PM.",
+    question: "What soothing music starts on the radio at 2 PM?",
+    options: ["Calming bamboo flute music", "Rock concert", "Marching band", "Sports talk"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "Remember that the spare gate key is safely placed in the carved wooden box beside your reading lamp.",
+    question: "Where is the spare gate key kept?",
+    options: ["Carved wooden box beside the reading lamp", "In the kitchen sink", "Outside on the street", "Lost in the grass"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "All four generations of the Sharma family will gather for the grand Golden Reunion dinner this coming weekend!",
+    question: "What major family milestone is being celebrated this weekend?",
+    options: ["Grand Golden Family Reunion dinner", "Sports tournament", "Office conference", "Solo trip"],
+    correct: 0,
+  },
 ];
 
 export function VoiceMemoryQuiz({
@@ -68,11 +200,18 @@ export function VoiceMemoryQuiz({
   const { speechLocale } = useI18n();
   const [currentIdx, setCurrentIdx] = useState<number>(0);
   const [selectedOpt, setSelectedOpt] = useState<number | null>(null);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [score, setScore] = useState<number>(0);
   const [mistakes, setMistakes] = useState<number>(0);
   const [isFinished, setIsFinished] = useState<boolean>(false);
+  const [hasPlayedAudio, setHasPlayedAudio] = useState<boolean>(false);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const startTimeRef = useState<{ current: number }>({ current: Date.now() })[0];
+
+  // 2 tailored audio questions per level
+  const activeQuizItems = [
+    ALL_VOICE_QUIZ_ITEMS[((level - 1) * 2) % ALL_VOICE_QUIZ_ITEMS.length],
+    ALL_VOICE_QUIZ_ITEMS[(((level - 1) * 2) + 1) % ALL_VOICE_QUIZ_ITEMS.length],
+  ];
 
   // Synthesize personal memory bank quiz items if available
   const personalQuizItems: VoiceQuizItem[] = (memoryCues || [])

@@ -18,6 +18,28 @@ const FALLBACK_PAIRS: MatchPair[] = [
   { id: "p6", itemA: { name: "Postcard Letter", icon: "✉️" }, itemB: { name: "Ink Fountain Pen", icon: "✒️" } },
   { id: "p7", itemA: { name: "Handloom Loom", icon: "🧵" }, itemB: { name: "Gamosa Scarf", icon: "🧣" } },
   { id: "p8", itemA: { name: "Bihu Dhol Drum", icon: "🥁" }, itemB: { name: "Pepa Buffalo Horn", icon: "🎺" } },
+  { id: "p9", itemA: { name: "Water Pitcher", icon: "🚰" }, itemB: { name: "Drinking Glass", icon: "🥛" } },
+  { id: "p10", itemA: { name: "Wall Clock", icon: "⏰" }, itemB: { name: "Winding Key", icon: "🗝️" } },
+  { id: "p11", itemA: { name: "Balcony Flower", icon: "🌸" }, itemB: { name: "Watering Can", icon: "🚿" } },
+  { id: "p12", itemA: { name: "Clay Cooking Handi", icon: "🍲" }, itemB: { name: "Wooden Ladle", icon: "🥄" } },
+  { id: "p13", itemA: { name: "Paint Canvas", icon: "🎨" }, itemB: { name: "Artist Brush", icon: "🖌️" } },
+  { id: "p14", itemA: { name: "Postal Envelope", icon: "💌" }, itemB: { name: "Postage Stamp", icon: "🏷️" } },
+  { id: "p15", itemA: { name: "Sewing Needle", icon: "🪡" }, itemB: { name: "Silk Spool", icon: "🧶" } },
+  { id: "p16", itemA: { name: "Wooden Mortar", icon: "🥣" }, itemB: { name: "Pestle", icon: "🪵" } },
+  { id: "p17", itemA: { name: "Temple Pooja Bell", icon: "🔔" }, itemB: { name: "Aarti Lamp", icon: "🪔" } },
+  { id: "p18", itemA: { name: "Sandalwood Paste", icon: "🪵" }, itemB: { name: "Incense Dhoop", icon: "🕯️" } },
+  { id: "p19", itemA: { name: "Traditional Gate", icon: "🚪" }, itemB: { name: "Brass Key", icon: "🔑" } },
+  { id: "p20", itemA: { name: "Morning Newspaper", icon: "📰" }, itemB: { name: "Reading Magnifier", icon: "🔍" } },
+  { id: "p21", itemA: { name: "Fresh Tea Leaves", icon: "🍃" }, itemB: { name: "Bamboo Sieve", icon: "🧺" } },
+  { id: "p22", itemA: { name: "Violin Bow", icon: "🎻" }, itemB: { name: "Music Sheet", icon: "🎶" } },
+  { id: "p23", itemA: { name: "Garden Soil", icon: "🪴" }, itemB: { name: "Hand Trowel", icon: "⛏️" } },
+  { id: "p24", itemA: { name: "Woolen Yarn", icon: "🧶" }, itemB: { name: "Knitting Needles", icon: "🥢" } },
+  { id: "p25", itemA: { name: "Winter Bed Pillow", icon: "🛏️" }, itemB: { name: "Warm Blanket", icon: "🛋️" } },
+  { id: "p26", itemA: { name: "Walking Cane", icon: "🦯" }, itemB: { name: "Comfort Shoes", icon: "👟" } },
+  { id: "p27", itemA: { name: "Prescription Bottle", icon: "💊" }, itemB: { name: "Medicine Log Book", icon: "📋" } },
+  { id: "p28", itemA: { name: "Balcony Bird Feeder", icon: "🦜" }, itemB: { name: "Grain Seeds", icon: "🌾" } },
+  { id: "p29", itemA: { name: "Vintage Radio", icon: "📻" }, itemB: { name: "Song Cassette", icon: "📼" } },
+  { id: "p30", itemA: { name: "Photo Album", icon: "📷" }, itemB: { name: "Cherished Frame", icon: "🖼️" } },
 ];
 
 export function MatchTheObject({
@@ -29,11 +51,16 @@ export function MatchTheObject({
   level?: number;
   nerState?: string;
 }) {
-  const pairCount = Math.min(8, Math.max(3, level + 2)); // Level 1=3 pairs, Level 2=4, Level 3=5, Level 4=6, Level 5=7, Level 6=8
+  // Scaling pairs: 3 to 6 pairs across levels 1–30
+  const pairCount = level <= 5 ? 3 : level <= 12 ? 4 : level <= 22 ? 5 : 6;
 
   const activePairs = useMemo(() => {
     const cultural = getCulturalPairsForMatching((nerState as NERState) || "all", pairCount);
-    return cultural.length >= pairCount ? cultural : FALLBACK_PAIRS.slice(0, pairCount);
+    if (cultural.length >= pairCount) return cultural;
+    // Rotate across 30 pairs based on level
+    const offset = ((level - 1) * 3) % FALLBACK_PAIRS.length;
+    const rotated = [...FALLBACK_PAIRS.slice(offset), ...FALLBACK_PAIRS.slice(0, offset)];
+    return rotated.slice(0, pairCount);
   }, [level, nerState, pairCount]);
 
   const [selectedA, setSelectedA] = useState<string | null>(null);

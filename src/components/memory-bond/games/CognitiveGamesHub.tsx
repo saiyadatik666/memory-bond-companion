@@ -73,6 +73,7 @@ export function CognitiveGamesHub({
   const [currentLevel, setCurrentLevel] = useState<number>(1);
   const [highestLevel, setHighestLevel] = useState<number>(1);
   const [bestScore, setBestScore] = useState<number>(0);
+  const [selectedTier, setSelectedTier] = useState<1 | 2 | 3>(1);
   const [gameStage, setGameStage] = useState<"playing" | "completed">("playing");
   const [attemptCount, setAttemptCount] = useState<number>(0);
   const [lastResult, setLastResult] = useState<LastGameResult | null>(null);
@@ -167,13 +168,13 @@ export function CognitiveGamesHub({
     },
   ];
 
-  // Helper to read persistent level data for any game
+  // Helper to read persistent level data for any game (Expanded to 30 levels)
   const getGameProgress = useCallback((gameId: string) => {
     try {
       const cur = parseInt(localStorage.getItem(`mb_game_level_${gameId}`) || "1", 10) || 1;
       const high = parseInt(localStorage.getItem(`mb_game_highest_${gameId}`) || "1", 10) || 1;
       const best = parseInt(localStorage.getItem(`mb_game_best_${gameId}`) || "0", 10) || 0;
-      return { cur: Math.max(1, Math.min(6, cur)), high: Math.max(1, Math.min(6, high)), best };
+      return { cur: Math.max(1, Math.min(30, cur)), high: Math.max(1, Math.min(30, high)), best };
     } catch {
       return { cur: 1, high: 1, best: 0 };
     }
@@ -185,6 +186,7 @@ export function CognitiveGamesHub({
     setActiveGame(gameId);
     setCurrentLevel(cur);
     setHighestLevel(high);
+    setSelectedTier(cur <= 10 ? 1 : cur <= 20 ? 2 : 3);
     setBestScore(best);
     setGameStage("playing");
     setAttemptCount(0);
@@ -196,7 +198,7 @@ export function CognitiveGamesHub({
     if (!activeGame) return;
 
     const acc = total > 0 ? Math.round((score / total) * 100) : 100;
-    const isAdvance = acc >= 50 && currentLevel < 6;
+    const isAdvance = acc >= 50 && currentLevel < 30;
     const nextLevel = isAdvance ? currentLevel + 1 : currentLevel;
 
     // Update best score
@@ -223,11 +225,13 @@ export function CognitiveGamesHub({
     else if (activeGame === "object_recall" || activeGame === "routine_recall" || activeGame === "voice_quiz") gameType = "recall";
     else if (activeGame === "sequence_memory" || activeGame === "word_memory" || activeGame === "card_match") gameType = "memory";
 
-    // Record session to central MemoryBondStore (updates live CES & trends)
-    const diffTag = currentLevel <= 2 ? "easy" : currentLevel <= 4 ? "medium" : "challenging";
+    // Record session to central MemoryBondStore with level and cycle tracking
+    const diffTag = currentLevel <= 10 ? "easy" : currentLevel <= 20 ? "medium" : "challenging";
     store.recordGameSession(activeGame, score, total, diffTag, {
       gameType,
       accuracy: acc,
+      level: currentLevel,
+      cycleNumber: store.cycleInfo?.cycleNumber,
       ...extra,
     });
 
@@ -346,21 +350,46 @@ export function CognitiveGamesHub({
               <div className="flex items-center gap-2 bg-primary/15 border border-primary/30 rounded-2xl px-3 py-1.5">
                 <Trophy className="h-4 w-4 text-primary" />
                 <span className="text-xs font-black text-primary uppercase">
-                  Level {currentLevel} of 6
+                  Level {currentLevel} of 30
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Level Switcher (Senior-friendly pills, unlocked levels clickable) */}
-          <div className="bg-secondary/30 rounded-2xl p-3 border border-border flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                Select Level:
-              </span>
+          {/* Level Switcher (Senior-friendly 30-Level Tier Tabs & Selector) */}
+          <div className="bg-secondary/30 rounded-3xl p-4 border border-border space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black text-foreground uppercase tracking-wider">
+                  Select Level (1–30):
+                </span>
+                <span className="text-xs font-semibold text-muted-foreground">
+                  Highest Unlocked: Level {highestLevel} of 30
+                </span>
+              </div>
+
+              {/* Tier Tabs */}
+              <div className="flex items-center gap-1 bg-card rounded-2xl p-1 border border-border">
+                {([1, 2, 3] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setSelectedTier(t)}
+                    className={`px-3 py-1 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                      selectedTier === t
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t === 1 ? "Levels 1–10" : t === 2 ? "Levels 11–20" : "Levels 21–30"}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {[1, 2, 3, 4, 5, 6].map((lvl) => {
+
+            {/* 10 Level Buttons for Selected Tier */}
+            <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
+              {Array.from({ length: 10 }, (_, i) => (selectedTier - 1) * 10 + 1 + i).map((lvl) => {
                 const isUnlocked = lvl <= highestLevel;
                 const isCurrent = lvl === currentLevel;
                 return (
@@ -378,16 +407,18 @@ export function CognitiveGamesHub({
                         setLastResult(null);
                       }
                     }}
-                    className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                    className={`flex flex-col items-center justify-center py-2 px-1 rounded-2xl text-xs font-black transition-all cursor-pointer ${
                       isCurrent
-                        ? "bg-primary text-primary-foreground shadow-sm scale-105"
+                        ? "bg-primary text-primary-foreground shadow-md scale-105"
                         : isUnlocked
-                        ? "bg-card border border-border text-foreground hover:border-primary"
-                        : "bg-muted/40 text-muted-foreground/50 cursor-not-allowed border border-transparent"
+                        ? "bg-card border border-border text-foreground hover:border-primary shadow-2xs"
+                        : "bg-muted/40 text-muted-foreground/40 cursor-not-allowed border border-transparent"
                     }`}
                   >
-                    {lvl > highestLevel ? <Lock className="h-3 w-3" /> : <Star className="h-3 w-3" />}
-                    Level {lvl}
+                    <span className="text-[10px] mb-0.5 opacity-80">
+                      {lvl > highestLevel ? <Lock className="h-3 w-3" /> : <Star className="h-3 w-3 text-amber-500 fill-amber-500" />}
+                    </span>
+                    <span>Lvl {lvl}</span>
                   </button>
                 );
               })}
@@ -495,9 +526,40 @@ export function CognitiveGamesHub({
                   </div>
                 </div>
 
-                {/* BIG PROMINENT NEXT LEVEL BUTTON (Requirement 27 & 28) */}
+                {/* BIG PROMINENT NEXT LEVEL BUTTON or LEVEL 30 GRAND CELEBRATION */}
                 <div className="max-w-xl mx-auto space-y-3 pt-2">
-                  {lastResult.isAdvance ? (
+                  {lastResult.completedLevel >= 30 && lastResult.accuracy >= 50 ? (
+                    <div className="rounded-3xl border-2 border-amber-500/50 bg-amber-500/10 p-6 space-y-4 shadow-xl animate-in zoom-in-95">
+                      <div className="text-5xl">🏆</div>
+                      <h3 className="text-2xl sm:text-3xl font-black text-foreground">
+                        Grand Master! Level 30 Conquered!
+                      </h3>
+                      <p className="text-sm sm:text-base font-semibold text-foreground/90 leading-relaxed">
+                        Incredible achievement! You have completed all 30 levels of {selectedGameObj.title}. Your memory, attention, and cognitive endurance are truly inspiring!
+                      </p>
+                      <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+                        <Button
+                          onClick={handleReplayCurrentLevel}
+                          size="lg"
+                          className="rounded-2xl font-black text-base px-6 py-6 bg-primary text-primary-foreground shadow-md"
+                        >
+                          <RotateCcw className="h-5 w-5 mr-1" /> Replay Level 30
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setActiveGame(null);
+                            setGameStage("playing");
+                            setLastResult(null);
+                          }}
+                          size="lg"
+                          className="rounded-2xl font-bold text-base px-6 py-6 border-border"
+                        >
+                          <ArrowLeft className="h-5 w-5 mr-1" /> All 10 Games
+                        </Button>
+                      </div>
+                    </div>
+                  ) : lastResult.isAdvance ? (
                     <Button
                       onClick={handleNextLevel}
                       size="lg"
@@ -505,7 +567,7 @@ export function CognitiveGamesHub({
                     >
                       <span>{t("nextLevel") || "NEXT LEVEL"}</span>
                       <span className="text-sm sm:text-base font-normal opacity-90">
-                        (Level {lastResult.nextLevel})
+                        (Level {lastResult.nextLevel} of 30)
                       </span>
                       <ArrowRight className="h-6 w-6 sm:h-8 sm:w-8 ml-1" />
                     </Button>
@@ -520,31 +582,33 @@ export function CognitiveGamesHub({
                     </Button>
                   )}
 
-                  <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-                    <Button
-                      variant="outline"
-                      onClick={handleReplayCurrentLevel}
-                      className="rounded-2xl font-bold text-sm h-12 px-5 gap-2 border-border"
-                    >
-                      <RotateCcw className="h-4 w-4" /> Replay Level {lastResult.completedLevel}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => {
-                        setActiveGame(null);
-                        setGameStage("playing");
-                        setLastResult(null);
-                      }}
-                      className="rounded-2xl font-bold text-sm h-12 px-5 gap-2 text-muted-foreground hover:text-foreground"
-                    >
-                      <ArrowLeft className="h-4 w-4" /> All 10 Games
-                    </Button>
-                  </div>
+                  {lastResult.completedLevel < 30 && (
+                    <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                      <Button
+                        variant="outline"
+                        onClick={handleReplayCurrentLevel}
+                        className="rounded-2xl font-bold text-sm h-12 px-5 gap-2 border-border"
+                      >
+                        <RotateCcw className="h-4 w-4" /> Replay Level {lastResult.completedLevel}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          setActiveGame(null);
+                          setGameStage("playing");
+                          setLastResult(null);
+                        }}
+                        className="rounded-2xl font-bold text-sm h-12 px-5 gap-2 text-muted-foreground hover:text-foreground"
+                      >
+                        <ArrowLeft className="h-4 w-4" /> All 10 Games
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Persistent Cognitive Progress Strip */}
                 <div className="pt-4 border-t border-border/80 flex flex-wrap items-center justify-around gap-4 text-xs text-muted-foreground font-bold max-w-xl mx-auto">
-                  <span>Level Unlocked: {highestLevel} of 6</span>
+                  <span>Level Unlocked: {highestLevel} of 30</span>
                   <span>•</span>
                   <span>Total Sessions: {store.gameSessions.length}</span>
                   <span>•</span>
@@ -580,6 +644,64 @@ export function CognitiveGamesHub({
                 <div className="text-[10px] font-bold text-muted-foreground uppercase">CES Score</div>
               </div>
             </div>
+          </div>
+
+          {/* 8-Day Content Refresh Cycle Engine (Requirements 9, 10, 16) */}
+          <div className="rounded-3xl border-2 border-emerald-500/30 bg-emerald-500/10 p-5 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-2xl text-emerald-600 dark:text-emerald-400 shrink-0">
+                  🔄
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-base sm:text-lg font-black text-foreground">
+                      8-Day Content Cycle #{store.cycleInfo.cycleNumber} ({store.cycleInfo.cycleContentSet})
+                    </h3>
+                    <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40">
+                      Day {store.cycleInfo.daysElapsedInCycle} of 8 ({store.cycleInfo.daysRemainingInCycle}d until refresh)
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl">
+                    Every 8 days, fresh questions, objects, and challenges refresh across all 30 levels. Your historical accuracy, best scores, and trends are continuously preserved!
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    store.advanceCycle();
+                    speakText(`Advanced to next 8-day cycle with fresh content set.`, speechLocale);
+                  }}
+                  className="rounded-xl font-bold text-xs gap-1.5 h-9 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/15"
+                  title="Simulate advancing to next 8-day cycle"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" /> Advance 8-Day Cycle (Demo)
+                </Button>
+              </div>
+            </div>
+
+            {/* Cycle Performance Comparison History */}
+            {store.cycleInfo.historicalCycleComparison.length > 1 && (
+              <div className="pt-2 border-t border-emerald-500/20 flex flex-wrap items-center gap-3 text-xs">
+                <span className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">
+                  Improvement Across Cycles:
+                </span>
+                {store.cycleInfo.historicalCycleComparison.map((c) => (
+                  <span
+                    key={c.cycleNumber}
+                    className="inline-flex items-center gap-1.5 bg-card/80 border border-border px-2.5 py-1 rounded-xl font-semibold"
+                  >
+                    <span>Cycle {c.cycleNumber} ({c.contentSet}):</span>
+                    <strong className="text-primary">{c.avgAccuracy}% Acc</strong>
+                    <span className="text-muted-foreground text-[10px]">(Highest Lvl {c.highestLevelReached}/30)</span>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* AI-Based Activity Recommendation Hero Card (Requirement 3 & Complete AI Loop) */}
@@ -858,7 +980,7 @@ export function CognitiveGamesHub({
                           <Volume2 className="h-4 w-4" />
                         </button>
                         <span className="text-xs font-black px-2.5 py-1 rounded-full bg-primary/15 text-primary">
-                          Lvl {prog.high}/6
+                          Lvl {prog.high}/30
                         </span>
                       </div>
                     </div>

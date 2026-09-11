@@ -9,18 +9,35 @@ export function SequenceMemory({
   onComplete: (score: number, total: number, extra?: any) => void;
   level?: number;
 }) {
-  const digitLength = Math.min(8, Math.max(3, level + 2)); // Level 1=3, Level 2=4, Level 3=5, Level 4=6, Level 5=7, Level 6=8
+  // 30 Levels progression:
+  // L1-5: 3 digits
+  // L6-10: 4 digits
+  // L11-15: 5 digits
+  // L16-20: 6 digits
+  // L21-25: 7 digits
+  // L26-30: 8 digits
+  const digitLength = level <= 5 ? 3 : level <= 10 ? 4 : level <= 15 ? 5 : level <= 20 ? 6 : level <= 25 ? 7 : 8;
 
   const [digits, setDigits] = useState<number[]>([]);
   const [userInput, setUserInput] = useState<string>("");
   const [phase, setPhase] = useState<"show" | "input" | "result">("show");
-  const [countdown, setCountdown] = useState<number>(4);
+  const [countdown, setCountdown] = useState<number>(5);
 
   const generateSequence = (length = digitLength) => {
-    const seq = Array.from({ length }, () => Math.floor(Math.random() * 9) + 1);
+    // Generate distinct, engaging digit sequences (avoiding monotonous repeats)
+    const seq: number[] = [];
+    while (seq.length < length) {
+      const nextNum = Math.floor(Math.random() * 9) + 1;
+      // avoid 3 identical consecutive digits
+      if (seq.length >= 2 && seq[seq.length - 1] === nextNum && seq[seq.length - 2] === nextNum) {
+        continue;
+      }
+      seq.push(nextNum);
+    }
     setDigits(seq);
     setUserInput("");
-    setCountdown(4);
+    const showSeconds = Math.min(8, Math.max(4, length + 1));
+    setCountdown(showSeconds);
     setPhase("show");
   };
 
@@ -78,10 +95,14 @@ export function SequenceMemory({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-secondary/40 p-4">
         <div>
-          <h3 className="text-xl font-bold text-foreground">Game 4: Number Sequence Memory</h3>
-          <p className="text-sm text-muted-foreground">Remember the numbers shown, then enter them in the same order.</p>
+          <h3 className="text-xl font-bold text-foreground">
+            Game 4: Number Sequence Memory (Level {level} of 30)
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Remember the {digitLength} numbers shown, then enter them in the same order.
+          </p>
         </div>
-        <Button variant="outline" onClick={() => generateSequence(4)} className="gap-2">
+        <Button variant="outline" onClick={() => generateSequence(digitLength)} className="gap-2">
           <RotateCcw className="h-4 w-4" /> Restart
         </Button>
       </div>
@@ -98,6 +119,19 @@ export function SequenceMemory({
                 {d}
               </div>
             ))}
+          </div>
+          <div className="pt-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                startTimeRef.current = Date.now();
+                setPhase("input");
+              }}
+              className="font-bold text-primary"
+            >
+              I'm Ready to Enter Numbers
+            </Button>
           </div>
         </div>
       )}

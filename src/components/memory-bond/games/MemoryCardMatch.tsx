@@ -11,15 +11,91 @@ interface Card {
   matched: boolean;
 }
 
-const FALLBACK_ICONS = [
-  { icon: "🪷", name: "Lotus" },
-  { icon: "☕", name: "Tea Cup" },
-  { icon: "🪔", name: "Diya" },
-  { icon: "🌳", name: "Tree" },
-  { icon: "🕊️", name: "Dove" },
-  { icon: "📖", name: "Book" },
-  { icon: "🌾", name: "Paddy" },
-  { icon: "🍎", name: "Apple" },
+const THEMED_DECKS: Array<{ theme: string; icons: Array<{ icon: string; name: string }> }> = [
+  {
+    theme: "Garden & Nature",
+    icons: [
+      { icon: "🪷", name: "Lotus" },
+      { icon: "🌹", name: "Rose" },
+      { icon: "🌻", name: "Sunflower" },
+      { icon: "🌼", name: "Marigold" },
+      { icon: "🍃", name: "Betel Leaf" },
+      { icon: "🌳", name: "Banyan Tree" },
+      { icon: "💮", name: "Jasmine" },
+      { icon: "🌾", name: "Golden Paddy" },
+      { icon: "🪴", name: "Tulsi Plant" },
+    ],
+  },
+  {
+    theme: "Morning & Kitchen",
+    icons: [
+      { icon: "☕", name: "Chai Cup" },
+      { icon: "🪔", name: "Brass Diya" },
+      { icon: "🔔", name: "Puja Bell" },
+      { icon: "🫖", name: "Tea Kettle" },
+      { icon: "🥣", name: "Kheer Bowl" },
+      { icon: "🍽️", name: "Thali" },
+      { icon: "🥄", name: "Brass Spoon" },
+      { icon: "🥛", name: "Warm Milk" },
+      { icon: "🍯", name: "Wild Honey" },
+    ],
+  },
+  {
+    theme: "Heritage & Fruits",
+    icons: [
+      { icon: "🥭", name: "Alphonso Mango" },
+      { icon: "🍎", name: "Kashmiri Apple" },
+      { icon: "🍌", name: "Banana" },
+      { icon: "🥥", name: "Coconut" },
+      { icon: "🍋", name: "Assam Lemon" },
+      { icon: "🫐", name: "Jamun" },
+      { icon: "🥜", name: "Cashew Nut" },
+      { icon: "🟡", name: "Motichoor Laddoo" },
+      { icon: "🍥", name: "Hot Jalebi" },
+    ],
+  },
+  {
+    theme: "Birds & Animals",
+    icons: [
+      { icon: "🦚", name: "Royal Peacock" },
+      { icon: "🕊️", name: "Peaceful Dove" },
+      { icon: "🐘", name: "Gentle Elephant" },
+      { icon: "🐄", name: "Sacred Cow" },
+      { icon: "🦌", name: "Spotted Deer" },
+      { icon: "🦋", name: "Colorful Butterfly" },
+      { icon: "🦜", name: "Talking Parrot" },
+      { icon: "🐟", name: "River Fish" },
+      { icon: "🐇", name: "White Rabbit" },
+    ],
+  },
+  {
+    theme: "Traditional Art & Music",
+    icons: [
+      { icon: "🥁", name: "Bihu Dhol" },
+      { icon: "🪈", name: "Bansuri Flute" },
+      { icon: "🪕", name: "Sitar" },
+      { icon: "🐚", name: "Sacred Conch" },
+      { icon: "🏵️", name: "Rangoli Pattern" },
+      { icon: "💐", name: "Floral Garland" },
+      { icon: "🪭", name: "Hand Fan" },
+      { icon: "🧵", name: "Eri Silk Spool" },
+      { icon: "🎨", name: "Alpana Paint" },
+    ],
+  },
+  {
+    theme: "Sky & Celebrations",
+    icons: [
+      { icon: "☀️", name: "Golden Sun" },
+      { icon: "🌙", name: "Crescent Moon" },
+      { icon: "⭐", name: "Bright Star" },
+      { icon: "🌈", name: "Monsoon Rainbow" },
+      { icon: "🪁", name: "Sankranti Kite" },
+      { icon: "☁️", name: "Silver Cloud" },
+      { icon: "🏮", name: "Diwali Lantern" },
+      { icon: "🎇", name: "Sparkler" },
+      { icon: "👑", name: "Royal Mukut" },
+    ],
+  },
 ];
 
 export function MemoryCardMatch({
@@ -39,12 +115,21 @@ export function MemoryCardMatch({
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
   const startTimeRef = useRef<number>(Date.now());
 
-  const pairCount = Math.min(8, Math.max(3, level + 2)); // Level 1=3 pairs, Level 2=4, Level 3=5, Level 4=6, Level 5=7, Level 6=8
+  // 30 Levels progression for elderly:
+  // L1-5: 3 pairs (6 cards)
+  // L6-10: 4 pairs (8 cards)
+  // L11-15: 5 pairs (10 cards)
+  // L16-20: 6 pairs (12 cards)
+  // L21-25: 7 pairs (14 cards)
+  // L26-30: 8 pairs (16 cards)
+  const pairCount = level <= 5 ? 3 : level <= 10 ? 4 : level <= 15 ? 5 : level <= 20 ? 6 : level <= 25 ? 7 : 8;
+
+  const currentTheme = THEMED_DECKS[(level - 1) % THEMED_DECKS.length] || THEMED_DECKS[0]!;
 
   const initGame = () => {
     // Dynamic NER Cultural Content integration
     const cultural = getCulturalCardsForMemoryMatch((nerState as NERState) || "all", pairCount);
-    const activeIcons = cultural.length >= pairCount ? cultural : FALLBACK_ICONS.slice(0, pairCount);
+    const activeIcons = cultural.length >= pairCount ? cultural : currentTheme.icons.slice(0, pairCount);
 
     const deck: Card[] = [];
     let id = 0;
@@ -133,9 +218,11 @@ export function MemoryCardMatch({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-secondary/40 p-4">
         <div>
-          <h3 className="text-xl font-bold text-foreground">Game 1: Memory Card Match (Level {level})</h3>
+          <h3 className="text-xl font-bold text-foreground">
+            Game 1: Memory Card Match (Level {level} of 30)
+          </h3>
           <p className="text-sm text-muted-foreground">
-            Tap any two cards to find matching pairs ({pairCount} pairs to find).
+            Theme: <span className="font-semibold text-primary">{currentTheme.theme}</span> • Tap any two cards to find matching pairs ({pairCount} pairs to find).
           </p>
         </div>
         <div className="flex items-center gap-4">

@@ -4,30 +4,36 @@ import { Button } from "@/components/ui/button";
 import { getCulturalWordsForMemory, type NERState } from "@/lib/nerCulturalRepository";
 
 const DEFAULT_WORD_LEVELS = [
-  {
-    targets: ["Chai", "Book", "Smile"],
-    choices: ["Chai", "Coffee", "Book", "Pen", "Smile", "Tears"],
-  },
-  {
-    targets: ["River", "Morning", "Breeze", "Jasmine"],
-    choices: ["River", "Ocean", "Morning", "Night", "Breeze", "Storm", "Jasmine", "Rose"],
-  },
-  {
-    targets: ["Tea", "Temple", "Bell", "Sun", "Flower"],
-    choices: ["Tea", "Juice", "Temple", "Palace", "Bell", "Drum", "Sun", "Moon", "Flower", "Grass"],
-  },
-  {
-    targets: ["Bamboo", "Bihu", "Flute", "Mountain", "Stream", "Clouds"],
-    choices: ["Bamboo", "Pine", "Bihu", "Diwali", "Flute", "Guitar", "Mountain", "Valley", "Stream", "Desert", "Clouds", "Dust"],
-  },
-  {
-    targets: ["Harvest", "Paddy", "Song", "Sister", "Diya", "Porch", "Rain"],
-    choices: ["Harvest", "Store", "Paddy", "Wheat", "Song", "Story", "Sister", "Cousin", "Diya", "Torch", "Porch", "Roof", "Rain", "Snow"],
-  },
-  {
-    targets: ["Brahmaputra", "Sunrise", "Peace", "Family", "Health", "Harmony", "Wisdom", "Home"],
-    choices: ["Brahmaputra", "Ganga", "Sunrise", "Sunset", "Peace", "War", "Family", "Crowd", "Health", "Pills", "Harmony", "Noise", "Wisdom", "School", "Home", "Office"],
-  },
+  { targets: ["Chai", "Book", "Smile"], choices: ["Chai", "Coffee", "Book", "Pen", "Smile", "Tears"] },
+  { targets: ["River", "Morning", "Breeze", "Jasmine"], choices: ["River", "Ocean", "Morning", "Night", "Breeze", "Storm", "Jasmine", "Rose"] },
+  { targets: ["Tea", "Temple", "Bell", "Sun", "Flower"], choices: ["Tea", "Juice", "Temple", "Palace", "Bell", "Drum", "Sun", "Moon", "Flower", "Grass"] },
+  { targets: ["Bamboo", "Bihu", "Flute", "Mountain", "Stream"], choices: ["Bamboo", "Pine", "Bihu", "Diwali", "Flute", "Guitar", "Mountain", "Valley", "Stream", "Desert"] },
+  { targets: ["Harvest", "Paddy", "Song", "Sister", "Diya"], choices: ["Harvest", "Store", "Paddy", "Wheat", "Song", "Story", "Sister", "Cousin", "Diya", "Torch"] },
+  { targets: ["Brahmaputra", "Sunrise", "Peace", "Family", "Health"], choices: ["Brahmaputra", "Ganga", "Sunrise", "Sunset", "Peace", "War", "Family", "Crowd", "Health", "Pills"] },
+  { targets: ["Mango", "Garden", "Butterfly", "Shade", "Swing"], choices: ["Mango", "Apple", "Garden", "Desert", "Butterfly", "Beetle", "Shade", "Heat", "Swing", "Bench"] },
+  { targets: ["Cardamom", "Ginger", "Honey", "Bread", "Rice"], choices: ["Cardamom", "Chili", "Ginger", "Garlic", "Honey", "Salt", "Bread", "Stone", "Rice", "Flour"] },
+  { targets: ["Mist", "Valley", "Cedar", "Pathway", "Cottage"], choices: ["Mist", "Smoke", "Valley", "Hill", "Cedar", "Bush", "Pathway", "Highway", "Cottage", "Tower"] },
+  { targets: ["Raindrop", "Balcony", "Cloud", "Sparrow", "Greenery"], choices: ["Raindrop", "Hail", "Balcony", "Basement", "Cloud", "Sun", "Sparrow", "Crow", "Greenery", "Pavement"] },
+  { targets: ["Starlight", "Candle", "Hearth", "Blanket", "Lullaby"], choices: ["Starlight", "Neon", "Candle", "Bulb", "Hearth", "Furnace", "Blanket", "Rug", "Lullaby", "Alarm"] },
+  { targets: ["Muga Silk", "Shuttle", "Weaver", "Thread", "Motif"], choices: ["Muga Silk", "Cotton", "Shuttle", "Needle", "Weaver", "Tailor", "Thread", "Rope", "Motif", "Plain"] },
+  { targets: ["Kite", "Marbles", "Laughter", "Bicycle", "Pond"], choices: ["Kite", "Balloon", "Marbles", "Dice", "Laughter", "Silence", "Bicycle", "Motorbike", "Pond", "Puddle"] },
+  { targets: ["Gulmohar", "Marigold", "Hibiscus", "Garland", "Perfume"], choices: ["Gulmohar", "Oak", "Marigold", "Thistle", "Hibiscus", "Weed", "Garland", "Chain", "Perfume", "Smoke"] },
+  { targets: ["Boat", "Paddle", "Current", "Horizon", "Fisherman"], choices: ["Boat", "Ship", "Paddle", "Oar", "Current", "Still", "Horizon", "Ground", "Fisherman", "Sailor"] },
+  { targets: ["Parchment", "Scholar", "Library", "Quill", "Clock"], choices: ["Parchment", "Plastic", "Scholar", "Novice", "Library", "Shop", "Quill", "Marker", "Clock", "Sundial"] },
+  { targets: ["Dusk", "Firefly", "Shadow", "Crickets", "Silence"], choices: ["Dusk", "Noon", "Firefly", "Moth", "Shadow", "Light", "Crickets", "Frogs", "Silence", "Traffic"] },
+  { targets: ["Tea Leaf", "Basket", "Pruning", "Dewdrop", "Estate"], choices: ["Tea Leaf", "Pine", "Basket", "Box", "Pruning", "Cutting", "Dewdrop", "Ice", "Estate", "Factory"] },
+  { targets: ["Vendor", "Spices", "Basket", "Fruit", "Coins"], choices: ["Vendor", "Buyer", "Spices", "Flour", "Basket", "Carton", "Fruit", "Grains", "Coins", "Notes"] },
+  { targets: ["Snow", "Summit", "Prayer Flags", "Glacier", "Eagle"], choices: ["Snow", "Sand", "Summit", "Cave", "Prayer Flags", "Ribbon", "Glacier", "Volcano", "Eagle", "Falcon"] },
+  { targets: ["Petrichor", "Thunder", "Lotus Pond", "Umbrella", "Breeze"], choices: ["Petrichor", "Dust", "Thunder", "Siren", "Lotus Pond", "Swamp", "Umbrella", "Coat", "Breeze", "Gale"] },
+  { targets: ["Dhol", "Folk Dance", "Feast", "Rangoli", "Sweets"], choices: ["Dhol", "Drum", "Folk Dance", "Drill", "Feast", "Snack", "Rangoli", "Chalk", "Sweets", "Sour"] },
+  { targets: ["Tulsi", "Turmeric", "Neem", "Amla", "Mint"], choices: ["Tulsi", "Grass", "Turmeric", "Saffron", "Neem", "Ivy", "Amla", "Plum", "Mint", "Sage"] },
+  { targets: ["Deer", "Fern", "Waterfall", "Moss", "Canopy"], choices: ["Deer", "Goat", "Fern", "Cactus", "Waterfall", "Tap", "Moss", "Lichen", "Canopy", "Roof"] },
+  { targets: ["Armchair", "Veranda", "Newspaper", "Tea Cup", "Sparrow"], choices: ["Armchair", "Stool", "Veranda", "Attic", "Newspaper", "Tablet", "Tea Cup", "Bottle", "Sparrow", "Pigeon"] },
+  { targets: ["Seashell", "Waves", "Coconut Palm", "Sand", "Gull"], choices: ["Seashell", "Stone", "Waves", "Tide", "Coconut Palm", "Birch", "Sand", "Mud", "Gull", "Pelican"] },
+  { targets: ["Golden Leaf", "Crisp Air", "Lantern", "Cider", "Hearth"], choices: ["Golden Leaf", "Twig", "Crisp Air", "Fog", "Lantern", "Torch", "Cider", "Juice", "Hearth", "Stove"] },
+  { targets: ["Constellation", "Galaxy", "Calm Wind", "Deep Rest", "Peace"], choices: ["Constellation", "Satellite", "Galaxy", "Nebula", "Calm Wind", "Gust", "Deep Rest", "Nap", "Peace", "Quiet"] },
+  { targets: ["Neermahal", "Loktak", "Hornbill", "Cheraw", "Kanchenjunga"], choices: ["Neermahal", "Palace", "Loktak", "Lake", "Hornbill", "Parrot", "Cheraw", "Kathak", "Kanchenjunga", "Everest"] },
+  { targets: ["Harmony", "Serenity", "Vitality", "Gratitude", "Longevity", "Wisdom"], choices: ["Harmony", "Clash", "Serenity", "Stress", "Vitality", "Lethargy", "Gratitude", "Regret", "Longevity", "Wisdom"] },
 ];
 
 export function WordMemory({

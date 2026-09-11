@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   calculateDynamicCognitiveProfile,
   getAIActivityRecommendation,
@@ -6,12 +6,15 @@ import {
   getCognitiveTrends,
   calculatePersonalizationInsights,
   getCognitiveCareLoopSteps,
+  get8DayCycleInfo,
+  advanceCycleForDemo,
   type DynamicCognitiveProfile,
   type ActivityRecommendation,
   type EarlyWarningStatus,
   type HistoricalTrendPoint,
   type PersonalizationInsights,
   type CognitiveCareLoopStep,
+  type EightDayCycleInfo,
   STATUTORY_WELLNESS_DISCLAIMER,
 } from "./cognitiveCareEngine";
 
@@ -221,6 +224,8 @@ export interface GameSession {
   completion_rate?: number; // 0-100%
   game_type?: "memory" | "attention" | "recognition" | "recall" | "cultural";
   engagement_level?: "high" | "normal" | "low";
+  level?: number;
+  cycle_number?: number;
   created_at: string;
 }
 
@@ -1352,9 +1357,12 @@ export function useMemoryBondStore() {
       attempts?: number;
       errors?: number;
       gameType?: "memory" | "attention" | "recognition" | "recall" | "cultural";
+      level?: number;
+      cycleNumber?: number;
     }
   ) => {
     const accuracy = extra?.accuracy !== undefined ? extra.accuracy : (total > 0 ? Math.round((score / total) * 100) : 100);
+    const activeCycle = get8DayCycleInfo(gameSessions);
     const session: GameSession = {
       id: `gs-${Date.now()}`,
       game_key: gameKey,
@@ -1368,11 +1376,13 @@ export function useMemoryBondStore() {
       completion_rate: 100,
       game_type: extra?.gameType || "memory",
       engagement_level: accuracy >= 75 ? "high" : "normal",
+      level: extra?.level,
+      cycle_number: extra?.cycleNumber || activeCycle.cycleNumber,
       created_at: new Date().toISOString(),
     };
     enqueueOfflineAction("RECORD_GAME_SESSION", session);
     setGameSessions((prev) => [session, ...prev]);
-  }, [enqueueOfflineAction]);
+  }, [enqueueOfflineAction, gameSessions]);
 
   // SOS Trigger
   const triggerSos = useCallback(
@@ -1728,6 +1738,11 @@ export function useMemoryBondStore() {
     dynamicCognitiveProfile,
     activityRecommendation,
     earlyWarningStatus,
+    cycleInfo: useMemo(() => get8DayCycleInfo(gameSessions), [gameSessions]),
+    advanceCycle: useCallback(() => {
+      advanceCycleForDemo();
+      setGameSessions((prev) => [...prev]);
+    }, []),
     getCognitiveTrends: useCallback(
       (tf?: "daily" | "weekly" | "monthly") => getCognitiveTrends(gameSessions, tf),
       [gameSessions]

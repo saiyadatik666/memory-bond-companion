@@ -16,6 +16,30 @@ const FALLBACK_POOL = [
   { id: "lamp", icon: "🪔", name: "Brass Diya" },
   { id: "bag", icon: "👜", name: "Market Bag" },
   { id: "bell", icon: "🔔", name: "Temple Bell" },
+  { id: "slipper", icon: "🩴", name: "Comfort Slippers" },
+  { id: "water_pot", icon: "🏺", name: "Clay Matka" },
+  { id: "radio", icon: "📻", name: "Vintage Radio" },
+  { id: "walking_stick", icon: "🦯", name: "Walking Stick" },
+  { id: "fan", icon: "🪭", name: "Handheld Fan" },
+  { id: "pen", icon: "🖊️", name: "Fountain Pen" },
+  { id: "mango", icon: "🥭", name: "Sweet Mango" },
+  { id: "conch", icon: "🐚", name: "Shankh Shell" },
+  { id: "towel", icon: "🧣", name: "Soft Gamusa" },
+  { id: "plate", icon: "🍽️", name: "Brass Thali" },
+  { id: "beads", icon: "📿", name: "Japa Mala" },
+  { id: "torch", icon: "🔦", name: "Night Torch" },
+  { id: "comb", icon: "🪮", name: "Wooden Comb" },
+  { id: "mirror", icon: "🪞", name: "Hand Mirror" },
+  { id: "spoon", icon: "🥄", name: "Brass Spoon" },
+  { id: "kettle", icon: "🫖", name: "Tea Kettle" },
+  { id: "candle", icon: "🕯️", name: "Wax Candle" },
+  { id: "leaf", icon: "🍃", name: "Betel Leaf" },
+  { id: "padlock", icon: "🔒", name: "Iron Lock" },
+  { id: "scissors", icon: "✂️", name: "Craft Scissors" },
+  { id: "cap", icon: "🧢", name: "Sun Cap" },
+  { id: "banana", icon: "🍌", name: "Ripe Banana" },
+  { id: "coconut", icon: "🥥", name: "Fresh Coconut" },
+  { id: "drum", icon: "🥁", name: "Folk Dhol" },
 ];
 
 export function ObjectRecall({
@@ -31,23 +55,38 @@ export function ObjectRecall({
   const [targetObjects, setTargetObjects] = useState<Array<{ id: string; icon: string; name: string }>>([]);
   const [distractorOptions, setDistractorOptions] = useState<Array<{ id: string; icon: string; name: string }>>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [countdown, setCountdown] = useState<number>(6);
+  const [countdown, setCountdown] = useState<number>(7);
   const recallStartRef = useRef<number>(Date.now());
 
-  const targetCount = Math.min(8, Math.max(3, level + 2)); // Level 1=3, Level 2=4, Level 3=5, Level 4=6, Level 5=7, Level 6=8
+  // 30 Levels progression:
+  // L1-5: 3 items (6 options)
+  // L6-10: 4 items (8 options)
+  // L11-15: 5 items (10 options)
+  // L16-20: 6 items (12 options)
+  // L21-25: 7 items (14 options)
+  // L26-30: 8 items (16 options)
+  const targetCount = level <= 5 ? 3 : level <= 10 ? 4 : level <= 15 ? 5 : level <= 20 ? 6 : level <= 25 ? 7 : 8;
+  const totalOptionsCount = Math.min(FALLBACK_POOL.length, targetCount * 2);
 
   const startRound = () => {
-    const cultural = getCulturalObjectsForRecall((nerState as NERState) || "all", targetCount + 5);
-    const pool = cultural.length >= targetCount + 3 ? cultural : FALLBACK_POOL;
+    const cultural = getCulturalObjectsForRecall((nerState as NERState) || "all", targetCount + 6);
+    const basePool = cultural.length >= targetCount + 4 ? cultural : FALLBACK_POOL;
 
-    const shuffled = [...pool].sort(() => Math.random() - 0.5);
-    const targets = shuffled.slice(0, targetCount);
-    const options = shuffled.slice(0, Math.min(pool.length, targetCount + 4)).sort(() => Math.random() - 0.5);
+    // Shift pool start index deterministically based on level so each level has distinct objects
+    const offset = ((level - 1) * 3) % basePool.length;
+    const rotatedPool = [...basePool.slice(offset), ...basePool.slice(0, offset)];
+
+    const targets = rotatedPool.slice(0, targetCount);
+    // Mix targets with remaining pool items for options
+    const distractors = rotatedPool.slice(targetCount, totalOptionsCount);
+    const combinedOptions = [...targets, ...distractors].sort(() => Math.random() - 0.5);
 
     setTargetObjects(targets);
-    setDistractorOptions(options);
+    setDistractorOptions(combinedOptions);
     setSelectedIds([]);
-    setCountdown(Math.max(5, 7 - Math.floor(level / 2))); // Gentle countdown
+    // Senior-friendly observation time: generous 6 to 9 seconds
+    const memorizeSeconds = Math.min(10, Math.max(6, targetCount + 2));
+    setCountdown(memorizeSeconds);
     setPhase("memorize");
   };
 
@@ -96,7 +135,7 @@ export function ObjectRecall({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-secondary/40 p-4">
         <div>
-          <h3 className="text-xl font-bold text-foreground">Game 2: Object Recall (Level {level})</h3>
+          <h3 className="text-xl font-bold text-foreground">Game 2: Object Recall (Level {level} of 30)</h3>
           <p className="text-sm text-muted-foreground">Look carefully at the everyday cultural items, then recall them.</p>
         </div>
         <Button variant="outline" onClick={startRound} className="gap-2">
@@ -117,7 +156,20 @@ export function ObjectRecall({
               </div>
             ))}
           </div>
-          <p className="text-muted-foreground">Take a deep breath. Objects will hide shortly!</p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <p className="text-muted-foreground text-sm">Take a deep breath. Objects will hide shortly!</p>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setPhase("recall");
+                recallStartRef.current = Date.now();
+              }}
+              className="font-bold text-primary"
+            >
+              I'm Ready to Recall Now
+            </Button>
+          </div>
         </div>
       )}
 
