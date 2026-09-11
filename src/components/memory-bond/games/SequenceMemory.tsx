@@ -5,9 +5,17 @@ import { Button } from "@/components/ui/button";
 export function SequenceMemory({
   onComplete,
   level = 1,
+  cycleNumber = 1,
+  cycleSeed = 0,
+  adaptiveDifficulty = "medium",
 }: {
   onComplete: (score: number, total: number, extra?: any) => void;
   level?: number;
+  cycleNumber?: number;
+  cycleSeed?: number;
+  adaptiveDifficulty?: string;
+  nerState?: string;
+  memoryCues?: any[];
 }) {
   // 30 Levels progression:
   // L1-5: 3 digits
@@ -24,10 +32,14 @@ export function SequenceMemory({
   const [countdown, setCountdown] = useState<number>(5);
 
   const generateSequence = (length = digitLength) => {
-    // Generate distinct, engaging digit sequences (avoiding monotonous repeats)
+    // Generate distinct, engaging digit sequences (incorporating 8-day cycle seed)
     const seq: number[] = [];
+    const cycleOffset = (cycleNumber - 1) * 7;
+    let seedVal = level * 31 + cycleOffset;
+
     while (seq.length < length) {
-      const nextNum = Math.floor(Math.random() * 9) + 1;
+      seedVal = (seedVal * 1103515245 + 12345) & 0x7fffffff;
+      const nextNum = (seedVal % 9) + 1;
       // avoid 3 identical consecutive digits
       if (seq.length >= 2 && seq[seq.length - 1] === nextNum && seq[seq.length - 2] === nextNum) {
         continue;
@@ -36,14 +48,15 @@ export function SequenceMemory({
     }
     setDigits(seq);
     setUserInput("");
-    const showSeconds = Math.min(8, Math.max(4, length + 1));
+    const baseSeconds = Math.min(8, Math.max(4, length + 1));
+    const showSeconds = adaptiveDifficulty === "easy" ? Math.round(baseSeconds * 1.35) : baseSeconds;
     setCountdown(showSeconds);
     setPhase("show");
   };
 
   useEffect(() => {
     generateSequence(digitLength);
-  }, [level]);
+  }, [level, cycleNumber, adaptiveDifficulty]);
 
   const startTimeRef = useState<{ current: number }>({ current: Date.now() })[0];
 

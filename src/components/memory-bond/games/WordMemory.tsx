@@ -40,12 +40,20 @@ export function WordMemory({
   onComplete,
   level = 1,
   nerState = "all",
+  cycleNumber = 1,
+  cycleSeed = 0,
+  adaptiveDifficulty = "medium",
 }: {
   onComplete: (score: number, total: number, extra?: any) => void;
   level?: number;
   nerState?: string;
+  cycleNumber?: number;
+  cycleSeed?: number;
+  adaptiveDifficulty?: string;
+  memoryCues?: any[];
 }) {
-  const safeLevelIdx = Math.min(DEFAULT_WORD_LEVELS.length - 1, Math.max(0, level - 1));
+  const cycleOffset = (cycleNumber - 1) * 3;
+  const safeLevelIdx = (level - 1 + cycleOffset) % DEFAULT_WORD_LEVELS.length;
   const defaultCurrent = DEFAULT_WORD_LEVELS[safeLevelIdx] || DEFAULT_WORD_LEVELS[0];
 
   const targetCount = Math.min(8, Math.max(3, level + 2));
@@ -56,19 +64,21 @@ export function WordMemory({
   const choices = Array.from(new Set([...targets, ...defaultCurrent.choices])).sort(() => Math.random() - 0.5);
 
   const [phase, setPhase] = useState<"read" | "recall" | "result">("read");
-  const [countdown, setCountdown] = useState<number>(6);
+  const baseObsTime = Math.min(9, Math.max(5, targetCount + 1));
+  const initialCountdown = adaptiveDifficulty === "easy" ? Math.round(baseObsTime * 1.35) : baseObsTime;
+  const [countdown, setCountdown] = useState<number>(initialCountdown);
   const [selectedWords, setSelectedWords] = useState<string[]>([]);
   const recallStartRef = useRef<number>(Date.now());
 
   const startLevel = () => {
     setSelectedWords([]);
-    setCountdown(6);
+    setCountdown(initialCountdown);
     setPhase("read");
   };
 
   useEffect(() => {
     startLevel();
-  }, [level, nerState]);
+  }, [level, nerState, cycleNumber, adaptiveDifficulty]);
 
   useEffect(() => {
     if (phase !== "read") return;

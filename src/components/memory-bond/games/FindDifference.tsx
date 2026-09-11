@@ -45,9 +45,17 @@ const PUZZLE_CATALOG: PuzzlePair[] = [
 export function FindDifference({
   onComplete,
   level = 1,
+  cycleNumber = 1,
+  cycleSeed = 0,
+  adaptiveDifficulty = "medium",
 }: {
   onComplete: (score: number, total: number, extra?: any) => void;
   level?: number;
+  cycleNumber?: number;
+  cycleSeed?: number;
+  adaptiveDifficulty?: string;
+  nerState?: string;
+  memoryCues?: any[];
 }) {
   const [puzzleIdx, setPuzzleIdx] = useState<number>(0);
   const [found, setFound] = useState<boolean>(false);
@@ -55,18 +63,24 @@ export function FindDifference({
   const [isFinished, setIsFinished] = useState<boolean>(false);
   const startTimeRef = useState<{ current: number }>({ current: Date.now() })[0];
 
-  // Grid size scales with level
+  // Grid size scales with level (adaptive if user is in easy mode)
   const gridSize = useMemo(() => {
+    if (adaptiveDifficulty === "easy") {
+      if (level <= 10) return 6;
+      if (level <= 20) return 8;
+      return 9;
+    }
     if (level <= 5) return 6;
     if (level <= 12) return 8;
     if (level <= 20) return 9;
     if (level <= 26) return 12;
     return 16;
-  }, [level]);
+  }, [level, adaptiveDifficulty]);
 
-  // Select 3 varied puzzles for this level from the 30-item catalog
+  // Select 3 varied puzzles for this level from the 30-item catalog (permuted by 8-Day Cycle)
   const activePuzzles = useMemo(() => {
-    const baseIdx = (level - 1) % PUZZLE_CATALOG.length;
+    const cycleOffset = (cycleNumber - 1) * 7;
+    const baseIdx = (level - 1 + cycleOffset) % PUZZLE_CATALOG.length;
     const puzzles = [
       PUZZLE_CATALOG[baseIdx % PUZZLE_CATALOG.length],
       PUZZLE_CATALOG[(baseIdx + 7) % PUZZLE_CATALOG.length],
@@ -75,14 +89,14 @@ export function FindDifference({
 
     return puzzles.map((p, pIdx) => {
       // Deterministic but pseudo-random oddIndex based on level & puzzle index
-      const oddIndex = ((level * 3 + pIdx * 5 + 2) % gridSize);
+      const oddIndex = ((level * 3 + pIdx * 5 + cycleOffset + 2) % gridSize);
       return {
         ...p,
         gridSize,
         oddIndex,
       };
     });
-  }, [level, gridSize]);
+  }, [level, gridSize, cycleNumber]);
 
   const current = activePuzzles[puzzleIdx] || activePuzzles[0];
 

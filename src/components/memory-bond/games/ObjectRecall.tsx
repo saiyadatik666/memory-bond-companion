@@ -46,10 +46,16 @@ export function ObjectRecall({
   onComplete,
   level = 1,
   nerState = "all",
+  cycleNumber = 1,
+  cycleSeed = 0,
+  adaptiveDifficulty = "medium",
 }: {
   onComplete: (score: number, total: number, extra?: any) => void;
   level?: number;
   nerState?: string;
+  cycleNumber?: number;
+  cycleSeed?: number;
+  adaptiveDifficulty?: string;
 }) {
   const [phase, setPhase] = useState<"memorize" | "recall" | "result">("memorize");
   const [targetObjects, setTargetObjects] = useState<Array<{ id: string; icon: string; name: string }>>([]);
@@ -72,8 +78,8 @@ export function ObjectRecall({
     const cultural = getCulturalObjectsForRecall((nerState as NERState) || "all", targetCount + 6);
     const basePool = cultural.length >= targetCount + 4 ? cultural : FALLBACK_POOL;
 
-    // Shift pool start index deterministically based on level so each level has distinct objects
-    const offset = ((level - 1) * 3) % basePool.length;
+    // Shift pool start index deterministically based on level and 8-day cycle so each cycle and level has distinct objects
+    const offset = ((level - 1) * 3 + (cycleNumber - 1) * 7) % basePool.length;
     const rotatedPool = [...basePool.slice(offset), ...basePool.slice(0, offset)];
 
     const targets = rotatedPool.slice(0, targetCount);
@@ -84,15 +90,16 @@ export function ObjectRecall({
     setTargetObjects(targets);
     setDistractorOptions(combinedOptions);
     setSelectedIds([]);
-    // Senior-friendly observation time: generous 6 to 9 seconds
-    const memorizeSeconds = Math.min(10, Math.max(6, targetCount + 2));
+    // Senior-friendly observation time: generous 6 to 10 seconds, +35% for easy adaptive pace
+    const baseSecs = Math.min(10, Math.max(6, targetCount + 2));
+    const memorizeSeconds = adaptiveDifficulty === "easy" ? Math.round(baseSecs * 1.35) : baseSecs;
     setCountdown(memorizeSeconds);
     setPhase("memorize");
   };
 
   useEffect(() => {
     startRound();
-  }, [level, nerState]);
+  }, [level, nerState, cycleNumber, adaptiveDifficulty]);
 
   useEffect(() => {
     if (phase !== "memorize") return;

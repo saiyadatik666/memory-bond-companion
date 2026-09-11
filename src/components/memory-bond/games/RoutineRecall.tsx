@@ -195,22 +195,31 @@ const ALL_ROUTINE_QUESTIONS: RoutineQuestion[] = [
 export function RoutineRecall({
   onComplete,
   level = 1,
+  cycleNumber = 1,
+  cycleSeed = 0,
+  adaptiveDifficulty = "medium",
 }: {
   onComplete: (score: number, total: number, extra?: any) => void;
   level?: number;
+  cycleNumber?: number;
+  cycleSeed?: number;
+  adaptiveDifficulty?: string;
+  nerState?: string;
+  memoryCues?: any[];
 }) {
   const [currentIdx, setCurrentIdx] = useState<number>(0);
   const [selectedOpt, setSelectedOpt] = useState<number | null>(null);
   const [score, setScore] = useState<number>(0);
 
-  // Each level selects 2 distinct questions
+  // Each level selects 2 distinct questions (permuted by 8-Day Cycle)
   const activeQuestions = useMemo(() => {
-    const base = ((level - 1) * 2) % ALL_ROUTINE_QUESTIONS.length;
+    const cycleOffset = (cycleNumber - 1) * 7;
+    const base = ((level - 1) * 2 + cycleOffset) % ALL_ROUTINE_QUESTIONS.length;
     return [
       ALL_ROUTINE_QUESTIONS[base],
       ALL_ROUTINE_QUESTIONS[(base + 1) % ALL_ROUTINE_QUESTIONS.length],
     ];
-  }, [level]);
+  }, [level, cycleNumber]);
   const [isFinished, setIsFinished] = useState<boolean>(false);
   const [mistakes, setMistakes] = useState<number>(0);
   const startTimeRef = useState<{ current: number }>({ current: Date.now() })[0];

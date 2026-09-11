@@ -186,16 +186,50 @@ const ALL_VOICE_QUIZ_ITEMS: VoiceQuizItem[] = [
     options: ["Grand Golden Family Reunion dinner", "Sports tournament", "Office conference", "Solo trip"],
     correct: 0,
   },
+  {
+    promptAudioText: "Nurse Kavita checked your morning pulse and noted your heart rate was a calm, steady 72 beats per minute.",
+    question: "What was your steady resting heart rate recorded by Nurse Kavita?",
+    options: ["72 beats per minute", "150 beats per minute", "40 beats per minute", "Unknown pulse"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "The morning sunshine on the veranda is ideal for enjoying your warm cup of ginger tulsi tea before 8:30 AM.",
+    question: "What morning beverage is recommended on the sunny veranda before 8:30 AM?",
+    options: ["Ginger tulsi tea", "Iced soda", "Bitter gourd juice only", "Cold water with ice"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "Grandson Aarav asked if you can teach him how to play the traditional Assamese bamboo flute this Sunday afternoon.",
+    question: "Which traditional musical instrument did Aarav ask you to teach him?",
+    options: ["Traditional bamboo flute", "Electric keyboard", "Drums", "Violin"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "Pharmacist Alok delivered your fresh month's supply of Donepezil memory tablets in the child-safe green container.",
+    question: "In what color container did the memory medicine arrive?",
+    options: ["Child-safe green container", "Clear glass bottle", "Black metal box", "Paper bag"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "Daughter Sunita placed your reading spectacles on top of the holy Bhagavad Gita on your wooden study table.",
+    question: "Where are your reading spectacles safely resting?",
+    options: ["On top of the holy Bhagavad Gita on the study table", "Under the bed", "In the bathroom", "On the kitchen stove"],
+    correct: 0,
+  },
 ];
 
 export function VoiceMemoryQuiz({
   onComplete,
   level = 1,
   memoryCues = [],
+  cycleNumber = 1,
+  cycleSeed = 0,
 }: {
   onComplete: (score: number, total: number, extra?: any) => void;
   level?: number;
   memoryCues?: any[];
+  cycleNumber?: number;
+  cycleSeed?: number;
 }) {
   const { speechLocale } = useI18n();
   const [currentIdx, setCurrentIdx] = useState<number>(0);
@@ -206,12 +240,6 @@ export function VoiceMemoryQuiz({
   const [hasPlayedAudio, setHasPlayedAudio] = useState<boolean>(false);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const startTimeRef = useState<{ current: number }>({ current: Date.now() })[0];
-
-  // 2 tailored audio questions per level
-  const activeQuizItems = [
-    ALL_VOICE_QUIZ_ITEMS[((level - 1) * 2) % ALL_VOICE_QUIZ_ITEMS.length],
-    ALL_VOICE_QUIZ_ITEMS[(((level - 1) * 2) + 1) % ALL_VOICE_QUIZ_ITEMS.length],
-  ];
 
   // Synthesize personal memory bank quiz items if available
   const personalQuizItems: VoiceQuizItem[] = (memoryCues || [])
@@ -228,8 +256,37 @@ export function VoiceMemoryQuiz({
       correct: 0,
     }));
 
-  const combinedItems = [...personalQuizItems, ...ALL_VOICE_QUIZ_ITEMS];
-  const activeItems = combinedItems.slice(0, Math.min(combinedItems.length, Math.max(2, level + 1)));
+  const allItemsPool = [...personalQuizItems, ...ALL_VOICE_QUIZ_ITEMS];
+
+  // Pick 2 tailored items per level, permuted by 8-Day Cycle
+  const activeItems = useMemo(() => {
+    const cycleOffset = (cycleNumber - 1) * 5;
+    const baseIdx = ((level - 1) * 2 + cycleOffset) % allItemsPool.length;
+    const rawItems = [
+      allItemsPool[baseIdx] || allItemsPool[0],
+      allItemsPool[(baseIdx + 1) % allItemsPool.length] || allItemsPool[1],
+    ];
+
+    // Shuffle options deterministically so option 0 is not predictable
+    return rawItems.map((item, itemIdx) => {
+      const correctText = item.options[item.correct];
+      const shift = ((level * 3) + (itemIdx * 7) + (cycleNumber * 2)) % item.options.length;
+      const shuffledOptions = [...item.options];
+      for (let i = shuffledOptions.length - 1; i > 0; i--) {
+        const j = (i + shift) % (i + 1);
+        const temp = shuffledOptions[i];
+        shuffledOptions[i] = shuffledOptions[j];
+        shuffledOptions[j] = temp;
+      }
+      const newCorrectIdx = shuffledOptions.indexOf(correctText);
+      return {
+        ...item,
+        options: shuffledOptions,
+        correct: newCorrectIdx >= 0 ? newCorrectIdx : 0,
+      };
+    });
+  }, [level, cycleNumber, allItemsPool.length]);
+
   const current = activeItems[currentIdx];
 
   if (!current) return null;

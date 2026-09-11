@@ -102,10 +102,15 @@ export function MemoryCardMatch({
   onComplete,
   level = 1,
   nerState = "all",
+  cycleNumber = 1,
+  cycleSeed = 0,
 }: {
   onComplete: (score: number, total: number, extra?: any) => void;
   level?: number;
   nerState?: string;
+  cycleNumber?: number;
+  cycleSeed?: number;
+  adaptiveDifficulty?: string;
 }) {
   const [cards, setCards] = useState<Card[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
@@ -124,12 +129,16 @@ export function MemoryCardMatch({
   // L26-30: 8 pairs (16 cards)
   const pairCount = level <= 5 ? 3 : level <= 10 ? 4 : level <= 15 ? 5 : level <= 20 ? 6 : level <= 25 ? 7 : 8;
 
-  const currentTheme = THEMED_DECKS[(level - 1) % THEMED_DECKS.length] || THEMED_DECKS[0]!;
+  // Rotate theme deck deterministically per 8-day cycle
+  const themeIndex = (level - 1 + (cycleNumber - 1) * 2) % THEMED_DECKS.length;
+  const currentTheme = THEMED_DECKS[themeIndex] || THEMED_DECKS[0]!;
 
   const initGame = () => {
-    // Dynamic NER Cultural Content integration
+    // Dynamic NER Cultural Content integration with 8-day cycle offset
     const cultural = getCulturalCardsForMemoryMatch((nerState as NERState) || "all", pairCount);
-    const activeIcons = cultural.length >= pairCount ? cultural : currentTheme.icons.slice(0, pairCount);
+    const offset = ((level - 1) * 2 + (cycleNumber - 1) * 3) % Math.max(1, currentTheme.icons.length);
+    const rotatedIcons = [...currentTheme.icons.slice(offset), ...currentTheme.icons.slice(0, offset)];
+    const activeIcons = cultural.length >= pairCount ? cultural : rotatedIcons.slice(0, pairCount);
 
     const deck: Card[] = [];
     let id = 0;
@@ -150,7 +159,7 @@ export function MemoryCardMatch({
 
   useEffect(() => {
     initGame();
-  }, [level, nerState]);
+  }, [level, nerState, cycleNumber]);
 
   const handleCardClick = (index: number) => {
     const card = cards[index];

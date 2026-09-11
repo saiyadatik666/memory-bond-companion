@@ -46,22 +46,31 @@ export function MatchTheObject({
   onComplete,
   level = 1,
   nerState = "all",
+  cycleNumber = 1,
+  cycleSeed = 0,
+  adaptiveDifficulty = "medium",
 }: {
   onComplete: (score: number, total: number, extra?: any) => void;
   level?: number;
   nerState?: string;
+  cycleNumber?: number;
+  cycleSeed?: number;
+  adaptiveDifficulty?: string;
+  memoryCues?: any[];
 }) {
-  // Scaling pairs: 3 to 6 pairs across levels 1–30
-  const pairCount = level <= 5 ? 3 : level <= 12 ? 4 : level <= 22 ? 5 : 6;
+  // Scaling pairs: 3 to 6 pairs across levels 1–30 (adaptive if easy)
+  const basePairCount = level <= 5 ? 3 : level <= 12 ? 4 : level <= 22 ? 5 : 6;
+  const pairCount = adaptiveDifficulty === "easy" ? Math.max(3, basePairCount - 1) : basePairCount;
 
   const activePairs = useMemo(() => {
     const cultural = getCulturalPairsForMatching((nerState as NERState) || "all", pairCount);
     if (cultural.length >= pairCount) return cultural;
-    // Rotate across 30 pairs based on level
-    const offset = ((level - 1) * 3) % FALLBACK_PAIRS.length;
+    // Rotate across 30 pairs based on level and 8-Day Cycle
+    const cycleOffset = (cycleNumber - 1) * 7;
+    const offset = ((level - 1) * 3 + cycleOffset) % FALLBACK_PAIRS.length;
     const rotated = [...FALLBACK_PAIRS.slice(offset), ...FALLBACK_PAIRS.slice(0, offset)];
     return rotated.slice(0, pairCount);
-  }, [level, nerState, pairCount]);
+  }, [level, nerState, pairCount, cycleNumber]);
 
   const [selectedA, setSelectedA] = useState<string | null>(null);
   const [selectedB, setSelectedB] = useState<string | null>(null);

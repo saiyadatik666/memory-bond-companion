@@ -255,7 +255,7 @@ export function CognitiveGamesHub({
   };
 
   // Immediate in-game Next Level launch without leaving the game
-  const handleNextLevel = () => {
+  const handleNextLevel = useCallback(() => {
     if (!lastResult || !activeGame) return;
     const targetLevel = lastResult.nextLevel;
     setCurrentLevel(targetLevel);
@@ -265,7 +265,33 @@ export function CognitiveGamesHub({
     setAttemptCount((c) => c + 1);
     setGameStage("playing");
     setLastResult(null);
-  };
+  }, [lastResult, activeGame]);
+
+  // Voice AI listener for "अगला level शुरू करो" or "Next level"
+  useEffect(() => {
+    const handleVoiceNextLevel = () => {
+      if (gameStage === "completed" && lastResult) {
+        handleNextLevel();
+      } else if (activeGame) {
+        if (currentLevel < 30) {
+          const target = currentLevel + 1;
+          setCurrentLevel(target);
+          try {
+            localStorage.setItem(`mb_game_level_${activeGame}`, String(target));
+          } catch {}
+          setAttemptCount((c) => c + 1);
+          setGameStage("playing");
+          setLastResult(null);
+        }
+      } else {
+        const recId = store.activityRecommendation?.recommendedGameId || "pattern_recall";
+        handleSelectGame(recId);
+      }
+    };
+
+    window.addEventListener("mb_start_next_level", handleVoiceNextLevel);
+    return () => window.removeEventListener("mb_start_next_level", handleVoiceNextLevel);
+  }, [gameStage, lastResult, activeGame, currentLevel, handleNextLevel, store.activityRecommendation]);
 
   // Replay current level
   const handleReplayCurrentLevel = () => {
@@ -462,11 +488,14 @@ export function CognitiveGamesHub({
           {gameStage === "playing" ? (
             <div className="rounded-3xl border border-border bg-card p-4 sm:p-8 shadow-sm">
               <selectedGameObj.component
-                key={`${activeGame}_lvl_${currentLevel}_${attemptCount}_${store.profile.selected_ner_state || "all"}`}
+                key={`${activeGame}_lvl_${currentLevel}_${attemptCount}_${store.profile.selected_ner_state || "all"}_cycle_${store.cycleInfo.cycleNumber}`}
                 level={currentLevel}
                 onComplete={handleGameComplete}
                 nerState={store.profile.selected_ner_state || "all"}
                 memoryCues={store.memoryCues}
+                cycleNumber={store.cycleInfo.cycleNumber}
+                cycleSeed={store.cycleInfo.cycleNumber * 7919}
+                adaptiveDifficulty={adaptiveRecommendation.recommended}
               />
             </div>
           ) : (

@@ -319,6 +319,17 @@ export function VoiceAssistantModal({
         return;
       }
 
+      if (intent.type === "NAVIGATE") {
+        setPendingIntent(null);
+        setFeedbackMessage(intent.confirmationMessage);
+        speakWithEchoGuard(intent.confirmationMessage, usedLocale, () => {
+          if (onNavigate) {
+            onNavigate(intent.targetView);
+          }
+        });
+        return;
+      }
+
       if (isSpokenAnswer(intent)) {
         setPendingIntent(null);
         setFeedbackMessage(intent.message);

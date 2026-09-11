@@ -69,12 +69,18 @@ export interface PatternRecallProps {
   level?: number;
   nerState?: string;
   memoryCues?: any[];
+  cycleNumber?: number;
+  cycleSeed?: number;
+  adaptiveDifficulty?: "easy" | "medium" | "challenging";
 }
 
 export function PatternRecall({
   onComplete,
   level = 1,
   nerState = "all",
+  cycleNumber = 1,
+  cycleSeed = 0,
+  adaptiveDifficulty = "medium",
 }: PatternRecallProps) {
   const { lang, speechLocale } = useI18n();
 
@@ -87,13 +93,18 @@ export function PatternRecall({
   // 26-29: Advanced Multi-Grid Arrangement
   // 30: Grand Master Synthesis
   const tierInfo = useMemo(() => {
+    // Adaptive difficulty adjustment:
+    // "easy" provides +35% observation time for low-stress elderly recall
+    // "challenging" provides crisp, engaging observation time
+    const obsModifier = adaptiveDifficulty === "easy" ? 1.35 : adaptiveDifficulty === "challenging" ? 0.85 : 1.0;
+
     if (level <= 5) {
       return {
         tierName: "Tier 1: Simple Shapes",
         mode: "sequence" as const,
         pool: SHAPES,
         count: Math.min(5, Math.max(3, level + 1)), // L1=3, L2=3, L3=4, L4=4, L5=5
-        obsTimeSec: 6,
+        obsTimeSec: Math.round(6 * obsModifier),
         description: "Watch the shapes in order, then recreate the exact sequence.",
       };
     } else if (level <= 10) {
@@ -103,7 +114,7 @@ export function PatternRecall({
         pool: CULTURAL_ITEMS,
         gridSize: 6, // 2x3 grid
         count: Math.min(4, Math.max(2, level - 4)), // L6=2, L7=3, L8=3, L9=4, L10=4
-        obsTimeSec: 7,
+        obsTimeSec: Math.round(7 * obsModifier),
         description: "Remember which cultural items are placed in each grid square.",
       };
     } else if (level <= 15) {
@@ -113,7 +124,7 @@ export function PatternRecall({
         pool: SHAPES,
         gridSize: 9, // 3x3 grid
         count: Math.min(5, Math.max(3, level - 9)), // L11=3, L12=3, L13=4, L14=4, L15=5
-        obsTimeSec: 7,
+        obsTimeSec: Math.round(7 * obsModifier),
         description: "Follow the sequence of highlighted squares across the 3x3 grid.",
       };
     } else if (level <= 20) {
@@ -122,7 +133,7 @@ export function PatternRecall({
         mode: "sequence" as const,
         pool: DIRECTIONS,
         count: Math.min(6, Math.max(3, level - 14)), // L16=3, L17=4, L18=4, L19=5, L20=6
-        obsTimeSec: 6,
+        obsTimeSec: Math.round(6 * obsModifier),
         description: "Remember the directional journey, step by step.",
       };
     } else if (level <= 25) {
@@ -131,7 +142,7 @@ export function PatternRecall({
         mode: "sequence" as const,
         pool: NATURE_SYMBOLS,
         count: Math.min(6, Math.max(4, level - 19)), // L21=4, L22=4, L23=5, L24=5, L25=6
-        obsTimeSec: 5, // Shorter observation time
+        obsTimeSec: Math.round(5 * obsModifier), // Shorter observation time
         description: "Focus closely on these soothing nature symbols and recall their order.",
       };
     } else if (level <= 29) {
@@ -141,7 +152,7 @@ export function PatternRecall({
         pool: [...CULTURAL_ITEMS, ...NATURE_SYMBOLS],
         gridSize: 9, // 3x3 grid
         count: Math.min(6, Math.max(4, level - 23)), // L26=4, L27=5, L28=5, L29=6
-        obsTimeSec: 8,
+        obsTimeSec: Math.round(8 * obsModifier),
         description: "Memorize the positions of multiple items on the 3x3 matrix.",
       };
     } else {
@@ -151,16 +162,17 @@ export function PatternRecall({
         mode: "sequence" as const,
         pool: [...SHAPES, ...CULTURAL_ITEMS, ...DIRECTIONS],
         count: 6,
-        obsTimeSec: 8,
+        obsTimeSec: Math.round(8 * obsModifier),
         description: "The ultimate memory celebration! Recall a diverse 6-item visual sequence.",
       };
     }
-  }, [level]);
+  }, [level, adaptiveDifficulty]);
 
   // Game Phases: "observe" -> "recall" -> "feedback"
   const [phase, setPhase] = useState<"observe" | "recall" | "feedback">("observe");
   const [countdown, setCountdown] = useState<number>(tierInfo.obsTimeSec);
   const [userSelection, setUserSelection] = useState<any[]>([]);
+  const [selectedPaletteItem, setSelectedPaletteItem] = useState<any>(null);
   const [mistakes, setMistakes] = useState<number>(0);
   const [scoreResult, setScoreResult] = useState<{ score: number; total: number; acc: number } | null>(null);
 
@@ -169,15 +181,17 @@ export function PatternRecall({
   const [targetGridPositions, setTargetGridPositions] = useState<{ index: number; item: any }[]>([]);
   const startTimeRef = useRef<number>(Date.now());
 
-  // Generate distinct pattern for this level
+  // Generate distinct pattern for this level (incorporating 8-Day Cycle seed)
   const generatePattern = () => {
     setUserSelection([]);
+    setSelectedPaletteItem(null);
     setMistakes(0);
     setScoreResult(null);
 
-    // Deterministic shuffle seeded by level to guarantee variation
+    // Deterministic shuffle seeded by level and 8-day cycle to guarantee fresh variation every cycle
+    const cycleOffset = (cycleNumber - 1) * 7;
     const poolShuffled = [...tierInfo.pool].sort(
-      (a, b) => ((a.id.charCodeAt(0) * (level + 7)) % 17) - ((b.id.charCodeAt(0) * (level + 13)) % 17)
+      (a, b) => ((a.id.charCodeAt(0) * (level + cycleOffset + 7)) % 17) - ((b.id.charCodeAt(0) * (level + cycleOffset + 13)) % 17)
     );
 
     if (tierInfo.mode === "sequence") {
@@ -186,24 +200,40 @@ export function PatternRecall({
       setTargetGridPositions([]);
     } else if (tierInfo.mode === "grid_positions") {
       const gridSize = tierInfo.gridSize || 6;
-      // Pick random distinct cell indices
+      // Deterministic distinct cell indices based on level and cycle
       const indices: number[] = [];
-      while (indices.length < tierInfo.count) {
-        const idx = Math.floor(Math.random() * gridSize);
+      let step = 0;
+      while (indices.length < tierInfo.count && step < 50) {
+        const idx = (Math.floor(Math.sin((level * 13) + (cycleOffset * 7) + step) * 10000) >>> 0) % gridSize;
         if (!indices.includes(idx)) indices.push(idx);
+        step++;
       }
+      // Fallback if needed
+      for (let i = 0; i < gridSize && indices.length < tierInfo.count; i++) {
+        if (!indices.includes(i)) indices.push(i);
+      }
+
       const positions = indices.map((idx, i) => ({
         index: idx,
         item: poolShuffled[i % poolShuffled.length],
       }));
       setTargetGridPositions(positions);
       setTargetSequence([]);
+      // Preselect first palette item for smooth senior interaction
+      if (poolShuffled.length > 0) {
+        setSelectedPaletteItem(poolShuffled[0]);
+      }
     } else if (tierInfo.mode === "grid_sequence") {
       const gridSize = tierInfo.gridSize || 9;
       const seq: number[] = [];
-      while (seq.length < tierInfo.count) {
-        const cell = Math.floor(Math.random() * gridSize);
+      let step = 0;
+      while (seq.length < tierInfo.count && step < 50) {
+        const cell = (Math.floor(Math.cos((level * 17) + (cycleOffset * 5) + step) * 10000) >>> 0) % gridSize;
         if (seq[seq.length - 1] !== cell) seq.push(cell);
+        step++;
+      }
+      for (let i = 0; seq.length < tierInfo.count; i++) {
+        seq.push(i % gridSize);
       }
       setTargetSequence(seq);
       setTargetGridPositions([]);
@@ -215,7 +245,7 @@ export function PatternRecall({
 
   useEffect(() => {
     generatePattern();
-  }, [level]);
+  }, [level, cycleNumber, adaptiveDifficulty]);
 
   // Observation Timer
   useEffect(() => {
@@ -248,7 +278,7 @@ export function PatternRecall({
   };
 
   // User input handler for grid cell clicking
-  const handleGridCellClick = (cellIndex: number, currentItem?: any) => {
+  const handleGridCellClick = (cellIndex: number) => {
     if (phase !== "recall") return;
 
     if (tierInfo.mode === "grid_sequence") {
@@ -260,8 +290,8 @@ export function PatternRecall({
       const existing = userSelection.find((p) => p.index === cellIndex);
       if (existing) {
         setUserSelection((prev) => prev.filter((p) => p.index !== cellIndex));
-      } else if (currentItem) {
-        setUserSelection((prev) => [...prev, { index: cellIndex, item: currentItem }]);
+      } else if (selectedPaletteItem) {
+        setUserSelection((prev) => [...prev, { index: cellIndex, item: selectedPaletteItem }]);
       }
     }
   };
@@ -467,7 +497,7 @@ export function PatternRecall({
               {tierInfo.mode === "sequence"
                 ? `Tap items below to fill the ${targetSequence.length} sequence slots in order.`
                 : tierInfo.mode === "grid_positions"
-                ? `Place items into the exact squares where you saw them.`
+                ? `Select an item below, then tap a square to place it in the grid.`
                 : `Tap the 3x3 squares in the sequence they lit up.`}
             </p>
           </div>
@@ -517,7 +547,7 @@ export function PatternRecall({
                     <button
                       key={idx}
                       type="button"
-                      onClick={() => handleGridCellClick(idx, userSelection[0]?.item || tierInfo.pool[0])}
+                      onClick={() => handleGridCellClick(idx)}
                       className={`h-24 sm:h-28 rounded-2xl border-2 flex flex-col items-center justify-center transition-all cursor-pointer ${
                         placed
                           ? `${placed.item.bg} shadow-md`
@@ -530,9 +560,12 @@ export function PatternRecall({
                           <span className="text-[10px] font-bold mt-1 truncate max-w-[80px]">
                             {placed.item.label}
                           </span>
+                          <span className="text-[9px] text-muted-foreground mt-0.5">(Tap to remove)</span>
                         </>
                       ) : (
-                        <span className="text-xs font-bold text-muted-foreground/60">Tap to place</span>
+                        <span className="text-xs font-bold text-muted-foreground/60">
+                          {selectedPaletteItem ? `Place ${selectedPaletteItem.symbol}` : "Tap to place"}
+                        </span>
                       )}
                     </button>
                   );
@@ -566,23 +599,37 @@ export function PatternRecall({
           )}
 
           {/* PALETTE CHOICES (For sequence & object placing) */}
-          {tierInfo.mode === "sequence" && (
+          {(tierInfo.mode === "sequence" || tierInfo.mode === "grid_positions") && (
             <div className="space-y-2">
               <div className="text-center text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Available Items Palette (Tap to Add)
+                {tierInfo.mode === "sequence"
+                  ? "Available Items Palette (Tap to Add)"
+                  : "Select an Item below, then tap a square above:"}
               </div>
               <div className="flex flex-wrap items-center justify-center gap-2.5">
-                {tierInfo.pool.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => handleSelectPaletteItem(item)}
-                    className={`px-4 py-3 rounded-2xl border-2 flex items-center gap-2 text-sm font-black shadow-xs hover:scale-105 transition-all cursor-pointer ${item.bg}`}
-                  >
-                    <span className="text-2xl">{item.symbol}</span>
-                    <span>{item.label}</span>
-                  </button>
-                ))}
+                {tierInfo.pool.map((item) => {
+                  const isCurrentlyChosen = tierInfo.mode === "grid_positions" && selectedPaletteItem?.id === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        if (tierInfo.mode === "sequence") {
+                          handleSelectPaletteItem(item);
+                        } else {
+                          setSelectedPaletteItem(item);
+                        }
+                      }}
+                      className={`px-4 py-3 rounded-2xl border-2 flex items-center gap-2 text-sm font-black shadow-xs hover:scale-105 transition-all cursor-pointer ${item.bg} ${
+                        isCurrentlyChosen ? "ring-4 ring-primary shadow-md scale-105" : ""
+                      }`}
+                    >
+                      <span className="text-2xl">{item.symbol}</span>
+                      <span>{item.label}</span>
+                      {isCurrentlyChosen && <Check className="h-4 w-4 ml-1 text-primary" />}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

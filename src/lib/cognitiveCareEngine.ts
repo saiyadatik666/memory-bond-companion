@@ -790,6 +790,24 @@ export function advanceCycleForDemo(): number {
     const current = parseInt(localStorage.getItem(CYCLE_OVERRIDE_KEY) || "0", 10) || 0;
     const next = current + 1;
     localStorage.setItem(CYCLE_OVERRIDE_KEY, String(next));
+    // Requirement 9: Upon entering new 8-day cycle, games return to Level 1 with fresh content set, while preserving all past accuracy
+    const allGameIds = [
+      "card_match",
+      "object_recall",
+      "pattern_recall",
+      "sequence_memory",
+      "routine_recall",
+      "family_photo",
+      "voice_quiz",
+      "find_difference",
+      "word_memory",
+      "match_object",
+    ];
+    allGameIds.forEach((id) => {
+      try {
+        localStorage.setItem(`mb_game_level_${id}`, "1");
+      } catch {}
+    });
     return next;
   } catch {
     return 1;

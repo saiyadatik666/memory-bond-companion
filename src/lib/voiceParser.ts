@@ -651,9 +651,26 @@ export function parseVoiceIntent(
     }
   }
 
-  // 1.5. Conversational Multi-Turn Dialogue Engine (Contextual appointment/reminder consent & time collection)
+  // 1.5. Conversational Multi-Turn Dialogue Engine (Contextual appointment/reminder consent, medicine help, activities, games)
   const multiTurn = conversationalAI.handleMultiTurnDialogue(text, store, locale, extractTime);
   if (multiTurn && multiTurn.handled) {
+    if (multiTurn.action === "navigate_games") {
+      return {
+        type: "NAVIGATE",
+        targetView: "games",
+        confirmationMessage: multiTurn.responseText,
+      };
+    }
+    if (multiTurn.action === "next_level") {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("mb_start_next_level"));
+      }
+      return {
+        type: "NAVIGATE",
+        targetView: "games",
+        confirmationMessage: multiTurn.responseText,
+      };
+    }
     return {
       type: "ANSWER",
       message: multiTurn.responseText,
@@ -987,18 +1004,18 @@ export function parseVoiceIntent(
     lower.includes("नमस्ते")
   ) {
     const greetings: Record<string, string> = {
-      "hi-IN": "नमस्ते! आपका दिन शुभ हो। मैं आपकी क्या मदद करूँ?",
-      "as-IN": "নমস্কাৰ! আপোনাৰ দিনটো শান্তিময় হওক। মই কেনেকৈ সহায় কৰিব পাৰোঁ?",
-      "bn-IN": "নমস্কার! আপনার দিনটি সুন্দর হোক। আমি কীভাবে সাহায্য করতে পারি?",
-      "gu-IN": "નમસ્તે! તમારો દિવસ શુભ રહે. હું તમને કેવી રીતે મદદ કરી શકું?",
-      "mr-IN": "नमस्कार! आपला दिवस आनंदी जावो. मी काय मदत करू?",
-      "ta-IN": "வணக்கம்! உங்கள் நாள் இனிதாக அமையட்டும். நான் எப்படி உதவலாம்?",
-      "te-IN": "నమస్కారం! మీ రోజు ప్రశాంతంగా ఉండాలి. నేను ఎలా సహాయపడగలను?",
-      "kn-IN": "ನಮಸ್ಕಾರ! ನಿಮ್ಮ ದಿನವು ಶುಭವಾಗಿರಲಿ. ನಾನು ಹೇಗೆ ಸಹಾಯ ಮಾಡಲಿ?",
-      "ml-IN": "നമസ്കാരം! നിങ്ങളുടെ ദിവസം ശുഭകരമാകട്ടെ. ഞാൻ എങ്ങനെ സഹായിക്കണം?",
-      "pa-IN": "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ! ਤੁਹਾਡਾ ਦਿਨ ਵਧੀਆ ਰਹੇ। ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਮਦਦ ਕਰ ਸਕਦਾ ਹਾਂ?",
-      "or-IN": "ନମସ୍କାର! ଆପଣଙ୍କ ଦିନ ଶୁଭଙ୍କର ହେଉ। ମୁଁ କିପରି ସାହାଯ୍ୟ କରିବି?",
-      "en-IN": "Good day! Wishing you a peaceful day. How can I assist you today?",
+      "hi-IN": "नमस्ते! आपसे बात करके बहुत अच्छा लगा। आज आपका दिन कैसा चल रहा है?",
+      "as-IN": "নমস্কাৰ! আপোনাৰ লগত কথা পাতি বৰ ভাল লাগিল। আপুনি ভালে আছেনে?",
+      "bn-IN": "নমস্কার! আপনার সাথে কথা বলে খুব ভালো লাগলো। আজকের দিনটি কেমন কাটছে?",
+      "gu-IN": "નમસ્તે! તમારી સાથે વાત કરીને ખૂબ આનંદ થયો. આજે તમારો દિવસ કેવો રહ્યો?",
+      "mr-IN": "नमस्कार! आपल्याशी संवाद साधून खूप आनंद झाला. आजचा दिवस कसा चालू आहे?",
+      "ta-IN": "வணக்கம்! உங்களுடன் பேசுவதில் மிக்க மகிழ்ச்சி. இன்றைய நாள் எப்படி செல்கிறது?",
+      "te-IN": "నమస్కారం! మీతో మాట్లాడటం చాలా సంతోషంగా ఉంది. ఈ రోజు ఎలా ఉంది?",
+      "kn-IN": "ನಮಸ್ಕಾರ! ನಿಮ್ಮೊಂದಿಗೆ ಮಾತನಾಡಲು ತುಂಬಾ ಸಂತೋಷವಾಗಿದೆ. ನಿಮ್ಮ ದಿನ ಹೇಗಿದೆ?",
+      "ml-IN": "നമസ്കാരം! നിങ്ങളോട് സംസാരിക്കുന്നതിൽ സന്തോഷം. ഇന്നത്തെ ദിവസം എങ്ങനെ പോകുന്നു?",
+      "pa-IN": "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ! ਤੁਹਾਡੇ ਨਾਲ ਗੱਲ ਕਰਕੇ ਬਹੁਤ ਖੁਸ਼ੀ ਹੋਈ। ਤੁਹਾਡਾ ਦਿਨ ਕਿਵੇਂ ਚੱਲ ਰਿਹਾ ਹੈ?",
+      "or-IN": "ନମସ୍କାର! ଆପଣଙ୍କ ସହ କଥା ହୋଇ ବହୁତ ଖୁସି ଲାଗିଲା। ଆଜିର ଦିନ କିପରି ଚାଲିଛି?",
+      "en-IN": "Hello! It is so wonderful to talk with you today. How are you feeling right now?",
     };
     return {
       type: "CASUAL_CHAT",

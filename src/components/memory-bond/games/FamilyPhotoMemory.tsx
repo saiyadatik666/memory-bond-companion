@@ -321,10 +321,17 @@ export function FamilyPhotoMemory({
   onComplete,
   level = 1,
   memoryCues = [],
+  cycleNumber = 1,
+  cycleSeed = 0,
+  adaptiveDifficulty = "medium",
 }: {
   onComplete: (score: number, total: number, extra?: any) => void;
   level?: number;
   memoryCues?: MemoryCue[];
+  cycleNumber?: number;
+  cycleSeed?: number;
+  adaptiveDifficulty?: string;
+  nerState?: string;
 }) {
   const [currentIdx, setCurrentIdx] = useState<number>(0);
   const [selected, setSelected] = useState<string | null>(null);
@@ -349,10 +356,11 @@ export function FamilyPhotoMemory({
       }));
 
     const pool = customProfiles.length > 0 ? [...customProfiles, ...DEFAULT_FAMILY_PROFILES] : DEFAULT_FAMILY_PROFILES;
-    // For level L in [1..30], pick 2 profiles by offset
-    const offset = ((level - 1) * 2) % pool.length;
+    // For level L in [1..30], pick 2 profiles by offset (permuted by 8-Day Cycle)
+    const cycleOffset = (cycleNumber - 1) * 3;
+    const offset = ((level - 1) * 2 + cycleOffset) % pool.length;
     return [pool[offset], pool[(offset + 1) % pool.length]];
-  }, [memoryCues, level]);
+  }, [memoryCues, level, cycleNumber]);
 
   const current = activeProfiles[currentIdx];
 
