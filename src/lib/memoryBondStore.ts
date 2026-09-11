@@ -36,6 +36,7 @@ export interface Profile {
   reduced_motion?: boolean;
   voice_provider?: "web_speech" | "bhashini" | "google_cloud";
   selected_ner_state?: string;
+  selected_state?: string;
   floating_bubble?: boolean;
   baseline_assessment?: {
     completed_at: string;
@@ -198,6 +199,9 @@ export interface EmergencyContact {
   email?: string;
   priority: number;
   is_emergency: boolean;
+  photo_url?: string;
+  voice_memory?: string;
+  active_for_calls?: boolean;
 }
 
 export interface SosEvent {
@@ -539,38 +543,60 @@ export const DEMO_JOURNAL: MemoryJournalItem[] = [
 export const DEMO_EMERGENCY_CONTACTS: EmergencyContact[] = [
   {
     id: "em-1",
-    name: "Sunita Sharma (Daughter)",
+    name: "Sunita Sharma",
     relationship: "Daughter / Primary Caregiver",
     phone: "+91 98765 43210",
     email: "sunita.sharma@example.com",
     priority: 1,
     is_emergency: true,
+    active_for_calls: true,
+    photo_url: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop&q=80",
+    voice_memory: "यह सुनीता हैं, आपकी बेटी। वे हर रविवार आपसे मिलने आती हैं और रोज़ शाम 5 बजे फोन करती हैं।",
   },
   {
     id: "em-2",
-    name: "Rajesh Sharma (Son)",
-    relationship: "Son (Lives in Bengaluru)",
+    name: "Rahul Sharma",
+    relationship: "Son",
     phone: "+91 98765 43211",
-    email: "rajesh.sharma@example.com",
+    email: "rahul.sharma@example.com",
     priority: 2,
     is_emergency: true,
+    active_for_calls: true,
+    photo_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80",
+    voice_memory: "यह राहुल हैं, आपके बेटे। वे बेंगलुरु में रहते हैं और वीकेंड पर वीडियो कॉल करते हैं।",
   },
   {
     id: "em-3",
-    name: "Dr. Deepen Barua",
-    relationship: "Family Doctor",
-    phone: "+91 98640 12345",
-    email: "dr.barua@clinic.in",
+    name: "Aarav Sharma",
+    relationship: "Grandson",
+    phone: "+91 98765 43215",
     priority: 3,
     is_emergency: false,
+    active_for_calls: false,
+    photo_url: "https://images.unsplash.com/photo-1543332164-6e82f355badc?w=300&auto=format&fit=crop&q=80",
+    voice_memory: "यह आरव है, आपका प्यारा पोता। इसे आपके साथ खेलना बहुत पसंद है।",
   },
   {
     id: "em-4",
+    name: "Dr. Deepen Barua",
+    relationship: "Family Doctor (Cardiologist)",
+    phone: "+91 98640 12345",
+    email: "dr.barua@clinic.in",
+    priority: 4,
+    is_emergency: true,
+    active_for_calls: true,
+    photo_url: "https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=300&auto=format&fit=crop&q=80",
+    voice_memory: "यह डॉ. दीपेन बरुआ हैं, आपके पारिवारिक डॉक्टर।",
+  },
+  {
+    id: "em-5",
     name: "National Senior Helpline / Police",
     relationship: "Emergency SOS Services",
     phone: "14567",
-    priority: 4,
+    priority: 5,
     is_emergency: true,
+    active_for_calls: true,
+    voice_memory: "यह राष्ट्रीय वरिष्ठ नागरिक आपातकालीन हेल्पलाइन है।",
   },
 ];
 
@@ -1420,6 +1446,21 @@ export function useMemoryBondStore() {
     [contacts, profile.full_name]
   );
 
+  // SOS Cancel: immediately halt emergency state, clear notifications & log safety
+  const cancelActiveSos = useCallback(() => {
+    setNotifications((prev) =>
+      prev.filter((n) => !(n.category === "sos" && !n.read))
+    );
+    const cancelLog: AuditLogEntry = {
+      id: `audit-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      role: profile.role,
+      action: "SOS_CANCELLED",
+      details: `Active SOS emergency cancelled by user (${profile.full_name}). Emergency alerts disarmed safely.`,
+    };
+    setAuditLog((prev) => [cancelLog, ...prev]);
+  }, [profile.role, profile.full_name]);
+
   // Social Engagement Actions
   const addSocialPost = useCallback((post: Omit<SocialPost, "id" | "created_at" | "reactions" | "voice_replies">) => {
     const newPost: SocialPost = {
@@ -1730,6 +1771,7 @@ export function useMemoryBondStore() {
     // SOS
     sosEvents,
     triggerSos,
+    cancelActiveSos,
 
     // Games & Cognitive Scores
     gameSessions,

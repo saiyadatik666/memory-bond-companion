@@ -96,8 +96,8 @@ export function CognitiveGamesHub({
     },
     {
       id: "object_recall",
-      title: "Object Recall",
-      description: "Memorize everyday cultural items and recall which appeared.",
+      title: "Spatial Home Vault",
+      description: "Remember where everyday items are placed around the home.",
       icon: Search,
       color: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border-cyan-500/30",
       component: ObjectRecall,
@@ -488,11 +488,12 @@ export function CognitiveGamesHub({
           {gameStage === "playing" ? (
             <div className="rounded-3xl border border-border bg-card p-4 sm:p-8 shadow-sm">
               <selectedGameObj.component
-                key={`${activeGame}_lvl_${currentLevel}_${attemptCount}_${store.profile.selected_ner_state || "all"}_cycle_${store.cycleInfo.cycleNumber}`}
+                key={`${activeGame}_lvl_${currentLevel}_${attemptCount}_${store.profile.selected_state || store.profile.selected_ner_state || "all"}_cycle_${store.cycleInfo.cycleNumber}`}
                 level={currentLevel}
                 onComplete={handleGameComplete}
-                nerState={store.profile.selected_ner_state || "all"}
+                nerState={store.profile.selected_state || store.profile.selected_ner_state || "all"}
                 memoryCues={store.memoryCues}
+                contacts={store.contacts}
                 cycleNumber={store.cycleInfo.cycleNumber}
                 cycleSeed={store.cycleInfo.cycleNumber * 7919}
                 adaptiveDifficulty={adaptiveRecommendation.recommended}

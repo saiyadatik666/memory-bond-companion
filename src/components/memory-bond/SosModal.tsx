@@ -51,7 +51,10 @@ function playEmergencySiren(): () => void {
 
     return () => {
       try {
+        gain.gain.setValueAtTime(0, ctx.currentTime);
+        gain.disconnect();
         osc.stop();
+        osc.disconnect();
         ctx.close();
       } catch {}
     };
@@ -98,12 +101,15 @@ export function SosModal({
   const holdDurationMs = 10000; // 10-second hold for accidental activation protection
   const sirenStopFnRef = useRef<(() => void) | null>(null);
   const recognitionRef = useRef<any>(null);
+  const isCancelledRef = useRef<boolean>(false);
 
   // Reset and start 10-second confirmation on modal open
   useEffect(() => {
     if (isOpen) {
+      isCancelledRef.current = false;
       goToConfirmation("Emergency SOS Activated");
     } else {
+      isCancelledRef.current = true;
       cleanupTimers();
       setStep("idle");
       setHoldProgress(0);
@@ -115,14 +121,33 @@ export function SosModal({
   }, [isOpen]);
 
   const cleanupTimers = () => {
-    clearInterval(holdIntervalRef.current);
-    clearInterval(cancelCountdownIntervalRef.current);
+    if (holdIntervalRef.current) {
+      clearInterval(holdIntervalRef.current);
+      holdIntervalRef.current = null;
+    }
+    if (cancelCountdownIntervalRef.current) {
+      clearInterval(cancelCountdownIntervalRef.current);
+      cancelCountdownIntervalRef.current = null;
+    }
     if (recognitionRef.current) {
       try { recognitionRef.current.abort(); } catch {}
+      recognitionRef.current = null;
     }
     if (sirenStopFnRef.current) {
-      sirenStopFnRef.current();
+      try { sirenStopFnRef.current(); } catch {}
       sirenStopFnRef.current = null;
+    }
+    if (typeof window !== "undefined") {
+      if ("vibrate" in navigator) {
+        try {
+          navigator.vibrate(0);
+        } catch {}
+      }
+      if (window.speechSynthesis) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch {}
+      }
     }
     stopSpeaking();
   };
@@ -134,6 +159,7 @@ export function SosModal({
     e.preventDefault();
     if (step === "dispatched" || step === "confirming") return;
 
+    isCancelledRef.current = false;
     setStep("holding");
     setHoldProgress(0);
     setHoldSecondsRemaining(10);
@@ -145,6 +171,10 @@ export function SosModal({
     }
 
     holdIntervalRef.current = setInterval(() => {
+      if (isCancelledRef.current) {
+        clearInterval(holdIntervalRef.current);
+        return;
+      }
       const elapsed = Date.now() - holdStartTimeRef.current;
       const pct = Math.min(100, (elapsed / holdDurationMs) * 100);
       const sLeft = Math.max(1, Math.ceil((holdDurationMs - elapsed) / 1000));
@@ -177,6 +207,7 @@ export function SosModal({
   // 2. EMERGENCY VOICE INPUT ("Speak what happened")
   // -------------------------------------------------------------------------
   const startEmergencyVoiceInput = () => {
+    isCancelledRef.current = false;
     setStep("voice_input");
     setSpokenEmergencyText("");
     setIsVoiceListening(true);
@@ -204,6 +235,7 @@ export function SosModal({
       rec.maxAlternatives = 1;
 
       rec.onresult = (event: any) => {
+        if (isCancelledRef.current) return;
         const text = event.results[0]?.[0]?.transcript;
         if (text) {
           setSpokenEmergencyText(text);
@@ -238,6 +270,7 @@ export function SosModal({
   // 3. FULL-SCREEN CONFIRMATION FLOW (10-Second Countdown & Cancel / I'm Safe)
   // -------------------------------------------------------------------------
   const goToConfirmation = (detail: string) => {
+    if (isCancelledRef.current) return;
     setStep("confirming");
     setCancelCountdown(10);
 
@@ -257,7 +290,14 @@ export function SosModal({
 
     // 10-second countdown to automatic emergency dispatch
     let remaining = 10;
+    if (cancelCountdownIntervalRef.current) {
+      clearInterval(cancelCountdownIntervalRef.current);
+    }
     cancelCountdownIntervalRef.current = setInterval(() => {
+      if (isCancelledRef.current) {
+        clearInterval(cancelCountdownIntervalRef.current);
+        return;
+      }
       remaining -= 1;
       setCancelCountdown(remaining);
 
@@ -267,22 +307,41 @@ export function SosModal({
 
       if (remaining <= 0) {
         clearInterval(cancelCountdownIntervalRef.current);
-        executeFinalDispatch(detail);
+        if (!isCancelledRef.current) {
+          executeFinalDispatch(detail);
+        }
       }
     }, 1000);
   };
 
-  const handleCancelAndImSafe = () => {
+  const handleCancelAndImSafe = (e?: React.SyntheticEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    // Atomic cancellation flag: kills any pending timer or callback instantly
+    isCancelledRef.current = true;
     cleanupTimers();
+
+    if (store && typeof store.cancelActiveSos === "function") {
+      store.cancelActiveSos();
+    }
+
     setStep("idle");
+    setHoldProgress(0);
+    setHoldSecondsRemaining(10);
+    setCancelCountdown(10);
+    setSpokenEmergencyText("");
+    setIsVoiceListening(false);
+
     onClose();
-    speakText("Emergency alert cancelled. Glad you are safe!", speechLocale);
   };
 
   // -------------------------------------------------------------------------
   // 4. FINAL SOS DISPATCH & CALL ESCALATION
   // -------------------------------------------------------------------------
   const executeFinalDispatch = (emergencyNote?: string) => {
+    if (isCancelledRef.current) return;
     cleanupTimers();
     setStep("dispatched");
 
@@ -298,10 +357,11 @@ export function SosModal({
     const alertMessage = t("sosSent") || "SOS is active. Your family and caregivers are being informed.";
     speakText(alertMessage, speechLocale);
 
-    // 4. Capture Geolocation
+    // 4. Capture Geolocation with cancellation check
     if (typeof window !== "undefined" && "geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
+          if (isCancelledRef.current) return;
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
           setUserCoords({ lat, lng });
@@ -316,6 +376,7 @@ export function SosModal({
           setDispatchedEvent(event);
         },
         () => {
+          if (isCancelledRef.current) return;
           // Graceful fallback to default regional coordinates
           const defaultLat = 26.1822;
           const defaultLng = 91.7617;
@@ -330,17 +391,13 @@ export function SosModal({
           });
           setDispatchedEvent(event);
         },
-        { timeout: 4000 }
+        { timeout: 8000 }
       );
     } else {
-      const defaultLat = 26.1822;
-      const defaultLng = 91.7617;
-      setUserCoords({ lat: defaultLat, lng: defaultLng });
-      setLocationStatus("unavailable");
-
+      if (isCancelledRef.current) return;
       const event = store.triggerSos({
-        latitude: defaultLat,
-        longitude: defaultLng,
+        latitude: 26.1822,
+        longitude: 91.7617,
         status: "unavailable",
         emergencyDescription: emergencyNote,
       });
@@ -408,9 +465,9 @@ export function SosModal({
         {/* Close button (only available if not in dispatched mode) */}
         {step !== "dispatched" && (
           <button
-            onClick={onClose}
+            onClick={handleCancelAndImSafe}
             className="absolute right-4 top-4 rounded-full p-2.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors cursor-pointer"
-            aria-label="Close SOS dialog"
+            aria-label="Cancel and close SOS dialog"
           >
             <X className="h-6 w-6" />
           </button>

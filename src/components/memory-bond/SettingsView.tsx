@@ -18,6 +18,7 @@ import {
   HelpCircle,
   Activity,
   Award,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,7 @@ import { Switch } from "@/components/ui/switch";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { useI18n, LANGUAGES, type LangCode } from "@/lib/i18n";
 import { speakText, stopSpeaking } from "@/lib/voiceParser";
+import { INDIAN_STATES } from "@/lib/panIndiaCulturalRepository";
 
 export function SettingsView({ store }: { store: MemoryBondStore }) {
   const { lang, setLang, t, speechLocale } = useI18n();
@@ -383,6 +385,41 @@ export function SettingsView({ store }: { store: MemoryBondStore }) {
             permission and battery optimization whitelist so elderly users can summon the Memory Bond Voice
             Assistant or initiate 5-second SOS from anywhere—even during WhatsApp video calls or on the device homescreen.
           </p>
+        </div>
+      </div>
+
+      {/* Home State & Regional Cultural Preference (Requirement 13) */}
+      <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-xs space-y-4">
+        <div className="flex items-center gap-3">
+          <MapPin className="h-6 w-6 text-primary" />
+          <div>
+            <h3 className="text-xl font-bold text-foreground">
+              Home State & Cultural Heritage (गृह राज्य व संस्कृति)
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Personalize Cultural Hub, cultural cognitive games, and memories to your native Indian state.
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label className="font-bold text-sm">Selected Indian State</Label>
+          <select
+            value={store.profile.selected_state || store.profile.selected_ner_state || "Assam"}
+            onChange={(e) => {
+              store.updateProfile({
+                selected_state: e.target.value,
+                selected_ner_state: e.target.value,
+              });
+            }}
+            className="w-full h-12 rounded-xl bg-background border border-input px-4 text-base font-bold text-foreground focus:ring-2 focus:ring-primary shadow-xs"
+          >
+            {INDIAN_STATES.map((st) => (
+              <option key={st.name} value={st.name}>
+                {st.name} ({st.nativeScript}) — {st.region}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 

@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   parseVoiceIntent,
+  parseVoiceIntentAsync,
   speakText,
   stopSpeaking,
   isSpokenAnswer,
@@ -290,7 +291,7 @@ export function VoiceAssistantModal({
   // -------------------------------------------------------------------------
   // Process Spoken/Typed Command
   // -------------------------------------------------------------------------
-  const processCommand = (text: string, locale?: string) => {
+  const processCommand = async (text: string, locale?: string) => {
     if (!text.trim()) return;
     handleBargeIn();
     isThinkingRef.current = true;
@@ -302,10 +303,9 @@ export function VoiceAssistantModal({
 
     const usedLocale = locale || currentLocaleRef.current || "en-IN";
 
-    // Natural cognitive thinking pause
-    setTimeout(() => {
+    try {
+      const intent = await parseVoiceIntentAsync(text, store, usedLocale, pendingIntent);
       isThinkingRef.current = false;
-      const intent = parseVoiceIntent(text, store, usedLocale, pendingIntent);
 
       // If intent was confirming previous pending action
       if (intent.type === "CONFIRM_ACTION") {
@@ -339,7 +339,10 @@ export function VoiceAssistantModal({
         setFeedbackMessage("");
         speakWithEchoGuard(intent.confirmationMessage, usedLocale);
       }
-    }, 300);
+    } catch (err) {
+      isThinkingRef.current = false;
+      setVoiceState("idle");
+    }
   };
 
   // -------------------------------------------------------------------------

@@ -1,12 +1,13 @@
 import { useState, useMemo, useRef } from "react";
 import { Sparkles, RotateCcw, CheckCircle2, Users, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { MemoryCue } from "@/lib/memoryBondStore";
+import type { MemoryCue, EmergencyContact } from "@/lib/memoryBondStore";
 
 interface FamilyProfile {
   name: string;
   relation: string;
   avatar: string;
+  photoUrl?: string;
   detail: string;
   question: string;
   options: string[];
@@ -321,6 +322,7 @@ export function FamilyPhotoMemory({
   onComplete,
   level = 1,
   memoryCues = [],
+  contacts = [],
   cycleNumber = 1,
   cycleSeed = 0,
   adaptiveDifficulty = "medium",
@@ -328,6 +330,7 @@ export function FamilyPhotoMemory({
   onComplete: (score: number, total: number, extra?: any) => void;
   level?: number;
   memoryCues?: MemoryCue[];
+  contacts?: EmergencyContact[];
   cycleNumber?: number;
   cycleSeed?: number;
   adaptiveDifficulty?: string;
@@ -340,8 +343,24 @@ export function FamilyPhotoMemory({
   const [isPlayingVoice, setIsPlayingVoice] = useState<boolean>(false);
   const startTimeRef = useRef<number>(Date.now());
 
-  // Merge Personal Memory Bank cues if available and scale across 30 levels
+  // Prioritize real caregiver-provided family members and scale memory load gradually across 30 levels
   const activeProfiles = useMemo(() => {
+    // 1. Real caregiver contacts prioritized first!
+    const caregiverProfiles: FamilyProfile[] = (contacts || []).map((c) => ({
+      name: c.name,
+      relation: c.relationship,
+      avatar: c.relationship.toLowerCase().includes("son") ? "👨‍💻" :
+              c.relationship.toLowerCase().includes("daughter") ? "👩‍💼" :
+              c.relationship.toLowerCase().includes("grand") ? "👦" :
+              c.relationship.toLowerCase().includes("doctor") ? "👨‍⚕️" : "👵",
+      photoUrl: c.photo_url,
+      detail: c.voice_memory || `${c.relationship}. Phone: ${c.phone}`,
+      question: `Who is this family member (${c.relationship})?`,
+      options: [c.name, "Dr. Mehta", "Pooja (Neighbor)", "Suresh (Pharmacist)"],
+      correctAnswer: c.name,
+      voiceMessage: c.voice_memory || `यह ${c.name} हैं, आपके ${c.relationship}।`,
+    }));
+
     const customProfiles: FamilyProfile[] = memoryCues
       .filter((c) => ["person", "family_member", "child", "friend", "home", "place", "village"].includes(c.category))
       .map((c) => ({
@@ -355,12 +374,23 @@ export function FamilyPhotoMemory({
         voiceMessage: c.detail,
       }));
 
-    const pool = customProfiles.length > 0 ? [...customProfiles, ...DEFAULT_FAMILY_PROFILES] : DEFAULT_FAMILY_PROFILES;
-    // For level L in [1..30], pick 2 profiles by offset (permuted by 8-Day Cycle)
+    const pool = [...caregiverProfiles, ...customProfiles, ...DEFAULT_FAMILY_PROFILES];
+
+    // Gradual memory load scaling across 30 levels:
+    // Level 1-5: 2 memories (easy)
+    // Level 6-12: 3 memories
+    // Level 13-20: 4 memories
+    // Level 21-30: 5 memories
+    const count = level <= 5 ? 2 : level <= 12 ? 3 : level <= 20 ? 4 : 5;
     const cycleOffset = (cycleNumber - 1) * 3;
-    const offset = ((level - 1) * 2 + cycleOffset) % pool.length;
-    return [pool[offset], pool[(offset + 1) % pool.length]];
-  }, [memoryCues, level, cycleNumber]);
+    const startIndex = ((level - 1) * 2 + cycleOffset) % pool.length;
+
+    const selectedList: FamilyProfile[] = [];
+    for (let i = 0; i < count; i++) {
+      selectedList.push(pool[(startIndex + i) % pool.length]);
+    }
+    return selectedList;
+  }, [contacts, memoryCues, level, cycleNumber]);
 
   const current = activeProfiles[currentIdx];
 
@@ -441,9 +471,17 @@ export function FamilyPhotoMemory({
       ) : (
         <div className="max-w-xl mx-auto space-y-6">
           <div className="rounded-3xl border border-border bg-card p-6 text-center space-y-4 shadow-sm">
-            <div className="w-28 h-28 rounded-full bg-primary/10 border-4 border-primary/20 mx-auto flex items-center justify-center text-6xl shadow-inner">
-              {current.avatar}
-            </div>
+            {current.photoUrl ? (
+              <img
+                src={current.photoUrl}
+                alt={current.name}
+                className="w-28 h-28 rounded-full object-cover border-4 border-primary/30 mx-auto shadow-md"
+              />
+            ) : (
+              <div className="w-28 h-28 rounded-full bg-primary/10 border-4 border-primary/20 mx-auto flex items-center justify-center text-6xl shadow-inner">
+                {current.avatar}
+              </div>
+            )}
             <h4 className="text-xl font-bold text-foreground">{current.question}</h4>
             <p className="text-sm text-muted-foreground italic">"{current.detail}"</p>
 

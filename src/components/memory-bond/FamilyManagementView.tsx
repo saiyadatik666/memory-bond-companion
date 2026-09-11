@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   XCircle,
   Key,
+  Volume2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { MemoryBondStore, EmergencyContact, CaregiverLink } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
+import { speakText } from "@/lib/voiceParser";
 
 export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
   const { t } = useI18n();
@@ -32,6 +34,17 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
   const [phone, setPhone] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [isEmergency, setIsEmergency] = useState<boolean>(true);
+  const [activeForCalls, setActiveForCalls] = useState<boolean>(true);
+  const [photoUrl, setPhotoUrl] = useState<string>("https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80");
+  const [voiceMemory, setVoiceMemory] = useState<string>("यह राहुल हैं, आपके बेटे।");
+
+  const PHOTO_PRESETS = [
+    { label: "Son / Man", url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80" },
+    { label: "Daughter / Woman", url: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop&q=80" },
+    { label: "Grandson / Boy", url: "https://images.unsplash.com/photo-1543332164-6e82f355badc?w=300&auto=format&fit=crop&q=80" },
+    { label: "Granddaughter / Girl", url: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300&auto=format&fit=crop&q=80" },
+    { label: "Doctor / Healthcare", url: "https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=300&auto=format&fit=crop&q=80" },
+  ];
 
   const handleCopyMemberId = () => {
     navigator.clipboard.writeText(store.profile.member_id);
@@ -49,6 +62,9 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
       phone: phone.trim(),
       priority: store.contacts.length + 1,
       is_emergency: isEmergency,
+      active_for_calls: activeForCalls,
+      photo_url: photoUrl || undefined,
+      voice_memory: voiceMemory.trim() || undefined,
     };
     const trimmedEmail = email.trim();
     store.addContact(trimmedEmail ? { ...contact, email: trimmedEmail } : contact);
@@ -57,10 +73,15 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
     setName("");
     setPhone("");
     setEmail("");
+    setVoiceMemory("");
   };
 
   const toggleEmergencyStatus = (id: string, currentStatus: boolean) => {
     store.updateContact(id, { is_emergency: !currentStatus });
+  };
+
+  const toggleCallsStatus = (id: string, currentStatus: boolean) => {
+    store.updateContact(id, { active_for_calls: !currentStatus });
   };
 
   return (
@@ -172,14 +193,17 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
                     }`}
                   >
                     {link.status.toUpperCase()}
+              className="p-4 rounded-2xl border border-border bg-card/60 flex flex-wrap items-center justify-between gap-4"
+            >
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 font-bold text-base text-foreground">
+                  <span>{link.caregiver_name}</span>
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-secondary text-primary">
+                    {link.relationship}
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {link.relationship} • {link.phone} • Linked: {link.linked_at}
-                </p>
-
-                {/* Granular Permissions Badges */}
-                <div className="flex flex-wrap gap-2 pt-2 text-[11px] font-semibold">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span>Authorized Permissions:</span>
                   <span
                     className={`px-2 py-0.5 rounded-md border ${
                       link.permissions.medicines
@@ -258,18 +282,18 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
         </div>
       </div>
 
-      {/* 3. Emergency Contacts List */}
+      {/* 3. Family Members & Emergency Contacts List */}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-secondary/30 p-6">
         <div>
           <h3 className="text-xl sm:text-2xl font-black text-foreground flex items-center gap-2.5">
-            <Users className="h-7 w-7 text-primary" /> Emergency Calling List
+            <Users className="h-7 w-7 text-primary" /> Family Members & Emergency Circle
           </h3>
           <p className="text-muted-foreground mt-1 text-sm">
-            Contacts configured for sequential SOS dialing and automated notifications.
+            Manage family contacts, photo memories, voice context ("ये कौन हैं?"), and alert settings.
           </p>
         </div>
         <Button onClick={() => setIsAddOpen(true)} className="gap-2 font-bold text-sm h-11 px-5 rounded-2xl">
-          <Plus className="h-4 w-4" /> Add Contact
+          <Plus className="h-4 w-4" /> Add Family Member
         </Button>
       </div>
 
@@ -282,15 +306,23 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
             <div className="space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-2xl font-black text-primary">
-                    {contact.name.charAt(0)}
-                  </div>
+                  {contact.photo_url ? (
+                    <img
+                      src={contact.photo_url}
+                      alt={contact.name}
+                      className="w-14 h-14 rounded-2xl object-cover border-2 border-primary/30 shadow-xs"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-2xl font-black text-primary">
+                      {contact.name.charAt(0)}
+                    </div>
+                  )}
                   <div>
                     <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
                       {contact.name}
                       {contact.is_emergency && (
-                        <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-destructive/15 text-destructive">
-                          SOS Priority #{idx + 1}
+                        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-destructive/15 text-destructive">
+                          SOS #{idx + 1}
                         </span>
                       )}
                     </h3>
@@ -308,7 +340,27 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
                 </Button>
               </div>
 
-              <div className="space-y-1.5 pt-2 text-sm text-foreground">
+              {/* Spoken Voice Memory Context */}
+              {contact.voice_memory && (
+                <div className="rounded-2xl bg-primary/5 border border-primary/20 p-3 flex items-center justify-between gap-3">
+                  <div className="text-xs text-foreground italic space-y-0.5">
+                    <span className="font-bold not-italic text-primary text-[10px] uppercase tracking-wider block">
+                      Saved Voice Memory ("ये कौन हैं?")
+                    </span>
+                    "{contact.voice_memory}"
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => speakText(contact.voice_memory || "", "hi-IN")}
+                    className="h-8 px-2.5 rounded-xl text-xs font-bold gap-1 shrink-0 bg-card"
+                  >
+                    <Volume2 className="h-3.5 w-3.5 text-primary" /> Listen
+                  </Button>
+                </div>
+              )}
+
+              <div className="space-y-1.5 pt-1 text-sm text-foreground">
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-primary" />
                   <span className="font-mono font-bold">{contact.phone}</span>
@@ -321,21 +373,29 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
                 )}
               </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-border">
-                <span className="text-xs font-semibold text-muted-foreground">
-                  Include in Emergency SOS Broadcast:
-                </span>
-                <Switch
-                  checked={contact.is_emergency}
-                  onCheckedChange={() => toggleEmergencyStatus(contact.id, contact.is_emergency)}
-                />
+              {/* Alert & Calling Toggles */}
+              <div className="space-y-2 pt-2 border-t border-border">
+                <div className="flex items-center justify-between text-xs font-semibold">
+                  <span className="text-muted-foreground">Receive Emergency SOS Alerts:</span>
+                  <Switch
+                    checked={contact.is_emergency}
+                    onCheckedChange={() => toggleEmergencyStatus(contact.id, contact.is_emergency)}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-xs font-semibold">
+                  <span className="text-muted-foreground">Active for Regular Routine Calls:</span>
+                  <Switch
+                    checked={contact.active_for_calls !== false}
+                    onCheckedChange={() => toggleCallsStatus(contact.id, contact.active_for_calls !== false)}
+                  />
+                </div>
               </div>
             </div>
 
             <div className="pt-3 border-t border-border flex justify-end gap-2">
               <a
                 href={`tel:${contact.phone}`}
-                className="inline-flex items-center gap-2 text-sm font-bold bg-secondary hover:bg-secondary/80 px-4 py-2.5 rounded-xl text-foreground transition-all"
+                className="inline-flex items-center gap-2 text-sm font-bold bg-secondary hover:bg-secondary/80 px-4 py-2 rounded-xl text-foreground transition-all"
               >
                 <PhoneCall className="h-4 w-4 text-primary" /> Call Now
               </a>
@@ -344,11 +404,14 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
         ))}
       </div>
 
-      {/* Add Modal */}
+      {/* Add Family Member Modal */}
       {isAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in">
-          <div className="w-full max-w-md rounded-3xl border-2 border-border bg-card p-6 sm:p-8 shadow-xl space-y-4 animate-in zoom-in-95">
-            <h3 className="text-2xl font-black text-foreground">Add Family Contact</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in overflow-y-auto">
+          <div className="w-full max-w-lg rounded-3xl border-2 border-border bg-card p-6 sm:p-8 shadow-xl space-y-4 animate-in zoom-in-95 my-auto">
+            <h3 className="text-2xl font-black text-foreground">Add Family Member</h3>
+            <p className="text-xs text-muted-foreground">
+              Add photos, relationships, and voice context so the assistant and senior always recognize them.
+            </p>
 
             <form onSubmit={handleSaveContact} className="space-y-4">
               <div>
@@ -357,17 +420,18 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Sunita Sharma"
+                  placeholder="e.g. Rahul Sharma"
                   className="rounded-xl mt-1"
                 />
               </div>
 
               <div>
-                <Label>Relationship</Label>
+                <Label>Relationship *</Label>
                 <Input
+                  required
                   value={relationship}
                   onChange={(e) => setRelationship(e.target.value)}
-                  placeholder="Daughter, Son, Neighbor, Doctor"
+                  placeholder="Son, Daughter, Grandson, Sister, Caregiver"
                   className="rounded-xl mt-1"
                 />
               </div>
@@ -395,12 +459,65 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
                 />
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-secondary/40">
-                <div>
-                  <div className="text-sm font-bold text-foreground">Emergency SOS Dialing</div>
-                  <div className="text-xs text-muted-foreground">Receive instant SOS emergency calls and alerts</div>
+              {/* Photo Selector */}
+              <div className="space-y-1.5">
+                <Label>Photo / Avatar</Label>
+                <div className="flex gap-2 items-center flex-wrap">
+                  {PHOTO_PRESETS.map((preset) => (
+                    <button
+                      type="button"
+                      key={preset.label}
+                      onClick={() => setPhotoUrl(preset.url)}
+                      className={`p-1 rounded-xl border-2 transition-all ${
+                        photoUrl === preset.url ? "border-primary ring-2 ring-primary/30" : "border-border opacity-70"
+                      }`}
+                    >
+                      <img src={preset.url} alt={preset.label} className="w-10 h-10 rounded-lg object-cover" />
+                    </button>
+                  ))}
                 </div>
-                <Switch checked={isEmergency} onCheckedChange={setIsEmergency} />
+              </div>
+
+              {/* Voice Memory / Context */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label>Voice Memory / Context Note</Label>
+                  <button
+                    type="button"
+                    onClick={() => setVoiceMemory(`यह ${name || "राहुल"} हैं, आपके ${relationship || "बेटे"}।`)}
+                    className="text-[11px] font-bold text-primary hover:underline"
+                  >
+                    Auto-Fill Example
+                  </button>
+                </div>
+                <Input
+                  value={voiceMemory}
+                  onChange={(e) => setVoiceMemory(e.target.value)}
+                  placeholder="e.g. यह राहुल हैं, आपके बेटे।"
+                  className="rounded-xl"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Spoken when the senior asks "ये कौन हैं?" or in Family Gathering memory games.
+                </p>
+              </div>
+
+              {/* Emergency SOS & Call Toggles */}
+              <div className="space-y-2 pt-2 border-t border-border">
+                <div className="flex items-center justify-between p-3 rounded-2xl bg-secondary/40">
+                  <div>
+                    <div className="text-xs font-bold text-foreground">Emergency SOS Alerts</div>
+                    <div className="text-[11px] text-muted-foreground">Receives emergency calls & SMS broadcasts</div>
+                  </div>
+                  <Switch checked={isEmergency} onCheckedChange={setIsEmergency} />
+                </div>
+
+                <div className="flex items-center justify-between p-3 rounded-2xl bg-secondary/40">
+                  <div>
+                    <div className="text-xs font-bold text-foreground">Active for Calls</div>
+                    <div className="text-[11px] text-muted-foreground">Enabled for routine contact and checking in</div>
+                  </div>
+                  <Switch checked={activeForCalls} onCheckedChange={setActiveForCalls} />
+                </div>
               </div>
 
               <div className="flex gap-2 pt-2">
@@ -413,7 +530,7 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
                   Cancel
                 </Button>
                 <Button type="submit" className="flex-1 rounded-xl font-bold bg-primary">
-                  Save Contact
+                  Save Family Member
                 </Button>
               </div>
             </form>

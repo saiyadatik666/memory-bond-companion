@@ -1,6 +1,7 @@
 import type { MemoryBondStore } from "./memoryBondStore";
 import { conversationalAI } from "./conversationalAI";
 import { voiceManager, getBestMatchingVoice } from "./voiceProvider";
+import { isWorldKnowledgeQuery, resolveWorldKnowledge, resolveVerifiedFact } from "./worldKnowledgeEngine";
 
 // ---------------------------------------------------------------------------
 // Intent types
@@ -651,6 +652,17 @@ export function parseVoiceIntent(
     }
   }
 
+  // 1.2. World Knowledge Check (Instant verified facts)
+  if (isWorldKnowledgeQuery(text)) {
+    const verified = resolveVerifiedFact(text, locale);
+    if (verified) {
+      return {
+        type: "ANSWER",
+        message: verified,
+      };
+    }
+  }
+
   // 1.5. Conversational Multi-Turn Dialogue Engine (Contextual appointment/reminder consent, medicine help, activities, games)
   const multiTurn = conversationalAI.handleMultiTurnDialogue(text, store, locale, extractTime);
   if (multiTurn && multiTurn.handled) {
@@ -1029,6 +1041,28 @@ export function parseVoiceIntent(
     type: "CASUAL_CHAT",
     message: conversationalReply,
   };
+}
+
+/**
+ * Asynchronous Voice Intent Parser supporting live web research for outside world knowledge
+ */
+export async function parseVoiceIntentAsync(
+  rawText: string,
+  store: MemoryBondStore,
+  locale = "en-IN",
+  pendingContext?: VoiceIntent | null
+): Promise<VoiceIntent> {
+  const text = rawText.trim();
+  if (isWorldKnowledgeQuery(text)) {
+    const worldResult = await resolveWorldKnowledge(text, locale);
+    if (worldResult && worldResult.answer) {
+      return {
+        type: "ANSWER",
+        message: worldResult.answer,
+      };
+    }
+  }
+  return parseVoiceIntent(rawText, store, locale, pendingContext);
 }
 
 // ---------------------------------------------------------------------------
