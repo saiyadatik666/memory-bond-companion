@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { Sparkles, RotateCcw, CheckCircle2, Users } from "lucide-react";
+import { useState, useMemo, useRef } from "react";
+import { Sparkles, RotateCcw, CheckCircle2, Users, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { MemoryCue } from "@/lib/memoryBondStore";
 
 interface FamilyProfile {
   name: string;
@@ -13,7 +14,7 @@ interface FamilyProfile {
   voiceMessage?: string;
 }
 
-const ALL_FAMILY_PROFILES: FamilyProfile[] = [
+const DEFAULT_FAMILY_PROFILES: FamilyProfile[] = [
   {
     name: "Sunita Sharma",
     relation: "Daughter (Primary Caregiver)",
@@ -79,24 +80,43 @@ const ALL_FAMILY_PROFILES: FamilyProfile[] = [
 export function FamilyPhotoMemory({
   onComplete,
   level = 1,
+  memoryCues = [],
 }: {
   onComplete: (score: number, total: number, extra?: any) => void;
   level?: number;
+  memoryCues?: MemoryCue[];
 }) {
   const [currentIdx, setCurrentIdx] = useState<number>(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [score, setScore] = useState<number>(0);
   const [isFinished, setIsFinished] = useState<boolean>(false);
   const [isPlayingVoice, setIsPlayingVoice] = useState<boolean>(false);
+  const startTimeRef = useRef<number>(Date.now());
 
-  // Difficulty scaling: Level 1 = 2 profiles, Level 2 = 3 profiles, Level 3 = 4 profiles, etc.
-  const activeProfiles = ALL_FAMILY_PROFILES.slice(0, Math.min(ALL_FAMILY_PROFILES.length, Math.max(2, level + 1)));
+  // Merge Personal Memory Bank cues if available
+  const activeProfiles = useMemo(() => {
+    const customProfiles: FamilyProfile[] = memoryCues
+      .filter((c) => ["person", "family_member", "child", "friend", "home", "place", "village"].includes(c.category))
+      .map((c) => ({
+        name: c.title,
+        relation: c.category === "home" || c.category === "place" || c.category === "village" ? "Beloved Place" : "Family Member",
+        avatar: c.category === "home" || c.category === "place" || c.category === "village" ? "🏡" : "👵",
+        detail: c.detail,
+        question: `Do you recognize this cherished personal memory: ${c.title}?`,
+        options: [c.title, "Temple Visit", "Hospital Visit", "Shopping Market"],
+        correctAnswer: c.title,
+        voiceMessage: c.detail,
+      }));
+
+    const pool = customProfiles.length > 0 ? [...customProfiles, ...DEFAULT_FAMILY_PROFILES] : DEFAULT_FAMILY_PROFILES;
+    const count = Math.min(pool.length, Math.max(2, level + 1));
+    return pool.slice(0, count);
+  }, [memoryCues, level]);
+
   const current = activeProfiles[currentIdx];
 
-  if (!current) return null;
-
   const playVoiceMessage = () => {
-    if (!current.voiceMessage || isPlayingVoice) return;
+    if (!current?.voiceMessage || isPlayingVoice) return;
     setIsPlayingVoice(true);
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
@@ -113,7 +133,7 @@ export function FamilyPhotoMemory({
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     setIsPlayingVoice(false);
 
-    const isCorrect = selected === current.correctAnswer;
+    const isCorrect = selected === current?.correctAnswer;
     const nextScore = score + (isCorrect ? 1 : 0);
     if (isCorrect) setScore(nextScore);
 
@@ -122,19 +142,26 @@ export function FamilyPhotoMemory({
       setCurrentIdx((i) => i + 1);
     } else {
       setIsFinished(true);
+      const elapsedMs = Math.max(2000, Date.now() - startTimeRef.current);
+      const accuracy = Math.round((nextScore / activeProfiles.length) * 100);
       onComplete(nextScore, activeProfiles.length, {
         gameType: "recognition",
-        accuracy: Math.round((nextScore / activeProfiles.length) * 100),
+        accuracy,
+        responseTimeMs: Math.round(elapsedMs / activeProfiles.length),
+        attempts: activeProfiles.length,
+        errors: activeProfiles.length - nextScore,
       });
     }
   };
+
+  if (!current) return null;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-secondary/40 p-4">
         <div>
-          <h3 className="text-xl font-bold text-foreground">Game 6: Family Photo & Face Recall</h3>
-          <p className="text-sm text-muted-foreground">Reconnect with familiar faces and loved ones.</p>
+          <h3 className="text-xl font-bold text-foreground">Game 6: Family Photo & Memory Recall (Level {level})</h3>
+          <p className="text-sm text-muted-foreground">Reconnect with familiar faces, personal places, and loved ones.</p>
         </div>
         <span className="rounded-xl bg-card px-4 py-2 font-bold shadow-xs">
           Card {currentIdx + 1} / {activeProfiles.length}
@@ -146,7 +173,7 @@ export function FamilyPhotoMemory({
           <Users className="mx-auto h-16 w-16 text-success" />
           <h4 className="text-3xl font-extrabold text-foreground">Beautiful memories!</h4>
           <p className="text-lg text-muted-foreground">
-            You recognized {score} of {activeProfiles.length} family profiles with warmth.
+            You recognized {score} of {activeProfiles.length} family profiles and personal memories with warmth.
           </p>
           <Button
             size="lg"
@@ -155,8 +182,9 @@ export function FamilyPhotoMemory({
               setSelected(null);
               setScore(0);
               setIsFinished(false);
+              startTimeRef.current = Date.now();
             }}
-            className="gap-2 font-bold px-8"
+            className="gap-2 font-bold px-8 cursor-pointer"
           >
             <RotateCcw className="h-5 w-5" /> Play Again
           </Button>
@@ -178,12 +206,12 @@ export function FamilyPhotoMemory({
                   variant="outline"
                   size="sm"
                   onClick={playVoiceMessage}
-                  className={`rounded-2xl gap-2 text-xs font-bold ${
+                  className={`rounded-2xl gap-2 text-xs font-bold cursor-pointer ${
                     isPlayingVoice ? "bg-primary text-primary-foreground animate-pulse" : "text-primary border-primary/30"
                   }`}
                 >
-                  <Sparkles className="h-4 w-4" />
-                  {isPlayingVoice ? "Playing Voice Message..." : "Hear Their Voice Message 🔊"}
+                  <Volume2 className="h-4 w-4" />
+                  {isPlayingVoice ? "Playing Voice Message..." : "Hear Voice Message 🔊"}
                 </Button>
               </div>
             )}
@@ -209,7 +237,7 @@ export function FamilyPhotoMemory({
           </div>
 
           <div className="flex justify-end">
-            <Button size="lg" disabled={!selected} onClick={handleNext} className="px-8 font-bold">
+            <Button size="lg" disabled={!selected} onClick={handleNext} className="px-8 font-bold cursor-pointer">
               {currentIdx + 1 === activeProfiles.length ? "Finish Recall" : "Next Face"}
             </Button>
           </div>

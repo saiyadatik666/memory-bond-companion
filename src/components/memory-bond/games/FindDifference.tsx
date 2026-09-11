@@ -29,6 +29,7 @@ export function FindDifference({
   const [found, setFound] = useState<boolean>(false);
   const [wrongTaps, setWrongTaps] = useState<number>(0);
   const [isFinished, setIsFinished] = useState<boolean>(false);
+  const startTimeRef = useState<{ current: number }>({ current: Date.now() })[0];
 
   const activePuzzles = ALL_PUZZLES.slice(0, Math.min(ALL_PUZZLES.length, Math.max(3, level + 1)));
   const current = activePuzzles[puzzleIdx];
@@ -48,10 +49,16 @@ export function FindDifference({
     if (puzzleIdx + 1 < activePuzzles.length) {
       setPuzzleIdx((p) => p + 1);
     } else {
+      const elapsedMs = Math.max(1000, Date.now() - startTimeRef.current);
+      const totalTaps = activePuzzles.length + wrongTaps;
+      const calculatedAcc = Math.max(25, Math.round((activePuzzles.length / totalTaps) * 100));
       setIsFinished(true);
       onComplete(activePuzzles.length, activePuzzles.length, {
         gameType: "attention",
-        accuracy: 100,
+        accuracy: calculatedAcc,
+        responseTimeMs: elapsedMs,
+        attempts: totalTaps,
+        errors: wrongTaps,
       });
     }
   };

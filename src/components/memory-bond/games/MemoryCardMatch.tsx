@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Sparkles, RotateCcw, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getCulturalCardsForMemoryMatch, type NERState } from "@/lib/nerCulturalRepository";
 
 interface Card {
   id: number;
@@ -10,7 +11,7 @@ interface Card {
   matched: boolean;
 }
 
-const ICONS_POOL = [
+const FALLBACK_ICONS = [
   { icon: "🪷", name: "Lotus" },
   { icon: "☕", name: "Tea Cup" },
   { icon: "🪔", name: "Diya" },
@@ -24,20 +25,27 @@ const ICONS_POOL = [
 export function MemoryCardMatch({
   onComplete,
   level = 1,
+  nerState = "all",
 }: {
   onComplete: (score: number, total: number, extra?: any) => void;
   level?: number;
+  nerState?: string;
 }) {
   const [cards, setCards] = useState<Card[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [matches, setMatches] = useState<number>(0);
   const [moves, setMoves] = useState<number>(0);
+  const [mismatches, setMismatches] = useState<number>(0);
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
+  const startTimeRef = useRef<number>(Date.now());
 
   const pairCount = Math.min(8, Math.max(3, level + 2)); // Level 1=3 pairs, Level 2=4, Level 3=5, Level 4=6, Level 5=7, Level 6=8
 
   const initGame = () => {
-    const activeIcons = ICONS_POOL.slice(0, pairCount);
+    // Dynamic NER Cultural Content integration
+    const cultural = getCulturalCardsForMemoryMatch((nerState as NERState) || "all", pairCount);
+    const activeIcons = cultural.length >= pairCount ? cultural : FALLBACK_ICONS.slice(0, pairCount);
+
     const deck: Card[] = [];
     let id = 0;
     activeIcons.forEach((item) => {
@@ -50,12 +58,14 @@ export function MemoryCardMatch({
     setSelected([]);
     setMatches(0);
     setMoves(0);
+    setMismatches(0);
     setIsCompleted(false);
+    startTimeRef.current = Date.now();
   };
 
   useEffect(() => {
     initGame();
-  }, [level]);
+  }, [level, nerState]);
 
   const handleCardClick = (index: number) => {
     const card = cards[index];
@@ -69,12 +79,14 @@ export function MemoryCardMatch({
     setSelected(newSelected);
 
     if (newSelected.length === 2) {
-      setMoves((m) => m + 1);
+      const nextMoves = moves + 1;
+      setMoves(nextMoves);
       const [firstIdx, secondIdx] = newSelected;
       if (firstIdx === undefined || secondIdx === undefined) return;
       const firstCard = newCards[firstIdx];
       const secondCard = newCards[secondIdx];
       if (!firstCard || !secondCard) return;
+
       if (firstCard.icon === secondCard.icon) {
         // Matched!
         setTimeout(() => {
@@ -87,14 +99,24 @@ export function MemoryCardMatch({
             const nextMatches = prev + 1;
             if (nextMatches === pairCount) {
               setIsCompleted(true);
-              onComplete(pairCount, pairCount);
+              const elapsedMs = Math.max(2000, Date.now() - startTimeRef.current);
+              // Calculate genuine accuracy: pairCount / totalMoves
+              const accuracy = Math.max(10, Math.min(100, Math.round((pairCount / nextMoves) * 100)));
+              onComplete(pairCount, pairCount, {
+                gameType: "memory",
+                accuracy,
+                responseTimeMs: Math.round(elapsedMs / pairCount),
+                attempts: nextMoves,
+                errors: Math.max(0, nextMoves - pairCount),
+              });
             }
             return nextMatches;
           });
           setSelected([]);
         }, 500);
       } else {
-        // Not a match, flip back gently
+        // Mismatch
+        setMismatches((m) => m + 1);
         setTimeout(() => {
           setCards((prev) => {
             return prev.map((item, itemIndex) =>
@@ -102,7 +124,7 @@ export function MemoryCardMatch({
             );
           });
           setSelected([]);
-        }, 1100);
+        }, 1000);
       }
     }
   };
@@ -112,7 +134,9 @@ export function MemoryCardMatch({
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-secondary/40 p-4">
         <div>
           <h3 className="text-xl font-bold text-foreground">Game 1: Memory Card Match (Level {level})</h3>
-          <p className="text-sm text-muted-foreground">Tap any two cards to find matching pairs ({pairCount} pairs to find).</p>
+          <p className="text-sm text-muted-foreground">
+            Tap any two cards to find matching pairs ({pairCount} pairs to find).
+          </p>
         </div>
         <div className="flex items-center gap-4">
           <span className="rounded-xl bg-card px-4 py-2 font-bold shadow-xs">

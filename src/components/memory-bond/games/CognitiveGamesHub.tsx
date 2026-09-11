@@ -24,6 +24,11 @@ import {
   Lock,
   RefreshCw,
   AlertCircle,
+  ChevronDown,
+  ChevronUp,
+  Cpu,
+  Compass,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { type MemoryBondStore, getRecommendedDifficulty } from "@/lib/memoryBondStore";
@@ -72,6 +77,7 @@ export function CognitiveGamesHub({
   const [attemptCount, setAttemptCount] = useState<number>(0);
   const [lastResult, setLastResult] = useState<LastGameResult | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false);
+  const [showAiLoop, setShowAiLoop] = useState<boolean>(false);
 
   // Dynamic Difficulty Adaptation Engine from MemoryBondStore
   const adaptiveRecommendation = useMemo(() => {
@@ -425,9 +431,11 @@ export function CognitiveGamesHub({
           {gameStage === "playing" ? (
             <div className="rounded-3xl border border-border bg-card p-4 sm:p-8 shadow-sm">
               <selectedGameObj.component
-                key={`${activeGame}_lvl_${currentLevel}_${attemptCount}`}
+                key={`${activeGame}_lvl_${currentLevel}_${attemptCount}_${store.profile.selected_ner_state || "all"}`}
                 level={currentLevel}
                 onComplete={handleGameComplete}
+                nerState={store.profile.selected_ner_state || "all"}
+                memoryCues={store.memoryCues}
               />
             </div>
           ) : (
@@ -623,6 +631,135 @@ export function CognitiveGamesHub({
             </div>
           )}
 
+          {/* Complete AI Cognitive Care Loop & Dynamic Profile (Requirements 1, 2, 7) */}
+          <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-sm space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-primary/15 border border-primary/30 flex items-center justify-center text-primary text-2xl">
+                  <Cpu className="h-6 w-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-black text-foreground">
+                      Complete AI Cognitive Care Loop
+                    </h3>
+                    <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                      Live 9-Step Closed Loop
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Continuous feedback cycle connecting clinical assessment, adaptive gaming, performance analysis, and care recommendations.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAiLoop((prev) => !prev)}
+                  className="rounded-xl font-bold text-xs gap-1.5 h-10 border-border"
+                >
+                  {showAiLoop ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  {showAiLoop ? "Hide Loop Details" : "View 9-Step Loop"}
+                </Button>
+              </div>
+            </div>
+
+            {/* Dynamic Cognitive Profile: 7 Measurable Dimensions (Requirement 2) */}
+            <div className="pt-2">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <Compass className="h-3.5 w-3.5 text-primary" /> Dynamic Cognitive Dimensions (Wellness Indicators)
+                </span>
+                <span className="text-[11px] font-semibold text-muted-foreground">
+                  Updated from {store.gameSessions.length} sessions • Non-Diagnostic
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+                {[
+                  { label: "Memory", val: store.profile.dynamic_cognitive_profile?.memory ?? 62, icon: "🧠", color: "text-indigo-600 dark:text-indigo-400" },
+                  { label: "Attention", val: store.profile.dynamic_cognitive_profile?.attention ?? 71, icon: "🎯", color: "text-amber-600 dark:text-amber-400" },
+                  { label: "Recognition", val: store.profile.dynamic_cognitive_profile?.recognition ?? 55, icon: "👁️", color: "text-teal-600 dark:text-teal-400" },
+                  { label: "Reaction Time", val: store.profile.dynamic_cognitive_profile?.reaction_time ?? 68, icon: "⚡", color: "text-sky-600 dark:text-sky-400" },
+                  { label: "Recall", val: store.profile.dynamic_cognitive_profile?.recall ?? 48, icon: "🔄", color: "text-rose-600 dark:text-rose-400" },
+                  { label: "Consistency", val: store.profile.dynamic_cognitive_profile?.consistency ?? 61, icon: "📊", color: "text-purple-600 dark:text-purple-400" },
+                  { label: "Engagement", val: store.profile.dynamic_cognitive_profile?.engagement ?? 73, icon: "🌟", color: "text-emerald-600 dark:text-emerald-400" },
+                ].map((dim) => (
+                  <div key={dim.label} className="rounded-2xl border border-border bg-secondary/30 p-3 space-y-1 text-center">
+                    <div className="text-base">{dim.icon}</div>
+                    <div className={`text-xl font-black ${dim.color}`}>{dim.val}</div>
+                    <div className="text-[10px] font-bold text-muted-foreground truncate uppercase">{dim.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Expandable 9-Step AI Cognitive Care Loop Timeline */}
+            {showAiLoop && (
+              <div className="pt-3 border-t border-border/80 space-y-4 animate-in fade-in">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {(store.cognitiveCareLoopSteps || []).map((step) => {
+                    const isDone = step.status === "completed";
+                    const isCurrent = step.status === "in_progress";
+                    return (
+                      <div
+                        key={step.step}
+                        className={`rounded-2xl border-2 p-3.5 space-y-1.5 transition-all ${
+                          isDone
+                            ? "border-emerald-500/40 bg-emerald-500/10"
+                            : isCurrent
+                            ? "border-primary/60 bg-primary/10 shadow-xs"
+                            : "border-border bg-secondary/20"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-card border border-border">
+                            Step {step.step}
+                          </span>
+                          <span className={`text-xs font-black capitalize ${
+                            isDone ? "text-emerald-700 dark:text-emerald-300" : isCurrent ? "text-primary" : "text-muted-foreground"
+                          }`}>
+                            {isDone ? "✓ Complete" : isCurrent ? "• Active" : "Scheduled"}
+                          </span>
+                        </div>
+                        <div className="text-sm font-black text-foreground">{step.title}</div>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{step.description}</p>
+                        {step.metric && (
+                          <div className="text-[11px] font-mono font-bold text-primary pt-1 border-t border-border/40">
+                            {step.metric}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Patient Personalization Engine Snapshot (Requirement 7) */}
+                {store.personalizationInsights && (
+                  <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <div className="space-y-0.5">
+                      <span className="font-bold text-primary uppercase text-[10px] tracking-wider">
+                        Personalization Engine Profile
+                      </span>
+                      <p className="text-foreground font-semibold">
+                        Best Performance Window: <strong className="text-foreground">{store.personalizationInsights.preferredFocusWindow}</strong> • 
+                        Avg Session: <strong>{store.personalizationInsights.avgSessionDurationMinutes} mins</strong> • 
+                        Trend: <strong className="capitalize text-emerald-700 dark:text-emerald-300">{store.personalizationInsights.performanceTrend}</strong>
+                      </p>
+                    </div>
+                    {store.personalizationInsights.favoriteGames.length > 0 && (
+                      <span className="text-muted-foreground">
+                        Favorite Game: <strong className="text-foreground">{store.personalizationInsights.favoriteGames[0].name}</strong>
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* North Eastern Cultural Region Cognitive Content Selector (Requirement 8) */}
           <div className="rounded-3xl border border-border bg-secondary/30 p-5 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -647,7 +784,19 @@ export function CognitiveGamesHub({
               )}
             </div>
 
-            <div className="flex flex-wrap gap-2 pt-1">
+            {/* Clickable state filter pills that dynamically customize cognitive games */}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => store.setSelectedNerState("all")}
+                className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                  !store.profile.selected_ner_state || store.profile.selected_ner_state === "all"
+                    ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                    : "bg-card border-border/80 text-foreground hover:border-primary"
+                }`}
+              >
+                🌐 All NER States
+              </button>
               {[
                 { name: "Assam", icon: "🍃", note: "Tea & Bihu" },
                 { name: "Meghalaya", icon: "🌧️", note: "Bridges & Rain" },
@@ -657,16 +806,27 @@ export function CognitiveGamesHub({
                 { name: "Arunachal Pradesh", icon: "🏔️", note: "Orchids & Dawn" },
                 { name: "Tripura", icon: "🏰", note: "Neermahal" },
                 { name: "Sikkim", icon: "🌸", note: "Kanchenjunga" },
-              ].map((state) => (
-                <div
-                  key={state.name}
-                  className="px-3 py-1.5 rounded-xl bg-card border border-border/80 text-xs font-bold text-foreground flex items-center gap-1.5 shadow-2xs"
-                >
-                  <span>{state.icon}</span>
-                  <span>{state.name}</span>
-                  <span className="text-[10px] text-muted-foreground font-normal">({state.note})</span>
-                </div>
-              ))}
+              ].map((state) => {
+                const isSelected = store.profile.selected_ner_state === state.name;
+                return (
+                  <button
+                    key={state.name}
+                    type="button"
+                    onClick={() => store.setSelectedNerState(state.name)}
+                    className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-primary text-primary-foreground border-primary scale-105"
+                        : "bg-card border-border/80 text-foreground hover:border-primary"
+                    }`}
+                  >
+                    <span>{state.icon}</span>
+                    <span>{state.name}</span>
+                    <span className={`text-[10px] font-normal ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                      ({state.note})
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 

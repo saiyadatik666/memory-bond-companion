@@ -23,11 +23,16 @@ export function PatternRecall({
   const [activeTile, setActiveTile] = useState<number | null>(null);
   const [isPlayingSeq, setIsPlayingSeq] = useState<boolean>(false);
   const [status, setStatus] = useState<"idle" | "watching" | "repeating" | "success" | "retry">("idle");
+  const [mistakes, setMistakes] = useState<number>(0);
+  const [attempts, setAttempts] = useState<number>(1);
+  const startTimeRef = useState<{ current: number }>({ current: Date.now() })[0];
 
   const startLevel = (length = seqLength) => {
     const newSeq = Array.from({ length }, () => Math.floor(Math.random() * 4));
     setSequence(newSeq);
     setUserSequence([]);
+    setMistakes(0);
+    setAttempts(1);
     setStatus("watching");
     playSequence(newSeq);
   };
@@ -43,6 +48,7 @@ export function PatternRecall({
       setActiveTile(null);
     }
     setIsPlayingSeq(false);
+    startTimeRef.current = Date.now();
     setStatus("repeating");
   };
 
@@ -63,14 +69,24 @@ export function PatternRecall({
     const stepIndex = nextUserSeq.length - 1;
     if (tileId !== sequence[stepIndex]) {
       // Gentle retry
+      setMistakes((m) => m + 1);
+      setAttempts((a) => a + 1);
       setStatus("retry");
       return;
     }
 
     if (nextUserSeq.length === sequence.length) {
       // Completed level
+      const elapsedMs = Math.max(800, Date.now() - startTimeRef.current);
+      const calculatedAcc = Math.max(30, Math.round(100 - mistakes * 20));
       setStatus("success");
-      onComplete(sequence.length, sequence.length);
+      onComplete(sequence.length, sequence.length, {
+        gameType: "attention",
+        accuracy: calculatedAcc,
+        responseTimeMs: elapsedMs,
+        attempts: attempts,
+        errors: mistakes,
+      });
     }
   };
 

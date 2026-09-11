@@ -59,6 +59,8 @@ export function RoutineRecall({
   const [selectedOpt, setSelectedOpt] = useState<number | null>(null);
   const [score, setScore] = useState<number>(0);
   const [isFinished, setIsFinished] = useState<boolean>(false);
+  const [mistakes, setMistakes] = useState<number>(0);
+  const startTimeRef = useState<{ current: number }>({ current: Date.now() })[0];
 
   const activeQuestions = ALL_ROUTINE_QUESTIONS.slice(0, Math.min(ALL_ROUTINE_QUESTIONS.length, Math.max(3, level + 1)));
   const currentQ = activeQuestions[currentIdx];
@@ -74,13 +76,23 @@ export function RoutineRecall({
     const nextScore = score + (isCorrect ? 1 : 0);
     if (isCorrect) {
       setScore(nextScore);
+    } else {
+      setMistakes((m) => m + 1);
     }
     setSelectedOpt(null);
     if (currentIdx + 1 < activeQuestions.length) {
       setCurrentIdx((i) => i + 1);
     } else {
+      const elapsedMs = Math.max(1200, Date.now() - startTimeRef.current);
+      const calculatedAcc = Math.round((nextScore / activeQuestions.length) * 100);
       setIsFinished(true);
-      onComplete(nextScore, activeQuestions.length);
+      onComplete(nextScore, activeQuestions.length, {
+        gameType: "recall",
+        accuracy: calculatedAcc,
+        responseTimeMs: elapsedMs,
+        attempts: activeQuestions.length + mistakes,
+        errors: mistakes + (isCorrect ? 0 : 1),
+      });
     }
   };
 

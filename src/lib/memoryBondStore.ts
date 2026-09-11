@@ -4,10 +4,14 @@ import {
   getAIActivityRecommendation,
   detectAIEarlyWarning,
   getCognitiveTrends,
+  calculatePersonalizationInsights,
+  getCognitiveCareLoopSteps,
   type DynamicCognitiveProfile,
   type ActivityRecommendation,
   type EarlyWarningStatus,
   type HistoricalTrendPoint,
+  type PersonalizationInsights,
+  type CognitiveCareLoopStep,
   STATUTORY_WELLNESS_DISCLAIMER,
 } from "./cognitiveCareEngine";
 
@@ -28,6 +32,7 @@ export interface Profile {
   easy_mode: boolean;
   reduced_motion?: boolean;
   voice_provider?: "web_speech" | "bhashini" | "google_cloud";
+  selected_ner_state?: string;
   floating_bubble?: boolean;
   baseline_assessment?: {
     completed_at: string;
@@ -147,11 +152,29 @@ export interface DailyRoutine {
 
 export interface MemoryCue {
   id: string;
-  category: "person" | "place" | "instruction" | "routine" | "object" | "safety";
+  category:
+    | "person"
+    | "family_member"
+    | "child"
+    | "friend"
+    | "place"
+    | "home"
+    | "school"
+    | "village"
+    | "song"
+    | "story"
+    | "object"
+    | "safety"
+    | "instruction"
+    | "routine"
+    | "voice_memory"
+    | "note";
   title: string;
   detail: string;
   photo_url?: string;
   voice_note_url?: string;
+  author?: string;
+  created_at?: string;
 }
 
 export interface MemoryJournalItem {
@@ -1618,6 +1641,12 @@ export function useMemoryBondStore() {
   const dynamicCognitiveProfile = calculateDynamicCognitiveProfile(gameSessions, routines);
   const activityRecommendation = getAIActivityRecommendation(dynamicCognitiveProfile, gameSessions);
   const earlyWarningStatus = detectAIEarlyWarning(gameSessions);
+  const personalizationInsights = calculatePersonalizationInsights(gameSessions, profile.full_name);
+  const cognitiveCareLoopSteps = getCognitiveCareLoopSteps(dynamicCognitiveProfile, activityRecommendation, gameSessions[0]);
+
+  const setSelectedNerState = useCallback((nerState: string) => {
+    setProfile((prev) => ({ ...prev, selected_ner_state: nerState }));
+  }, []);
 
   return {
     // Network & Demo state
@@ -1633,6 +1662,11 @@ export function useMemoryBondStore() {
     setRole,
     updateProfile,
     updateBaselineAssessment,
+    setSelectedNerState,
+
+    // Personalization & Complete Care Loop
+    personalizationInsights,
+    cognitiveCareLoopSteps,
 
     // Medicines
     medicines,

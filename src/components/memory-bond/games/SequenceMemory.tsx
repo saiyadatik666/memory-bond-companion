@@ -28,9 +28,12 @@ export function SequenceMemory({
     generateSequence(digitLength);
   }, [level]);
 
+  const startTimeRef = useState<{ current: number }>({ current: Date.now() })[0];
+
   useEffect(() => {
     if (phase !== "show") return;
     if (countdown <= 0) {
+      startTimeRef.current = Date.now();
       setPhase("input");
       return;
     }
@@ -52,7 +55,23 @@ export function SequenceMemory({
     setPhase("result");
     const targetStr = digits.join("");
     const isCorrect = userInput === targetStr;
-    onComplete(isCorrect ? digits.length : 0, digits.length);
+    const elapsedMs = Math.max(1000, Date.now() - startTimeRef.current);
+    
+    // Count exact character matches
+    let matchCount = 0;
+    for (let i = 0; i < digits.length; i++) {
+      if (userInput[i] === String(digits[i])) matchCount++;
+    }
+    const calculatedAcc = Math.round((matchCount / digits.length) * 100);
+    const scoreVal = isCorrect ? digits.length : matchCount;
+
+    onComplete(scoreVal, digits.length, {
+      gameType: "memory",
+      accuracy: calculatedAcc,
+      responseTimeMs: elapsedMs,
+      attempts: 1,
+      errors: digits.length - matchCount,
+    });
   };
 
   return (

@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Sparkles, RotateCcw, CheckCircle2, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getCulturalObjectsForRecall, type NERState } from "@/lib/nerCulturalRepository";
 
-const OBJECT_POOL = [
+const FALLBACK_POOL = [
   { id: "tea", icon: "🍵", name: "Cup of Tea" },
   { id: "glasses", icon: "👓", name: "Reading Glasses" },
   { id: "clock", icon: "⏰", name: "Alarm Clock" },
@@ -20,38 +21,45 @@ const OBJECT_POOL = [
 export function ObjectRecall({
   onComplete,
   level = 1,
+  nerState = "all",
 }: {
   onComplete: (score: number, total: number, extra?: any) => void;
   level?: number;
+  nerState?: string;
 }) {
   const [phase, setPhase] = useState<"memorize" | "recall" | "result">("memorize");
-  const [targetObjects, setTargetObjects] = useState<typeof OBJECT_POOL>([]);
-  const [distractorOptions, setDistractorOptions] = useState<typeof OBJECT_POOL>([]);
+  const [targetObjects, setTargetObjects] = useState<Array<{ id: string; icon: string; name: string }>>([]);
+  const [distractorOptions, setDistractorOptions] = useState<Array<{ id: string; icon: string; name: string }>>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [countdown, setCountdown] = useState<number>(6);
+  const recallStartRef = useRef<number>(Date.now());
 
   const targetCount = Math.min(8, Math.max(3, level + 2)); // Level 1=3, Level 2=4, Level 3=5, Level 4=6, Level 5=7, Level 6=8
 
   const startRound = () => {
-    const shuffled = [...OBJECT_POOL].sort(() => Math.random() - 0.5);
+    const cultural = getCulturalObjectsForRecall((nerState as NERState) || "all", targetCount + 5);
+    const pool = cultural.length >= targetCount + 3 ? cultural : FALLBACK_POOL;
+
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
     const targets = shuffled.slice(0, targetCount);
-    const options = shuffled.slice(0, Math.min(OBJECT_POOL.length, targetCount + 4)).sort(() => Math.random() - 0.5);
+    const options = shuffled.slice(0, Math.min(pool.length, targetCount + 4)).sort(() => Math.random() - 0.5);
 
     setTargetObjects(targets);
     setDistractorOptions(options);
     setSelectedIds([]);
-    setCountdown(6);
+    setCountdown(Math.max(5, 7 - Math.floor(level / 2))); // Gentle countdown
     setPhase("memorize");
   };
 
   useEffect(() => {
     startRound();
-  }, [level]);
+  }, [level, nerState]);
 
   useEffect(() => {
     if (phase !== "memorize") return;
     if (countdown <= 0) {
       setPhase("recall");
+      recallStartRef.current = Date.now();
       return;
     }
     const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
@@ -70,16 +78,26 @@ export function ObjectRecall({
 
   const handleVerify = () => {
     const correctCount = selectedIds.filter((id) => targetObjects.some((t) => t.id === id)).length;
+    const errors = selectedIds.filter((id) => !targetObjects.some((t) => t.id === id)).length;
+    const accuracy = Math.round((correctCount / targetObjects.length) * 100);
+    const elapsedMs = Math.max(1500, Date.now() - recallStartRef.current);
+
     setPhase("result");
-    onComplete(correctCount, targetObjects.length);
+    onComplete(correctCount, targetObjects.length, {
+      gameType: "recall",
+      accuracy,
+      responseTimeMs: Math.round(elapsedMs / Math.max(1, selectedIds.length)),
+      attempts: selectedIds.length,
+      errors,
+    });
   };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-secondary/40 p-4">
         <div>
-          <h3 className="text-xl font-bold text-foreground">Game 2: Object Recall</h3>
-          <p className="text-sm text-muted-foreground">Look carefully at the everyday items, then recall them.</p>
+          <h3 className="text-xl font-bold text-foreground">Game 2: Object Recall (Level {level})</h3>
+          <p className="text-sm text-muted-foreground">Look carefully at the everyday cultural items, then recall them.</p>
         </div>
         <Button variant="outline" onClick={startRound} className="gap-2">
           <RotateCcw className="h-4 w-4" /> Restart
@@ -116,7 +134,7 @@ export function ObjectRecall({
                 <button
                   key={obj.id}
                   onClick={() => toggleSelect(obj.id)}
-                  className={`rounded-2xl border-2 p-5 flex flex-col items-center gap-2 transition-all ${
+                  className={`rounded-2xl border-2 p-5 flex flex-col items-center gap-2 transition-all cursor-pointer ${
                     isSelected
                       ? "bg-primary text-primary-foreground border-primary shadow-md scale-105"
                       : "bg-card hover:bg-secondary/60 border-border"
@@ -133,7 +151,7 @@ export function ObjectRecall({
             size="lg"
             onClick={handleVerify}
             disabled={selectedIds.length === 0}
-            className="px-10 py-6 text-lg font-bold"
+            className="px-10 py-6 text-lg font-bold cursor-pointer"
           >
             Check My Answers
           </Button>
@@ -148,7 +166,7 @@ export function ObjectRecall({
             You recognized {selectedIds.filter((id) => targetObjects.some((t) => t.id === id)).length} of {targetObjects.length} items correctly.
           </p>
           <div className="flex justify-center gap-4 pt-2">
-            <Button size="lg" onClick={startRound} className="gap-2 font-bold px-8">
+            <Button size="lg" onClick={startRound} className="gap-2 font-bold px-8 cursor-pointer">
               <Sparkles className="h-5 w-5" /> Try Another Round
             </Button>
           </div>

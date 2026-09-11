@@ -660,6 +660,58 @@ export function parseVoiceIntent(
     };
   }
 
+  // 1.8. Conversational Question & Personal Memory Recall (When is medicine? Where are glasses? Who is Sunita? My medicine is at 8 PM)
+  const isQuestionOrMemory =
+    lower.includes("when") ||
+    lower.includes("where") ||
+    lower.includes("who is") ||
+    lower.includes("who are you") ||
+    lower.includes("ક્યારે") ||
+    lower.includes("ક્યાં") ||
+    lower.includes("કોણ") ||
+    lower.includes("તમે કોણ") ||
+    lower.includes("कब") ||
+    lower.includes("कहाँ") ||
+    lower.includes("कौन") ||
+    lower.includes("तुम कौन") ||
+    lower.includes("কেতিয়া") ||
+    lower.includes("ক’ত") ||
+    lower.includes("কখন") ||
+    lower.includes("কোথায়") ||
+    lower.includes("my medicine is at") ||
+    lower.includes("medicine is at 8") ||
+    lower.includes("દવા 8 વાગ્યે") ||
+    lower.includes("दवा 8 बजे") ||
+    lower.includes("sunita") ||
+    lower.includes("aarav") ||
+    lower.includes("rajesh") ||
+    lower.includes("सुनीता") ||
+    lower.includes("સુનીતા");
+
+  if (isQuestionOrMemory) {
+    const conversationalReply = conversationalAI.generateConversationalReply(text, locale, store);
+    if (
+      conversationalReply.includes("દવા") ||
+      conversationalReply.includes("दवा") ||
+      conversationalReply.includes("medicine") ||
+      conversationalReply.includes("ঔষধ") ||
+      conversationalReply.includes("યાદો") ||
+      conversationalReply.includes("यादों") ||
+      conversationalReply.includes("Memory Bank") ||
+      conversationalReply.includes("સુનિતા") ||
+      conversationalReply.includes("सुनीता") ||
+      conversationalReply.includes("Sunita") ||
+      conversationalReply.includes("Aarav") ||
+      conversationalReply.includes("Rajesh") ||
+      conversationalReply.includes("Memory Bond")
+    ) {
+      return {
+        type: "ANSWER",
+        message: conversationalReply,
+      };
+    }
+  }
+
   // 2. Navigation Intent
   if (
     lower.includes("go to") ||

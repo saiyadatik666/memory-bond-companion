@@ -896,6 +896,59 @@ export class ConversationalAIEngine {
       return rajeshBio[lang] || rajeshBio["en"];
     }
 
+    // 11. Personal Object Location / Memory Bank Recall ("Where are my glasses?" / "મારા ચશ્મા ક્યાં છે?" / "मेरे चश्मे कहाँ हैं?")
+    const isAskingLocation =
+      t.includes("where") ||
+      t.includes("kahan") ||
+      t.includes("kaha") ||
+      t.includes("ક્યાં") ||
+      t.includes("कहाँ") ||
+      t.includes("কোথায়") ||
+      t.includes("ক’ত") ||
+      t.includes("कुठे") ||
+      t.includes("எங்கே") ||
+      t.includes("ఎక్కడ");
+
+    if (isAskingLocation && store) {
+      const cues = store.memoryCues || [];
+      const matchingCue = cues.find((c) => {
+        const titleLower = c.title.toLowerCase();
+        const detailLower = c.detail.toLowerCase();
+        if (t.includes("glass") || t.includes("spectacle") || t.includes("चश्मे") || t.includes("ચશ્મા")) {
+          return titleLower.includes("glass") || detailLower.includes("glass") || titleLower.includes("spectacle") || titleLower.includes("ચશ્મા") || titleLower.includes("चश्मे");
+        }
+        if (t.includes("key") || t.includes("chabi") || t.includes("चाबी") || t.includes("ચાવી")) {
+          return titleLower.includes("key") || detailLower.includes("key") || titleLower.includes("chabi") || titleLower.includes("ચાવી") || titleLower.includes("चाबी");
+        }
+        if (t.includes("wallet") || t.includes("purse") || t.includes("बटुआ") || t.includes("પાકીટ")) {
+          return titleLower.includes("wallet") || titleLower.includes("purse") || detailLower.includes("wallet");
+        }
+        if (t.includes("stick") || t.includes("cane") || t.includes("लाठी") || t.includes("લાકડી")) {
+          return titleLower.includes("stick") || detailLower.includes("stick");
+        }
+        return false;
+      });
+
+      if (matchingCue) {
+        if (lang === "gu") {
+          return `તમારી અંગત યાદો અનુસાર: ${matchingCue.title} - ${matchingCue.detail}`;
+        }
+        if (lang === "hi") {
+          return `आपकी यादों के अनुसार: ${matchingCue.title} - ${matchingCue.detail}`;
+        }
+        if (lang === "as") {
+          return `আপোনাৰ ব্যক্তিগত স্মৃতি অনুসাৰে: ${matchingCue.title} - ${matchingCue.detail}`;
+        }
+        if (lang === "bn") {
+          return `আপনার ব্যক্তিগত স্মৃতি অনুসারে: ${matchingCue.title} - ${matchingCue.detail}`;
+        }
+        if (lang === "mr") {
+          return `आपल्या आठवणीनुसार: ${matchingCue.title} - ${matchingCue.detail}`;
+        }
+        return `According to your Personal Memory Bank: ${matchingCue.title} - ${matchingCue.detail}`;
+      }
+    }
+
     // Default reassuring senior response in the EXACT language
     const fallbackByLang: Record<string, string> = {
       gu: "હું ધ્યાનથી સાંભળી રહ્યો છું. હું તમારી દવાઓ, પાણીના રિમાઇન્ડર, કે યાદોમાં કેવી રીતે મદદ કરી શકું?",

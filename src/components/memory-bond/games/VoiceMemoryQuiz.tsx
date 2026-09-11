@@ -59,18 +59,38 @@ const ALL_VOICE_QUIZ_ITEMS: VoiceQuizItem[] = [
 export function VoiceMemoryQuiz({
   onComplete,
   level = 1,
+  memoryCues = [],
 }: {
   onComplete: (score: number, total: number, extra?: any) => void;
   level?: number;
+  memoryCues?: any[];
 }) {
   const { speechLocale } = useI18n();
   const [currentIdx, setCurrentIdx] = useState<number>(0);
   const [selectedOpt, setSelectedOpt] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [score, setScore] = useState<number>(0);
+  const [mistakes, setMistakes] = useState<number>(0);
   const [isFinished, setIsFinished] = useState<boolean>(false);
+  const startTimeRef = useState<{ current: number }>({ current: Date.now() })[0];
 
-  const activeItems = ALL_VOICE_QUIZ_ITEMS.slice(0, Math.min(ALL_VOICE_QUIZ_ITEMS.length, Math.max(2, level + 1)));
+  // Synthesize personal memory bank quiz items if available
+  const personalQuizItems: VoiceQuizItem[] = (memoryCues || [])
+    .filter((c) => c.detail && (c.category === "voice_memory" || c.category === "family_member" || c.category === "child" || c.category === "story"))
+    .map((c) => ({
+      promptAudioText: `Here is a note from your personal memory bank: ${c.title}. ${c.detail}`,
+      question: `According to this personal note, what is the detail regarding ${c.title}?`,
+      options: [
+        c.detail.slice(0, 50),
+        "Routine grocery shopping",
+        "A distant relative from another city",
+        "A forgotten schedule",
+      ],
+      correct: 0,
+    }));
+
+  const combinedItems = [...personalQuizItems, ...ALL_VOICE_QUIZ_ITEMS];
+  const activeItems = combinedItems.slice(0, Math.min(combinedItems.length, Math.max(2, level + 1)));
   const current = activeItems[currentIdx];
 
   if (!current) return null;
@@ -85,16 +105,25 @@ export function VoiceMemoryQuiz({
   const handleNext = () => {
     const isCorrect = selectedOpt === current.correct;
     const nextScore = score + (isCorrect ? 1 : 0);
-    if (isCorrect) setScore(nextScore);
+    if (isCorrect) {
+      setScore(nextScore);
+    } else {
+      setMistakes((m) => m + 1);
+    }
 
     setSelectedOpt(null);
     if (currentIdx + 1 < activeItems.length) {
       setCurrentIdx((i) => i + 1);
     } else {
+      const elapsedMs = Math.max(1500, Date.now() - startTimeRef.current);
+      const calculatedAcc = Math.round((nextScore / activeItems.length) * 100);
       setIsFinished(true);
       onComplete(nextScore, activeItems.length, {
         gameType: "recall",
-        accuracy: Math.round((nextScore / activeItems.length) * 100),
+        accuracy: calculatedAcc,
+        responseTimeMs: elapsedMs,
+        attempts: activeItems.length + mistakes,
+        errors: mistakes + (isCorrect ? 0 : 1),
       });
     }
   };

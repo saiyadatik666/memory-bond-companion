@@ -243,7 +243,8 @@ export const NER_CULTURAL_CATALOG: CulturalItemDetail[] = [
  */
 export function getCulturalItemsByState(state: NERState = "all"): CulturalItemDetail[] {
   if (state === "all") return NER_CULTURAL_CATALOG;
-  return NER_CULTURAL_CATALOG.filter((item) => item.state === state);
+  const filtered = NER_CULTURAL_CATALOG.filter((item) => item.state === state);
+  return filtered.length > 0 ? filtered : NER_CULTURAL_CATALOG;
 }
 
 /**
@@ -253,4 +254,41 @@ export function getCulturalGamePack(state: NERState = "all", count = 6) {
   const pool = getCulturalItemsByState(state);
   const shuffled = [...pool].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, Math.min(pool.length, count));
+}
+
+export function getCulturalCardsForMemoryMatch(state: NERState = "all", pairCount = 4): Array<{ icon: string; name: string }> {
+  const pack = getCulturalGamePack(state, Math.max(pairCount, 8));
+  return pack.slice(0, pairCount).map((item) => ({
+    icon: item.icon,
+    name: item.name,
+  }));
+}
+
+export function getCulturalObjectsForRecall(state: NERState = "all", count = 6): Array<{ id: string; icon: string; name: string }> {
+  const pack = getCulturalGamePack(state, Math.max(count, 12));
+  return pack.slice(0, count).map((item) => ({
+    id: item.id,
+    icon: item.icon,
+    name: item.name,
+  }));
+}
+
+export function getCulturalPairsForMatching(
+  state: NERState = "all",
+  count = 5
+): Array<{ id: string; itemA: { name: string; icon: string }; itemB: { name: string; icon: string } }> {
+  const pool = getCulturalItemsByState(state).filter((item) => item.pairTarget);
+  const selected = (pool.length >= count ? pool : NER_CULTURAL_CATALOG.filter((i) => i.pairTarget)).slice(0, count);
+
+  return selected.map((item) => ({
+    id: item.id,
+    itemA: { name: item.name, icon: item.icon },
+    itemB: item.pairTarget ? { name: item.pairTarget.name, icon: item.pairTarget.icon } : { name: "Cultural Pair", icon: "✨" },
+  }));
+}
+
+export function getCulturalWordsForMemory(state: NERState = "all", count = 5): string[] {
+  const pool = getCulturalItemsByState(state);
+  const words = pool.map((p) => p.nativeName || p.name);
+  return words.slice(0, count);
 }
