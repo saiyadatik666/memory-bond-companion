@@ -574,46 +574,101 @@ export function CognitiveGamesHub({
             </div>
           </div>
 
-          {/* Dynamic Difficulty Adaptation Banner */}
-          <div className="rounded-3xl border-2 border-primary/30 bg-primary/10 p-5 flex flex-wrap items-center justify-between gap-4 animate-in fade-in">
-            <div className="flex items-center gap-3 max-w-xl">
-              <TrendingUp className="h-6 w-6 text-primary shrink-0" />
-              <div>
-                <div className="text-xs font-black text-primary uppercase tracking-wider">
-                  AI Adaptive Progression Engine
+          {/* AI-Based Activity Recommendation Hero Card (Requirement 3 & Complete AI Loop) */}
+          {store.activityRecommendation && (
+            <div className="rounded-3xl border-2 border-primary/40 bg-card p-6 shadow-md space-y-4 animate-in fade-in">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-primary/15 border-2 border-primary/30 flex items-center justify-center text-3xl shrink-0">
+                    🎯
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-black uppercase tracking-wider text-primary bg-primary/15 px-3 py-1 rounded-full">
+                        AI Recommended Next Activity
+                      </span>
+                      {store.activityRecommendation.isOptimalTime && (
+                        <span className="text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-500/15 border border-amber-500/30 px-3 py-0.5 rounded-full flex items-center gap-1">
+                          <Sun className="h-3 w-3" /> Focus Window (9 AM – 11 AM)
+                        </span>
+                      )}
+                      <span className="text-xs font-bold text-muted-foreground bg-secondary px-2.5 py-0.5 rounded-full capitalize">
+                        Focus: {store.activityRecommendation.focusDomain}
+                      </span>
+                    </div>
+                    <h3 className="text-xl sm:text-2xl font-black text-foreground mt-2">
+                      {store.activityRecommendation.headline}
+                    </h3>
+                    <p className="text-sm font-semibold text-foreground/90 mt-1 max-w-2xl leading-relaxed">
+                      {store.activityRecommendation.rationale}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-sm font-bold text-foreground mt-0.5">
-                  {adaptiveRecommendation.rationale} Each completed level seamlessly unlocks the next challenge with personalized spoken encouragement.
-                </p>
+
+                <Button
+                  onClick={() => handleSelectGame(store.activityRecommendation.recommendedGameId)}
+                  size="lg"
+                  className="rounded-2xl px-6 py-6 font-black text-base shadow-md bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shrink-0 cursor-pointer"
+                >
+                  <span>Start Recommended Game</span>
+                  <ArrowRight className="h-5 w-5" />
+                </Button>
+              </div>
+
+              {/* Statutory Non-Diagnostic Note */}
+              <div className="pt-2 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
+                <span className="italic">{store.activityRecommendation.timeContextPrompt}</span>
+                <span className="font-semibold text-primary/80">Tailored to your current wellness balance</span>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Quick Cultural Connect Banner */}
-          {onNavigate && (
-            <div className="rounded-3xl border-2 border-emerald-500/30 bg-emerald-500/10 p-5 flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 flex items-center justify-center text-xl">
-                  🌸
-                </div>
+          {/* North Eastern Cultural Region Cognitive Content Selector (Requirement 8) */}
+          <div className="rounded-3xl border border-border bg-secondary/30 p-5 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🎋</span>
                 <div>
-                  <h4 className="text-base font-black text-foreground">
-                    North Eastern Cultural Heritage Recall
-                  </h4>
+                  <h4 className="text-base font-black text-foreground">North Eastern Region Cultural Hub</h4>
                   <p className="text-xs text-muted-foreground">
-                    Recall familiar Assamese and North East items (Jaapi, Gamosa, Kaji Nemu) to boost your CES Recognition domain.
+                    Culturally familiar items configured across all 8 NER states for memory, recognition, and recall activities.
                   </p>
                 </div>
               </div>
-              <Button
-                size="sm"
-                onClick={() => onNavigate("cultural")}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs"
-              >
-                Open Heritage Hub ➔
-              </Button>
+              {onNavigate && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onNavigate("cultural")}
+                  className="rounded-xl font-bold text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                >
+                  Cultural Deep Dive ➔
+                </Button>
+              )}
             </div>
-          )}
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              {[
+                { name: "Assam", icon: "🍃", note: "Tea & Bihu" },
+                { name: "Meghalaya", icon: "🌧️", note: "Bridges & Rain" },
+                { name: "Nagaland", icon: "🎺", note: "Hornbill & Shawls" },
+                { name: "Mizoram", icon: "🎋", note: "Cheraw Bamboo" },
+                { name: "Manipur", icon: "🪷", note: "Loktak & Ras" },
+                { name: "Arunachal Pradesh", icon: "🏔️", note: "Orchids & Dawn" },
+                { name: "Tripura", icon: "🏰", note: "Neermahal" },
+                { name: "Sikkim", icon: "🌸", note: "Kanchenjunga" },
+              ].map((state) => (
+                <div
+                  key={state.name}
+                  className="px-3 py-1.5 rounded-xl bg-card border border-border/80 text-xs font-bold text-foreground flex items-center gap-1.5 shadow-2xs"
+                >
+                  <span>{state.icon}</span>
+                  <span>{state.name}</span>
+                  <span className="text-[10px] text-muted-foreground font-normal">({state.note})</span>
+                </div>
+              ))}
+            </div>
+          </div>
 
           {/* 10 Games Grid (All 10 Games Preserved, Complete & Progress-tracked) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">

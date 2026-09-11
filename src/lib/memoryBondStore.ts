@@ -1,4 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
+import {
+  calculateDynamicCognitiveProfile,
+  getAIActivityRecommendation,
+  detectAIEarlyWarning,
+  getCognitiveTrends,
+  type DynamicCognitiveProfile,
+  type ActivityRecommendation,
+  type EarlyWarningStatus,
+  type HistoricalTrendPoint,
+  STATUTORY_WELLNESS_DISCLAIMER,
+} from "./cognitiveCareEngine";
 
 export type UserRole = "senior" | "caregiver" | "admin_healthcare_worker" | "healthcare_worker" | "admin";
 
@@ -27,6 +38,7 @@ export interface Profile {
     recall_score: number;
     notes?: string;
   };
+  cognitive_profile?: DynamicCognitiveProfile;
   caregiver_alerts?: {
     missed_medicines: boolean;
     low_stock: boolean;
@@ -214,6 +226,28 @@ export interface ClinicalNote {
   follow_up_date: string;
 }
 
+export interface ReminderEscalation {
+  id: string;
+  reminder_id: string;
+  reminder_title: string;
+  reminder_type: string;
+  scheduled_time: string;
+  stage: 1 | 2 | 3; // 1 = initial alert, 2 = second reminder, 3 = caregiver escalated
+  status: "pending" | "second_notice" | "caregiver_alerted" | "resolved";
+  first_sent_at: string;
+  second_sent_at?: string;
+  caregiver_alerted_at?: string;
+  resolved_at?: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  timestamp: string;
+  role: string;
+  action: string;
+  details: string;
+}
+
 export interface CognitiveEngagementScore {
   overall: number; // 0 - 100
   memory: number; // 30%
@@ -221,6 +255,7 @@ export interface CognitiveEngagementScore {
   recognition: number; // 20%
   recall: number; // 15%
   response_time: number; // 10%
+  consistency?: number; // Performance regularity and low variance
   engagement: number; // 5%
   disclaimer: string;
 }
@@ -639,6 +674,48 @@ export const DEMO_CLINICAL_NOTES: ClinicalNote[] = [
   },
 ];
 
+export const DEMO_REMINDER_ESCALATIONS: ReminderEscalation[] = [
+  {
+    id: "esc-1",
+    reminder_id: "rem-2",
+    reminder_title: "Take Amlodipine 5mg",
+    reminder_type: "medicine",
+    scheduled_time: "08:30",
+    stage: 1,
+    status: "resolved",
+    first_sent_at: new Date(Date.now() - 7200000).toISOString(),
+    resolved_at: new Date(Date.now() - 5400000).toISOString(),
+  },
+  {
+    id: "esc-2",
+    reminder_id: "rem-1",
+    reminder_title: "Drink warm water with lemon",
+    reminder_type: "hydration",
+    scheduled_time: "07:15",
+    stage: 1,
+    status: "resolved",
+    first_sent_at: new Date(Date.now() - 14400000).toISOString(),
+    resolved_at: new Date(Date.now() - 12000000).toISOString(),
+  },
+];
+
+export const DEMO_AUDIT_LOG: AuditLogEntry[] = [
+  {
+    id: "aud-1",
+    timestamp: new Date(Date.now() - 86400000).toISOString(),
+    role: "caregiver",
+    action: "VIEW_JOURNAL_PERMITTED",
+    details: "Caregiver Sunita Sharma accessed authorized memory journal entry.",
+  },
+  {
+    id: "aud-2",
+    timestamp: new Date(Date.now() - 43200000).toISOString(),
+    role: "healthcare_worker",
+    action: "RECORD_CLINICAL_NOTE",
+    details: "CHW Ananya Goswami added observation note for Ramesh Sharma.",
+  },
+];
+
 // Cognitive Engagement Score (CES) Calculator
 export function calculateCES(sessions: GameSession[], routinesDoneCount: number, routinesTotal: number): CognitiveEngagementScore {
   if (sessions.length === 0) {
@@ -649,13 +726,14 @@ export function calculateCES(sessions: GameSession[], routinesDoneCount: number,
       recognition: 75,
       recall: 68,
       response_time: 72,
+      consistency: 70,
       engagement: 75,
       disclaimer: CES_DISCLAIMER,
     };
   }
 
   // Split sessions by type
-  const memorySessions = sessions.filter((s) => s.game_type === "memory" || s.game_key === "card_match" || s.game_key === "word_memory");
+  const memorySessions = sessions.filter((s) => s.game_type === "memory" || s.game_key === "card_match" || s.game_key === "word_memory" || s.game_key === "sequence_memory");
   const attentionSessions = sessions.filter((s) => s.game_type === "attention" || s.game_key === "pattern_recall" || s.game_key === "find_difference");
   const recognitionSessions = sessions.filter((s) => s.game_type === "recognition" || s.game_key === "match_object" || s.game_key === "family_photo" || s.game_type === "cultural");
   const recallSessions = sessions.filter((s) => s.game_type === "recall" || s.game_key === "object_recall" || s.game_key === "routine_recall" || s.game_key === "voice_quiz");
@@ -682,6 +760,12 @@ export function calculateCES(sessions: GameSession[], routinesDoneCount: number,
   else if (avgResponseTime < 7000) responseTimeScore = 65;
   else responseTimeScore = 50;
 
+  // Consistency score: low variance across recent sessions
+  const accuracies = sessions.slice(0, 8).map((s) => s.accuracy ?? 70);
+  const meanAcc = accuracies.reduce((a, b) => a + b, 0) / (accuracies.length || 1);
+  const variance = accuracies.reduce((sum, val) => sum + Math.pow(val - meanAcc, 2), 0) / (accuracies.length || 1);
+  const consistencyScore = Math.max(10, Math.min(100, Math.round(100 - Math.sqrt(variance) * 2.2)));
+
   // Engagement score: based on routines completion + session count
   const routineRatio = routinesTotal > 0 ? routinesDoneCount / routinesTotal : 0.5;
   const engagementScore = Math.min(100, Math.round(routineRatio * 60 + Math.min(sessions.length * 8, 40)));
@@ -703,6 +787,7 @@ export function calculateCES(sessions: GameSession[], routinesDoneCount: number,
     recognition: recScore,
     recall: recallScore,
     response_time: responseTimeScore,
+    consistency: consistencyScore,
     engagement: engagementScore,
     disclaimer: CES_DISCLAIMER,
   };
@@ -920,6 +1005,26 @@ export function useMemoryBondStore() {
     }
   });
 
+  // Reminder Escalation Tracker (Stage 1: Sent -> Stage 2: Second Notice -> Stage 3: Caregiver Escalated)
+  const [reminderEscalations, setReminderEscalations] = useState<ReminderEscalation[]>(() => {
+    try {
+      const saved = localStorage.getItem(getKey("reminder_escalations"));
+      return saved ? JSON.parse(saved) : DEMO_REMINDER_ESCALATIONS;
+    } catch {
+      return DEMO_REMINDER_ESCALATIONS;
+    }
+  });
+
+  // Audit Log for sensitive patient privacy compliance
+  const [auditLog, setAuditLog] = useState<AuditLogEntry[]>(() => {
+    try {
+      const saved = localStorage.getItem(getKey("audit_log"));
+      return saved ? JSON.parse(saved) : DEMO_AUDIT_LOG;
+    } catch {
+      return DEMO_AUDIT_LOG;
+    }
+  });
+
   // Sync state to LocalStorage
   useEffect(() => {
     try {
@@ -940,10 +1045,12 @@ export function useMemoryBondStore() {
       localStorage.setItem(getKey("social_feed"), JSON.stringify(socialFeed));
       localStorage.setItem(getKey("clinical_notes"), JSON.stringify(clinicalNotes));
       localStorage.setItem(getKey("sync_queue"), JSON.stringify(syncQueue));
+      localStorage.setItem(getKey("reminder_escalations"), JSON.stringify(reminderEscalations));
+      localStorage.setItem(getKey("audit_log"), JSON.stringify(auditLog));
     } catch (e) {
       console.warn("LocalStorage save error:", e);
     }
-  }, [profile, medicines, medicineLogs, reminders, routines, appointments, memoryCues, journal, contacts, sosEvents, gameSessions, notifications, caregiverLinks, routineCalls, socialFeed, clinicalNotes, syncQueue]);
+  }, [profile, medicines, medicineLogs, reminders, routines, appointments, memoryCues, journal, contacts, sosEvents, gameSessions, notifications, caregiverLinks, routineCalls, socialFeed, clinicalNotes, syncQueue, reminderEscalations, auditLog]);
 
   // Network online/offline listener with automatic sync flush
   useEffect(() => {
@@ -1007,10 +1114,28 @@ export function useMemoryBondStore() {
     setProfile((prev) => ({ ...prev, ...patch }));
   }, []);
 
+  // Offline Sync Queue Helper (Queues real actions when offline)
+  const enqueueOfflineAction = useCallback(
+    (action: string, payload: any) => {
+      if (offlineModeForced || !isOnline) {
+        const item: OfflineSyncItem = {
+          id: `sync-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          action,
+          payload,
+          timestamp: new Date().toISOString(),
+        };
+        setSyncQueue((prev) => [...prev, item]);
+      }
+    },
+    [offlineModeForced, isOnline]
+  );
+
   // Smart Medicine Dose status (taken, missed, skipped)
   const markMedicineStatus = useCallback(
     (id: string, status: "taken" | "missed" | "skipped", note?: string) => {
       const scheduledTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+      enqueueOfflineAction("MARK_MEDICINE_STATUS", { id, status, note, scheduledTime });
 
       if (status === "taken") {
         setMedicines((prev) =>
@@ -1055,7 +1180,7 @@ export function useMemoryBondStore() {
       };
       setMedicineLogs((logs) => [log, ...logs]);
     },
-    []
+    [enqueueOfflineAction]
   );
 
   const takeMedicine = useCallback((id: string) => {
@@ -1105,8 +1230,9 @@ export function useMemoryBondStore() {
   // Reminders
   const addReminder = useCallback((rem: Omit<Reminder, "id">) => {
     const newRem: Reminder = { ...rem, id: `rem-${Date.now()}` };
+    enqueueOfflineAction("ADD_REMINDER", newRem);
     setReminders((prev) => [...prev, newRem]);
-  }, []);
+  }, [enqueueOfflineAction]);
 
   const updateReminder = useCallback((id: string, patch: Partial<Reminder>) => {
     setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -1135,10 +1261,11 @@ export function useMemoryBondStore() {
   // Routines
   const toggleRoutineDone = useCallback((id: string) => {
     const today = getTodayDateString();
+    enqueueOfflineAction("TOGGLE_ROUTINE", { id, date: today });
     setRoutines((prev) =>
       prev.map((rt): DailyRoutine => (rt.id === id ? { ...rt, done_date: rt.done_date === today ? null : today } : rt))
     );
-  }, []);
+  }, [enqueueOfflineAction]);
 
   const addRoutine = useCallback((rt: Omit<DailyRoutine, "id">) => {
     const newRt: DailyRoutine = { ...rt, id: `rt-${Date.now()}` };
@@ -1168,8 +1295,9 @@ export function useMemoryBondStore() {
   // Journal
   const addJournalEntry = useCallback((item: Omit<MemoryJournalItem, "id">) => {
     const newItem: MemoryJournalItem = { ...item, id: `jou-${Date.now()}` };
+    enqueueOfflineAction("ADD_JOURNAL", newItem);
     setJournal((prev) => [newItem, ...prev]);
-  }, []);
+  }, [enqueueOfflineAction]);
 
   const deleteJournalEntry = useCallback((id: string) => {
     setJournal((prev) => prev.filter((j) => j.id !== id));
@@ -1219,8 +1347,9 @@ export function useMemoryBondStore() {
       engagement_level: accuracy >= 75 ? "high" : "normal",
       created_at: new Date().toISOString(),
     };
+    enqueueOfflineAction("RECORD_GAME_SESSION", session);
     setGameSessions((prev) => [session, ...prev]);
-  }, []);
+  }, [enqueueOfflineAction]);
 
   // SOS Trigger
   const triggerSos = useCallback(
@@ -1342,9 +1471,122 @@ export function useMemoryBondStore() {
     setClinicalNotes(DEMO_CLINICAL_NOTES);
     setSyncQueue([]);
     setSosEvents([]);
+    setReminderEscalations(DEMO_REMINDER_ESCALATIONS);
+    setAuditLog(DEMO_AUDIT_LOG);
   }, []);
 
   const effectiveOnline = !offlineModeForced && isOnline;
+
+  // Immediate Manual Offline Sync Flush
+  const triggerSyncNow = useCallback(() => {
+    if (syncQueue.length === 0) return;
+    const count = syncQueue.length;
+    setSyncQueue([]);
+    try {
+      localStorage.setItem(getKey("sync_queue"), JSON.stringify([]));
+    } catch (e) {
+      console.warn("Error clearing sync queue:", e);
+    }
+    const syncNotif: AppNotification = {
+      id: `sync-manual-${Date.now()}`,
+      category: "general",
+      title: "Cloud Synchronized",
+      body: `Successfully synchronized ${count} offline pending action(s) to cloud servers.`,
+      read: false,
+      created_at: new Date().toISOString(),
+    };
+    setNotifications((prev) => [syncNotif, ...prev]);
+  }, [syncQueue.length]);
+
+  // Reminder Escalations (Stage 1 -> Stage 2 -> Stage 3 with Caregiver Alert)
+  const escalateReminder = useCallback((id: string, stage: 1 | 2 | 3) => {
+    setReminderEscalations((prev) =>
+      prev.map((esc) => {
+        if (esc.id !== id) return esc;
+        const nowIso = new Date().toISOString();
+        const updated: ReminderEscalation = {
+          ...esc,
+          stage,
+          second_sent_at: stage >= 2 ? (esc.second_sent_at || nowIso) : esc.second_sent_at,
+          caregiver_escalated_at: stage === 3 ? nowIso : esc.caregiver_escalated_at,
+          status: stage === 3 ? "caregiver_alerted" : "active",
+        };
+        if (stage === 3) {
+          const alertNotif: AppNotification = {
+            id: `esc-alert-${Date.now()}`,
+            category: "caregiver_alert",
+            title: `CRITICAL ESCALATION: ${esc.reminder_title}`,
+            body: `Senior missed reminder after 2 notices. Caregiver has been alerted at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`,
+            read: false,
+            created_at: nowIso,
+          };
+          setNotifications((n) => [alertNotif, ...n]);
+        }
+        return updated;
+      })
+    );
+  }, []);
+
+  const resolveReminderEscalation = useCallback((id: string) => {
+    setReminderEscalations((prev) =>
+      prev.map((esc) => (esc.id === id ? { ...esc, status: "resolved", resolved_at: new Date().toISOString() } : esc))
+    );
+  }, []);
+
+  const simulateEscalationFlow = useCallback((reminderTitle = "Donepezil 5mg (Night Dose)") => {
+    const newEscId = `esc-${Date.now()}`;
+    const initial: ReminderEscalation = {
+      id: newEscId,
+      reminder_id: `sim-rem-${Date.now()}`,
+      reminder_title: reminderTitle,
+      reminder_type: "medicine",
+      scheduled_time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      stage: 1,
+      status: "active",
+      first_sent_at: new Date().toISOString(),
+    };
+    setReminderEscalations((prev) => [initial, ...prev]);
+
+    // Fast-forward demo progression: Stage 2 in 1.8s, Stage 3 in 3.8s
+    setTimeout(() => {
+      setReminderEscalations((prev) =>
+        prev.map((e) =>
+          e.id === newEscId ? { ...e, stage: 2, second_sent_at: new Date().toISOString() } : e
+        )
+      );
+    }, 1800);
+
+    setTimeout(() => {
+      setReminderEscalations((prev) =>
+        prev.map((e) => {
+          if (e.id !== newEscId) return e;
+          const nowIso = new Date().toISOString();
+          const alertNotif: AppNotification = {
+            id: `esc-notif-${Date.now()}`,
+            category: "caregiver_alert",
+            title: `CAREGIVER ALERT: Missed Medicine (${reminderTitle})`,
+            body: `Senior did not respond to Stage 1 and Stage 2 notices. Escalated to family/caregiver emergency contacts.`,
+            read: false,
+            created_at: nowIso,
+          };
+          setNotifications((n) => [alertNotif, ...n]);
+          return { ...e, stage: 3, status: "caregiver_alerted", caregiver_escalated_at: nowIso };
+        })
+      );
+    }, 3800);
+  }, []);
+
+  // Sensitive patient privacy compliance audit logger
+  const logAuditAction = useCallback((action: string, details: string, role: UserRole = profile.role) => {
+    const entry: AuditLogEntry = {
+      id: `aud-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      role,
+      action,
+      details,
+    };
+    setAuditLog((prev) => [entry, ...prev]);
+  }, [profile.role]);
 
   // Conversation History for Voice Assistant
   const [conversationHistory, setConversationHistory] = useState<string[]>(() => {
@@ -1368,10 +1610,14 @@ export function useMemoryBondStore() {
     return conversationHistory.slice(-limit);
   }, [conversationHistory]);
 
-  // Dynamic Cognitive Engagement Score
+  // Dynamic Cognitive Engagement Score & AI Care Loop
   const todayStr = getTodayDateString();
   const routinesDoneToday = routines.filter((r) => r.done_date === todayStr).length;
   const cognitiveScore = calculateCES(gameSessions, routinesDoneToday, routines.length);
+
+  const dynamicCognitiveProfile = calculateDynamicCognitiveProfile(gameSessions, routines);
+  const activityRecommendation = getAIActivityRecommendation(dynamicCognitiveProfile, gameSessions);
+  const earlyWarningStatus = detectAIEarlyWarning(gameSessions);
 
   return {
     // Network & Demo state
@@ -1380,6 +1626,7 @@ export function useMemoryBondStore() {
     offlineModeForced,
     setOfflineModeForced,
     resetToDemoData,
+    triggerSyncNow,
 
     // Profile & Role
     profile,
@@ -1397,7 +1644,7 @@ export function useMemoryBondStore() {
     deleteMedicine,
     markMedicineStatus,
 
-    // Reminders
+    // Reminders & 3-Stage Escalation
     reminders,
     addReminder,
     updateReminder,
@@ -1405,6 +1652,10 @@ export function useMemoryBondStore() {
     markReminderDone,
     snoozeReminder,
     deleteReminder,
+    reminderEscalations,
+    escalateReminder,
+    resolveReminderEscalation,
+    simulateEscalationFlow,
 
     // Daily Routines
     routines,
@@ -1416,7 +1667,7 @@ export function useMemoryBondStore() {
     addAppointment,
     deleteAppointment,
 
-    // Memory Cues
+    // Memory Cues (Digital Personal Memory Bank)
     memoryCues,
     addMemoryCue,
     deleteMemoryCue,
@@ -1440,6 +1691,13 @@ export function useMemoryBondStore() {
     gameSessions,
     recordGameSession,
     cognitiveScore,
+    dynamicCognitiveProfile,
+    activityRecommendation,
+    earlyWarningStatus,
+    getCognitiveTrends: useCallback(
+      (tf?: "daily" | "weekly" | "monthly") => getCognitiveTrends(gameSessions, tf),
+      [gameSessions]
+    ),
 
     // Social Feed (Family Engagement)
     socialFeed,
@@ -1447,9 +1705,11 @@ export function useMemoryBondStore() {
     addSocialReaction,
     addSocialVoiceReply,
 
-    // Clinical Notes (Healthcare Worker)
+    // Clinical Notes & Privacy Audit (Healthcare Worker)
     clinicalNotes,
     addClinicalNote,
+    auditLog,
+    logAuditAction,
 
     // Notifications
     notifications,

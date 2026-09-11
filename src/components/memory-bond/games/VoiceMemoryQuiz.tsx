@@ -92,7 +92,10 @@ export function VoiceMemoryQuiz({
       setCurrentIdx((i) => i + 1);
     } else {
       setIsFinished(true);
-      onComplete(nextScore, activeItems.length);
+      onComplete(nextScore, activeItems.length, {
+        gameType: "recall",
+        accuracy: Math.round((nextScore / activeItems.length) * 100),
+      });
     }
   };
 
@@ -104,7 +107,7 @@ export function VoiceMemoryQuiz({
           <p className="text-sm text-muted-foreground">Listen carefully to the voice cue, then answer the question.</p>
         </div>
         <span className="rounded-xl bg-card px-4 py-2 font-bold shadow-xs">
-          Quiz {currentIdx + 1} / {QUIZ_ITEMS.length}
+          Quiz {currentIdx + 1} / {activeItems.length}
         </span>
       </div>
 
@@ -113,7 +116,7 @@ export function VoiceMemoryQuiz({
           <Volume2 className="mx-auto h-16 w-16 text-success" />
           <h4 className="text-3xl font-extrabold text-foreground">Active listening complete!</h4>
           <p className="text-lg text-muted-foreground">
-            You scored {score} of {QUIZ_ITEMS.length} in audio recall.
+            You scored {score} of {activeItems.length} in audio recall.
           </p>
           <Button
             size="lg"
@@ -138,15 +141,15 @@ export function VoiceMemoryQuiz({
                 onClick={handlePlayVoice}
                 className="gap-3 font-bold px-8 py-6 text-lg rounded-2xl"
               >
-                <Volume2 className={`h-6 w-6 ${isPlaying ? "animate-bounce" : ""}`} />
-                {isPlaying ? "Playing voice cue..." : "Play Voice Cue"}
+                {isPlaying ? <Sparkles className="h-6 w-6 animate-spin" /> : <Volume2 className="h-6 w-6" />}
+                {isPlaying ? "Speaking..." : "Play Voice Recording"}
               </Button>
               <p className="text-xs text-muted-foreground italic">
                 (Simulated family voice message with speech audio)
               </p>
             </div>
 
-            <h4 className="text-xl font-bold text-foreground">{current.question}</h4>
+            <h4 className="text-2xl font-bold text-foreground">{current.question}</h4>
 
             <div className="space-y-3">
               {current.options.map((opt, idx) => {
@@ -170,7 +173,7 @@ export function VoiceMemoryQuiz({
 
           <div className="flex justify-end">
             <Button size="lg" disabled={selectedOpt === null} onClick={handleNext} className="px-8 font-bold">
-              {currentIdx + 1 === QUIZ_ITEMS.length ? "Finish Quiz" : "Next Voice Cue"}
+              {currentIdx + 1 === activeItems.length ? "Finish Quiz" : "Next Voice Cue"}
             </Button>
           </div>
         </div>

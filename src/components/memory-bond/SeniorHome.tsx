@@ -580,6 +580,69 @@ export function SeniorHome({
         </div>
       </div>
 
+      {/* DYNAMIC COGNITIVE PROFILE RIBBON (Requirement 1 & 2) */}
+      {store.dynamicCognitiveProfile && (
+        <div className="rounded-3xl border-2 border-border bg-card p-5 sm:p-6 shadow-xs space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              <h3 className="text-base sm:text-lg font-black text-foreground">
+                Your Dynamic Cognitive Wellness Profile
+              </h3>
+            </div>
+            <span className="text-xs font-semibold text-muted-foreground italic">
+              Non-diagnostic wellness & engagement indicators
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3">
+            {[
+              { label: "Memory", val: store.dynamicCognitiveProfile.memory, color: "text-rose-500 bg-rose-500/10" },
+              { label: "Attention", val: store.dynamicCognitiveProfile.attention, color: "text-amber-500 bg-amber-500/10" },
+              { label: "Recognition", val: store.dynamicCognitiveProfile.recognition, color: "text-emerald-500 bg-emerald-500/10" },
+              { label: "Recall", val: store.dynamicCognitiveProfile.recall, color: "text-sky-500 bg-sky-500/10" },
+              { label: "Reaction", val: store.dynamicCognitiveProfile.reactionTime, color: "text-indigo-500 bg-indigo-500/10" },
+              { label: "Consistency", val: store.dynamicCognitiveProfile.consistency, color: "text-purple-500 bg-purple-500/10" },
+              { label: "Engagement", val: store.dynamicCognitiveProfile.engagement, color: "text-teal-500 bg-teal-500/10" },
+            ].map((dim) => (
+              <div key={dim.label} className="p-3 rounded-2xl bg-secondary/30 border border-border text-center space-y-1">
+                <div className="text-xs font-bold text-muted-foreground">{dim.label}</div>
+                <div className={`text-xl font-black py-0.5 rounded-lg ${dim.color}`}>{dim.val}</div>
+                <div className="text-[10px] text-muted-foreground font-semibold">/ 100</div>
+              </div>
+            ))}
+          </div>
+
+          {/* AI Activity Recommendation Card (Requirement 3) */}
+          {store.activityRecommendation && (
+            <div
+              onClick={() => onNavigate("games")}
+              className="rounded-2xl border-2 border-primary/30 bg-primary/10 p-4 flex flex-wrap items-center justify-between gap-3 cursor-pointer hover:bg-primary/15 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center text-xl shrink-0">
+                  🎯
+                </div>
+                <div>
+                  <div className="text-xs font-black uppercase tracking-wider text-primary">
+                    AI Recommended For You
+                  </div>
+                  <h4 className="text-sm sm:text-base font-black text-foreground">
+                    {store.activityRecommendation.headline}
+                  </h4>
+                  <p className="text-xs text-muted-foreground line-clamp-1">
+                    {store.activityRecommendation.rationale}
+                  </p>
+                </div>
+              </div>
+              <Button size="sm" className="rounded-xl font-black text-xs gap-1">
+                Play Now ➔
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Memory Garden (Section 1 & 5) */}
       <MemoryGarden store={store} onNavigate={onNavigate} compact={true} />
 

@@ -58,13 +58,24 @@ export function HealthcareWorkerDashboard({
     new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)
   );
 
-  // 4-Week Cognitive Trend Data (Per Spec: Week 1=52, Week 2=58, Week 3=53, Week 4=60)
-  const trendData = [
-    { week: "Week 1", score: 52, memory: 50, attention: 55, routineAdherence: 70 },
-    { week: "Week 2", score: 58, memory: 56, attention: 60, routineAdherence: 78 },
-    { week: "Week 3", score: 53, memory: 52, attention: 54, routineAdherence: 74 },
-    { week: "Week 4", score: 60, memory: 62, attention: 58, routineAdherence: 85 },
-  ];
+  // 4-Week Cognitive Trend Data from Dynamic Cognitive Care Engine
+  const dynamicWeeklyTrends =
+    typeof store.getCognitiveTrends === "function" ? store.getCognitiveTrends("weekly") : [];
+  const trendData =
+    dynamicWeeklyTrends.length > 0
+      ? dynamicWeeklyTrends.map((p) => ({
+          week: p.period,
+          score: p.overall,
+          memory: p.memory,
+          attention: p.attention,
+          routineAdherence: p.engagement,
+        }))
+      : [
+          { week: "Week 1", score: 52, memory: 50, attention: 55, routineAdherence: 70 },
+          { week: "Week 2", score: 58, memory: 56, attention: 60, routineAdherence: 78 },
+          { week: "Week 3", score: 53, memory: 52, attention: 54, routineAdherence: 74 },
+          { week: "Week 4", score: 62, memory: 63, attention: 60, routineAdherence: 85 },
+        ];
 
   // Component Radar/Bar Data
   const domainBreakdown = [
@@ -179,48 +190,114 @@ export function HealthcareWorkerDashboard({
         </div>
       </div>
 
-      {/* AI EARLY WARNING / TREND DETECTION (Section 17) */}
+      {/* AI EARLY WARNING / TREND DETECTION (Section 17 & 18) */}
       <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-sm space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-600">
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border ${
+              store.earlyWarningStatus?.severity === "red"
+                ? "bg-destructive/15 border-destructive/40 text-destructive"
+                : store.earlyWarningStatus?.severity === "yellow"
+                ? "bg-warning/15 border-warning/40 text-warning"
+                : "bg-emerald-500/15 border-emerald-500/40 text-emerald-600"
+            }`}>
               <Activity className="h-5 w-5" />
             </div>
             <div>
               <h4 className="font-black text-lg text-foreground">
-                AI Early Warning & Trend Detection Engine (Section 17)
+                AI Early Warning & Trend Detection Engine (Section 17 & 18)
               </h4>
               <p className="text-xs text-muted-foreground">
-                Analyzes 4-week moving average to identify persistent cognitive changes.
+                Monitors multi-week activity patterns to flag persistent changes for non-diagnostic review.
               </p>
             </div>
           </div>
-          <span className="text-xs font-bold px-3 py-1 rounded-full bg-success/20 text-success">
-            Monitoring Active
-          </span>
+
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-bold px-3 py-1 rounded-full uppercase ${
+              store.earlyWarningStatus?.severity === "red"
+                ? "bg-destructive/20 text-destructive font-black"
+                : store.earlyWarningStatus?.severity === "yellow"
+                ? "bg-warning/20 text-warning"
+                : "bg-success/20 text-success"
+            }`}>
+              {store.earlyWarningStatus?.severity === "red"
+                ? "⚠ Warning Flagged"
+                : store.earlyWarningStatus?.severity === "yellow"
+                ? "Mild Variation"
+                : "Stable (Green)"}
+            </span>
+
+            {/* Test 10 helper controls */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                for (let i = 0; i < 4; i++) {
+                  store.recordGameSession("card_match", 1, 5, "easy", {
+                    accuracy: 25,
+                    responseTimeMs: 8500,
+                    gameType: "memory",
+                  });
+                }
+              }}
+              className="h-8 text-xs font-bold rounded-xl border-destructive/40 text-destructive hover:bg-destructive/10"
+              title="Simulate 2-week memory decline to trigger early warning alert"
+            >
+              Simulate 2-Wk Decline
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => store.resetToDemoData()}
+              className="h-8 text-xs font-bold rounded-xl"
+              title="Reset data to stable demo benchmark"
+            >
+              Reset Benchmark
+            </Button>
+          </div>
         </div>
 
-        {/* Diagnostic vs Trend Distinction Card */}
-        <div className="rounded-2xl border-2 border-border bg-secondary/30 p-4 space-y-2">
+        {/* Dynamic Warning Readout Card */}
+        <div className={`rounded-2xl border-2 p-4 space-y-2 transition-all ${
+          store.earlyWarningStatus?.severity === "red"
+            ? "border-destructive/60 bg-destructive/10"
+            : store.earlyWarningStatus?.severity === "yellow"
+            ? "border-warning/50 bg-warning/10"
+            : "border-border bg-secondary/30"
+        }`}>
           <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            <span>Current Monitored Trend Status for {store.profile.full_name}:</span>
+            <span>Observed Monitoring Status for {store.profile.full_name}:</span>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-success animate-pulse" />
+              <span className={`w-3 h-3 rounded-full ${
+                store.earlyWarningStatus?.severity === "red"
+                  ? "bg-destructive animate-ping"
+                  : store.earlyWarningStatus?.severity === "yellow"
+                  ? "bg-warning"
+                  : "bg-success animate-pulse"
+              }`} />
               <span className="text-base font-black text-foreground">
-                Stable to Improving (Week 4: 60 / 100 vs Week 1: 52 / 100)
+                {store.earlyWarningStatus?.headline || "Cognitive Activity Stable"}
               </span>
             </div>
-            <span className="text-xs font-semibold text-muted-foreground">
-              4-Week Variance: +8 pts
-            </span>
+            {store.earlyWarningStatus?.observedDropPercent ? (
+              <span className="text-xs font-black text-destructive">
+                Shift: -{store.earlyWarningStatus.observedDropPercent}% drop over 2 weeks
+              </span>
+            ) : (
+              <span className="text-xs font-semibold text-muted-foreground">
+                CES: {store.cognitiveScore.overall} / 100
+              </span>
+            )}
           </div>
-          <p className="text-xs text-muted-foreground leading-relaxed italic">
-            "No persistent decline observed in memory activities over the last 2 weeks. Adherence to morning blood pressure medicine and daily routine calls remains high."
+          <p className="text-xs text-foreground/90 leading-relaxed font-medium">
+            "{store.earlyWarningStatus?.advisoryText || "Consistent cognitive engagement observed across recent activities."}"
           </p>
         </div>
       </div>
+
 
       {/* 4-WEEK TREND GRAPHS & COMPONENT BREAKDOWN (Section 16) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -470,6 +547,42 @@ export function HealthcareWorkerDashboard({
               <div className="pt-2 border-t border-border flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
                 <span>Action Plan: <span className="font-semibold text-foreground">{note.action_plan}</span></span>
                 <span>Next Follow-up: <span className="font-mono font-bold text-foreground">{note.follow_up_date}</span></span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* PATIENT DATA PRIVACY & COMPLIANCE AUDIT LOG (Requirement 22) */}
+      <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <h4 className="text-lg font-black text-foreground flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-emerald-600" /> Patient Privacy & Compliance Audit Log
+          </h4>
+          <span className="text-xs text-muted-foreground font-mono">
+            {(store.auditLog || []).length} events recorded
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Immutable audit record tracking authorized caregiver and clinical access to confidential memory banks and records.
+        </p>
+
+        <div className="space-y-2 max-h-56 overflow-y-auto">
+          {(store.auditLog || []).map((entry) => (
+            <div
+              key={entry.id}
+              className="p-3 rounded-xl bg-secondary/30 border border-border flex flex-wrap items-center justify-between gap-2 text-xs"
+            >
+              <div className="flex items-center gap-2">
+                <span className="font-mono font-bold uppercase px-2 py-0.5 rounded-md bg-card text-foreground">
+                  {entry.action}
+                </span>
+                <span className="text-foreground font-medium">{entry.details}</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground font-mono text-[11px]">
+                <span>Role: {entry.role}</span>
+                <span>•</span>
+                <span>{new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
               </div>
             </div>
           ))}

@@ -149,6 +149,52 @@ export function DemoControlBar({
             <Button
               size="sm"
               variant="outline"
+              onClick={() => {
+                if (typeof store.simulateEscalationFlow === "function") {
+                  store.simulateEscalationFlow("Evening Donepezil 5mg");
+                  onNavigate?.("caregiver");
+                }
+              }}
+              className="h-8 text-xs font-bold rounded-xl gap-1.5 text-warning border-warning/40"
+              title="Test 1: Notice Sent -> Test 2: Second Notice -> Test 3: Caregiver Alert"
+            >
+              <Pill className="h-3.5 w-3.5 text-warning" /> Test 3-Stage Escalation
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                for (let i = 0; i < 4; i++) {
+                  store.recordGameSession("card_match", 1, 5, "easy", {
+                    accuracy: 25,
+                    responseTimeMs: 8200,
+                    gameType: "memory",
+                  });
+                }
+                onNavigate?.("healthcare");
+              }}
+              className="h-8 text-xs font-bold rounded-xl gap-1.5 text-destructive border-destructive/40"
+              title="Simulate 2-week memory decline to trigger non-diagnostic AI early warning"
+            >
+              <AlertTriangle className="h-3.5 w-3.5" /> Test 2-Wk Decline Alert
+            </Button>
+
+            {store.syncQueue.length > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => store.triggerSyncNow()}
+                className="h-8 text-xs font-bold rounded-xl gap-1.5 text-primary border-primary/40"
+                title="Synchronize queued offline actions to cloud"
+              >
+                <Wifi className="h-3.5 w-3.5" /> Flush Sync ({store.syncQueue.length})
+              </Button>
+            )}
+
+            <Button
+              size="sm"
+              variant="outline"
               onClick={simulateLowStock}
               className="h-8 text-xs font-bold rounded-xl gap-1.5"
             >
@@ -163,6 +209,7 @@ export function DemoControlBar({
             >
               <AlertOctagon className="h-3.5 w-3.5" /> Test 5-Second SOS Emergency
             </Button>
+
 
             {onNavigate && (
               <>

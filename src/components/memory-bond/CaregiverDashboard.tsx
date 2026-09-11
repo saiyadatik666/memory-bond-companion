@@ -44,6 +44,7 @@ export function CaregiverDashboard({
     store.caregiverLinks[0]?.id || "cg-1"
   );
   const [isAlertConfigOpen, setIsAlertConfigOpen] = useState<boolean>(false);
+  const [trendTab, setTrendTab] = useState<"daily" | "weekly" | "monthly">("weekly");
 
   // Caregiver notification config state
   const [alertConfig, setAlertConfig] = useState(
@@ -315,7 +316,163 @@ export function CaregiverDashboard({
         </div>
       )}
 
-      {/* Routine & Call Summary */}
+      {/* 3-STAGE REMINDER ESCALATION WORKFLOW (Requirement 15) */}
+      <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-sm space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg sm:text-xl font-black text-foreground flex items-center gap-2">
+              <Bell className="h-5 w-5 text-primary" /> 3-Stage Reminder Escalation Flow
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Automated progression: Stage 1 (Sent) ➔ Stage 2 (Second Notice) ➔ Stage 3 (Caregiver Alert)
+            </p>
+          </div>
+          {typeof store.simulateEscalationFlow === "function" && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => store.simulateEscalationFlow("Evening Donepezil 5mg")}
+              className="rounded-xl font-bold text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+            >
+              <RefreshCw className="h-3.5 w-3.5" /> Test 3-Stage Escalation
+            </Button>
+          )}
+        </div>
+
+        {/* Escalation items timeline */}
+        <div className="space-y-3">
+          {(store.reminderEscalations || []).map((esc) => {
+            const isResolved = esc.status === "resolved";
+            const isAlerted = esc.stage === 3 && !isResolved;
+            return (
+              <div
+                key={esc.id}
+                className={`rounded-2xl border-2 p-4 transition-all ${
+                  isAlerted
+                    ? "border-destructive/60 bg-destructive/10"
+                    : isResolved
+                    ? "border-border bg-secondary/20 opacity-80"
+                    : "border-warning/50 bg-warning/10"
+                }`}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-border/60">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm text-foreground">{esc.reminder_title}</span>
+                    <span className="text-xs font-mono px-2 py-0.5 rounded-md bg-secondary text-muted-foreground">
+                      {esc.scheduled_time}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {isResolved ? (
+                      <span className="text-xs font-bold text-success flex items-center gap-1">
+                        <Check className="h-3.5 w-3.5" /> Acknowledged / Resolved
+                      </span>
+                    ) : (
+                      <>
+                        <span className={`text-xs font-black uppercase ${isAlerted ? "text-destructive" : "text-warning"}`}>
+                          {isAlerted ? "Stage 3: Caregiver Escalated" : `Stage ${esc.stage}: In Progress`}
+                        </span>
+                        {typeof store.resolveReminderEscalation === "function" && (
+                          <Button
+                            size="sm"
+                            onClick={() => store.resolveReminderEscalation(esc.id)}
+                            className="h-8 px-3 text-xs font-bold rounded-xl"
+                          >
+                            Mark Handled
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* 3 Step Visual Progress */}
+                <div className="grid grid-cols-3 gap-2 pt-3 text-center text-xs font-bold">
+                  <div className={`p-2 rounded-xl border ${
+                    esc.stage >= 1 ? "bg-primary/15 border-primary/40 text-primary" : "bg-card border-border text-muted-foreground"
+                  }`}>
+                    <div>1. First Reminder</div>
+                    <div className="text-[10px] font-normal opacity-80">Sent to Senior</div>
+                  </div>
+                  <div className={`p-2 rounded-xl border ${
+                    esc.stage >= 2 ? "bg-warning/20 border-warning/50 text-warning" : "bg-card border-border text-muted-foreground"
+                  }`}>
+                    <div>2. Second Notice</div>
+                    <div className="text-[10px] font-normal opacity-80">Unanswered</div>
+                  </div>
+                  <div className={`p-2 rounded-xl border ${
+                    esc.stage === 3 ? "bg-destructive/20 border-destructive/50 text-destructive" : "bg-card border-border text-muted-foreground"
+                  }`}>
+                    <div>3. Caregiver Alert</div>
+                    <div className="text-[10px] font-normal opacity-80">Phone Call / SMS</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* HISTORICAL COGNITIVE ENGAGEMENT TRENDS (Requirement 6 & 16) */}
+      <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-sm space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg sm:text-xl font-black text-foreground flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" /> Historical Performance Trends
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Non-diagnostic cognitive engagement trends across daily, weekly, and monthly activity windows.
+            </p>
+          </div>
+
+          {/* Timeframe selector tabs */}
+          <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-secondary border border-border">
+            {(["daily", "weekly", "monthly"] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setTrendTab(tab)}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-black capitalize transition-all cursor-pointer ${
+                  trendTab === tab
+                    ? "bg-card text-foreground shadow-xs scale-105"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Dynamic Trend Points Table / Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+          {(typeof store.getCognitiveTrends === "function" ? store.getCognitiveTrends(trendTab) : []).map((point, idx) => (
+            <div key={idx} className="rounded-2xl border border-border bg-secondary/30 p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-muted-foreground">{point.period}</span>
+                <span className="text-xs font-black px-2 py-0.5 rounded-full bg-primary/15 text-primary">
+                  {point.sessionCount} session{point.sessionCount === 1 ? "" : "s"}
+                </span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-black text-foreground">{point.overall}</span>
+                <span className="text-xs text-muted-foreground font-semibold">/ 100 CES</span>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5 text-[11px] font-semibold text-muted-foreground pt-1 border-t border-border/50">
+                <div>Memory: <span className="text-foreground font-bold">{point.memory}</span></div>
+                <div>Attention: <span className="text-foreground font-bold">{point.attention}</span></div>
+                <div>Recognition: <span className="text-foreground font-bold">{point.recognition}</span></div>
+                <div>Recall: <span className="text-foreground font-bold">{point.recall}</span></div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Disclaimer footer */}
+        <p className="text-[11px] text-muted-foreground italic border-t border-border/60 pt-2">
+          Note: Cognitive Engagement Scores reflect activity participation, reaction speed, and memory exercise consistency. They are strictly non-diagnostic wellness indicators.
+        </p>
+      </div>
+
       {recentRoutineCall && (
         <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-sm space-y-3">
           <div className="flex items-center justify-between">

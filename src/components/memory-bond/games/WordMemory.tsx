@@ -82,7 +82,10 @@ export function WordMemory({
   const handleCheck = () => {
     const correctCount = selectedWords.filter((w) => current.targets.includes(w)).length;
     setPhase("result");
-    onComplete(correctCount, current.targets.length);
+    onComplete(correctCount, current.targets.length, {
+      gameType: "memory",
+      accuracy: Math.round((correctCount / current.targets.length) * 100),
+    });
   };
 
   return (
@@ -92,7 +95,7 @@ export function WordMemory({
           <h3 className="text-xl font-bold text-foreground">Game 9: Word Memory Recall</h3>
           <p className="text-sm text-muted-foreground">Read and remember the calm words, then pick them out from the list.</p>
         </div>
-        <Button variant="outline" onClick={() => startLevel(levelIdx)} className="gap-2">
+        <Button variant="outline" onClick={startLevel} className="gap-2">
           <RotateCcw className="h-4 w-4" /> Restart
         </Button>
       </div>

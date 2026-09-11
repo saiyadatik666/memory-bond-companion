@@ -129,6 +129,28 @@ export function Header({
             <User className="h-5 w-5" />
           </Button>
 
+          {/* Offline / Sync Queue Badge (Requirement 20 & 21) */}
+          {!store.isOnline ? (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-warning/15 border border-warning/30 text-warning text-xs font-bold" title="Working offline. All progress saved locally.">
+              <WifiOff className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Offline</span>
+              {store.syncQueue.length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-warning text-slate-950 text-[10px] font-black">
+                  {store.syncQueue.length}
+                </span>
+              )}
+            </div>
+          ) : store.syncQueue.length > 0 ? (
+            <button
+              onClick={() => store.triggerSyncNow()}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-primary/15 border border-primary/30 text-primary text-xs font-bold hover:bg-primary/25 transition-colors cursor-pointer"
+              title="Click to sync offline actions to cloud"
+            >
+              <Wifi className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Sync ({store.syncQueue.length})</span>
+            </button>
+          ) : null}
+
           {/* Settings Button */}
           <Button
             variant="ghost"
@@ -141,6 +163,7 @@ export function Header({
         </div>
       </div>
     </header>
+
   );
 }
 

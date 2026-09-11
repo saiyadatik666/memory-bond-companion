@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Sparkles, RotateCcw, CheckCircle2, Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -8,15 +8,16 @@ interface MatchPair {
   itemB: { name: string; icon: string };
 }
 
+// Cultural everyday items including North Eastern cultural items (Bamboo, Tea, Loom, Rain, Lantern)
 const ALL_PAIRS: MatchPair[] = [
-  { id: "p1", itemA: { name: "Door Lock", icon: "🔒" }, itemB: { name: "Key", icon: "🔑" } },
-  { id: "p2", itemA: { name: "Hot Tea Pot", icon: "🫖" }, itemB: { name: "Tea Cup", icon: "☕" } },
+  { id: "p1", itemA: { name: "Assam Tea Leaves", icon: "🍃" }, itemB: { name: "Warm Tea Pot", icon: "🫖" } },
+  { id: "p2", itemA: { name: "Bamboo Cane", icon: "🎋" }, itemB: { name: "Woven Jaapi Hat", icon: "👒" } },
   { id: "p3", itemA: { name: "Reading Book", icon: "📖" }, itemB: { name: "Spectacles", icon: "👓" } },
-  { id: "p4", itemA: { name: "Heavy Rain", icon: "🌧️" }, itemB: { name: "Umbrella", icon: "☂️" } },
-  { id: "p5", itemA: { name: "Golden Diya", icon: "🪔" }, itemB: { name: "Wick & Oil", icon: "🕯️" } },
-  { id: "p6", itemA: { name: "Letter", icon: "✉️" }, itemB: { name: "Pen", icon: "✒️" } },
-  { id: "p7", itemA: { name: "Tree Blossom", icon: "🌸" }, itemB: { name: "Garland", icon: "📿" } },
-  { id: "p8", itemA: { name: "Sewing Needle", icon: "🪡" }, itemB: { name: "Thread", icon: "🧵" } },
+  { id: "p4", itemA: { name: "Monsoon Rain", icon: "🌧️" }, itemB: { name: "Umbrella", icon: "☂️" } },
+  { id: "p5", itemA: { name: "Brass Diya Lamp", icon: "🪔" }, itemB: { name: "Cotton Wick & Oil", icon: "🕯️" } },
+  { id: "p6", itemA: { name: "Postcard Letter", icon: "✉️" }, itemB: { name: "Ink Fountain Pen", icon: "✒️" } },
+  { id: "p7", itemA: { name: "Handloom Loom", icon: "🧵" }, itemB: { name: "Gamosa Scarf", icon: "🧣" } },
+  { id: "p8", itemA: { name: "Bihu Dhol Drum", icon: "🥁" }, itemB: { name: "Pepa Buffalo Horn", icon: "🎺" } },
 ];
 
 export function MatchTheObject({
@@ -26,7 +27,10 @@ export function MatchTheObject({
   onComplete: (score: number, total: number, extra?: any) => void;
   level?: number;
 }) {
-  const activePairs = ALL_PAIRS.slice(0, Math.min(ALL_PAIRS.length, Math.max(3, level + 2))); // Level 1=3, Level 2=4, Level 3=5, Level 4=6, Level 5=7, Level 6=8
+  const activePairs = useMemo(
+    () => ALL_PAIRS.slice(0, Math.min(ALL_PAIRS.length, Math.max(3, level + 2))),
+    [level]
+  );
 
   const [selectedA, setSelectedA] = useState<string | null>(null);
   const [selectedB, setSelectedB] = useState<string | null>(null);
@@ -46,6 +50,27 @@ export function MatchTheObject({
     setRightItems([...activePairs].sort(() => Math.random() - 0.5));
   };
 
+  const checkMatch = (aId: string, bId: string) => {
+    if (aId === bId) {
+      const nextMatched = [...matchedIds, aId];
+      setMatchedIds(nextMatched);
+      setSelectedA(null);
+      setSelectedB(null);
+      if (nextMatched.length === activePairs.length) {
+        setIsFinished(true);
+        onComplete(activePairs.length, activePairs.length, {
+          gameType: "recognition",
+          accuracy: 100,
+        });
+      }
+    } else {
+      setTimeout(() => {
+        setSelectedA(null);
+        setSelectedB(null);
+      }, 700);
+    }
+  };
+
   const handleSelectA = (pairId: string) => {
     if (matchedIds.includes(pairId)) return;
     setSelectedA(pairId);
@@ -58,31 +83,6 @@ export function MatchTheObject({
     if (selectedA) checkMatch(selectedA, pairId);
   };
 
-  const checkMatch = (aId: string, bId: string) => {
-    if (aId === bId) {
-      const nextMatched = [...matchedIds, aId];
-      setMatchedIds(nextMatched);
-      setSelectedA(null);
-      setSelectedB(null);
-      if (nextMatched.length === activePairs.length) {
-        setIsFinished(true);
-        onComplete(activePairs.length, activePairs.length);
-      }
-    } else {
-      setTimeout(() => {
-        setSelectedA(null);
-        setSelectedB(null);
-      }, 700);
-    }
-  };
-
-  const resetGame = () => {
-    setSelectedA(null);
-    setSelectedB(null);
-    setMatchedIds([]);
-    setIsFinished(false);
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-secondary/40 p-4">
@@ -91,7 +91,7 @@ export function MatchTheObject({
           <p className="text-sm text-muted-foreground">Match each item on the left with its functional companion on the right.</p>
         </div>
         <span className="rounded-xl bg-card px-4 py-2 font-bold shadow-xs">
-          Matched: {matchedIds.length} / {PAIRS.length}
+          Matched: {matchedIds.length} / {activePairs.length}
         </span>
       </div>
 
@@ -109,7 +109,7 @@ export function MatchTheObject({
           {/* Left column */}
           <div className="space-y-3">
             <p className="text-sm font-bold text-center text-muted-foreground uppercase">Items</p>
-            {PAIRS.map((pair) => {
+            {activePairs.map((pair) => {
               const isMatched = matchedIds.includes(pair.id);
               const isSelected = selectedA === pair.id;
               return (
@@ -117,12 +117,12 @@ export function MatchTheObject({
                   key={pair.id}
                   disabled={isMatched}
                   onClick={() => handleSelectA(pair.id)}
-                  className={`w-full p-4 rounded-2xl border-2 flex items-center gap-3 transition-all ${
+                  className={`w-full p-4 rounded-2xl border-2 flex items-center gap-3 transition-all cursor-pointer ${
                     isMatched
                       ? "bg-success/20 border-success/40 opacity-70"
                       : isSelected
                       ? "bg-primary text-primary-foreground border-primary shadow-md scale-105"
-                      : "bg-card hover:bg-secondary/60 border-border"
+                      : "bg-card hover:bg-secondary/60 border-border text-foreground"
                   }`}
                 >
                   <span className="text-3xl">{pair.itemA.icon}</span>
@@ -143,12 +143,12 @@ export function MatchTheObject({
                   key={pair.id}
                   disabled={isMatched}
                   onClick={() => handleSelectB(pair.id)}
-                  className={`w-full p-4 rounded-2xl border-2 flex items-center gap-3 transition-all ${
+                  className={`w-full p-4 rounded-2xl border-2 flex items-center gap-3 transition-all cursor-pointer ${
                     isMatched
                       ? "bg-success/20 border-success/40 opacity-70"
                       : isSelected
                       ? "bg-primary text-primary-foreground border-primary shadow-md scale-105"
-                      : "bg-card hover:bg-secondary/60 border-border"
+                      : "bg-card hover:bg-secondary/60 border-border text-foreground"
                   }`}
                 >
                   <span className="text-3xl">{pair.itemB.icon}</span>

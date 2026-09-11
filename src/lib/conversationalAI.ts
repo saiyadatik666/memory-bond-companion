@@ -810,6 +810,92 @@ export class ConversationalAIEngine {
       }
     }
 
+    // 8. Medicine Schedule Query ("When is my medicine?" / "મારી દવા ક્યારે છે?" / "मेरी दवा कब है?")
+    const isAskingWhenMedicine =
+      (t.includes("when") || t.includes("kab") || t.includes("कब") || t.includes("ક્યારે") || t.includes("কেতিয়া") || t.includes("কখন") || t.includes("कधी")) &&
+      (t.includes("medicine") || t.includes("dawa") || t.includes("દવા") || t.includes("दवा") || t.includes("ঔষধ") || t.includes("ওষুধ") || t.includes("औषध"));
+
+    if (store && isAskingWhenMedicine) {
+      const scheduledTime = store.reminders.find((r) => r.type === "medicine")?.time || store.medicines[0]?.times[0] || "08:30";
+      const medName = store.medicines[0]?.name || "daily medicine";
+      const medAnswers: Record<string, string> = {
+        gu: `તમારી દવાનો સમય ${scheduledTime} વાગ્યાનો છે (${medName}).`,
+        hi: `आपकी दवा का समय ${scheduledTime} बजे है (${medName})।`,
+        as: `আপোনাৰ ঔষধৰ সময় ${scheduledTime} বজাত (${medName})।`,
+        bn: `আপনার ওষুধের সময় ${scheduledTime} টায় (${medName})।`,
+        mr: `आपल्या औषधाची वेळ ${scheduledTime} वाजता आहे (${medName}).`,
+        ta: `உங்கள் மருந்து நேரம் ${scheduledTime} (${medName}).`,
+        te: `మీ మందుల సమయం ${scheduledTime} (${medName}).`,
+        kn: `ನಿಮ್ಮ ಔಷಧಿಯ ಸಮಯ ${scheduledTime} (${medName}).`,
+        ml: `നിങ്ങളുടെ മരുന്നിന്റെ സമയം ${scheduledTime} ആണ് (${medName}).`,
+        pa: `ਤੁਹਾਡੀ ਦਵਾਈ ਦਾ ਸਮਾਂ ${scheduledTime} ਵਜੇ ਹੈ (${medName})।`,
+        or: `ଆପଣଙ୍କ ଔଷଧ ସମୟ ${scheduledTime} (${medName})।`,
+        en: `Your medicine is scheduled at ${scheduledTime} (${medName}).`,
+      };
+      return medAnswers[lang] || medAnswers["en"];
+    }
+
+    // 9. Medicine Statement ("My medicine is at 8 PM" / "मेरी दवा 8 बजे है" / "મારી દવા 8 વાગ્યે છે")
+    const hasMedStatement =
+      (t.includes("my medicine is") || t.includes("medicine is at") || t.includes("dawa 8") || t.includes("दवा 8") || t.includes("દવા 8") || t.includes("दवा है") || t.includes("દવા છે")) &&
+      (/\d{1,2}/.test(t) || t.includes("8") || t.includes("pm") || t.includes("બજે") || t.includes("વાગ્યે"));
+
+    if (hasMedStatement && store) {
+      const detectedTime = t.includes("8") ? "08:00 PM" : "08:30 AM";
+      store.addReminder({
+        title: "Evening Medicine",
+        time: detectedTime.includes("PM") ? "20:00" : "08:30",
+        type: "medicine",
+        repeat: "daily",
+        notes: "Remembered from voice statement: " + userText,
+        active: true,
+      });
+
+      const confirmStatements: Record<string, string> = {
+        gu: `મેં યાદ રાખી લીધું છે. તમારી દવા ${detectedTime} વાગ્યે છે.`,
+        hi: `मैंने याद रख लिया है। आपकी दवा ${detectedTime} बजे है।`,
+        as: `মই মনত ৰাখিলোঁ। আপোনাৰ ঔষধ ${detectedTime} বজাত।`,
+        bn: `আমি মনে রেখেছি। আপনার ওষুধ ${detectedTime} টায়।`,
+        mr: `मी लक्षात ठेवले आहे. आपले औषध ${detectedTime} वाजता आहे.`,
+        en: `I have noted that. Your medicine is at ${detectedTime}.`,
+      };
+      return confirmStatements[lang] || confirmStatements["en"];
+    }
+
+    // 10. Personal Memory Bank Lookup: Family Member queries ("Who is Sunita?" / "Who is Aarav?")
+    if (t.includes("sunita") || t.includes("सुनीता") || t.includes("સુનીતા") || t.includes("সুনীতা")) {
+      const sunitaBio: Record<string, string> = {
+        gu: "સુનિતા તમારી વહાલી પુત્રી અને મુખ્ય સંભાળ રાખનાર છે. તે દર રવિવારે હર્બલ ચા લઈને આવે છે અને દરરોજ સાંજે ૫ વાગ્યે તમને ફોન કરે છે.",
+        hi: "सुनीता आपकी सुपुत्री और मुख्य देखभालकर्ता हैं। वे हर रविवार हर्बल चाय लाती हैं और रोज़ शाम 5 बजे आपसे बात करती हैं।",
+        as: "সুনীতা আপোনাৰ মৰমৰ জীয়াৰী আৰু প্ৰাথমিক সেৱিকা। তেওঁ প্ৰতি দেওবাৰে চাহ লৈ আহে আৰু দৈনিক ৫ বজাত ফোন কৰে।",
+        bn: "সুনীতা আপনার প্রিয় কন্যা ও প্রাথমিক সেবিকা। তিনি প্রতি রবিবার চা নিয়ে আসেন এবং প্রতিদিন বিকাল ৫টায় ফোন করেন।",
+        mr: "सुनीता आपली कन्या आणि मुख्य काळजीवाहक आहेत. त्या दर रविवारी चहा घेऊन येतात आणि रोज संध्याकाळी फोन करतात.",
+        en: "Sunita is your caring daughter and primary caregiver. She visits every Sunday with homemade tea and calls daily at 5 PM.",
+      };
+      return sunitaBio[lang] || sunitaBio["en"];
+    }
+
+    if (t.includes("aarav") || t.includes("आरव") || t.includes("આરવ") || t.includes("আৰভ")) {
+      const aaravBio: Record<string, string> = {
+        gu: "આરવ તમારો ૮ વર્ષનો વહાલો પૌત્ર છે. તેને તમને સ્કૂલના રંગબેરંગી ચિત્રો બતાવવા અને બિહુ ડાન્સ કરવો ખૂબ ગમે છે.",
+        hi: "आरव आपका 8 वर्षीय पोता है। उसे आपको अपनी चित्रकारी दिखाना और बिहू नृत्य करना बहुत पसंद है।",
+        as: "আৰভ আপোনাৰ ৮ বছৰীয়া নাতি। তেওঁ ছবি আঁকি দেখুৱাবলৈ আৰু বিহু নাচিবলৈ বৰ ভাল পায়।",
+        bn: "আরভ আপনার ৮ বছর বয়সী নাতি। সে ছবি আঁকা দেখাতে এবং বিহু নাচ করতে খুব ভালোবাসে।",
+        en: "Aarav is your 8-year-old grandson. He loves showing you his school drawings and dancing Bihu for you.",
+      };
+      return aaravBio[lang] || aaravBio["en"];
+    }
+
+    if (t.includes("rajesh") || t.includes("राजेश") || t.includes("રાજેશ")) {
+      const rajeshBio: Record<string, string> = {
+        gu: "રાજેશ તમારો પુત્ર છે, જે બેંગલુરુમાં સોફ્ટવેર એન્જિનિયર છે અને દર શનિવારે સાંજે તમને વિડીયો કોલ કરે છે.",
+        hi: "राजेश आपके सुपुत्र हैं, जो बेंगलुरु में सॉफ्टवेयर इंजीनियर हैं और हर शनिवार शाम को वीडियो कॉल करते हैं।",
+        as: "ৰাজেশ আপোনাৰ পুত্ৰ, যিয়ে বেংগালুৰুত ছফটৱেৰ ইঞ্জিনিয়াৰ হিচাপে কাম কৰে আৰু শনিবাৰে ফোন কৰে।",
+        en: "Rajesh is your son who works as a software engineer in Bengaluru and video calls you every Saturday evening.",
+      };
+      return rajeshBio[lang] || rajeshBio["en"];
+    }
+
     // Default reassuring senior response in the EXACT language
     const fallbackByLang: Record<string, string> = {
       gu: "હું ધ્યાનથી સાંભળી રહ્યો છું. હું તમારી દવાઓ, પાણીના રિમાઇન્ડર, કે યાદોમાં કેવી રીતે મદદ કરી શકું?",

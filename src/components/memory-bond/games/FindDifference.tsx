@@ -49,7 +49,10 @@ export function FindDifference({
       setPuzzleIdx((p) => p + 1);
     } else {
       setIsFinished(true);
-      onComplete(activePuzzles.length, activePuzzles.length);
+      onComplete(activePuzzles.length, activePuzzles.length, {
+        gameType: "attention",
+        accuracy: 100,
+      });
     }
   };
 
@@ -61,7 +64,7 @@ export function FindDifference({
           <p className="text-sm text-muted-foreground">Look across the peaceful grid and tap the one item that is slightly different.</p>
         </div>
         <span className="rounded-xl bg-card px-4 py-2 font-bold shadow-xs">
-          Puzzle {puzzleIdx + 1} / {PUZZLES.length}
+          Puzzle {puzzleIdx + 1} / {activePuzzles.length}
         </span>
       </div>
 
@@ -90,7 +93,7 @@ export function FindDifference({
               <CheckCircle2 className="mx-auto h-8 w-8 text-success" />
               <p className="font-bold text-lg text-foreground">Found it! You spotted the different item.</p>
               <Button size="lg" onClick={handleNextPuzzle} className="px-8 font-bold">
-                {puzzleIdx + 1 === PUZZLES.length ? "Finish All Puzzles" : "Next Puzzle"}
+                {puzzleIdx + 1 === activePuzzles.length ? "Finish All Puzzles" : "Next Puzzle"}
               </Button>
             </div>
           ) : (
