@@ -972,12 +972,25 @@ export class ConversationalAIEngine {
       t.includes("take") ||
       t.includes("need to take");
 
-    if (mentionsMedicine && (hasTomorrow || isTakeIntent) && !t.includes("मदद") && !t.includes("help")) {
+    const isReminderIntent =
+      t.includes("remind") ||
+      t.includes("reminder") ||
+      t.includes("याद") ||
+      t.includes("याद दिला") ||
+      t.includes("याद दिलाओ") ||
+      t.includes("याद दिलाना") ||
+      t.includes("याद दिला देना") ||
+      t.includes("યાદ") ||
+      t.includes("মনে করিয়ে") ||
+      t.includes("মনত পেলাই") ||
+      t.includes("आठवण");
+
+    if (mentionsMedicine && (hasTomorrow || isTakeIntent || isReminderIntent) && !t.includes("मदद") && !t.includes("help")) {
       const explicitTime = extractedTimeFn(raw);
       const targetDate = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
-      // If user already specified the time in the same sentence (e.g. "मुझे 8 बजे दवाई की याद दिलाना")
-      if (explicitTime && (t.includes("बजे") || t.includes("વાગ્યે") || t.includes("baje") || t.includes("am") || t.includes("pm") || t.includes("8") || t.includes("9") || t.includes("10") || t.includes("7"))) {
+      // If user already specified the time in the same sentence (e.g. "मुझे रात 8 बजे दवाई की याद दिलाओ" or "8 बजे")
+      if (explicitTime && (t.includes("बजे") || t.includes("વાગ્યે") || t.includes("baje") || t.includes("am") || t.includes("pm") || /\b\d{1,2}\b/.test(t))) {
         store.addReminder({
           title: "Medicine",
           time: explicitTime,
@@ -988,10 +1001,19 @@ export class ConversationalAIEngine {
           active: true,
         });
 
+        const [hhStr] = explicitTime.split(":");
+        const hhNum = parseInt(hhStr || "20", 10);
+        const isNightTime = hhNum >= 18;
+        const isMorningTime = hhNum < 12 && hhNum >= 4;
+        const isAfternoonTime = hhNum >= 12 && hhNum < 18;
+        const disp12 = hhNum % 12 === 0 ? 12 : hhNum % 12;
+        const timeFormattedHi = isNightTime ? `रात ${disp12} बजे` : isMorningTime ? `सुबह ${disp12} बजे` : isAfternoonTime ? `दोपहर ${disp12} बजे` : `${disp12} बजे`;
+        const timeFormattedGu = isNightTime ? `રાત્રે ${disp12} વાગ્યે` : isMorningTime ? `સવારે ${disp12} વાગ્યે` : `${disp12} વાગ્યે`;
+
         const directConfirms: Record<string, string> = {
-          hi: `मैंने आपके लिए ${explicitTime} बजे दवा का रिमाइंडर सेट कर दिया है।`,
-          gu: `મેં તમારા માટે ${explicitTime} વાગ્યે દવાનું રિમાઇન્ડર ગોઠવી દીધું છે.`,
-          en: `I have set your medicine reminder for ${explicitTime}.`,
+          hi: `मैंने आपके लिए ${timeFormattedHi} दवा का रिमाइंडर सेट कर दिया है। मैं आपको समय पर याद दिलाऊँगा।`,
+          gu: `મેં તમારા માટે ${timeFormattedGu} દવાનું રિમાઇન્ડર ગોઠવી દીધું છે.`,
+          en: `I have set your medicine reminder for ${explicitTime}. I will make sure to remind you on time.`,
           bn: `আমি আপনার জন্য ${explicitTime} টায় ওষুধের রিমাইন্ডার সেট করে দিয়েছি।`,
           as: `মই আপোনাৰ বাবে ${explicitTime} বজাত সংকেত সংৰক্ষণ কৰিলোঁ।`,
           mr: `मी आपल्यासाठी ${explicitTime} वाजता औषधाची आठवण सेट केली आहे.`,

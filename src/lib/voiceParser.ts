@@ -855,7 +855,11 @@ export function parseVoiceIntent(
     lower.includes("remind me") ||
     lower.includes("reminder") ||
     lower.includes("yaad dilana") ||
+    lower.includes("yaad dilao") ||
     lower.includes("याद दिलाना") ||
+    lower.includes("याद दिलाओ") ||
+    lower.includes("याद दिला देना") ||
+    lower.includes("याद दिला") ||
     lower.includes("मनত পেলাবা") ||
     lower.includes("মনে করিয়ে") ||
     lower.includes("યાદ દેવડાવજો") ||
