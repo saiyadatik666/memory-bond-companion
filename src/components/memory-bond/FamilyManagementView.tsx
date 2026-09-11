@@ -180,11 +180,14 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
           {store.caregiverLinks.map((link) => (
             <div
               key={link.id}
-              className="p-5 rounded-2xl bg-secondary/30 border border-border flex flex-wrap items-center justify-between gap-4"
+              className="p-4 rounded-2xl border border-border bg-card/60 flex flex-wrap items-center justify-between gap-4"
             >
-              <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="font-bold text-lg text-foreground">{link.caregiver_name}</h4>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 font-bold text-base text-foreground">
+                  <span>{link.caregiver_name}</span>
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-secondary text-primary">
+                    {link.relationship}
+                  </span>
                   <span
                     className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
                       link.status === "approved"
@@ -193,13 +196,6 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
                     }`}
                   >
                     {link.status.toUpperCase()}
-              className="p-4 rounded-2xl border border-border bg-card/60 flex flex-wrap items-center justify-between gap-4"
-            >
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 font-bold text-base text-foreground">
-                  <span>{link.caregiver_name}</span>
-                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-secondary text-primary">
-                    {link.relationship}
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
