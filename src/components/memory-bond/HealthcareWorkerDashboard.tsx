@@ -214,7 +214,7 @@ export function HealthcareWorkerDashboard({
               <Stethoscope className="h-3.5 w-3.5" /> Clinical Monitoring Portal
             </span>
             <span className="text-xs text-muted-foreground font-semibold">
-              North-Eastern Region Dementia Assistance (SIH26003)
+              North-Eastern Region Dementia Assistance & Cognitive Care
             </span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-black text-foreground mt-2">

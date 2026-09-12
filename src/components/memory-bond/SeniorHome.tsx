@@ -1098,42 +1098,16 @@ export function SeniorHome({
             </span>
           </button>
 
-          {/* 6. SOCIAL & FAMILY FEED (Section 18) */}
+          {/* 6. FAMILY TREE (Merged Sections 6, 7, and 8) */}
           <button
-            onClick={() => onNavigate("social")}
+            onClick={() => onNavigate("family_tree")}
             className="group rounded-3xl border-2 border-rose-500/30 bg-rose-500/5 p-6 text-center space-y-3 shadow-sm hover:border-rose-500 hover:shadow-md active:scale-95 transition-all flex flex-col items-center justify-center h-44 cursor-pointer"
           >
             <div className="w-16 h-16 rounded-2xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-600 group-hover:scale-110 transition-transform">
-              <MessageCircle className="h-8 w-8" />
+              <Users className="h-8 w-8" />
             </div>
             <span className="text-lg font-black text-foreground group-hover:text-rose-600">
-              6. FAMILY GREETINGS
-            </span>
-          </button>
-
-          {/* 7. MEMORY CUES */}
-          <button
-            onClick={() => onNavigate("cues")}
-            className="group rounded-3xl border-2 border-border bg-card p-6 text-center space-y-3 shadow-sm hover:border-primary hover:shadow-md active:scale-95 transition-all flex flex-col items-center justify-center h-44 cursor-pointer"
-          >
-            <div className="w-16 h-16 rounded-2xl bg-violet-500/15 border border-violet-500/30 flex items-center justify-center text-violet-600 group-hover:scale-110 transition-transform">
-              <HelpCircle className="h-8 w-8" />
-            </div>
-            <span className="text-lg font-black text-foreground group-hover:text-primary">
-              7. {t("cues").toUpperCase()}
-            </span>
-          </button>
-
-          {/* 8. MEMORY JOURNAL */}
-          <button
-            onClick={() => onNavigate("journal")}
-            className="group rounded-3xl border-2 border-border bg-card p-6 text-center space-y-3 shadow-sm hover:border-primary hover:shadow-md active:scale-95 transition-all flex flex-col items-center justify-center h-44 cursor-pointer"
-          >
-            <div className="w-16 h-16 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-600 group-hover:scale-110 transition-transform">
-              <HeartHandshake className="h-8 w-8" />
-            </div>
-            <span className="text-lg font-black text-foreground group-hover:text-primary">
-              8. CHERISHED NOTES
+              6. FAMILY TREE
             </span>
           </button>
         </div>

@@ -41,6 +41,8 @@ import {
   RETRY_LABEL_MSG,
   BARGE_IN_HINT_MSG,
 } from "@/lib/voiceParser";
+import { conversationalAI } from "@/lib/conversationalAI";
+import { resolveWorldKnowledge } from "@/lib/worldKnowledgeEngine";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { useI18n, LANGUAGES } from "@/lib/i18n";
 
@@ -163,8 +165,29 @@ export function VoiceAssistantModal({
       ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
       : null;
 
+  const extractTimeFromText = (tText: string): string => {
+    const t = tText.toLowerCase();
+    const m24 = t.match(/(\d{1,2}):(\d{2})/);
+    if (m24) {
+      const h = parseInt(m24[1], 10);
+      const m = m24[2];
+      const isPm = t.includes("pm") || t.includes("रात") || t.includes("शाम") || t.includes("रात्रे") || t.includes("दोपहर");
+      const hour24 = isPm && h < 12 ? h + 12 : h;
+      return `${String(hour24).padStart(2, "0")}:${m}`;
+    }
+    const mNum = t.match(/(\d{1,2})\s*(?:बजे|વાગ્યે|am|pm|घंटे|o'clock)?/i);
+    if (mNum) {
+      const h = parseInt(mNum[1], 10);
+      const isPm = t.includes("pm") || t.includes("रात") || t.includes("शाम") || t.includes("रात्रे") || t.includes("दोपहर") || t.includes("night") || t.includes("evening");
+      const hour24 = isPm && h < 12 ? h + 12 : (!isPm && h === 12 ? 0 : h);
+      return `${String(hour24).padStart(2, "0")}:00`;
+    }
+    return "08:30";
+  };
+
   // -------------------------------------------------------------------------
-  // Interruption / Barge-in: immediately cancel audio if speaking
+  // Interruption / Barge-in: immediately cancel audio if speaking and listen
+  // (Requirement 5)
   // -------------------------------------------------------------------------
   const handleBargeIn = () => {
     voiceManager.stopSpeaking();
@@ -173,9 +196,7 @@ export function VoiceAssistantModal({
       clearTimeout(listenTimeoutRef.current);
       listenTimeoutRef.current = null;
     }
-    if (voiceState === "speaking") {
-      setVoiceState("idle");
-    }
+    setVoiceState("listening");
   };
 
   // -------------------------------------------------------------------------
@@ -244,15 +265,21 @@ export function VoiceAssistantModal({
   };
 
   // -------------------------------------------------------------------------
-  // Start Listening (🔴 Listening...)
+  // Start Listening (🔴 Listening...) with Barge-In Support
+  // (Requirements 4 & 5)
   // -------------------------------------------------------------------------
-  const startListening = () => {
+  const startListening = (force = false) => {
     if (!isOpenRef.current) return;
 
-    // CRITICAL (Requirements 6 & 15): If AI is actively speaking, NEVER interrupt or cancel speech!
-    if (isSpeakingRef.current || voiceState === "speaking") {
+    if (!force && (isSpeakingRef.current || voiceState === "speaking")) {
       console.log("Speech is currently active. Ignoring startListening call until speech ends.");
       return;
+    }
+
+    // If force (user tapped mic during speech), halt TTS immediately
+    if (isSpeakingRef.current || voiceState === "speaking") {
+      voiceManager.stopSpeaking();
+      isSpeakingRef.current = false;
     }
 
     if (listenTimeoutRef.current) {
@@ -511,8 +538,8 @@ export function VoiceAssistantModal({
   };
 
   // -------------------------------------------------------------------------
-  // Core AI Pipeline: STT -> AI Reasoning -> Automatic Language -> TTS
-  // (Full Context Retention via Synchronous messagesRef)
+  // Core Conversational AI Pipeline: STT -> Multi-Turn / World Knowledge -> TTS
+  // (Requirements 1-8: Multi-turn, World Facts, Honest Data, Continuous loop, No Raw JSON)
   // -------------------------------------------------------------------------
   const processQuery = async (queryText: string) => {
     const text = queryText.trim();
@@ -523,22 +550,20 @@ export function VoiceAssistantModal({
     setVoiceState("processing");
     setRecognitionError(null);
 
-    // 1. Extract previous history from messagesRef BEFORE adding current turn
-    const previousTurns = [...messagesRef.current];
-    const recentHistory = previousTurns.slice(-8).map((m) => ({
-      role: m.role,
-      content: m.text,
-    }));
+    // 1. Detect language on client for immediate locale awareness
+    const detectedLocale = detectLanguage(text, currentLocaleRef.current) || currentLocaleRef.current;
+    setCurrentLocale(detectedLocale);
+    currentLocaleRef.current = detectedLocale;
 
     // 2. Append User Message to messagesRef and state synchronously
     const userMsg: ChatMessage = {
       id: "u_" + Date.now(),
       role: "user",
       text,
-      locale: currentLocaleRef.current,
+      locale: detectedLocale,
       timestamp: Date.now(),
     };
-    const updatedWithUser = [...previousTurns, userMsg];
+    const updatedWithUser = [...messagesRef.current, userMsg];
     messagesRef.current = updatedWithUser;
     setMessages(updatedWithUser);
     setTranscript(text);
@@ -547,104 +572,171 @@ export function VoiceAssistantModal({
       store.addConversation(`User: ${text}`);
     }
 
-    // 3. Pre-detect language on client for immediate locale awareness
-    const clientDetected = detectLanguage(text, currentLocaleRef.current);
-    if (clientDetected) {
-      setCurrentLocale(clientDetected);
-      currentLocaleRef.current = clientDetected;
-    }
+    let finalCleanText = "";
+    let actionToExecute: string | null = null;
+    let actionData: any = null;
 
-    // 4. Call Conversational AI via Secure Server Function (Passing recentHistory)
-    let aiResponse: VoiceAssistantResponse;
-
+    // TIER 1: Real Conversational AI Engine with Store Memory & Pronoun Resolution
+    // Handles: "मेरी रात वाली दवाई कब है?", "वही वाली कितने दिन की बची है?", "कल मैंने क्या किया था?",
+    // "कल सुबह 8 बजे दवाई याद दिलाना", "मेरी आज की reminders दिखाओ"
     try {
-      aiResponse = await askAIServerFn({
-        data: {
-          query: text,
-          history: recentHistory,
-          context: {
-            userName: store.user?.name || "Senior",
-            userAge: String(store.user?.age || "72"),
-            userRegion: "NER India / Gujarat / India",
-            medicinesCount: store.medicines?.length || 0,
-            pendingMeds: store.medicines?.map((m) => m.name).join(", "),
-            routinesCompleted: `${
-              store.routines?.filter((r) => r.completed).length || 0
-            } completed`,
-            nextAppointment: store.appointments?.[0]?.title,
-          },
-          preferredLocale: clientDetected || currentLocaleRef.current,
-        },
-      });
-    } catch (err) {
-      console.warn("Server AI Function unavailable, using local conversational fallback with history:", err);
-      aiResponse = getLocalOfflineFallback(
+      const dialogueResult = conversationalAI.handleMultiTurnDialogue(
         text,
-        recentHistory,
-        clientDetected || currentLocaleRef.current,
-        {
-          userName: store.user?.name || "Senior",
-        }
+        store,
+        detectedLocale,
+        extractTimeFromText
       );
+
+      if (dialogueResult && dialogueResult.handled && dialogueResult.responseText) {
+        finalCleanText = cleanAIResponse(dialogueResult.responseText);
+        actionToExecute = dialogueResult.action || null;
+        actionData = dialogueResult.actionData;
+      }
+    } catch (e) {
+      console.warn("Conversational dialogue error:", e);
     }
 
-    isThinkingRef.current = false;
-
-    // 5. Apply Auto-Detected Language & Mirroring
-    const finalLocale = aiResponse.detectedLocale || clientDetected || currentLocaleRef.current;
-    setCurrentLocale(finalLocale);
-    currentLocaleRef.current = finalLocale;
-    setDetectedLangName(aiResponse.languageName || "Auto-Detected");
-
-    // Sync app language with detected language
-    const matchedLang = LANGUAGES.find(
-      (l) => l.speech.toLowerCase() === finalLocale.toLowerCase() || l.speech.startsWith(finalLocale.slice(0, 2))
-    );
-    if (matchedLang) {
-      setLang(matchedLang.code);
-      if (store && typeof store.updateLanguage === "function") {
-        store.updateLanguage(matchedLang.code);
+    // TIER 2: World Knowledge & Live Fact Research Engine
+    // Handles: "भारत के प्रधानमंत्री कौन हैं?", "ऑस्ट्रेलिया के प्रधानमंत्री कौन हैं?", "कल मैच में कौन जीता?",
+    // "आज का मौसम कैसा है?", "रतन टाटा कौन हैं?", etc.
+    if (!finalCleanText) {
+      try {
+        const worldFact = await resolveWorldKnowledge(text, detectedLocale);
+        if (worldFact && worldFact.answered && worldFact.answer) {
+          finalCleanText = cleanAIResponse(worldFact.answer);
+        }
+      } catch (e) {
+        console.warn("World knowledge lookup notice:", e);
       }
     }
 
-    // Clean response before using it anywhere (Requirements 2, 3, 17)
-    const cleanReply = cleanAIResponse(aiResponse.reply);
-    const finalCleanText = cleanReply || "I am here to help you. What would you like to know?";
+    // TIER 3: Direct App Action Intent Matching
+    // Handles: "Memory game शुरू करो", "मेरी medicines दिखाओ"
+    if (!finalCleanText) {
+      const lower = text.toLowerCase();
+      if (
+        lower.includes("game") ||
+        lower.includes("गेम") ||
+        lower.includes("रमत") ||
+        lower.includes("खेल") ||
+        lower.includes("খেলা")
+      ) {
+        actionToExecute = "navigate_games";
+        finalCleanText = detectedLocale.startsWith("hi")
+          ? "मैं आपके लिए कॉग्निटिव मेमोरी गेम्स शुरू कर रहा हूँ। चलिए खेलना शुरू करते हैं!"
+          : detectedLocale.startsWith("gu")
+          ? "હું તમારા માટે મેમરી ગેમ્સ શરૂ કરી રહ્યો છું. ચાલો રમીએ!"
+          : "Opening your Cognitive Memory Games now!";
+      } else if (
+        (lower.includes("medicine") || lower.includes("dawa") || lower.includes("दवाई") || lower.includes("દવા")) &&
+        (lower.includes("show") || lower.includes("dikhao") || lower.includes("दिखाओ") || lower.includes("બતાવો"))
+      ) {
+        actionToExecute = "navigate_medicines";
+        const medList = store.medicines.map((m) => `${m.name} (${m.dosage})`).join(", ");
+        finalCleanText = detectedLocale.startsWith("hi")
+          ? `आपकी दर्ज दवाएं हैं: ${medList || "वर्तमान में कोई दवा दर्ज नहीं है"}।`
+          : detectedLocale.startsWith("gu")
+          ? `તમારી નોંધાયેલી દવાઓ છે: ${medList || "હાલમાં કોઈ દવા નોંધાયેલી નથી"}.`
+          : `Your scheduled medicines are: ${medList || "No medicines recorded"}.`;
+      }
+    }
 
-    // Store as the SINGLE SOURCE OF TRUTH (Requirements 8, 9, 17)
+    // TIER 4: Lovable AI Gateway Cloud Model (With history & local fallback)
+    if (!finalCleanText) {
+      const previousTurns = updatedWithUser.slice(-8).map((m) => ({
+        role: m.role,
+        content: m.text,
+      }));
+
+      try {
+        const aiResponse = await askAIServerFn({
+          data: {
+            query: text,
+            history: previousTurns,
+            context: {
+              userName: store.profile?.full_name || "Senior",
+              medicinesCount: store.medicines?.length || 0,
+              pendingMeds: store.medicines?.map((m) => m.name).join(", "),
+              routinesCompleted: `${
+                store.routines?.filter(
+                  (r) => r.done_date === new Date().toISOString().slice(0, 10)
+                ).length || 0
+              } completed`,
+              nextAppointment: store.appointments?.[0]?.title,
+            },
+            preferredLocale: detectedLocale,
+          },
+        });
+
+        if (aiResponse?.reply) {
+          finalCleanText = cleanAIResponse(aiResponse.reply);
+        }
+      } catch {
+        // Natural companion response fallback from Conversational Engine
+        finalCleanText = cleanAIResponse(
+          conversationalAI.generateConversationalReply(text, detectedLocale, store)
+        );
+      }
+    }
+
+    // Guarantee non-empty clean response
+    if (!finalCleanText || finalCleanText.trim().length === 0) {
+      finalCleanText = cleanAIResponse(
+        conversationalAI.generateConversationalReply(text, detectedLocale, store)
+      );
+    }
+
+    // CRITICAL (Requirement 6): Strip ANY raw JSON or technical format from user view
+    finalCleanText = cleanAIResponse(finalCleanText);
+
+    isThinkingRef.current = false;
+
+    // Record turn in Conversational AI dialogue memory
+    conversationalAI.recordTurn("user", text, detectedLocale);
+    conversationalAI.recordTurn("assistant", finalCleanText, detectedLocale);
+
+    // Sync app language with detected language
+    const matchedLang = LANGUAGES.find(
+      (l) => l.speech.toLowerCase() === detectedLocale.toLowerCase() || l.speech.startsWith(detectedLocale.slice(0, 2))
+    );
+    if (matchedLang) {
+      setLang(matchedLang.code);
+    }
+
     lastCleanAIResponseRef.current = finalCleanText;
     setLastCleanAIResponse(finalCleanText);
-    lastLocaleRef.current = finalLocale;
+    lastLocaleRef.current = detectedLocale;
 
-    // 6. Append Assistant Message to messagesRef and state synchronously (Never raw JSON!)
+    // Append Assistant Message to chat (clean text only, NEVER raw JSON)
     const assistantMsg: ChatMessage = {
       id: "a_" + Date.now(),
       role: "assistant",
       text: finalCleanText,
-      languageName: aiResponse.languageName,
-      locale: finalLocale,
+      languageName: matchedLang?.label || "Auto-Detected",
+      locale: detectedLocale,
       timestamp: Date.now(),
     };
-    const updatedWithAssistant = [...messagesRef.current, assistantMsg];
-    messagesRef.current = updatedWithAssistant;
-    setMessages(updatedWithAssistant);
+    const finalMessages = [...messagesRef.current, assistantMsg];
+    messagesRef.current = finalMessages;
+    setMessages(finalMessages);
 
     if (store && typeof store.addConversation === "function") {
       store.addConversation(`Assistant: ${finalCleanText}`);
     }
 
-    // 7. Check if user requested a structured care action
-    if (aiResponse.suggestedAction && aiResponse.suggestedAction !== "none") {
-      try {
-        const intent = parseVoiceIntent(text, store, finalLocale, pendingIntent);
-        if (intent && intent.type !== "UNKNOWN" && intent.type !== "ANSWER") {
-          setPendingIntent(intent);
-        }
-      } catch {}
+    // Execute application actions
+    if (actionToExecute === "take_medicine" && actionData?.medicineId) {
+      store.markMedicineTaken(actionData.medicineId, "taken");
+    } else if (actionToExecute === "navigate_reminders") {
+      onNavigate?.("reminders");
+    } else if (actionToExecute === "navigate_games") {
+      onNavigate?.("games");
+    } else if (actionToExecute === "navigate_medicines") {
+      onNavigate?.("medicines");
     }
 
-    // 8. Speak the answer in the SAME detected language
-    speakAIAnswer(finalCleanText, finalLocale);
+    // Speak the response in the same detected language
+    speakAIAnswer(finalCleanText, detectedLocale);
   };
 
   // -------------------------------------------------------------------------
@@ -847,7 +939,11 @@ export function VoiceAssistantModal({
             <button
               onClick={
                 voiceState === "speaking"
-                  ? handleBargeIn
+                  ? () => {
+                      handleBargeIn();
+                      isActiveSessionRef.current = true;
+                      startListening(true);
+                    }
                   : voiceState === "listening"
                   ? handleStop
                   : () => {

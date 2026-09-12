@@ -82,7 +82,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "AI-powered cognitive gaming, smart reminders, medicine stock tracking, and memory assistance platform designed for seniors and dementia care (SIH 2026).",
+          "AI-powered cognitive gaming, smart reminders, medicine stock tracking, and memory assistance platform designed for seniors and dementia care.",
       },
       { name: "author", content: "Memory Bond" },
       { property: "og:title", content: "Memory Bond — AI Senior Companion" },

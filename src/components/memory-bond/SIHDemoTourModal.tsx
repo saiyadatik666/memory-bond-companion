@@ -285,7 +285,7 @@ export function SIHDemoTourModal({
             </span>
             <div>
               <div className="text-xs font-black uppercase tracking-wider text-primary">
-                SIH 2026 Evaluation Suite
+                Memory Bond Feature Tour
               </div>
               <h3 className="text-xl sm:text-2xl font-black text-foreground">
                 Memory Bond Live Demo Guide

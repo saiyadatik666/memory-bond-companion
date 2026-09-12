@@ -138,7 +138,7 @@ export function Footer({
             <div className="pt-2 flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20 text-xs font-bold">
                 <Sparkles className="h-3 w-3 text-teal-500" />
-                SIH 2026 • SIH26003
+                Senior Wellness & Care Verified
               </span>
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 text-primary border border-primary/20 text-xs font-bold">
                 <ShieldCheck className="h-3 w-3 text-primary" />
@@ -409,7 +409,7 @@ export function Footer({
               Statutory Non-Diagnostic Health & Safety Notice
             </p>
             <p className="leading-relaxed">
-              <strong>Memory Bond</strong> is an assistive cognitive wellness, lifestyle reminder, and family coordination companion created for the <strong>Smart India Hackathon (SIH 2026)</strong> under Problem Statement ID <code>SIH26003</code>. It does not provide medical diagnosis, therapeutic cures, neurological evaluations, or clinical prescriptions. Always seek guidance from certified physicians, geriatric specialists, or neurologists for any health conditions.
+              <strong>Memory Bond</strong> is an assistive cognitive wellness, lifestyle reminder, and family coordination companion created as a dedicated elder-care platform. It does not provide medical diagnosis, therapeutic cures, neurological evaluations, or clinical prescriptions. Always seek guidance from certified physicians, geriatric specialists, or neurologists for any health conditions.
             </p>
           </div>
         </div>

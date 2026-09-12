@@ -48,12 +48,12 @@ export function BottomNavigation({
       { id: "family", label: t("family") || "Family", icon: Users },
     ];
   } else {
-    // Senior (default per Section 3: Today, Medicines, Games, Family, Routine, SOS)
+    // Senior (default per Section 3: Today, Medicines, Games, Family Tree, Routine, SOS)
     tabs = [
       { id: "home", label: t("home") || "Today", icon: Home },
       { id: "medicines", label: t("medicines") || "Medicines", icon: Pill },
       { id: "games", label: t("games") || "Games", icon: Gamepad2 },
-      { id: "family", label: t("family") || "Family", icon: Heart },
+      { id: "family_tree", label: "Family Tree", icon: Heart },
       { id: "routine", label: t("routine") || "Routine", icon: Calendar },
       { id: "sos", label: "SOS", icon: AlertTriangle, isSos: true },
     ];

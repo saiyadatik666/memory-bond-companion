@@ -7,6 +7,7 @@ import {
   WifiOff,
   RotateCcw,
   AlertOctagon,
+  AlertTriangle,
   ChevronDown,
   ChevronUp,
   Stethoscope,
@@ -47,18 +48,17 @@ export function DemoControlBar({
           <span className="w-2.5 h-2.5 rounded-full bg-success animate-pulse" />
           <span className="text-primary font-black uppercase tracking-wider">Demo Evaluator Bar</span>
           <span className="text-muted-foreground hidden sm:inline">|</span>
-          <span className="text-muted-foreground hidden sm:inline">SIH26003 North East Dementia Care Prototype</span>
+          <span className="text-muted-foreground hidden sm:inline">Cognitive Care & Wellness Platform</span>
         </div>
 
         <div className="flex items-center flex-wrap gap-2">
-          {/* Section 39: Prominent 17-Step SIH Demo Tour for Judges */}
           {onOpenSihDemo && (
             <Button
               size="sm"
               onClick={onOpenSihDemo}
               className="h-8 rounded-xl text-xs gap-1.5 font-black bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 shadow-sm border border-amber-400/50 cursor-pointer animate-pulse"
             >
-              <Sparkles className="h-3.5 w-3.5" /> 🎯 SIH Demo Mode
+              <Sparkles className="h-3.5 w-3.5" /> 🎯 Feature Tour
             </Button>
           )}
 
@@ -102,7 +102,7 @@ export function DemoControlBar({
                   ? "bg-card text-primary shadow-xs font-black"
                   : "text-muted-foreground hover:text-foreground"
               }`}
-              title="Combined Admin & Healthcare Worker role (SIH Section 30)"
+              title="Combined Admin & Healthcare Worker role"
             >
               🩺 Admin / Healthcare Worker
             </button>

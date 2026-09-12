@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Volume2, VolumeX, Sparkles, RotateCcw, CheckCircle2, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { speakText, stopSpeaking } from "@/lib/voiceParser";

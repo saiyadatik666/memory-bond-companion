@@ -25,12 +25,14 @@ export function Header({
   onOpenNotifications,
   onOpenAuth,
   onNavigate,
+  onSignOut,
 }: {
   store: MemoryBondStore;
   onOpenVoice: () => void;
   onOpenNotifications: () => void;
   onOpenAuth: () => void;
   onNavigate: (tab: string) => void;
+  onSignOut?: () => void;
 }) {
   const { lang, setLang, t } = useI18n();
   const unreadCount = store.notifications.filter((n) => !n.read).length;
@@ -118,16 +120,42 @@ export function Header({
             )}
           </Button>
 
-          {/* User Account / Sign In */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onOpenAuth}
-            className="hidden sm:flex rounded-2xl h-10 w-10 p-0 text-muted-foreground hover:text-foreground"
-            title="Account / Sign In"
-          >
-            <User className="h-5 w-5" />
-          </Button>
+          {/* User Account / Sign Out Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden sm:flex rounded-2xl h-10 px-2.5 gap-1.5 text-xs font-bold text-foreground border border-border"
+                title="Account Profile"
+              >
+                <User className="h-4 w-4 text-primary" />
+                <span className="truncate max-w-[85px]">{store.profile.full_name.split(" ")[0]}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52 rounded-2xl p-2 space-y-1">
+              <div className="px-2 py-1.5 border-b border-border text-xs">
+                <div className="font-bold text-foreground truncate">{store.profile.full_name}</div>
+                <div className="text-[10px] text-muted-foreground uppercase font-black tracking-wider text-primary">
+                  {store.profile.role.replace("_", " ")}
+                </div>
+              </div>
+              <DropdownMenuItem
+                onClick={onOpenAuth}
+                className="rounded-xl text-xs font-semibold cursor-pointer"
+              >
+                Account Settings
+              </DropdownMenuItem>
+              {onSignOut && (
+                <DropdownMenuItem
+                  onClick={onSignOut}
+                  className="rounded-xl text-xs font-semibold text-destructive focus:bg-destructive/10 cursor-pointer"
+                >
+                  Sign Out
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Offline / Sync Queue Badge (Requirement 20 & 21) */}
           {!store.isOnline ? (

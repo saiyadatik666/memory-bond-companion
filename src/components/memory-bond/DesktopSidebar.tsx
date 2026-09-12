@@ -57,13 +57,12 @@ export function DesktopSidebar({
   } else if (role === "caregiver") {
     navItems = [
       { id: "caregiver", label: "Caregiver Overview", icon: ShieldCheck },
+      { id: "family", label: "Connect Caregiver & Family", icon: Users },
       { id: "medicines", label: t("medicines") || "Medicines", icon: Pill },
       { id: "reminders", label: t("reminders") || "Reminders", icon: Bell },
       { id: "appointments", label: t("appointments") || "Appointments", icon: Calendar },
       { id: "routine", label: t("routine") || "Daily Routine", icon: Sun },
-      { id: "family", label: t("family") || "Family Members", icon: Users },
-      { id: "journal", label: "Memory Journal", icon: BookOpen },
-      { id: "cues", label: "Memory Cues", icon: HelpCircle },
+      { id: "family_tree", label: "Family Tree", icon: BookOpen },
       { id: "settings", label: t("settings") || "Settings", icon: Settings },
     ];
   } else {
@@ -74,11 +73,9 @@ export function DesktopSidebar({
       { id: "reminders", label: t("reminders") || "Reminders", icon: Bell },
       { id: "games", label: t("games") || "Brain Games", icon: Gamepad2 },
       { id: "routine", label: t("routine") || "Daily Routine & Tasks", icon: Sun },
-      { id: "family", label: t("family") || "Family & Caregiver", icon: Users },
+      { id: "family_tree", label: "Family Tree", icon: Users },
       { id: "appointments", label: t("appointments") || "Doctor Visits", icon: Calendar },
       { id: "cultural", label: "Cultural Hub", icon: Compass },
-      { id: "journal", label: "Cherished Memories", icon: BookOpen },
-      { id: "cues", label: "Memory Prompts", icon: HelpCircle },
       { id: "settings", label: t("settings") || "Accessibility & Settings", icon: Settings },
     ];
   }

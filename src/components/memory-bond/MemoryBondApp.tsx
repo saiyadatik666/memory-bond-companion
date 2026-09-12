@@ -20,8 +20,11 @@ import { MemoryJournalView } from "./MemoryJournalView";
 import { DailyRoutineView } from "./DailyRoutineView";
 import { AppointmentsView } from "./AppointmentsView";
 import { FamilyManagementView } from "./FamilyManagementView";
+import { FamilyTreeView } from "./FamilyTreeView";
 import { SettingsView } from "./SettingsView";
 import { SeniorOnboarding } from "./SeniorOnboarding";
+import { LoginScreen } from "./LoginScreen";
+import { supabase } from "@/integrations/supabase/client";
 
 // Modals
 import { SosModal } from "./SosModal";
@@ -43,6 +46,54 @@ export function MemoryBondApp() {
   const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
   const [isSihDemoOpen, setIsSihDemoOpen] = useState<boolean>(false);
   const [isMemoryStoryOpen, setIsMemoryStoryOpen] = useState<boolean>(false);
+
+  // Requirement 19: Website MUST start with Login / Account Access page
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    const session = localStorage.getItem("mb_active_session");
+    return !!session;
+  });
+
+  // Listen to Supabase auth events (OAuth redirect, sign in, sign out)
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const user = session.user;
+        const role = (user.user_metadata?.role as any) || "caregiver";
+        const fullName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Caregiver";
+        store.updateProfile({ full_name: fullName, role });
+        store.setRole(role);
+        localStorage.setItem(
+          "mb_active_session",
+          JSON.stringify({
+            userId: user.id,
+            role,
+            email: user.email,
+            fullName,
+          })
+        );
+        setIsAuthenticated(true);
+        if (role === "caregiver") {
+          setCurrentTab("caregiver");
+        } else {
+          setCurrentTab("home");
+        }
+      }
+    });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, []);
+
+  const handleSignOut = () => {
+    try {
+      supabase.auth.signOut();
+    } catch {}
+    localStorage.removeItem("mb_active_session");
+    setIsAuthenticated(false);
+    setCurrentTab("caregiver");
+  };
 
   // Global triggers for Memory Story & SIH Demo Tour
   useEffect(() => {
@@ -111,6 +162,25 @@ export function MemoryBondApp() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // Requirement 19: Website MUST start with Login / Account Access page
+  if (!isAuthenticated) {
+    return (
+      <LoginScreen
+        store={store}
+        onAuthenticated={(role) => {
+          setIsAuthenticated(true);
+          if (role === "caregiver") {
+            store.setRole("caregiver");
+            setCurrentTab("caregiver");
+          } else {
+            store.setRole("senior");
+            setCurrentTab("home");
+          }
+        }}
+      />
+    );
+  }
+
   // If senior is not onboarded, show onboarding
   if (!store.profile.onboarded) {
     return (
@@ -148,6 +218,7 @@ export function MemoryBondApp() {
         onOpenNotifications={() => setIsNotificationsOpen(true)}
         onOpenAuth={() => setIsAuthOpen(true)}
         onNavigate={handleNavigate}
+        onSignOut={handleSignOut}
       />
 
       {/* Main Responsive Body: Left Sidebar on Desktop + Centered Main Canvas */}
@@ -172,19 +243,48 @@ export function MemoryBondApp() {
           )}
 
           {currentTab === "caregiver" && (
-            <CaregiverDashboard store={store} onNavigate={handleNavigate} />
+            store.profile.role !== "senior" ? (
+              <CaregiverDashboard store={store} onNavigate={handleNavigate} />
+            ) : (
+              <SeniorHome
+                store={store}
+                onNavigate={handleNavigate}
+                onOpenVoiceAssistant={() => setIsVoiceOpen(true)}
+              />
+            )
           )}
 
           {currentTab === "healthcare" && (
-            <HealthcareWorkerDashboard store={store} onNavigate={handleNavigate} />
+            store.profile.role === "healthcare_worker" || store.profile.role === "admin_healthcare_worker" || store.profile.role === "admin" ? (
+              <HealthcareWorkerDashboard store={store} onNavigate={handleNavigate} />
+            ) : (
+              <SeniorHome
+                store={store}
+                onNavigate={handleNavigate}
+                onOpenVoiceAssistant={() => setIsVoiceOpen(true)}
+              />
+            )
           )}
 
           {currentTab === "cultural" && (
             <NorthEastCulturalConnect store={store} />
           )}
 
+          {/* Unified Family Tree replacing standalone sections 6, 7 and 8 */}
+          {currentTab === "family_tree" && (
+            <FamilyTreeView store={store} initialTab="tree" />
+          )}
+
           {currentTab === "social" && (
-            <SocialEngagementModule store={store} />
+            <FamilyTreeView store={store} initialTab="greetings" />
+          )}
+
+          {currentTab === "cues" && (
+            <FamilyTreeView store={store} initialTab="cues" />
+          )}
+
+          {currentTab === "journal" && (
+            <FamilyTreeView store={store} initialTab="journal" />
           )}
 
           {currentTab === "medicines" && <MedicineManagerView store={store} />}
@@ -197,15 +297,18 @@ export function MemoryBondApp() {
 
           {currentTab === "checkin" && <CognitiveCheckIn store={store} />}
 
-          {currentTab === "cues" && <MemoryCuesView store={store} />}
-
-          {currentTab === "journal" && <MemoryJournalView store={store} />}
-
           {currentTab === "routine" && <DailyRoutineView store={store} />}
 
           {currentTab === "appointments" && <AppointmentsView store={store} />}
 
-          {currentTab === "family" && <FamilyManagementView store={store} />}
+          {/* Connect Caregiver & Family: Caregiver/Admin only. If a Senior accesses this, render FamilyTreeView instead */}
+          {currentTab === "family" && (
+            store.profile.role !== "senior" ? (
+              <FamilyManagementView store={store} />
+            ) : (
+              <FamilyTreeView store={store} initialTab="tree" />
+            )
+          )}
 
           {currentTab === "settings" && <SettingsView store={store} />}
         </main>
