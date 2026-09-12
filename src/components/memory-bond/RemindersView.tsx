@@ -246,9 +246,6 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
     speakText(`Reminder: ${rem.title} scheduled for ${rem.time}. Category: ${rem.type}.`, speechLocale);
   };
 
-  const activeReminders = store.reminders.filter((r) => r.active);
-  const completedReminders = store.reminders.filter((r) => r.last_done === todayStr);
-
   return (
     <div className="space-y-6">
       {/* Header */}
