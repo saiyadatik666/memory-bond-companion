@@ -86,59 +86,6 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
     (r) => r.last_done === todayStr
   );
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-secondary/30 p-6">
-        <div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-foreground flex items-center gap-3">
-            <Bell className="h-8 w-8 text-primary" /> Smart Reminders Engine
-          </h2>
-          <p className="text-muted-foreground mt-1 text-base">
-            Natural language reminders for medicines, hydration, walking, market shopping, and doctor visits.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="inline-flex rounded-2xl border border-border bg-card p-1 shadow-xs">
-            <button
-              onClick={() => setActiveTab("today")}
-              className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                activeTab === "today"
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Today ({todayReminders.length})
-            </button>
-            <button
-              onClick={() => setActiveTab("upcoming")}
-              className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                activeTab === "upcoming"
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Upcoming ({upcomingReminders.length})
-            </button>
-            <button
-              onClick={() => setActiveTab("completed")}
-              className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeTab === "completed"
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <History className="h-3.5 w-3.5" /> Done ({completedReminders.length})
-            </button>
-          </div>
-
-          <Button onClick={handleOpenAdd} className="gap-2 font-bold text-base h-12 px-6 rounded-2xl cursor-pointer">
-            <Plus className="h-5 w-5" /> New Reminder
-          </Button>
-        </div>
-      </div>
-
   // Direct Speech Recognition for Reminders
   const handleStartVoiceInput = () => {
     if (isListening) return;
@@ -314,31 +261,41 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="inline-flex rounded-2xl border border-border bg-card p-1 shadow-xs">
             <button
-              onClick={() => setActiveTab("active")}
-              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                activeTab === "active"
+              onClick={() => setActiveTab("today")}
+              className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                activeTab === "today"
                   ? "bg-primary text-primary-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              Active ({activeReminders.length})
+              Today ({todayReminders.length})
             </button>
             <button
-              onClick={() => setActiveTab("history")}
-              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-1.5 ${
-                activeTab === "history"
+              onClick={() => setActiveTab("upcoming")}
+              className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                activeTab === "upcoming"
                   ? "bg-primary text-primary-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <History className="h-4 w-4" /> Completed Today ({completedReminders.length})
+              Upcoming ({upcomingReminders.length})
+            </button>
+            <button
+              onClick={() => setActiveTab("completed")}
+              className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === "completed"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <History className="h-3.5 w-3.5" /> Done ({completedReminders.length})
             </button>
           </div>
 
-          <Button onClick={handleOpenAdd} className="gap-2 font-bold text-base h-12 px-6 rounded-2xl">
+          <Button onClick={handleOpenAdd} className="gap-2 font-bold text-base h-12 px-6 rounded-2xl cursor-pointer">
             <Plus className="h-5 w-5" /> New Reminder
           </Button>
         </div>
