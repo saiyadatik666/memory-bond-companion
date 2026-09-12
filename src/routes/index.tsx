@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { MemoryBondApp } from "@/components/memory-bond/MemoryBondApp";
+import { MemoryBondApp } from "../components/memory-bond/MemoryBondApp";
 
 export const Route = createFileRoute("/")({
-  component: Index,
+  component: RouteComponent,
 });
 
-function Index() {
+function RouteComponent() {
   return <MemoryBondApp />;
 }
 
