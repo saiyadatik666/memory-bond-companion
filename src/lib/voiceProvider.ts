@@ -122,7 +122,217 @@ export function getBestMatchingVoice(locale: string): SpeechSynthesisVoice | nul
 }
 
 // ---------------------------------------------------------------------------
+// Response Sanitization & Audio Chunking Utilities
+// ---------------------------------------------------------------------------
+
+/**
+ * Dedicated function to clean and extract the actual spoken/readable response from raw AI output.
+ * Extracts plain answer text from:
+ * - Plain text
+ * - JSON string e.g. {"reply":"..."}
+ * - Nested API wrapper objects or escaped JSON strings
+ * - Markdown fences (```json ... ```)
+ * - Markdown formatting (**bold**, *italic*, headers #, bullet points, backticks)
+ * 
+ * Guarantees NEVER speaking "reply", technical metadata, brackets, or raw JSON syntax.
+ */
+export function cleanAIResponse(raw: unknown): string {
+  if (raw === null || raw === undefined) return "";
+
+  let text = "";
+
+  if (typeof raw === "object") {
+    const obj = raw as Record<string, any>;
+    if (typeof obj.reply === "string") {
+      text = obj.reply;
+    } else if (typeof obj.answer === "string") {
+      text = obj.answer;
+    } else if (typeof obj.response === "string") {
+      text = obj.response;
+    } else if (typeof obj.text === "string") {
+      text = obj.text;
+    } else if (obj.message && typeof obj.message.content === "string") {
+      text = obj.message.content;
+    } else {
+      try {
+        text = JSON.stringify(raw);
+      } catch {
+        text = String(raw);
+      }
+    }
+  } else {
+    text = String(raw);
+  }
+
+  // Strip markdown code fences (e.g. ```json ... ``` or ``` ... ```)
+  text = text.replace(/```(?:json|markdown|text)?([\s\S]*?)```/gi, "$1").trim();
+
+  // If text looks like JSON, recursively or iteratively parse it
+  let parseAttempts = 0;
+  while (
+    parseAttempts < 4 &&
+    (text.startsWith("{") || text.startsWith("[") || text.includes('"reply"') || text.includes('\\"reply\\"'))
+  ) {
+    parseAttempts++;
+
+    // Unescape if double-escaped
+    if (text.includes('\\"')) {
+      try {
+        const unescaped = JSON.parse(`"${text.replace(/"/g, '\\"')}"`);
+        if (typeof unescaped === "string" && unescaped !== text) {
+          text = unescaped;
+        }
+      } catch {}
+    }
+
+    try {
+      const start = text.indexOf("{");
+      const end = text.lastIndexOf("}");
+      if (start >= 0 && end > start) {
+        const potentialJson = text.substring(start, end + 1);
+        const parsed = JSON.parse(potentialJson);
+        if (parsed && typeof parsed === "object") {
+          if (typeof parsed.reply === "string") {
+            text = parsed.reply;
+            continue;
+          } else if (typeof parsed.answer === "string") {
+            text = parsed.answer;
+            continue;
+          } else if (typeof parsed.response === "string") {
+            text = parsed.response;
+            continue;
+          } else if (typeof parsed.text === "string") {
+            text = parsed.text;
+            continue;
+          }
+        }
+      }
+    } catch {
+      // Regex extraction fallback for "reply": "..."
+      const replyMatch = text.match(/"reply"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+      if (replyMatch && replyMatch[1]) {
+        try {
+          text = JSON.parse(`"${replyMatch[1]}"`);
+          continue;
+        } catch {
+          text = replyMatch[1].replace(/\\"/g, '"').replace(/\\n/g, " ");
+          continue;
+        }
+      }
+      break;
+    }
+    break;
+  }
+
+  // Remove any remaining raw JSON brackets if it starts with {"reply":...
+  text = text.replace(/^\{.*?"reply"\s*:\s*"?/i, "");
+  text = text.replace(/"?\s*,\s*"detectedLocale".*?\}$/i, "");
+  text = text.replace(/"?\s*\}$/i, "");
+
+  // Remove speaker prefixes like "AI:", "Assistant:", "Bot:", "Memory Bond:"
+  text = text.replace(/^(?:AI|Assistant|Bot|Memory Bond):\s*/i, "");
+
+  // Remove markdown formatting
+  text = text.replace(/\*\*(.*?)\*\*/g, "$1"); // bold
+  text = text.replace(/__(.*?)__/g, "$1");
+  text = text.replace(/\*(.*?)\*/g, "$1"); // italic
+  text = text.replace(/_(.*?)_/g, "$1");
+  text = text.replace(/^#{1,6}\s+/gm, ""); // headers
+  text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1"); // links
+  text = text.replace(/`([^`]+)`/g, "$1"); // inline code
+  text = text.replace(/^[\*\-\+]\s+/gm, ""); // bullet points
+
+  // Normalize quotes and whitespace
+  text = text.replace(/\\n/g, " ").replace(/\s+/g, " ").trim();
+
+  // Strip leading/trailing stray quotes or JSON remnants
+  text = text.replace(/^["']+|["']+$/g, "").trim();
+
+  return text;
+}
+
+/**
+ * Splits text into natural sentence-level chunks for sequential TTS playback.
+ * Recognizes English/Latin delimiters (. ! ?), Indic punctuation (। ॥), and newlines.
+ * Never cuts sentences in half.
+ */
+export function splitIntoSpeechChunks(text: string, maxChunkLength = 160): string[] {
+  const clean = text.trim();
+  if (!clean) return [];
+
+  // If already short, return as a single chunk
+  if (clean.length <= maxChunkLength) {
+    return [clean];
+  }
+
+  // Regex to match complete sentences ending in . ! ? । ॥ or newlines
+  const sentenceRegex = /[^.!?।॥\n]+(?:[.!?।॥\n]+|$)/gu;
+  const rawSentences = clean.match(sentenceRegex) || [clean];
+
+  const chunks: string[] = [];
+  let currentChunk = "";
+
+  for (const raw of rawSentences) {
+    const s = raw.trim();
+    if (!s) continue;
+
+    // If adding this sentence keeps chunk within reasonable bounds
+    if (currentChunk && (currentChunk.length + s.length + 1 <= maxChunkLength)) {
+      currentChunk += " " + s;
+    } else {
+      if (currentChunk) {
+        chunks.push(currentChunk.trim());
+      }
+      // If a single sentence is extremely long (> maxChunkLength without punctuation)
+      if (s.length > maxChunkLength) {
+        // Split at natural clause boundaries (commas, semicolons, dashes)
+        const clauseRegex = /[^,;:—]+(?:[,;:—]+|$)/gu;
+        const clauses = s.match(clauseRegex) || [s];
+        let subChunk = "";
+        for (const c of clauses) {
+          const clause = c.trim();
+          if (!clause) continue;
+          if (subChunk && (subChunk.length + clause.length + 1 <= maxChunkLength)) {
+            subChunk += " " + clause;
+          } else {
+            if (subChunk) chunks.push(subChunk.trim());
+            // If even a clause exceeds maxChunkLength, split by words
+            if (clause.length > maxChunkLength) {
+              const words = clause.split(/\s+/);
+              let wordChunk = "";
+              for (const w of words) {
+                if (wordChunk && (wordChunk.length + w.length + 1 <= maxChunkLength)) {
+                  wordChunk += " " + w;
+                } else {
+                  if (wordChunk) chunks.push(wordChunk.trim());
+                  wordChunk = w;
+                }
+              }
+              if (wordChunk) chunks.push(wordChunk.trim());
+              subChunk = "";
+            } else {
+              subChunk = clause;
+            }
+          }
+        }
+        if (subChunk) chunks.push(subChunk.trim());
+        currentChunk = "";
+      } else {
+        currentChunk = s;
+      }
+    }
+  }
+
+  if (currentChunk.trim()) {
+    chunks.push(currentChunk.trim());
+  }
+
+  return chunks.filter((c) => c.length > 0);
+}
+
+// ---------------------------------------------------------------------------
 // 1. Web Speech Provider (Built-in, zero-latency, offline-capable)
+// With Full Sequential Audio Queue & Chromium GC / Stall Protection
 // ---------------------------------------------------------------------------
 export class WebSpeechVoiceProvider implements VoiceProvider {
   public name = "Web Speech API (Browser Native)";
@@ -130,11 +340,16 @@ export class WebSpeechVoiceProvider implements VoiceProvider {
   private _isSpeaking = false;
   private _isTranscribing = false;
   private _recognition: any = null;
-  private _activeUtterance: SpeechSynthesisUtterance | null = null;
   private _speechRate = 0.88; // Calm, respectful pace for seniors
+  private _activeSessionId = 0;
+  private _activeUtterancePool = new Set<SpeechSynthesisUtterance>();
+  private _heartbeatInterval: any = null;
 
   constructor(pace = 0.88) {
     this._speechRate = pace;
+    if (typeof window !== "undefined") {
+      (window as any).__mb_active_utterances = this._activeUtterancePool;
+    }
   }
 
   public setSpeechRate(rate: number) {
@@ -149,18 +364,41 @@ export class WebSpeechVoiceProvider implements VoiceProvider {
     return this._isTranscribing;
   }
 
-  // Cancel any active speech output immediately (Barge-In)
-  public cancelSpeech() {
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-      this._isSpeaking = false;
-      this._activeUtterance = null;
+  private _startHeartbeat() {
+    this._stopHeartbeat();
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    // Chromium SpeechSynthesis stall prevention:
+    // Some Chromium browsers silently stall after 15s if resume is not called
+    this._heartbeatInterval = setInterval(() => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+      }
+    }, 4000);
+  }
+
+  private _stopHeartbeat() {
+    if (this._heartbeatInterval) {
+      clearInterval(this._heartbeatInterval);
+      this._heartbeatInterval = null;
     }
   }
 
-  // Synthesize and speak text
+  // Cancel any active speech output immediately (Barge-In / STOP button)
+  public cancelSpeech() {
+    this._activeSessionId++;
+    this._stopHeartbeat();
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    this._activeUtterancePool.clear();
+    this._isSpeaking = false;
+  }
+
+  // Synthesize and speak text using robust sentence queue
   public synthesizeSpeech(
-    text: string,
+    rawText: string,
     locale = "en-IN",
     onStart?: () => void,
     onEnd?: () => void,
@@ -171,40 +409,128 @@ export class WebSpeechVoiceProvider implements VoiceProvider {
       return;
     }
 
-    // Echo prevention: cancel speech first and pause active mic
-    this.cancelSpeech();
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    this._activeUtterance = utterance;
-    utterance.rate = this._speechRate;
-    utterance.pitch = 1.0;
-    utterance.lang = locale;
-
-    // Pick best matching Indian voice
-    const voice = this.getBestMatchingVoice(locale);
-    if (voice) {
-      utterance.voice = voice;
+    // 1. Clean response strictly before TTS (Requirement 2 & 11)
+    const cleanText = cleanAIResponse(rawText);
+    if (!cleanText || cleanText.trim().length === 0) {
+      if (onEnd) onEnd();
+      return;
     }
 
-    utterance.onstart = () => {
-      this._isSpeaking = true;
-      if (onStart) onStart();
-    };
-
-    utterance.onend = () => {
-      this._isSpeaking = false;
-      this._activeUtterance = null;
+    // 2. Split response into natural sentence chunks (Requirement 4 & 12)
+    const chunks = splitIntoSpeechChunks(cleanText);
+    if (chunks.length === 0) {
       if (onEnd) onEnd();
+      return;
+    }
+
+    // 3. Cancel any previous speech session and increment session ID (Requirement 4)
+    this.cancelSpeech();
+    const currentSession = ++this._activeSessionId;
+    this._isSpeaking = true;
+
+    // Requirement 11: Internal logging
+    console.log(
+      `[TTS_START] language=${locale} character_count=${cleanText.length} chunk_count=${chunks.length}`
+    );
+
+    this._startHeartbeat();
+
+    let startedTriggered = false;
+    let currentChunkIndex = 0;
+
+    const playNextChunk = (hasRetried: boolean) => {
+      // Abort if session changed (user pressed STOP or new speech initiated)
+      if (currentSession !== this._activeSessionId) {
+        return;
+      }
+
+      if (currentChunkIndex >= chunks.length) {
+        // All chunks completed! (Requirement 11)
+        console.log(`[TTS_COMPLETE] language=${locale} chunks_spoken=${chunks.length}`);
+        this._isSpeaking = false;
+        this._stopHeartbeat();
+        this._activeUtterancePool.clear();
+        if (onEnd) onEnd();
+        return;
+      }
+
+      const chunk = chunks[currentChunkIndex];
+      const utterance = new SpeechSynthesisUtterance(chunk);
+      utterance.rate = this._speechRate;
+      utterance.pitch = 1.0;
+      utterance.lang = locale;
+
+      // Best matching voice without forcing English on Indic text
+      const voice = this.getBestMatchingVoice(locale);
+      if (voice) {
+        utterance.voice = voice;
+      }
+
+      // GC Protection (Chromium Bug 339445 Workaround): keep reference in Set
+      this._activeUtterancePool.add(utterance);
+
+      utterance.onstart = () => {
+        if (!startedTriggered) {
+          startedTriggered = true;
+          if (onStart) onStart();
+        }
+      };
+
+      utterance.onend = () => {
+        this._activeUtterancePool.delete(utterance);
+        if (currentSession !== this._activeSessionId) return;
+
+        // Requirement 11: Chunk finished internal log
+        console.log(`[TTS_CHUNK_FINISHED] chunk=${currentChunkIndex + 1}/${chunks.length}`);
+        currentChunkIndex++;
+        // Play next chunk strictly after previous chunk finishes
+        playNextChunk(false);
+      };
+
+      utterance.onerror = (e) => {
+        this._activeUtterancePool.delete(utterance);
+        if (currentSession !== this._activeSessionId) return;
+
+        // If interrupted or canceled by user stop, exit cleanly
+        if (e.error === "interrupted" || e.error === "canceled") {
+          this._isSpeaking = false;
+          this._stopHeartbeat();
+          return;
+        }
+
+        console.error(
+          `[TTS_ERROR] chunk=${currentChunkIndex + 1}/${chunks.length} error=${e.error}`
+        );
+
+        // Error recovery (Requirement 18): Try the failed chunk once
+        if (!hasRetried) {
+          console.log(`[TTS_RETRY] Retrying chunk ${currentChunkIndex + 1}`);
+          setTimeout(() => {
+            if (currentSession === this._activeSessionId) {
+              playNextChunk(true);
+            }
+          }, 150);
+          return;
+        }
+
+        // If retry also failed, report error and continue with remaining chunks
+        if (onError) onError(e);
+        currentChunkIndex++;
+        playNextChunk(false);
+      };
+
+      try {
+        window.speechSynthesis.speak(utterance);
+      } catch (err) {
+        console.error("[TTS_ERROR] speak call threw exception:", err);
+        if (onError) onError(err);
+        currentChunkIndex++;
+        playNextChunk(false);
+      }
     };
 
-    utterance.onerror = (e) => {
-      this._isSpeaking = false;
-      this._activeUtterance = null;
-      if (onError) onError(e);
-      if (onEnd) onEnd();
-    };
-
-    window.speechSynthesis.speak(utterance);
+    // Begin first chunk
+    playNextChunk(false);
   }
 
   // Match native voice based on Indian regional language preferences without forcing English

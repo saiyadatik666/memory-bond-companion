@@ -31,6 +31,7 @@ import {
   type VoiceIntent,
   detectLanguage,
   pick,
+  cleanAIResponse,
   MEDICINE_TAKEN_SUCCESS_MSG,
   REMINDER_SAVED_SUCCESS_MSG,
   APPOINTMENT_SAVED_SUCCESS_MSG,
@@ -87,6 +88,8 @@ export function VoiceAssistantModal({
       return [];
     }
   });
+  // Stored clean AI response for Speak Again / Listen Again (Requirements 8 & 9)
+  const [lastCleanAIResponse, setLastCleanAIResponse] = useState<string>("");
   const [pendingIntent, setPendingIntent] = useState<VoiceIntent | null>(null);
   const [recognitionError, setRecognitionError] = useState<string | null>(null);
   const [conversationMode, setConversationMode] = useState<boolean>(true);
@@ -97,6 +100,8 @@ export function VoiceAssistantModal({
   const isThinkingRef = useRef(false);
   const isSpeakingRef = useRef(false);
   const currentLocaleRef = useRef(currentLocale);
+  const lastCleanAIResponseRef = useRef<string>("");
+  const lastLocaleRef = useRef<string>(currentLocale);
   const messagesRef = useRef<ChatMessage[]>(messages);
   const listenTimeoutRef = useRef<any>(null);
   const recognitionRef = useRef<any>(null);
@@ -162,9 +167,12 @@ export function VoiceAssistantModal({
   // Interruption / Barge-in: immediately cancel audio if speaking
   // -------------------------------------------------------------------------
   const handleBargeIn = () => {
-    voiceManager.bargeIn();
+    voiceManager.stopSpeaking();
     isSpeakingRef.current = false;
-    if (listenTimeoutRef.current) clearTimeout(listenTimeoutRef.current);
+    if (listenTimeoutRef.current) {
+      clearTimeout(listenTimeoutRef.current);
+      listenTimeoutRef.current = null;
+    }
     if (voiceState === "speaking") {
       setVoiceState("idle");
     }
@@ -172,10 +180,14 @@ export function VoiceAssistantModal({
 
   // -------------------------------------------------------------------------
   // Clean Stop: Halts session completely until user triggers mic again
+  // (Requirement 16)
   // -------------------------------------------------------------------------
   const handleStop = () => {
     isActiveSessionRef.current = false;
-    if (listenTimeoutRef.current) clearTimeout(listenTimeoutRef.current);
+    if (listenTimeoutRef.current) {
+      clearTimeout(listenTimeoutRef.current);
+      listenTimeoutRef.current = null;
+    }
     if (recognitionRef.current) {
       try {
         recognitionRef.current.abort();
@@ -183,7 +195,7 @@ export function VoiceAssistantModal({
     }
     isThinkingRef.current = false;
     isSpeakingRef.current = false;
-    handleBargeIn();
+    voiceManager.stopSpeaking();
     setVoiceState("idle");
   };
 
@@ -192,7 +204,18 @@ export function VoiceAssistantModal({
   // -------------------------------------------------------------------------
   const startListening = () => {
     if (!isOpenRef.current) return;
-    handleBargeIn();
+
+    // CRITICAL (Requirements 6 & 15): If AI is actively speaking, NEVER interrupt or cancel speech!
+    if (isSpeakingRef.current || voiceState === "speaking") {
+      console.log("Speech is currently active. Ignoring startListening call until speech ends.");
+      return;
+    }
+
+    if (listenTimeoutRef.current) {
+      clearTimeout(listenTimeoutRef.current);
+      listenTimeoutRef.current = null;
+    }
+
     setRecognitionError(null);
     isThinkingRef.current = false;
     isSpeakingRef.current = false;
@@ -220,10 +243,22 @@ export function VoiceAssistantModal({
       recognition.maxAlternatives = 1;
 
       recognition.onstart = () => {
+        // If speaking started while mic was initializing, abort mic immediately
+        if (isSpeakingRef.current) {
+          try {
+            recognition.abort();
+          } catch {}
+          return;
+        }
         setVoiceState("listening");
       };
 
       recognition.onresult = (event: any) => {
+        // Echo & premature interruption prevention: ignore mic if speaking
+        if (isSpeakingRef.current) {
+          return;
+        }
+
         let interimText = "";
         let finalText = "";
 
@@ -247,11 +282,6 @@ export function VoiceAssistantModal({
           // Echo rejection: Discard if acoustic echo of assistant's own TTS output
           if (voiceManager.isEcho(clean)) {
             return;
-          }
-
-          // Barge-in: if assistant was still speaking, cancel immediately
-          if (isSpeakingRef.current) {
-            handleBargeIn();
           }
 
           // Process the recognized query
@@ -289,11 +319,19 @@ export function VoiceAssistantModal({
           return;
         }
 
-        setVoiceState("error");
-        setRecognitionError("Sorry, I couldn't understand that. Please try again.");
+        // Only show error if not actively speaking
+        if (!isSpeakingRef.current) {
+          setVoiceState("error");
+          setRecognitionError("Sorry, I couldn't understand that. Please try again.");
+        }
       };
 
       recognition.onend = () => {
+        // If assistant is thinking or speaking, DO NOT restart mic
+        if (isThinkingRef.current || isSpeakingRef.current) {
+          return;
+        }
+
         if (
           conversationMode &&
           isOpenRef.current &&
@@ -319,62 +357,113 @@ export function VoiceAssistantModal({
 
       recognition.start();
     } catch {
-      setVoiceState("error");
-      setRecognitionError(pick(ERROR_HEARING_MSG, currentLocaleRef.current));
+      if (!isSpeakingRef.current) {
+        setVoiceState("error");
+        setRecognitionError(pick(ERROR_HEARING_MSG, currentLocaleRef.current));
+      }
     }
   };
 
   // -------------------------------------------------------------------------
   // Speak Answer (🔊 Speaking...) with Audio & Echo Guard
+  // (Requirements 3, 4, 5, 6, 7)
   // -------------------------------------------------------------------------
   const speakAIAnswer = (
     text: string,
     locale: string,
     onFinish?: () => void
   ) => {
-    // 1. Temporarily pause mic so it doesn't pick up assistant's voice
+    // Clean response before sending to TTS (Requirement 2 & 11)
+    const clean = cleanAIResponse(text);
+    if (!clean || clean.trim().length === 0) {
+      console.log("TTS skipped: cleaned response is empty");
+      setVoiceState("idle");
+      if (onFinish) onFinish();
+      return;
+    }
+
+    // 1. Immediately cancel any scheduled listen timeouts so continuous mode cannot fire during speech
+    if (listenTimeoutRef.current) {
+      clearTimeout(listenTimeoutRef.current);
+      listenTimeoutRef.current = null;
+    }
+
+    // 2. Abort active speech recognition so mic never picks up assistant speech
     if (recognitionRef.current) {
       try {
         recognitionRef.current.abort();
       } catch {}
     }
+
     isThinkingRef.current = false;
     isSpeakingRef.current = true;
     setVoiceState("speaking");
 
     voiceManager.speak(
-      text,
+      clean,
       locale,
-      undefined,
       () => {
-        // Speech ended successfully
+        // onStart
+        isSpeakingRef.current = true;
+        setVoiceState("speaking");
+      },
+      () => {
+        // Speech ended successfully after all chunks finish (Requirements 4, 5, 7)
         isSpeakingRef.current = false;
         if (onFinish) onFinish();
 
-        // If continuous mode is enabled, wait 400ms then listen for user follow-up
+        // Continuous natural conversation: only schedule next turn AFTER all speech has finished
         if (conversationMode && isOpenRef.current && isActiveSessionRef.current) {
           if (listenTimeoutRef.current) clearTimeout(listenTimeoutRef.current);
           listenTimeoutRef.current = setTimeout(() => {
             if (
               isOpenRef.current &&
               isActiveSessionRef.current &&
-              !isThinkingRef.current
+              !isThinkingRef.current &&
+              !isSpeakingRef.current
             ) {
               startListening();
             }
-          }, 400);
+          }, 500);
         } else {
           setVoiceState("idle");
         }
       },
       (ttsErr) => {
-        // On TTS failure: Show text answer on screen gracefully without crashing
-        console.warn("TTS playback error/block:", ttsErr);
+        // On TTS failure: safely return to idle (Requirement 18)
+        console.warn("[TTS_ERROR] Playback block/error:", ttsErr);
         isSpeakingRef.current = false;
         if (onFinish) onFinish();
         setVoiceState("idle");
       }
     );
+  };
+
+  // -------------------------------------------------------------------------
+  // Speak Again / Listen Again (Replays complete last clean AI response)
+  // (CRITICAL REQUIREMENTS 8 & 9)
+  // -------------------------------------------------------------------------
+  const handleSpeakAgain = () => {
+    const textToReplay =
+      lastCleanAIResponseRef.current ||
+      [...messagesRef.current].reverse().find((m) => m.role === "assistant")?.text;
+
+    if (!textToReplay) return;
+
+    // Stop only previous TTS if still playing & reset audio state
+    voiceManager.stopSpeaking();
+    isSpeakingRef.current = false;
+    if (listenTimeoutRef.current) {
+      clearTimeout(listenTimeoutRef.current);
+      listenTimeoutRef.current = null;
+    }
+
+    const replayLocale =
+      lastLocaleRef.current ||
+      [...messagesRef.current].reverse().find((m) => m.role === "assistant")?.locale ||
+      currentLocaleRef.current;
+
+    speakAIAnswer(textToReplay, replayLocale);
   };
 
   // -------------------------------------------------------------------------
@@ -474,11 +563,20 @@ export function VoiceAssistantModal({
       }
     }
 
-    // 6. Append Assistant Message to messagesRef and state synchronously
+    // Clean response before using it anywhere (Requirements 2, 3, 17)
+    const cleanReply = cleanAIResponse(aiResponse.reply);
+    const finalCleanText = cleanReply || "I am here to help you. What would you like to know?";
+
+    // Store as the SINGLE SOURCE OF TRUTH (Requirements 8, 9, 17)
+    lastCleanAIResponseRef.current = finalCleanText;
+    setLastCleanAIResponse(finalCleanText);
+    lastLocaleRef.current = finalLocale;
+
+    // 6. Append Assistant Message to messagesRef and state synchronously (Never raw JSON!)
     const assistantMsg: ChatMessage = {
       id: "a_" + Date.now(),
       role: "assistant",
-      text: aiResponse.reply,
+      text: finalCleanText,
       languageName: aiResponse.languageName,
       locale: finalLocale,
       timestamp: Date.now(),
@@ -488,7 +586,7 @@ export function VoiceAssistantModal({
     setMessages(updatedWithAssistant);
 
     if (store && typeof store.addConversation === "function") {
-      store.addConversation(`Assistant: ${aiResponse.reply}`);
+      store.addConversation(`Assistant: ${finalCleanText}`);
     }
 
     // 7. Check if user requested a structured care action
@@ -502,7 +600,7 @@ export function VoiceAssistantModal({
     }
 
     // 8. Speak the answer in the SAME detected language
-    speakAIAnswer(aiResponse.reply, finalLocale);
+    speakAIAnswer(finalCleanText, finalLocale);
   };
 
   // -------------------------------------------------------------------------
@@ -831,44 +929,55 @@ export function VoiceAssistantModal({
           )}
         </div>
 
-        {/* Action Controls for Latest AI Answer (Repeat Answer + Speak Again + Stop Speaking) */}
+        {/* Action Controls for Latest AI Answer (Speak Again + Listen Again + Ask Question + Stop Speaking) */}
         {latestAssistantMessage && (
           <div className="flex flex-wrap items-center justify-center gap-2.5 shrink-0">
-            {/* Repeat Answer Button (CRITICAL REQUIREMENT 7) */}
+            {/* Speak Again Button (Requirement 8) */}
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                handleBargeIn();
-                speakAIAnswer(
-                  latestAssistantMessage.text,
-                  latestAssistantMessage.locale || currentLocaleRef.current
-                );
-              }}
-              className="rounded-xl font-black text-xs gap-1.5 border-primary/50 text-primary hover:bg-primary/10 h-9 px-3.5 shadow-xs"
+              onClick={handleSpeakAgain}
+              className="rounded-xl font-black text-xs gap-1.5 border-primary/60 text-primary hover:bg-primary/10 h-9 px-3.5 shadow-xs"
+              title="Replay the complete AI answer"
             >
-              <Volume2 className="h-4 w-4" /> 🔊 Listen Again
+              <Volume2 className="h-4 w-4" /> 🔊 Speak Again
             </Button>
 
-            {/* Speak Again Follow-up Button */}
+            {/* Listen Again Button (Requirement 9) */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleSpeakAgain}
+              className="rounded-xl font-black text-xs gap-1.5 border-primary/30 text-muted-foreground hover:text-foreground h-9 px-3 shadow-xs"
+              title="Replay the complete AI answer"
+            >
+              <RotateCcw className="h-3.5 w-3.5" /> Listen Again
+            </Button>
+
+            {/* Ask Question Follow-up Button */}
             <Button
               size="sm"
               onClick={() => {
                 isActiveSessionRef.current = true;
-                startListening();
+                handleStop();
+                setTimeout(() => {
+                  startListening();
+                }, 80);
               }}
               className="rounded-xl font-black text-xs gap-1.5 bg-primary text-white hover:bg-primary/90 h-9 px-3.5 shadow-sm"
+              title="Ask another question by voice"
             >
-              <Mic className="h-4 w-4" /> 🎙️ Speak Again
+              <Mic className="h-4 w-4" /> 🎙️ Ask Question
             </Button>
 
-            {/* Stop Speaking Button */}
+            {/* Stop Speaking Button (Requirement 16) */}
             {voiceState === "speaking" && (
               <Button
                 size="sm"
                 variant="destructive"
-                onClick={handleBargeIn}
+                onClick={handleStop}
                 className="rounded-xl font-black text-xs gap-1.5 h-9 px-3.5 shadow-sm animate-pulse"
+                title="Stop speech playback"
               >
                 <StopCircle className="h-4 w-4" /> ⏹️ Stop Speaking
               </Button>

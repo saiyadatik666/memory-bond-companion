@@ -1,6 +1,6 @@
 import type { MemoryBondStore } from "./memoryBondStore";
 import { conversationalAI } from "./conversationalAI";
-import { voiceManager, getBestMatchingVoice } from "./voiceProvider";
+import { voiceManager, getBestMatchingVoice, cleanAIResponse } from "./voiceProvider";
 import { isWorldKnowledgeQuery, resolveWorldKnowledge, resolveVerifiedFact } from "./worldKnowledgeEngine";
 
 // ---------------------------------------------------------------------------
@@ -1301,4 +1301,6 @@ export function startSpeechRecognition(
     return null;
   }
 }
+
+export { cleanAIResponse };
 
