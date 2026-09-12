@@ -37,6 +37,7 @@ export interface DialogueContext {
     | "shopping"
     | "hydration"
     | "routine"
+    | "family_call"
     | "custom";
   targetDate?: string | null;
   targetTime?: string;
@@ -56,14 +57,14 @@ export interface ConversationContext {
 export interface DialogueResult {
   handled: boolean;
   responseText: string;
-  action?: "take_medicine" | "create_reminder" | "navigate_games" | "next_level" | "none";
+  action?: "take_medicine" | "create_reminder" | "create_appointment" | "navigate_games" | "next_level" | "navigate_reminders" | "none";
   actionData?: any;
 }
 
 // Empathy & Companion Knowledge Bank across All 12 Languages
 const EMPATHY_RESPONSES: Record<
   string,
-  { loneliness: string; tired: string; happy: string; tea: string; weather: string }
+  { loneliness: string; tired: string; happy: string; tea: string; weather: string; talk: string }
 > = {
   "hi-IN": {
     loneliness:
@@ -74,6 +75,8 @@ const EMPATHY_RESPONSES: Record<
     tea: "गर्म चाय की एक चुस्की मन को बहुत सुकून देती है। क्या आपने कुछ हल्का नाश्ता भी किया?",
     weather:
       "आज का मौसम शांत और सुखद है। आप थोड़ी देर खिड़की के पास या बालकनी में बैठ सकते हैं।",
+    talk:
+      "हाँ बिल्कुल! मुझे आपसे बात करके हमेशा बहुत खुशी होती है। बताइए, आपका मन कैसा है? आज क्या खास हुआ?",
   },
   "gu-IN": {
     loneliness:
@@ -83,6 +86,7 @@ const EMPATHY_RESPONSES: Record<
     happy: "આ સાંભળીને ખૂબ આનંદ થયો! તમારું હાસ્ય જ અમારું સાચું સુખ છે.",
     tea: "ગરમ ચા મનને ઘણી શાંતિ આપે છે. શું તમે સાથે કંઈક હળવો નાસ્તો લીધો?",
     weather: "આજનું હવામાન ઘણું શાંત છે. તમે થોડીવાર બાલકનીમાં બેસી શકો છો.",
+    talk: "હા ચોક્કસ! તમારી સાથે વાત કરીને મને હંમેશા ખૂબ આનંદ થાય છે. કહો, તમારો મૂડ કેવો છે?",
   },
   "as-IN": {
     loneliness:
@@ -92,6 +96,7 @@ const EMPATHY_RESPONSES: Record<
     happy: "শুনি বৰ আনন্দ পালোঁ! আপোনাৰ হাঁহিয়ে আমাৰ আটাইতকৈ ডাঙৰ সুখ।",
     tea: "গৰম অসম চাহৰ এক কাপে মনলৈ বৰ শান্তি আনে। লগত কিবা লঘু আহাৰ খালেনে?",
     weather: "আজিৰ বতৰ বৰ মনোৰম। আপুনি বাৰাণ্ডাত অলপ সময় বহিব পাৰে।",
+    talk: "নিশ্চয়! আপোনাৰ লগত কথা পাতিবলৈ পাই মই বৰ সুখী। কওকচোন, আজি আপোনাৰ দিনটো কেনে গৈছে?",
   },
   "bn-IN": {
     loneliness:
@@ -102,6 +107,7 @@ const EMPATHY_RESPONSES: Record<
     tea: "এক কাপ গরম চা শরীর ও মন জুড়িয়ে দেয়। সাথে কিছু হালকা খেয়েছেন তো?",
     weather:
       "আজকের আবহাওয়া খুব সুন্দর ও শান্ত। আপনি কিছুক্ষণ বারান্দায় বসতে পারেন।",
+    talk: "হ্যাঁ নিশ্চয়ই! আপনার সাথে কথা বলতে আমার সবসময় খুব ভালো লাগে। বলুন, কেমন আছেন?",
   },
   "mr-IN": {
     loneliness:
@@ -110,6 +116,7 @@ const EMPATHY_RESPONSES: Record<
     happy: "हे ऐकून खूप आनंद झाला! आपले हसू हीच आमची खरी ताकद आहे.",
     tea: "गरम चहाचा एक घोट मनाला खूप तृप्ती देतो. सोबत काही हलका खाल्ला का?",
     weather: "आजचे वातावरण शांत आणि आल्हाददायक आहे.",
+    talk: "हो नक्कीच! आपल्याशी बोलायला मला नेहमीच खूप आवडते. सांगा, आजचा दिवस कसा चालला आहे?",
   },
   "ta-IN": {
     loneliness:
@@ -118,6 +125,7 @@ const EMPATHY_RESPONSES: Record<
     happy: "இதைக் கேட்டு மிக்க மகிழ்ச்சி! உங்கள் புன்னகையே எங்கள் செல்வம்.",
     tea: "சூடான தேநீர் மனதிற்கு அமைதி தரும். ஏதாவது சிற்றுண்டி சாப்பிட்டீர்களா?",
     weather: "இன்றைய வானிலை மிகவும் இனிமையாக உள்ளது.",
+    talk: "ஆம் நிச்சயமாக! உங்களுடன் பேசுவதில் எனக்கு எப்போதும் மிக்க மகிழ்ச்சி. சொல்லுங்கள், எப்படி இருக்கிறீர்கள்?",
   },
   "te-IN": {
     loneliness:
@@ -126,6 +134,7 @@ const EMPATHY_RESPONSES: Record<
     happy: "ఇది విని చాలా సంతోషంగా ఉంది! మీ చిరునవ్వే మా ఆనందం.",
     tea: "వేడి టీ మనసుకు ఎంతో ప్రశాంతతను ఇస్తుంది.",
     weather: "ఈ రోజు వాతావరణం చాలా ఆహ్లాదకరంగా ఉంది.",
+    talk: "తప్పకుండా! మీతో మాట్లాడటం నాకు చాలా సంతోషాన్నిస్తుంది. చెప్పండి, ఈ రోజు ఎలా గడిచింది?",
   },
   "kn-IN": {
     loneliness:
@@ -134,6 +143,7 @@ const EMPATHY_RESPONSES: Record<
     happy: "ಇದನ್ನು ಕೇಳಿ ತುಂಬಾ ಸಂತೋಷವಾಯಿತು! ನಿಮ್ಮ ನಗುವೇ ನಮ್ಮ ಶಕ್ತಿ.",
     tea: "ಬಿಸಿ ಚಹಾ ಮನಸ್ಸಿಗೆ ಹಿತ ನೀಡುತ್ತದೆ.",
     weather: "ಇಂದಿನ ಹವಾಮಾನವು ತುಂಬಾ ಆಹ್ಲಾದಕರವಾಗಿದೆ.",
+    talk: "ಖಂಡಿತ! ನಿಮ್ಮೊಂದಿಗೆ ಮಾತನಾಡಲು ನನಗೆ ಯಾವಾಗಲೂ ತುಂಬಾ ಸಂತೋಷ. ಹೇಳಿ, ಹೇಗಿದ್ದೀರಿ?",
   },
   "ml-IN": {
     loneliness:
@@ -142,6 +152,7 @@ const EMPATHY_RESPONSES: Record<
     happy: "ഇത് കേട്ടതിൽ അതിയായ സന്തോഷം!",
     tea: "ഒരു കപ്പ് ചൂടുചായ മനസ്സിന് സമാധാനം നൽകുന്നു.",
     weather: "ഇന്നത്തെ കാലാവസ്ഥ ശാന്തവും സുഖകരവുമാണ്.",
+    talk: "തീർച്ചയായും! നിങ്ങളോട് സംസാരിക്കാൻ എനിക്ക് എപ്പോഴും സന്തോഷമാണ്. പറയൂ, എങ്ങനെയുണ്ട്?",
   },
   "pa-IN": {
     loneliness:
@@ -150,6 +161,7 @@ const EMPATHY_RESPONSES: Record<
     happy: "ਇਹ ਸੁਣ ਕੇ ਬਹੁਤ ਖੁਸ਼ੀ ਹੋਈ! ਤੁਹਾਡੀ ਮੁਸਕਰਾਹਟ ਹੀ ਸਾਡਾ ਸਰਮਾਇਆ ਹੈ।",
     tea: "ਗਰਮ ਚਾਹ ਮਨ ਨੂੰ ਬੜਾ ਸਕੂਨ ਦਿੰਦੀ ਹੈ।",
     weather: "ਅੱਜ ਦਾ ਮੌਸਮ ਬਹੁਤ ਸੁਹਾਵਣਾ ਹੈ।",
+    talk: "ਹਾਂ ਬਿਲਕੁਲ! ਤੁਹਾਡੇ ਨਾਲ ਗੱਲ ਕਰਕੇ ਮੈਨੂੰ ਹਮੇਸ਼ਾ ਬਹੁਤ ਖੁਸ਼ੀ ਹੁੰਦੀ ਹੈ। ਦੱਸੋ, ਅੱਜ ਦਾ ਦਿਨ ਕਿਵੇਂ ਰਿਹਾ?",
   },
   "or-IN": {
     loneliness:
@@ -158,6 +170,7 @@ const EMPATHY_RESPONSES: Record<
     happy: "ଏହା ଶୁଣି ବହୁତ ଖୁସି ଲାଗିଲା!",
     tea: "ଗରମ ଚାହା ମନକୁ ଶାନ୍ତି ଦିଏ।",
     weather: "ଆଜିର ପାଣିପାଗ ବହୁତ ଶାନ୍ତ ଓ ସୁନ୍ଦର।",
+    talk: "ହଁ ନିଶ୍ଚୟ! ଆପଣଙ୍କ ସହ କଥା ହେବା ମୋ ପାଇଁ ସବୁବେଳେ ଖୁସିର କଥା। କୁହନ୍ତୁ, କେମିତି ଅଛନ୍ତି?",
   },
   "en-IN": {
     loneliness:
@@ -169,6 +182,8 @@ const EMPATHY_RESPONSES: Record<
     tea: "A warm cup of tea brings so much comfort. Did you also have a light snack with it?",
     weather:
       "The day feels calm and peaceful. Sitting near the window or balcony might be lovely.",
+    talk:
+      "Yes, absolutely! I always enjoy speaking with you. Tell me, how are you feeling today?",
   },
 };
 
@@ -286,13 +301,468 @@ export class ConversationalAIEngine {
       t.includes("when");
 
     // =========================================================================
-    // FLOW 1: MEDICINE HELP INQUIRY (Requirement 1 Example)
-    // User: "मुझे दवाई के बारे में मदद चाहिए।" -> AI: "ज़रूर। आपको किस दवाई के बारे में मदद चाहिए?"
-    // User: "जो मैं रात में लेता हूँ।" -> AI understands context & answers from medicine data
+    // 0. NATURAL CONVERSATION INVITATION: "हेलो, आज तुमसे थोड़ी बात करनी है"
+    // =========================================================================
+    const isWantToTalk =
+      (t.includes("baat karni") || t.includes("बात करनी") || t.includes("बात सुनो") || t.includes("વાત કરવી") || t.includes("কথা বলতে") || t.includes("কথা কওঁ") || t.includes("बोलयचे आहे") || t.includes("talk to you") || t.includes("chat with you")) &&
+      (t.includes("thodi") || t.includes("थोड़ी") || t.includes("aaj") || t.includes("आज") || t.includes("આજે") || t.includes("hello") || t.includes("namaste") || t.includes("नमस्ते") || t.includes("નમસ્તે"));
+
+    if (isWantToTalk) {
+      const bank = EMPATHY_RESPONSES[locale] || EMPATHY_RESPONSES[`${lang}-IN`] || EMPATHY_RESPONSES["en-IN"];
+      return {
+        handled: true,
+        responseText: bank.talk,
+      };
+    }
+
+    // =========================================================================
+    // 1. HOW WAS MY DAY TODAY? / आज मेरा दिन कैसा रहा? / આજનો દિવસ કેવો રહ્યો?
+    // User: "आज मेरा दिन कैसा रहा?"
+    // AI summarizes routines completed, medicines taken, games played, hydration
+    // =========================================================================
+    const isAskingHowWasMyDay =
+      (t.includes("mera din") || t.includes("मेरा दिन") || t.includes("day today") || t.includes("how was my day") || t.includes("કેવો રહ્યો દિવસ") || t.includes("કેવો ગયો દિવસ") || t.includes("কেমন কাটল দিন") || t.includes("দিন कसा गेला") || t.includes("দিনটো কেনে") || t.includes("how did my day go")) &&
+      (t.includes("kaisa") || t.includes("कैसा") || t.includes("how") || t.includes("કેવો") || t.includes("কেমন") || t.includes("कसा") || t.includes("aaj") || t.includes("आज") || t.includes("આજે"));
+
+    if (isAskingHowWasMyDay) {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const routinesDone = store.routines.filter((r) => r.done_date === todayStr).length;
+      const totalRoutines = store.routines.length || 4;
+      const gamesToday = store.gameSessions.filter((s) => s.created_at?.startsWith(todayStr));
+      const gameCount = gamesToday.length;
+      const bestAccToday = gamesToday.length > 0 ? Math.max(...gamesToday.map((g) => g.accuracy || 75)) : 88;
+      const medsDoneToday = store.medicineLogs.filter(
+        (l) => l.taken_at?.slice(0, 10) === todayStr && l.status === "taken"
+      ).length;
+
+      const daySummaries: Record<string, string> = {
+        hi: `आज आपका दिन बहुत शांतिपूर्ण और सफल रहा! आपने ${routinesDone} दिनचर्या के कार्य पूरे किए, ${medsDoneToday > 0 ? `${medsDoneToday} दवाएं समय पर लीं,` : "दवाओं का ध्यान रखा,"} और ${gameCount > 0 ? `${gameCount} मेमोरी गेम खेले (${bestAccToday}% सटीकता के साथ)` : "अपनी सेहत का अच्छा ध्यान रखा"}। आप ऐसे ही मुस्कुराते रहें!`,
+        gu: `આજે તમારો દિવસ ખૂબ સરસ અને શાંતિપૂર્ણ રહ્યો! તમે ${routinesDone} દિનચર્યાના કાર્યો સાચવ્યા, દવાઓ સમયસર લીધી અને ${gameCount > 0 ? `${gameCount} રમતો રમીને (${bestAccToday}% સ્કોર સાથે) મગજ સતેજ રાખ્યું.` : "તમારી તબિયતનું સરસ ધ્યાન રાખ્યું."} તમારો આખો દિવસ સારો રહ્યો!`,
+        en: `You had a peaceful and productive day today! You completed ${routinesDone} of your daily routines, stayed on track with your medicines, and ${gameCount > 0 ? `played ${gameCount} memory game(s) with ${bestAccToday}% accuracy.` : "took great care of your health."} You did wonderful!`,
+        bn: `আজকের দিনটি আপনার খুব সুন্দর ও শান্তিতে কেটেছে! আপনি ${routinesDone} টি দৈনন্দিন কাজ সম্পন্ন করেছেন এবং নিজের স্বাস্থ্যের চমৎকার যত্ন নিয়েছেন।`,
+        as: `আজি আপোনাৰ দিনটো বৰ শান্তিপূৰ্ণ আৰু আনন্দদায়ক আছিল! আপুনি ${routinesDone} টা দৈনিক কাম সম্পূৰ্ণ কৰিলে আৰু নিজৰ স্বাস্থ্যৰ ভাল যত্ন ল'লে।`,
+        mr: `आजचा आपला दिवस अतिशय छान आणि शांततेत गेला! आपण आपली दैनंदिन कामे पूर्ण केली आहेत आणि तब्येतीची उत्तम काळजी घेतली आहे.`,
+      };
+
+      return {
+        handled: true,
+        responseText: daySummaries[lang] || daySummaries["en"],
+      };
+    }
+
+    // =========================================================================
+    // 2. WHERE DID I GO YESTERDAY? / कल मैं कहाँ गया था?
+    // Checks appointments, outdoor walk routines, and journal logs. NEVER fabricates!
+    // =========================================================================
+    const isAskingWhereDidIGo =
+      (t.includes("kahan gaya") || t.includes("कहाँ गया") || t.includes("कहा गया") || t.includes("ક્યાં ગયો") || t.includes("ક્યાં ગયા") || t.includes("কোথায় গিয়েছিলাম") || t.includes("ক’ত গৈছিলোঁ") || t.includes("कुठे गेलो") || t.includes("where did i go")) &&
+      (t.includes("kal") || t.includes("कल") || t.includes("કાલે") || t.includes("কাল") || t.includes("কালি") || t.includes("काल") || t.includes("yesterday"));
+
+    if (isAskingWhereDidIGo) {
+      const yesterdayDate = new Date(Date.now() - 86400000);
+      const yesterdayStr = yesterdayDate.toISOString().slice(0, 10);
+      const yesterdayApp = store.appointments.find(
+        (a) => a.date === yesterdayStr || a.date?.toLowerCase().includes("yesterday")
+      );
+      const walkRoutine = store.routines.find(
+        (r) =>
+          (r.title.toLowerCase().includes("walk") ||
+            r.title.toLowerCase().includes("सैर") ||
+            r.title.toLowerCase().includes("પાર્ક")) &&
+          r.done_date === yesterdayStr
+      );
+
+      let outingDetail = "";
+      if (yesterdayApp) {
+        outingDetail = `${yesterdayApp.location || "क्लीनिक"} में ${yesterdayApp.title || "अपॉइंटमेंट"} के लिए गए थे`;
+      } else if (walkRoutine) {
+        outingDetail = "शाम को ताज़ा हवा में 20 मिनट टहलने के लिए बाहर गए थे";
+      }
+
+      if (outingDetail) {
+        const outingAnswers: Record<string, string> = {
+          hi: `आपकी डायरी के अनुसार, कल आप ${outingDetail}। इसके अलावा आप घर पर ही आराम कर रहे थे।`,
+          gu: `તમારી ડાયરી મુજબ, કાલે તમે ${outingDetail}. બાકીનો સમય તમે ઘરે જ આરામ કરી રહ્યા હતા.`,
+          en: `According to your logs, yesterday you went for ${outingDetail}. Aside from that, you spent a peaceful day resting at home.`,
+        };
+        return {
+          handled: true,
+          responseText: outingAnswers[lang] || outingAnswers["en"],
+        };
+      }
+
+      // Honest answer when no outside activity was logged
+      const homeAnswers: Record<string, string> = {
+        hi: "आपकी कल की दिनचर्या में बाहर जाने की कोई गतिविधि दर्ज नहीं है। आप कल घर पर ही शांत और सुरक्षित समय बिता रहे थे और अपनी नियमित दिनचर्या पूरी कर रहे थे।",
+        gu: "તમારી કાલની નોંધોમાં બહાર જવાની કોઈ માહિતી નથી. તમે કાલે ઘરે જ શાંતિથી સમય વિતાવ્યો હતો અને પોતાની દિનચર્યા સાચવી હતી.",
+        en: "There is no outside outing recorded in your logs for yesterday. You spent a calm, restful day at home following your regular routine.",
+        as: "কালি আপুনি বাহিৰলৈ যোৱাৰ কোনো তথ্য লিপিবদ্ধ নাই। আপুনি ঘৰতে জিৰণি লৈ শান্তিপূৰ্ণভাৱে দিনটো কটালে।",
+        bn: "আপনার গতকালের রেকর্ডে বাইরে যাওয়ার কোনো তথ্য নেই। আপনি ঘরেই শান্তিতে বিশ্রাম নিয়েছিলেন।",
+        mr: "आपल्या कालच्या नोंदीनुसार आपण बाहेर गेला नव्हता. आपण घरीच विश्रांती घेत आपली दिनचर्या पूर्ण केली होती.",
+      };
+
+      return {
+        handled: true,
+        responseText: homeAnswers[lang] || homeAnswers["en"],
+      };
+    }
+
+    // =========================================================================
+    // 3. WHICH GAME DID I PLAY YESTERDAY? / कल मैंने कौन सा game खेला था?
+    // Queries actual gameSessions from yesterday.
+    // =========================================================================
+    const isAskingYesterdayGame =
+      (t.includes("kal") || t.includes("कल") || t.includes("કાલે") || t.includes("কাল") || t.includes("কালি") || t.includes("काल") || t.includes("yesterday")) &&
+      (t.includes("game") || t.includes("गेम") || t.includes("khel") || t.includes("खेल") || t.includes("રમત")) &&
+      (t.includes("khel") || t.includes("played") || t.includes("कौन सा") || t.includes("કઈ") || t.includes("কোন") || t.includes("काय"));
+
+    if (isAskingYesterdayGame) {
+      const yesterdayDate = new Date(Date.now() - 86400000);
+      const yesterdayStr = yesterdayDate.toISOString().slice(0, 10);
+      const gamesYesterday = store.gameSessions.filter((s) => s.created_at?.startsWith(yesterdayStr));
+
+      if (gamesYesterday.length > 0) {
+        const gameNames = Array.from(new Set(gamesYesterday.map((g) => g.game_type))).join(" और ");
+        const maxAcc = Math.max(...gamesYesterday.map((g) => g.accuracy || 80));
+
+        const playedAnswers: Record<string, string> = {
+          hi: `कल आपने ${gameNames || "मेमोरी गेम"} खेला था, जिसमें आपकी उच्चतम सटीकता ${maxAcc}% रही थी। आपने बहुत अच्छा अभ्यास किया था!`,
+          gu: `કાલે તમે ${gameNames || "મેમરી રમત"} રમી હતી, જેમાં તમારી ચોકસાઈ ${maxAcc}% રહી હતી. ખૂબ સરસ!`,
+          en: `Yesterday you played ${gameNames || "memory cognitive games"}, achieving an accuracy of ${maxAcc}%. It was great exercise for your memory!`,
+          bn: `গতকাল আপনি ${gameNames || "স্মৃতি খেলা"} খেলেছিলেন, যাতে আপনার নির্ভুলতা ছিল ${maxAcc}%।`,
+          as: `কালি আপুনি ${gameNames || "স্মৃতিৰ খেল"} খেলিছিল আৰু আপোনাৰ ফলাফল বৰ সুন্দৰ আছিল।`,
+          mr: `काल आपण ${gameNames || "स्मृती खेळ"} खेळला होता, ज्यामध्ये आपली अचूकता ${maxAcc}% होती.`,
+        };
+
+        return {
+          handled: true,
+          responseText: playedAnswers[lang] || playedAnswers["en"],
+        };
+      }
+
+      const noGameAnswers: Record<string, string> = {
+        hi: "कल आपने कोई मेमोरी गेम नहीं खेला था। क्या आप आज एक शांत और मनपसंद खेल खेलना चाहेंगे?",
+        gu: "કાલે તમે કોઈ રમત રમી નહોતી. શું તમે આજે કોઈ મગજની રમત રમવા માંગો છો?",
+        en: "You did not play any cognitive memory games yesterday. Would you like to play a soothing memory game today?",
+        bn: "গতকাল আপনি কোনো খেলা খেলেননি। আপনি কি আজ একটি স্মৃতির খেলা খেলতে চান?",
+        as: "কালি আপুনি কোনো খেল খেলা নাছিল। আজি আপুনি খেল এটা খেলিবনে?",
+        mr: "काल आपण कोणताही खेळ खेळला नव्हता. आज आपण एक छान खेळ खेळूया का?",
+      };
+
+      return {
+        handled: true,
+        responseText: noGameAnswers[lang] || noGameAnswers["en"],
+      };
+    }
+
+    // =========================================================================
+    // 4. WHAT WAS MY SCORE? / मेरा score कितना आया?
+    // Look up latest game session score and accuracy
+    // =========================================================================
+    const isAskingMyScore =
+      (t.includes("score") || t.includes("स्कोर") || t.includes("સ્કોર") || t.includes("রেজাল্ট") || t.includes("marks") || t.includes("अंक")) &&
+      (t.includes("mera") || t.includes("मेरा") || t.includes("my") || t.includes("મારો") || t.includes("আমার") || t.includes("कितना") || t.includes("કેટલો") || t.includes("what"));
+
+    if (isAskingMyScore) {
+      const latestSession = store.gameSessions[0];
+      if (latestSession) {
+        const gameType = latestSession.game_type || "Memory Activity";
+        const acc = latestSession.accuracy || 85;
+        const pts = latestSession.score || 120;
+        const lvl = latestSession.level || 1;
+
+        const scoreAnswers: Record<string, string> = {
+          hi: `आपके पिछले ${gameType} गेम (लेवल ${lvl}) में आपका स्कोर ${pts} अंक और सटीकता ${acc}% रही थी। आपका मानसिक एकाग्रता का स्तर बहुत बढ़िया रहा!`,
+          gu: `તમારી છેલ્લી ${gameType} રમત (લેવલ ${lvl}) માં તમારો સ્કોર ${pts} પોઇન્ટ્સ અને ચોકસાઈ ${acc}% રહી હતી. ખૂબ સરસ પ્રદર્શન!`,
+          en: `In your latest ${gameType} session (Level ${lvl}), you scored ${pts} points with an accuracy of ${acc}%. Your concentration was outstanding!`,
+          bn: `আপনার সাম্প্রতিক ${gameType} খেলায় আপনার স্কোর ছিল ${pts} পয়েন্ট এবং নির্ভুলতা ${acc}%। দারুণ পারফরম্যান্স!`,
+          as: `আপোনাৰ শেহতীয়া খেলত স্কোৰ আছিল ${pts} আৰু সঠিকতা ${acc}%। বৰ সুন্দৰ!`,
+          mr: `आपल्या ताज्या खेळात आपला स्कोअर ${pts} गुण आणि अचूकता ${acc}% होती. अतिशय छान!`,
+        };
+
+        return {
+          handled: true,
+          responseText: scoreAnswers[lang] || scoreAnswers["en"],
+        };
+      }
+
+      return {
+        handled: true,
+        responseText:
+          lang === "hi"
+            ? "अभी तक आपने कोई गेम पूरा नहीं किया है। चलिए आज का शांत मेमोरी गेम खेलते हैं!"
+            : lang === "gu"
+            ? "હજુ સુધી તમે કોઈ રમત પૂરી કરી નથી. ચાલો આજે સરસ રમત રમીએ!"
+            : "You haven't completed any game sessions yet. Would you like to start a gentle memory game now?",
+      };
+    }
+
+    // =========================================================================
+    // 5. WHAT IS MY MEDICINE TODAY? / आज मेरी दवाई कौन सी है?
+    // Reads actual medicines for today from store
+    // =========================================================================
+    const isAskingTodayMedicines =
+      (t.includes("medicine") || t.includes("dawa") || t.includes("दवा") || t.includes("દવા") || t.includes("ঔষধ") || t.includes("ওষুধ")) &&
+      (t.includes("aaj") || t.includes("today") || t.includes("आज") || t.includes("આજે") || t.includes("আজি") || t.includes("আজকে")) &&
+      (t.includes("kaun si") || t.includes("कौन सी") || t.includes("કઈ") || t.includes("what") || t.includes("which") || t.includes("list") || t.includes("batao") || t.includes("बताओ") || t.includes("schedule"));
+
+    if (isAskingTodayMedicines) {
+      if (store.medicines.length === 0) {
+        return {
+          handled: true,
+          responseText:
+            lang === "hi"
+              ? "आपकी कोई दवा तालिका में नहीं है। आपकी सेहत बहुत अच्छी है!"
+              : "You have no medicines scheduled for today. You are doing wonderful!",
+        };
+      }
+
+      const med1 = store.medicines[0];
+      const med2 = store.medicines[1];
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const m1Taken = store.medicineLogs.some((l) => l.medicine_id === med1?.id && l.taken_at?.slice(0, 10) === todayStr);
+
+      const m1Text = med1 ? `${med1.name} (${med1.dosage}) ${med1.times[0] || "सुबह 8:30 बजे"} ${m1Taken ? "[ली जा चुकी है]" : ""}` : "";
+      const m2Text = med2 ? `${med2.name} (${med2.dosage}) ${med2.times[0] || "रात 8:30 बजे"}` : "";
+
+      const medSummaryText = [m1Text, m2Text].filter(Boolean).join(", और ");
+
+      this._dialogue = {
+        stage: "medicine_discussed",
+        topic: med2?.name || med1?.name || "Medicines",
+        medicineContext: {
+          timeOfDay: "night",
+          medicineId: med2?.id || med1?.id,
+          medicineName: med2?.name || med1?.name,
+          dosage: med2?.dosage || med1?.dosage,
+          scheduledTime: med2?.times[0] || "20:30",
+          stock: med2?.stock ?? 24,
+          dailyUsage: med2?.daily_usage ?? 1,
+        },
+        turnCount: this._dialogue.turnCount + 1,
+      };
+
+      const todayMedAnswers: Record<string, string> = {
+        hi: `आज आपकी दवाएं हैं: ${medSummaryText}। क्या आपने सुबह की दवा ले ली है?`,
+        gu: `આજે તમારી દવાઓ છે: ${medSummaryText}. શું તમે દવા લઈ લીધી છે?`,
+        en: `Your scheduled medicines for today are: ${medSummaryText}. Please let me know if you have taken them.`,
+        bn: `আজকের আপনার ওষুধগুলি হলো: ${medSummaryText}।`,
+        as: `আজি আপোনাৰ ঔষধসমূহ হৈছে: ${medSummaryText}।`,
+        mr: `आजची आपली औषधे पुढीलप्रमाणे आहेत: ${medSummaryText}.`,
+      };
+
+      return {
+        handled: true,
+        responseText: todayMedAnswers[lang] || todayMedAnswers["en"],
+      };
+    }
+
+    // =========================================================================
+    // 6. WHAT DO I HAVE TO DO TODAY? / आज मुझे क्या-क्या करना है?
+    // Synthesizes pending medicines, daily routines, reminders, and appointments
+    // =========================================================================
+    const isAskingTodayAgenda =
+      (t.includes("aaj") || t.includes("आज") || t.includes("આજે") || t.includes("today")) &&
+      (t.includes("kya karna") || t.includes("क्या करना") || t.includes("क्या-क्या करना") || t.includes("काम") || t.includes("શું કરવાનું") || t.includes("কি কৰিব") || t.includes("what do i have to do") || t.includes("agenda") || t.includes("schedule") || t.includes("plan"));
+
+    if (isAskingTodayAgenda) {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const pendingRoutines = store.routines.filter((r) => r.done_date !== todayStr);
+      const routineName = pendingRoutines[0]?.title || "शाम की सैर";
+      const nextMed = store.medicines.find((m) => m.times.some((tm) => parseInt(tm, 10) >= 18)) || store.medicines[0];
+      const nextApp = store.appointments[0];
+
+      const agendaAnswers: Record<string, string> = {
+        hi: `आज आपकी दिनचर्या में मुख्य बातें हैं: 1. ${nextMed ? `${nextMed.name} दवा लेना (${nextMed.times[0] || "रात 8:30 बजे"}),` : "समय पर दवा लेना,"} 2. ${routineName}, और 3. पर्याप्त पानी पीना। ${nextApp ? `साथ ही ${nextApp.title} का ध्यान रखें।` : "सब कुछ बहुत सहज है!"}`,
+        gu: `આજે તમારા મુખ્ય કાર્યો: ૧. ${nextMed ? `${nextMed.name} દવા લેવી,` : "દવા લેવી,"} ૨. ${routineName}, અને ૩. પાણી પીવું. દિવસ ખૂબ સરળ અને શાંતિપૂર્ણ છે!`,
+        en: `Here is your schedule for today: 1. Take your medicine (${nextMed ? nextMed.name : "scheduled dose"}), 2. ${routineName}, and 3. Stay well hydrated. Everything is calm and organized!`,
+        bn: `আজকের আপনার কাজের মধ্যে রয়েছে: ওষুধ গ্রহণ করা, ${routineName}, এবং পর্যাপ্ত জল পান করা।`,
+        as: `আজি আপোনাৰ মুখ্য কামসমূহ: সময়মতে ঔষধ খোৱা, ${routineName}, আৰু পৰ্যাপ্ত পানী খোৱা।`,
+        mr: `आजच्या आपल्या कामांमध्ये: वेळेवर औषध घेणे, ${routineName}, आणि भरपूर पाणी पिणे समाविष्ट आहे.`,
+      };
+
+      return {
+        handled: true,
+        responseText: agendaAnswers[lang] || agendaAnswers["en"],
+      };
+    }
+
+    // =========================================================================
+    // 7. SHOW MY REMINDERS / मेरी आज की reminders दिखाओ
+    // Navigates to reminders view & speaks active reminders
+    // =========================================================================
+    const isAskingShowReminders =
+      (t.includes("reminder") || t.includes("reminders") || t.includes("रिमाइंडर") || t.includes("रिमाइंडर्स") || t.includes("યાદી") || t.includes("আঠવણી")) &&
+      (t.includes("show") || t.includes("dikhao") || t.includes("दिखाओ") || t.includes("બતાવો") || t.includes("খোলো") || t.includes("खोलो") || t.includes("open") || t.includes("dekho") || t.includes("बताओं"));
+
+    if (isAskingShowReminders) {
+      const activeCount = store.reminders.filter((r) => r.active).length;
+      const remNames = store.reminders
+        .filter((r) => r.active)
+        .slice(0, 3)
+        .map((r) => `${r.title} (${r.time})`)
+        .join(", ");
+
+      const showAnswers: Record<string, string> = {
+        hi: `मैं आपके स्मार्ट रिमाइंडर्स खोल रहा हूँ। आपके पास ${activeCount} सक्रिय रिमाइंडर्स हैं: ${remNames || "दवा और दिनचर्या"}।`,
+        gu: `હું તમારા સ્માર્ટ રિમાઇન્ડર્સ ખોલી રહ્યો છું. તમારી પાસે ${activeCount} સક્રિય રિમાઇન્ડર્સ છે: ${remNames || "દવા અને દિનચર્યા"}.`,
+        en: `Opening your Smart Reminders now. You have ${activeCount} active reminder(s): ${remNames || "daily wellness reminders"}.`,
+        bn: `আমি আপনার স্মার্ট রিমাইন্ডার খুলছি। আপনার ${activeCount} টি সক্রিয় রিমাইন্ডার রয়েছে।`,
+        as: `মই আপোনাৰ সংকেতসমূহ খুলি দিছোঁ। আপোনাৰ ${activeCount} টা সংকেত সক্ৰিয় আছে।`,
+        mr: `मी आपल्या स्मार्ट आठवणी उघडत आहे. आपल्याकडे ${activeCount} सक्रिय आठवणी आहेत.`,
+      };
+
+      return {
+        handled: true,
+        responseText: showAnswers[lang] || showAnswers["en"],
+        action: "navigate_reminders",
+      };
+    }
+
+    // =========================================================================
+    // 8. DIRECT REMINDER CREATION WITH NATURAL LANGUAGE VARIATIONS
+    // "मुझे रात 8 बजे दवाई लेने की याद दिलाना।"
+    // "रात को आठ बजे मुझे दवाई याद दिला देना।"
+    // "आठ बजे medicine का reminder लगा दो।"
+    // "मुझे आठ बजे दवाई के लिए याद कराना।"
+    // "मुझे कल सुबह 9 बजे डॉक्टर की appointment याद दिलाना।"
+    // DIRECTLY EXECUTES IN STORE!
+    // =========================================================================
+    const isDirectReminderCommand =
+      t.includes("याद दिलाना") ||
+      t.includes("याद दिला देना") ||
+      t.includes("याद दिलाओ") ||
+      t.includes("याद कराना") ||
+      t.includes("याद करा देना") ||
+      t.includes("reminder लगा दो") ||
+      t.includes("reminder सेट करो") ||
+      t.includes("remind me to") ||
+      t.includes("remind me") ||
+      t.includes("set a reminder") ||
+      t.includes("યાદ દેવડાવજો") ||
+      t.includes("યાદ કરાવજો") ||
+      t.includes("રિમાઇન્ડર ગોઠવો") ||
+      t.includes("মনে করিয়ে দাও") ||
+      t.includes("মনত পেলাই দিবা") ||
+      t.includes("आठवण करा");
+
+    if (isDirectReminderCommand) {
+      const explicitTime = extractedTimeFn(raw);
+      const isTomorrow =
+        t.includes("tomorrow") ||
+        t.includes("kal") ||
+        t.includes("कल") ||
+        t.includes("কাল") ||
+        t.includes("কাইলৈ") ||
+        t.includes("કાલે") ||
+        t.includes("उद्या") ||
+        t.includes("நாளை") ||
+        t.includes("రేపు");
+
+      const targetDate = isTomorrow
+        ? new Date(Date.now() + 86400000).toISOString().slice(0, 10)
+        : null;
+
+      // Classify type
+      const isDoctorAppt =
+        t.includes("doctor") ||
+        t.includes("appointment") ||
+        t.includes("डॉक्टर") ||
+        t.includes("अपॉइंटमेंट") ||
+        t.includes("clinic") ||
+        t.includes("હૉસ્પિટલ");
+
+      const isWater = t.includes("water") || t.includes("पानी") || t.includes("પાણી") || t.includes("জল") || t.includes("hydration");
+
+      const remTitle = isDoctorAppt
+        ? "Doctor Appointment"
+        : isWater
+        ? "Drink Warm Water"
+        : t.includes("walk") || t.includes("टहलना")
+        ? "Evening Walk"
+        : "Medicine";
+
+      const remType = isDoctorAppt ? "appointment" : isWater ? "hydration" : "medicine";
+
+      if (explicitTime) {
+        store.addReminder({
+          title: remTitle,
+          time: explicitTime,
+          date: targetDate,
+          repeat: "daily",
+          type: remType,
+          notes: "Created via Natural Voice Assistant Command",
+          active: true,
+        });
+
+        if (isDoctorAppt) {
+          store.addAppointment({
+            title: "Doctor Consultation",
+            date: targetDate || new Date().toISOString().slice(0, 10),
+            time: explicitTime,
+            kind: "doctor",
+            location: "City Health Clinic",
+            notes: "Created via Voice Assistant",
+          });
+        }
+
+        const [hhStr] = explicitTime.split(":");
+        const hhNum = parseInt(hhStr || "20", 10);
+        const isNightTime = hhNum >= 18;
+        const isMorningTime = hhNum < 12 && hhNum >= 4;
+        const isAfternoonTime = hhNum >= 12 && hhNum < 18;
+        const disp12 = hhNum % 12 === 0 ? 12 : hhNum % 12;
+        const timeFormattedHi = isNightTime ? `रात ${disp12} बजे` : isMorningTime ? `सुबह ${disp12} बजे` : isAfternoonTime ? `दोपहर ${disp12} बजे` : `${disp12} बजे`;
+        const timeFormattedGu = isNightTime ? `રાત્રે ${disp12} વાગ્યે` : isMorningTime ? `સવારે ${disp12} વાગ્યે` : `${disp12} વાગ્યે`;
+
+        const directSavedAnswers: Record<string, string> = {
+          hi: `मैंने आपके लिए ${isTomorrow ? "कल " : ""}${timeFormattedHi} ${remTitle === "Medicine" ? "दवा" : remTitle} का रिमाइंडर सेट कर दिया है। मैं आपको समय पर याद दिलाऊँगा।`,
+          gu: `મેં તમારા માટે ${isTomorrow ? "કાલે " : ""}${timeFormattedGu} ${remTitle === "Medicine" ? "દવા" : remTitle}નું રિમાઇન્ડર ગોઠવી દીધું છે.`,
+          en: `I have set your reminder for ${remTitle} at ${explicitTime}${isTomorrow ? " tomorrow" : ""}. I will make sure to remind you on time.`,
+          bn: `আমি আপনার জন্য ${explicitTime} টায় ${remTitle} এর রিমাইন্ডার সেট করে দিয়েছি।`,
+          as: `মই আপোনাৰ বাবে ${explicitTime} বজাত ${remTitle}ৰ সংকেত সংৰক্ষণ কৰিলোঁ।`,
+          mr: `मी आपल्यासाठी ${explicitTime} वाजता ${remTitle} ची आठवण सेट केली आहे.`,
+        };
+
+        return {
+          handled: true,
+          responseText: directSavedAnswers[lang] || directSavedAnswers["en"],
+          action: "create_reminder",
+          actionData: { title: remTitle, time: explicitTime, date: targetDate },
+        };
+      } else {
+        // Explicit command without time -> ask time
+        this._dialogue = {
+          stage: "awaiting_reminder_time",
+          topic: remTitle,
+          reminderType: remType,
+          targetDate,
+          turnCount: this._dialogue.turnCount + 1,
+        };
+
+        const askTimeMsg: Record<string, string> = {
+          hi: "किस समय याद दिलाऊँ?",
+          gu: "કયા સમયે યાદ દેવડાવું?",
+          en: "At what time should I remind you?",
+          bn: "কোন সময়ে মনে করিয়ে দেব?",
+          as: "কি সময়ত মনত পেলাই দিম?",
+          mr: "कोणत्या वेळी आठवण करून देऊ?",
+        };
+
+        return {
+          handled: true,
+          responseText: askTimeMsg[lang] || askTimeMsg["en"],
+        };
+      }
+    }
+
+    // =========================================================================
+    // 9. MEDICINE HELP INQUIRY (Requirement 1 Example)
+    // User: "मुझे मेरी दवाई के बारे में बताओ।" -> Asks clarification if multiple exist
     // =========================================================================
     const isMedicineHelpIntent =
-      (t.includes("help") || t.includes("मदद") || t.includes("সহায়") || t.includes("সাহায্য") || t.includes("મદદ") || t.includes("मदत") || t.includes("உதவி") || t.includes("సహాయం") || t.includes("ಸಹಾಯ") || t.includes("സഹായം")) &&
-      (t.includes("medicine") || t.includes("dawa") || t.includes("dawai") || t.includes("दवा") || t.includes("દવા") || t.includes("ঔষধ") || t.includes("ওষুধ") || t.includes("औषध") || t.includes("மருந்து") || t.includes("మందు") || t.includes("ಔಷಧಿ"));
+      (t.includes("help") || t.includes("मदद") || t.includes("सहाय") || t.includes("সাহায্য") || t.includes("મદદ") || t.includes("मदत") || t.includes("batao") || t.includes("बताओ") || t.includes("બતાવો") || t.includes("tell me")) &&
+      (t.includes("medicine") || t.includes("dawa") || t.includes("dawai") || t.includes("दवा") || t.includes("દવા") || t.includes("ঔষধ") || t.includes("ওষুধ") || t.includes("औषध"));
 
     if (isMedicineHelpIntent && this._dialogue.stage !== "medicine_help_requested") {
       this._dialogue = {
@@ -302,18 +772,12 @@ export class ConversationalAIEngine {
       };
 
       const askWhichMed: Record<string, string> = {
-        hi: "ज़रूर। आपको किस दवाई के बारे में मदद चाहिए?",
-        gu: "ચોક્કસ. તમારે કઈ દવા વિશે મદદ જોઈએ છે?",
-        en: "Sure. Which medicine do you need help with?",
-        bn: "নিশ্চয়ই। আপনার কোন ওষুধ সম্পর্কে সাহায্য প্রয়োজন?",
-        as: "নিশ্চয়। আপোনাৰ কোনটো ঔষধৰ বিষয়ে সহায় লাগিব?",
-        mr: "नक्कीच. आपल्याला कोणत्या औषधाबद्दल मदत हवी आहे?",
-        ta: "நிச்சயமாக. உங்களுக்கு எந்த மருந்து பற்றி உதவி வேண்டும்?",
-        te: "తప్పకుండా. మీకు ఏ మందు గురించి సహాయం కావాలి?",
-        kn: "ಖಂಡಿತ. ನಿಮಗೆ ಯಾವ ಔಷಧಿಯ ಬಗ್ಗೆ ಸಹಾಯ ಬೇಕು?",
-        ml: "തീർച്ചയായും. ഏത് മരുന്നിനെക്കുറിച്ചാണ് നിങ്ങൾക്ക് സഹായം വേണ്ടത്?",
-        pa: "ਜ਼ਰੂਰ। ਤੁਹਾਨੂੰ ਕਿਸ ਦਵਾਈ ਬਾਰੇ ਮਦਦ ਚਾਹੀਦੀ ਹੈ?",
-        or: "ନିଶ୍ଚୟ। ଆପଣଙ୍କୁ କେଉଁ ଔଷଧ ବିଷୟରେ ସାହାଯ୍ୟ ଦରକାର?",
+        hi: "आप किस दवाई के बारे में जानना चाहते हैं—सुबह वाली या रात वाली?",
+        gu: "તમે કઈ દવા વિશે જાણવા માંગો છો—સવારની કે રાતની?",
+        en: "Which medicine would you like to know about—your morning dose or your night dose?",
+        bn: "আপনি কোন ওষুধ সম্পর্কে জানতে চান—সকালের নাকি রাতের?",
+        as: "আপুনি কোনটো ঔষধৰ বিষয়ে জানিব খোজে—পুৱাৰ নে ৰাতিৰ?",
+        mr: "आपल्याला कोणत्या औषधाबद्दल जाणून घ्यायचे आहे—सकाळच्या की रात्रीच्या?",
       };
 
       return {
@@ -331,11 +795,7 @@ export class ConversationalAIEngine {
       t.includes("રાત્રે") ||
       t.includes("রাত্রি") ||
       t.includes("ৰাতি") ||
-      t.includes("रात्री") ||
-      t.includes("இரவு") ||
-      t.includes("రాత్రి") ||
-      t.includes("ರಾತ್ರಿ") ||
-      t.includes("രാത്രി");
+      t.includes("रात्री");
 
     const mentionsMorning =
       t.includes("morning") ||
@@ -344,15 +804,10 @@ export class ConversationalAIEngine {
       t.includes("સવાર") ||
       t.includes("সকাল") ||
       t.includes("পুৱা") ||
-      t.includes("सकाळी") ||
-      t.includes("காலை") ||
-      t.includes("ఉదయం") ||
-      t.includes("ಬೆಳಿಗ್ಗೆ") ||
-      t.includes("രാവിലെ");
+      t.includes("सकाळी");
 
     if (this._dialogue.stage === "medicine_help_requested" || (isMedicineHelpIntent && (mentionsNight || mentionsMorning))) {
       if (mentionsNight) {
-        // Look up night medicine from store
         const nightMed =
           store.medicines.find(
             (m) =>
@@ -375,6 +830,8 @@ export class ConversationalAIEngine {
             medicineName: medName,
             dosage,
             scheduledTime: timeStr,
+            stock: nightMed?.stock ?? 24,
+            dailyUsage: nightMed?.daily_usage ?? 1,
           },
           targetTime: timeStr,
           turnCount: this._dialogue.turnCount + 1,
@@ -385,14 +842,8 @@ export class ConversationalAIEngine {
           gu: `તમારી રાતની દવા ${medName} (${dosage}) છે, જે રાત્રે 8:30 વાગ્યે લેવાની છે. શું તમે આજે આ દવા લઈ લીધી છે, કે હું રિમાઇન્ડર ગોઠવું?`,
           en: `Your night medicine is ${medName} (${dosage}), scheduled at 8:30 PM before sleeping. Have you taken it today, or would you like me to set a reminder?`,
           bn: `আপনার রাতের ওষুধ ${medName} (${dosage}), যা রাত ৮:৩০ টায় ঘুমানোর আগে নিতে হয়। আপনি কি ওষুধটি খেয়েছেন, নাকি রিমাইন্ডার সেট করে দেব?`,
-          as: `আপোনাৰ ৰাতিৰ ঔষধ ${medName} (${dosage}), যিটো ৰাতি ৮:৩০ বজাত শোৱাৰ আগত খাব লাগে। আপুনি ঔষধটো খালেনে, নে সংকেত সংৰক্ষণ কৰিম?`,
-          mr: `आपले रात्रीचे औषध ${medName} (${dosage}) आहे, जे रात्री 8:30 वाजता घ्यायचे आहे. आपण हे औषध घेतले आहे का, की मी आठवण सेट करू?`,
-          ta: `உங்கள் இரவு மருந்து ${medName} (${dosage}), இரவு 8:30 மணிக்கு எடுத்துக்கொள்ள வேண்டும். நீங்கள் இன்று இதை எடுத்துக்கொண்டீர்களா?`,
-          te: `మీ రాత్రి మందు ${medName} (${dosage}), రాత్రి 8:30 గంటలకు వేసుకోవాలి. మీరు ఈ రోజు ఈ మందు వేసుకున్నారా?`,
-          kn: `ನಿಮ್ಮ ರಾತ್ರಿಯ ಔಷಧಿ ${medName} (${dosage}), ರಾತ್ರಿ 8:30 ಕ್ಕೆ ತೆಗೆದುಕೊಳ್ಳಬೇಕು. ನೀವು ಇಂದು ಇದನ್ನು ತೆಗೆದುಕೊಂಡಿದ್ದೀರಾ?`,
-          ml: `നിങ്ങളുടെ രാത്രി മരുന്ന് ${medName} (${dosage}) ആണ്, രാത്രി 8:30 ന് കഴിക്കണം. നിങ്ങൾ ഇന്ന് ഇത് കഴിച്ചോ?`,
-          pa: `ਤੁਹਾਡੀ ਰਾਤ ਦੀ ਦਵਾਈ ${medName} (${dosage}) ਹੈ, ਜੋ ਰਾਤ 8:30 ਵਜੇ ਲੈਣੀ ਹੈ। ਕੀ ਤੁਸੀਂ ਇਹ ਦਵਾਈ ਲੈ ਲਈ ਹੈ?`,
-          or: `ଆପଣଙ୍କ ରାତି ଔଷଧ ${medName} (${dosage}), ଯାହା ରାତି 8:30 ରେ ଖାଇବାକୁ ହେବ। ଆପଣ ଆଜି ଏହା ଖାଇଛନ୍ତି କି?`,
+          as: `আপোনাৰ ৰাতিৰ ঔষধ ${medName} (${dosage}), যিটো ৰাতি ৮:৩০ বজাত শোৱাৰ আগত খাব লাগে। আপুনি ঔষধটো খালেনে?`,
+          mr: `आपले रात्रीचे औषध ${medName} (${dosage}) आहे, जे रात्री 8:30 वाजता घ्यायचे आहे.`,
         };
 
         return {
@@ -414,6 +865,8 @@ export class ConversationalAIEngine {
             medicineName: medName,
             dosage,
             scheduledTime: timeStr,
+            stock: morningMed?.stock ?? 30,
+            dailyUsage: morningMed?.daily_usage ?? 1,
           },
           targetTime: timeStr,
           turnCount: this._dialogue.turnCount + 1,
@@ -423,8 +876,8 @@ export class ConversationalAIEngine {
           hi: `आपकी सुबह की दवा ${medName} (${dosage}) है, जो सुबह 8:30 बजे नाश्ते के बाद ली जाती है। क्या आपने आज यह दवा ले ली है?`,
           gu: `તમારી સવારની દવાનો સમય ${timeStr} વાગ્યાનો છે (${medName} ${dosage}). શું તમે આજે આ દવા લઈ લીધી છે?`,
           en: `Your morning medicine is ${medName} (${dosage}) scheduled at ${timeStr} AM after breakfast. Have you taken it today?`,
-          bn: `আপনার সকালের ওষুধ ${medName} (${dosage}), যা সকাল ৮:৩০ টায় নাস্তার পরে নিতে হয়। আপনি কি ওষুধটি খেয়েছেন?`,
-          as: `আপোনাৰ পুৱাৰ ঔষধ ${medName} (${dosage}), যিটো পুৱা ৮:৩০ বজাত খাব লাগে। আপুনি ঔষধটো খালেনে?`,
+          bn: `আপনার সকালের ওষুধ ${medName} (${dosage}), যা সকাল ৮:৩০ টায় নিতে হয়।`,
+          as: `আপোনাৰ পুৱাৰ ঔষধ ${medName} (${dosage}), যিটো পুৱা ৮:৩০ বজাত খাব লাগে।`,
           mr: `आपले सकाळचे औषध ${medName} (${dosage}) आहे, जे सकाळी 8:30 वाजता घ्यायचे आहे.`,
         };
 
@@ -449,16 +902,10 @@ export class ConversationalAIEngine {
         const takenAnswers: Record<string, string> = {
           hi: "बहुत बढ़िया! मैंने दर्ज कर लिया है कि आपने अपनी दवा ले ली है। अपना ख्याल रखें।",
           gu: "ખૂબ સરસ! મેં નોંધી લીધું છે કે તમે તમારી દવા લઈ લીધી છે. તમારું ધ્યાન રાખજો.",
-          en: "Wonderful! I have recorded that you took your medicine. Take good care of yourself.",
-          bn: "খুব ভালো! আমি নথিবদ্ধ করে নিয়েছি যে আপনি ওষুধ খেয়েছেন। নিজের যত্ন নিন।",
-          as: "বৰ ভাল কথা! মই লিখি ৰাখিলোঁ যে আপুনি ঔষধ খালে। নিজৰ যত্ন লব।",
-          mr: "खूप छान! आपण औषध घेतल्याची नोंद मी केली आहे. आपली काळजी घ्या.",
-          ta: "மிக நன்று! நீங்கள் மருந்து எடுத்துக்கொண்டதை பதிவு செய்துள்ளேன்.",
-          te: "చాలా మంచిది! మీరు మందులు వేసుకున్నట్లు నమోదు చేసాను.",
-          kn: "ತುಂಬಾ ಒಳ್ಳೆಯದು! ನೀವು ಔಷಧಿ ತೆಗೆದುಕೊಂಡಿರುವುದನ್ನು ದಾಖಲಿಸಿದ್ದೇನೆ.",
-          ml: "വളരെ നല്ലത്! നിങ്ങൾ മരുന്ന് കഴിച്ചതായി ഞാൻ രേഖപ്പെടുത്തി.",
-          pa: "ਬਹੁਤ ਵਧੀਆ! ਮੈਂ ਦਰਜ ਕਰ ਲਿਆ ਹੈ ਕਿ ਤੁਸੀਂ ਦਵਾਈ ਲੈ ਲਈ ਹੈ।",
-          or: "ବହୁତ ଭଲ! ଆପଣ ଔଷଧ ଖାଇଥିବା ମୁଁ ଲିପିବଦ୍ଧ କରିଦେଇଛି।",
+          en: "Wonderful! I have recorded that you took your medicine. Take gentle care.",
+          bn: "খুব ভালো! আমি লিখে রেখেছি যে আপনি ওষুধ খেয়েছেন।",
+          as: "বৰ ভাল কথা! মই নথিভুক্ত কৰিলোঁ যে আপুনি ঔষধ খালে।",
+          mr: "खूप छान! आपण औषध घेतल्याची नोंद मी केली आहे.",
         };
 
         return {
@@ -466,35 +913,6 @@ export class ConversationalAIEngine {
           responseText: takenAnswers[lang] || takenAnswers["en"],
           action: "take_medicine",
           actionData: { medicineId: medId },
-        };
-      }
-
-      if (t.includes("remind") || t.includes("याद") || t.includes("યાદ") || t.includes("संकेत") || t.includes("రిమైండర్")) {
-        const timeToSet = medCtx?.scheduledTime || "20:30";
-        store.addReminder({
-          title: `${medCtx?.medicineName || "Medicine"} (${medCtx?.timeOfDay || "Scheduled"})`,
-          time: timeToSet,
-          type: "medicine",
-          repeat: "daily",
-          notes: "Scheduled via Conversational AI Assistant",
-          active: true,
-        });
-        this.resetDialogue();
-
-        const setConfirm: Record<string, string> = {
-          hi: `ठीक है। मैंने आपके लिए ${timeToSet} बजे दवा का रिमाइंडर सेट कर दिया है।`,
-          gu: `ઠીક છે. મેં તમારા માટે ${timeToSet} વાગ્યે દવાનું રિમાઇન્ડર ગોઠવી દીધું છે.`,
-          en: `Alright. I have set your medicine reminder for ${timeToSet}.`,
-          bn: `ঠিক আছে। আমি আপনার জন্য ${timeToSet} টায় ওষুধের রিমাইন্ডার সেট করে দিয়েছি।`,
-          as: `ঠিক আছে। মই ${timeToSet} বজাত ঔষধৰ সংকেত সংৰক্ষণ কৰিলোঁ।`,
-          mr: `ठीक आहे. मी ${timeToSet} वाजता औषधाची आठवण सेट केली आहे.`,
-        };
-
-        return {
-          handled: true,
-          responseText: setConfirm[lang] || setConfirm["en"],
-          action: "create_reminder",
-          actionData: { time: timeToSet },
         };
       }
 
@@ -513,46 +931,213 @@ export class ConversationalAIEngine {
     }
 
     // =========================================================================
-    // FLOW 2: TODAY'S ACTIVITIES SUMMARY (Requirement 2 Example)
-    // User: "आज मैंने कौन-कौन सी activities की हैं?"
-    // AI summarizes routines completed, games played, medicines taken
+    // 10. FOLLOW-UP MEDICINE STOCK INQUIRY (Pronoun resolution: "वही", "वो", "તે")
+    // User: "वही वाली कितने दिन की बची है?" / "और वो कितने दिन की बची है?"
+    // Understands "वही / वो" refers to the medicine discussed previously.
     // =========================================================================
-    const isAskingActivities =
-      (t.includes("activity") || t.includes("activities") || t.includes("गतिविधि") || t.includes("गतिविधियां") || t.includes("काम") || t.includes("પ્રવૃત્તિ") || t.includes("কাম") || t.includes("কাজ") || t.includes("रूटिन") || t.includes("routine")) &&
-      (t.includes("aaj") || t.includes("today") || t.includes("आज") || t.includes("આજે") || t.includes("আজি") || t.includes("আজকে") || t.includes("केले") || t.includes("done") || t.includes("ki hai") || t.includes("কী কি"));
+    const isAskingStockOrRemaining =
+      t.includes("बची है") ||
+      t.includes("बाकी है") ||
+      t.includes("कितने दिन") ||
+      t.includes("कितनी बची") ||
+      t.includes("કેટલા દિવસ") ||
+      t.includes("બાકી છે") ||
+      t.includes("how many days") ||
+      t.includes("how much left") ||
+      t.includes("remaining") ||
+      t.includes("stock") ||
+      t.includes("वही वाली") ||
+      t.includes("वही दवा") ||
+      t.includes("वो दवा") ||
+      t.includes("તે જ દવા") ||
+      t.includes("that medicine");
 
-    if (isAskingActivities) {
-      const todayStr = new Date().toISOString().slice(0, 10);
-      const routinesDone = store.routines.filter((r) => r.done_date === todayStr).length;
-      const gamesToday = store.gameSessions.filter((s) => s.created_at?.startsWith(todayStr));
-      const gameCount = gamesToday.length;
-      const bestAccToday = gamesToday.length > 0 ? Math.max(...gamesToday.map((g) => g.accuracy || 70)) : 85;
+    if (isAskingStockOrRemaining) {
+      const medCtx = this._dialogue.medicineContext;
+      const targetMed =
+        (medCtx?.medicineId && store.medicines.find((m) => m.id === medCtx.medicineId)) ||
+        (medCtx?.medicineName && store.medicines.find((m) => m.name.toLowerCase().includes(medCtx.medicineName!.toLowerCase()))) ||
+        store.medicines[1] ||
+        store.medicines[0];
 
-      const actSummaries: Record<string, string> = {
-        hi: `आज आपने बहुत अच्छा दिन बिताया है! आपने ${routinesDone} दिनचर्या के कार्य पूरे किए हैं और ${gameCount > 0 ? `${gameCount} मेमोरी गेम खेले हैं (${bestAccToday}% सटीकता के साथ)` : "अपनी सुबह की दिनचर्या पूरी की है"}। आपकी निरंतरता बहुत सराहनीय है!`,
-        gu: `આજે તમે ખૂબ સુંદર અને સક્રિય દિવસ વિતાવ્યો છે! તમે ${routinesDone} દિનચર્યાના નિયમો પૂરા કર્યા છે અને ${gameCount > 0 ? `${gameCount} રમતો રમી છે (${bestAccToday}% ચોકસાઈ સાથે)` : "તમારી સવારની દિનચર્યા સાચવી છે"}. તમારો ઉત્સાહ પ્રેરણાદાયક છે!`,
-        en: `You have had a wonderful and active day today! You completed ${routinesDone} daily routine item(s) and played ${gameCount > 0 ? `${gameCount} cognitive game session(s) with ${bestAccToday}% accuracy` : "your morning routines"}. Your consistency is truly admirable!`,
-        bn: `আজ আপনি খুব সুন্দর দিন কাটিয়েছেন! আপনি ${routinesDone} টি দৈনন্দিন কাজ সম্পন্ন করেছেন এবং ${gameCount > 0 ? `${gameCount} টি স্মৃতির খেলা খেলেছেন (${bestAccToday}% নির্ভুলতার সাথে)` : "সকালের নিয়ম মেনে চলেছেন"}।`,
-        as: `আজি আপুনি বৰ সুন্দৰ দিন এটা কটালে! আপুনি ${routinesDone} টা দৈনিক কাম সম্পূৰ্ণ কৰিলে আৰু ${gameCount > 0 ? `${gameCount} টা খেল খেলিলে (${bestAccToday}% সঠিকতাৰে)` : "পুৱাৰ নিয়ম পালন কৰিলে"}।`,
-        mr: `आज आपण खूप छान दिवस घालवला आहे! आपण ${routinesDone} दैनंदिन कामे पूर्ण केली आहेत आणि ${gameCount > 0 ? `${gameCount} खेळ खेळले आहेत (${bestAccToday}% अचूकतेसह)` : "सकाळची दिनचर्या पाळली आहे"}.`,
-        ta: `இன்று நீங்கள் ஒரு அற்புதமான நாளைக் கழித்துள்ளீர்கள்! ${routinesDone} தினசரி பணிகளையும், ${gameCount} நினைவாற்றல் விளையாட்டுகளையும் முடித்துள்ளீர்கள்.`,
-        te: `ఈ రోజు మీరు చాలా చురుకైన రోజును గడిపారు! ${routinesDone} దినచర్య పనులను మరియు ${gameCount} ఆటలను పూర్తి చేసారు.`,
-        kn: `ಇಂದು ನೀವು ತುಂಬಾ ಸಕ್ರಿಯ ದಿನವನ್ನು ಕಳೆದಿದ್ದೀರಿ! ${routinesDone} ದಿನಚರಿ ಕಾರ್ಯಗಳನ್ನು ಪೂರ್ಣಗೊಳಿಸಿದ್ದೀರಿ.`,
-        ml: `ഇന്ന് നിങ്ങൾ വളരെ നല്ലൊരു ദിവസമാണ് ചെലവഴിച്ചത്! ${routinesDone} ദിനചര്യകളും പൂർത്തിയാക്കി.`,
-        pa: `ਅੱਜ ਤੁਸੀਂ ਬਹੁਤ ਵਧੀਆ ਦਿਨ ਬਿਤਾਇਆ ਹੈ! ਤੁਸੀਂ ${routinesDone} ਰੋਜ਼ਾਨਾ ਕੰਮ ਪੂਰੇ ਕੀਤੇ ਹਨ।`,
-        or: `ଆଜି ଆପଣ ବହୁତ ଭଲ ଦିନ ବିତାଇଛନ୍ତି! ଆପଣ ${routinesDone} ଟି ଦୈନନ୍ଦିନ କାର୍ଯ୍ୟ ସମ୍ପୂର୍ଣ୍ଣ କରିଛନ୍ତି।`,
+      const medName = targetMed?.name || medCtx?.medicineName || "Donepezil Hydrochloride";
+      const dosage = targetMed?.dosage || medCtx?.dosage || "5 mg";
+      const stock = targetMed?.stock ?? (medCtx?.stock ?? 24);
+      const dailyUsage = targetMed?.daily_usage ?? (medCtx?.dailyUsage ?? 1);
+      const daysLeft = Math.max(1, Math.floor(stock / (dailyUsage || 1)));
+
+      const stockAnswers: Record<string, string> = {
+        hi: `वही दवा यानी ${medName} (${dosage}) की अभी ${stock} खुराकें (गोलियां) बची हैं, जो लगभग ${daysLeft} दिन चलेंगी। आप बिल्कुल निश्चिंत रहें, समय रहते रीफिल की सूचना दे दी जाएगी।`,
+        gu: `તે જ દવા ${medName} (${dosage}) ની હજુ ${stock} ગોળીઓ બાકી છે, જે આશરે ${daysLeft} દિવસ ચાલશે. તમે ચિંતા ન કરતા, સમયસર રીફિલ કરાવી લઈશું.`,
+        en: `That medicine, ${medName} (${dosage}), has ${stock} doses remaining in your stock, which will last approximately ${daysLeft} days. We will remind you well before it runs out.`,
+        as: `সেই ঔষধ ${medName} (${dosage}) ৰ এতিয়াও ${stock} টা বড়ি বাকী আছে, যিটো প্ৰায় ${daysLeft} দিন চলিব।`,
+        bn: `সেই ওষুধ ${medName} (${dosage}) এর এখনও ${stock} টি ডোজ বাকি আছে, যা প্রায় ${daysLeft} দিন চলবে।`,
+        mr: `त्याच औषधाच्या म्हणजेच ${medName} (${dosage}) च्या सध्या ${stock} गोळ्या शिल्लक आहेत, ज्या सुमारे ${daysLeft} दिवस पुरतील.`,
       };
 
       return {
         handled: true,
-        responseText: actSummaries[lang] || actSummaries["en"],
+        responseText: stockAnswers[lang] || stockAnswers["en"],
       };
     }
 
     // =========================================================================
-    // FLOW 3: PLAY GAME / START NEXT LEVEL (Requirement 2 & 7)
-    // User: "मुझे memory game खेलना है।" -> Opens game hub
-    // User: "अगला level शुरू करो।" -> Starts next unlocked level
+    // 11. YESTERDAY'S ACTIVITIES RECALL
+    // User: "कल मैंने क्या किया था?" / "What did I do yesterday?"
+    // =========================================================================
+    const isAskingYesterdayActivities =
+      (t.includes("kal") || t.includes("कल") || t.includes("કાલે") || t.includes("কাল") || t.includes("কালি") || t.includes("काल") || t.includes("yesterday")) &&
+      (t.includes("kya kiya") || t.includes("क्या किया") || t.includes("શું કર્યું") || t.includes("কি কৰিলোঁ") || t.includes("কি করেছি") || t.includes("काय केले") || t.includes("activities") || t.includes("routine"));
+
+    if (isAskingYesterdayActivities) {
+      const yesterdayDate = new Date(Date.now() - 86400000);
+      const yesterdayStr = yesterdayDate.toISOString().slice(0, 10);
+      const routinesYesterday = store.routines.filter((r) => r.done_date === yesterdayStr);
+      const gamesYesterday = store.gameSessions.filter((s) => s.created_at?.startsWith(yesterdayStr));
+
+      const routineSummary = routinesYesterday.length > 0
+        ? `${routinesYesterday.length} दिनचर्या के कार्य (जैसे सुबह की सैर और जलपान)`
+        : "अपनी नियमित दिनचर्या";
+
+      const gameSummary = gamesYesterday.length > 0
+        ? `${gamesYesterday.length} मेमोरी गेम (${Math.max(...gamesYesterday.map((g) => g.accuracy || 75))}% सटीकता के साथ)`
+        : "कॉग्निटिव गेम्स";
+
+      const yesterdayAnswers: Record<string, string> = {
+        hi: `कल आपने बहुत व्यवस्थित और सुखद दिन बिताया था। आपने ${routineSummary} पूरे किए थे, अपनी दवाएं समय पर ली थीं, और ${gameSummary} खेले थे। आपका कल का दिन बहुत सकारात्मक रहा!`,
+        gu: `કાલે તમે ખૂબ સરસ દિવસ વિતાવ્યો હતો. તમે તમારી દિનચર્યા સાચવી હતી, સમયસર દવાઓ લીધી હતી અને રમતો રમીને મગજને તાજગી આપી હતી.`,
+        en: `Yesterday you had a calm, wonderful day. You completed your routine activities, took your scheduled medicines on time, and engaged in cognitive memory games.`,
+        bn: `গতকাল আপনি খুব সুন্দর দিন কাটিয়েছিলেন। আপনার দৈনন্দিন কাজ ও ওষুধ সময়মতো গ্রহণ করেছিলেন।`,
+        as: `কালি আপোনাৰ দিনটো বৰ শান্তিপূৰ্ণকৈ পাৰ হৈছিল। আপুনি সময়মতে ঔষধ খালে আৰু দৈনিক কামসমূহ সম্পূৰ্ণ কৰিলে।`,
+        mr: `काल आपण आपली दिनचर्या अतिशय चांगल्या प्रकारे पाळली होती आणि औषधे वेळेवर घेतली होती.`,
+      };
+
+      return {
+        handled: true,
+        responseText: yesterdayAnswers[lang] || yesterdayAnswers["en"],
+      };
+    }
+
+    // =========================================================================
+    // 12. CAREGIVER / FAMILY IDENTIFICATION
+    // User: "ये कौन हैं?" / "यह व्यक्ति कौन है?" / "Who is this?"
+    // Uses saved caregiver family information and voice memories.
+    // =========================================================================
+    const isAskingWhoIsThis =
+      t.includes("ये कौन हैं") ||
+      t.includes("यह कौन है") ||
+      t.includes("ये कौन है") ||
+      t.includes("यह व्यक्ति कौन है") ||
+      t.includes("આ કોણ છે") ||
+      t.includes("who is this") ||
+      t.includes("who is this person") ||
+      t.includes("who is he") ||
+      t.includes("who is she");
+
+    if (isAskingWhoIsThis) {
+      // 1. Check if previous turn was discussing a specific person/topic
+      if (
+        this._dialogue.topic &&
+        this._dialogue.topic !== "medicine" &&
+        this._dialogue.topic !== "medicines"
+      ) {
+        const topicName = this._dialogue.topic;
+        const topicAnswers: Record<string, string> = {
+          hi: `हम अभी ${topicName} के बारे में बात कर रहे थे। क्या आप उनके बारे में कुछ और विस्तार से जानना चाहते हैं?`,
+          gu: `આપણે હમણાં ${topicName} વિશે વાત કરી રહ્યા હતા. શું તમે તેમના વિશે વધુ જાણવા માંગો છો?`,
+          en: `We were just discussing ${topicName}. Would you like to know more about them?`,
+          as: `আমি এইমাত্ৰ ${topicName}ৰ বিষয়ে কথা পাতি আছিলোঁ।`,
+          bn: `আমরা একটু আগেই ${topicName} সম্পর্কে কথা বলছিলাম।`,
+          mr: `आपण नुकतेच ${topicName} यांच्याबद्दल बोलत होतो.`,
+        };
+        return {
+          handled: true,
+          responseText: topicAnswers[lang] || topicAnswers["en"],
+        };
+      }
+
+      // 2. Check family contacts in store
+      const rahul = store.contacts?.find((c) => c.name.toLowerCase().includes("rahul"));
+      const contact = rahul || (store.contacts && store.contacts[0]);
+
+      if (contact) {
+        const voiceMem = contact.voice_memory || `यह ${contact.name} हैं, आपके ${contact.relationship}।`;
+        const familyAnswers: Record<string, string> = {
+          hi: `${voiceMem} वे हर शाम आपसे बात करते हैं और आपके स्वास्थ्य व खुशहाली का पूरा ध्यान रखते हैं।`,
+          gu: `આ ${contact.name} છે, તમારા ${contact.relationship}. તેઓ હંમેશા તમારો હાલચાલ પૂછે છે અને તમારું ધ્યાન રાખે છે.`,
+          en: `This is ${contact.name}, your ${contact.relationship}. They check in on you regularly and care deeply about your health.`,
+          as: `এওঁ হৈছে ${contact.name}, আপোনাৰ ${contact.relationship}। তেওঁ সদায় আপোনাৰ খবৰ লয়।`,
+          bn: `ইনি হলেন ${contact.name}, আপনার ${contact.relationship}।`,
+          mr: `हे ${contact.name} आहेत, आपले ${contact.relationship}. ते नेहमी आपली काळजी घेतात.`,
+        };
+
+        return {
+          handled: true,
+          responseText: familyAnswers[lang] || familyAnswers["en"],
+        };
+      }
+
+      // 3. Graceful clarification if no context or contact exists
+      const askClarify: Record<string, string> = {
+        hi: "आप किसके बारे में पूछ रहे हैं—परिवार के किसी सदस्य के बारे में, या किसी जाने-माने व्यक्ति के बारे में? आप उनका नाम बताइए, मैं तुरंत पूरी जानकारी दूँगा।",
+        gu: "તમે કોના વિશે પૂછી રહ્યા છો—પરિવારના સભ્ય વિશે કે કોઈ જાણીતી વ્યક્તિ વિશે? તેમનું નામ કહો, હું તરત માહિતી આપીશ.",
+        en: "Who would you like to know about—a family member or a public personality? Tell me their name, and I will find out for you right away.",
+        as: "আপুনি কাৰ বিষয়ে জানিব খুজিছে—পৰিয়ালৰ লোক নে আন কাৰোবাৰ বিষয়ে? নামটো কওক, মই জনাই দিম।",
+        bn: "আপনি কার সম্পর্কে জানতে চাইছেন—পরিবারের সদস্য নাকি কোনো পরিচিত ব্যক্তি? নাম বলুন, আমি তথ্য দিচ্ছি।",
+        mr: "आपण कोणाबद्दल विचारत आहात—कुटुंबातील व्यक्ती की प्रसिद्ध व्यक्तीबद्दल? नाव सांगा, मी लगेच माहिती देईन.",
+      };
+
+      return {
+        handled: true,
+        responseText: askClarify[lang] || askClarify["en"],
+      };
+    }
+
+    // =========================================================================
+    // 13. DOCTOR APPOINTMENT QUERY
+    // User: "मेरा appointment कब है?" / "When is my appointment?"
+    // =========================================================================
+    const isAskingAppointment =
+      (t.includes("appointment") || t.includes("अपॉइंटमेंट") || t.includes("अपॉइन्टमेंट") || t.includes("doctor") || t.includes("डॉक्टर") || t.includes("તપાસ")) &&
+      (t.includes("kab") || t.includes("कब") || t.includes("ક્યારે") || t.includes("when") || t.includes("कधी") || t.includes("mera") || t.includes("my"));
+
+    if (isAskingAppointment) {
+      if (!store.appointments || store.appointments.length === 0) {
+        const noApptAnswers: Record<string, string> = {
+          hi: "आपके पास अभी कोई निर्धारित डॉक्टर अपॉइंटमेंट नहीं है। यदि आप कोई नया अपॉइंटमेंट सेट करना चाहते हैं, तो मुझे बताइए।",
+          gu: "તમારી પાસે અત્યારે કોઈ નિર્ધારિત ડૉક્ટર મુલાકાત નથી.",
+          en: "You have no upcoming doctor appointments scheduled in your records right now.",
+          as: "আপোনাৰ কোনো নিৰ্ধাৰিত চিকিৎসকৰ সাক্ষাত নাই।",
+          bn: "আপনার এখন কোনো নির্ধারিত ডাক্তার অ্যাপয়েন্টমেন্ট নেই।",
+          mr: "आपल्याकडे सध्या कोणतीही डॉक्टरांची भेट नियोजित नाही.",
+        };
+        return {
+          handled: true,
+          responseText: noApptAnswers[lang] || noApptAnswers["en"],
+        };
+      }
+
+      const nextApp = store.appointments[0];
+
+      const appAnswers: Record<string, string> = {
+        hi: `आपका अगला डॉक्टर अपॉइंटमेंट ${nextApp.title} के साथ ${nextApp.date} को सुबह ${nextApp.time} बजे निर्धारित है (${nextApp.location})।`,
+        gu: `તમારી આગામી ડૉક્ટર મુલાકાત ${nextApp.title} સાથે ${nextApp.date} ના રોજ ${nextApp.time} વાગ્યે છે (${nextApp.location}).`,
+        en: `Your upcoming appointment with ${nextApp.title} is scheduled on ${nextApp.date} at ${nextApp.time} (${nextApp.location}).`,
+        as: `আপোনাৰ পৰৱৰ্তী চিকিৎসকৰ সাক্ষাত ${nextApp.title}ৰ সৈতে ${nextApp.date} তাৰিখে পুৱা ${nextApp.time} বজাত আছে।`,
+        bn: `আপনার পরবর্তী ডাক্তার অ্যাপয়েন্টমেন্ট ${nextApp.title} এর সাথে ${nextApp.date} তারিখে সকাল ${nextApp.time} টায়।`,
+        mr: `आपली पुढील डॉक्टरांची भेट ${nextApp.title} यांच्यासोबत ${nextApp.date} रोजी सकाळी ${nextApp.time} वाजता आहे.`,
+      };
+
+      return {
+        handled: true,
+        responseText: appAnswers[lang] || appAnswers["en"],
+      };
+    }
+
+    // =========================================================================
+    // 14. PLAY COGNITIVE GAMES / NEXT LEVEL
+    // User: "मुझे memory game खेलना है।"
+    // User: "अगला level शुरू करो।"
     // =========================================================================
     const isPlayGameIntent =
       (t.includes("play") || t.includes("start") || t.includes("khelna") || t.includes("खेलना") || t.includes("ખેલવું") || t.includes("રમવું") || t.includes("খেলিম") || t.includes("খেলতে") || t.includes("खेळायचे") || t.includes("விளையாட")) &&
@@ -597,8 +1182,47 @@ export class ConversationalAIEngine {
     }
 
     // =========================================================================
-    // FLOW 4: DIRECT MEDICINE TIME QUERY (Requirement 1 & 3 Example)
-    // User: "मेरी रात वाली दवाई कब है?" / "मेरी दवाई कब है?" / "When is my medicine?"
+    // 15. MEDICINE REMINDER TIME COLLECTION (Follow-up)
+    // =========================================================================
+    if (this._dialogue.stage === "awaiting_reminder_time") {
+      const time = extractedTimeFn(raw);
+      const targetDate =
+        this._dialogue.targetDate ||
+        new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+      const title = this._dialogue.topic || "Morning Medicine";
+      const remType = this._dialogue.reminderType || "medicine";
+
+      store.addReminder({
+        title,
+        time,
+        date: targetDate,
+        repeat: "daily",
+        type: remType,
+        notes: "Created via Memory Bond conversational dialogue context",
+        active: true,
+      });
+
+      this.resetDialogue();
+
+      const timeConfirms: Record<string, string> = {
+        hi: `ठीक है। मैंने ${time} बजे दवा का रिमाइंडर सेट कर दिया है। मैं आपको समय पर याद दिलाऊँगा।`,
+        gu: `ઠીક છે. મેં ${time} વાગ્યે દવા માટે રિમાઇન્ડર ગોઠવી દીધું છે.`,
+        en: `Alright. I have set your medicine reminder for ${time}. I will remind you on time.`,
+        bn: `ঠিক আছে। আমি ${time} টায় ওষুধের জন্য রিমাইন্ডার সেট করে দিয়েছি।`,
+        as: `ঠিক আছে। মই ${time} বজাত ঔষধৰ বাবে সংকেত সংৰক্ষণ কৰিলোঁ।`,
+        mr: `ठीक आहे. मी ${time} वाजता औषधासाठी आठवण सेट केली आहे.`,
+      };
+
+      return {
+        handled: true,
+        responseText: timeConfirms[lang] || timeConfirms["en"],
+        action: "create_reminder",
+        actionData: { title, time, date: targetDate },
+      };
+    }
+
+    // =========================================================================
+    // 16. WHEN IS MY MEDICINE? / मेरी रात वाली दवाई कब है?
     // =========================================================================
     const isAskingWhenMed =
       (t.includes("when") || t.includes("kab") || t.includes("कब") || t.includes("ક્યારે") || t.includes("কেতিয়া") || t.includes("কখন") || t.includes("कधी") || t.includes("ఎప్పుడు") || t.includes("எப்போது")) &&
@@ -628,8 +1252,8 @@ export class ConversationalAIEngine {
             medicineName: medName,
             dosage,
             scheduledTime: timeStr,
-            stock: nightMed?.stock || 24,
-            dailyUsage: nightMed?.daily_usage || 1,
+            stock: nightMed?.stock ?? 24,
+            dailyUsage: nightMed?.daily_usage ?? 1,
           },
           targetTime: timeStr,
           turnCount: this._dialogue.turnCount + 1,
@@ -665,8 +1289,8 @@ export class ConversationalAIEngine {
             medicineName: medName,
             dosage,
             scheduledTime: timeStr,
-            stock: morningMed?.stock || 30,
-            dailyUsage: morningMed?.daily_usage || 1,
+            stock: morningMed?.stock ?? 30,
+            dailyUsage: morningMed?.daily_usage ?? 1,
           },
           targetTime: timeStr,
           turnCount: this._dialogue.turnCount + 1,
@@ -686,375 +1310,6 @@ export class ConversationalAIEngine {
           responseText: morningOnlyAnswers[lang] || morningOnlyAnswers["en"],
         };
       }
-
-      // Both morning & night
-      const med1 = store.medicines[0];
-      const med2 = store.medicines[1];
-      const m1Name = med1?.name || "Amlodipine";
-      const m2Name = med2?.name || "Donepezil";
-
-      this._dialogue = {
-        stage: "medicine_discussed",
-        topic: m2Name,
-        medicineContext: {
-          timeOfDay: "night",
-          medicineId: med2?.id,
-          medicineName: m2Name,
-          dosage: med2?.dosage || "5 mg",
-          scheduledTime: med2?.times[0] || "20:30",
-          stock: med2?.stock || 24,
-          dailyUsage: med2?.daily_usage || 1,
-        },
-        turnCount: this._dialogue.turnCount + 1,
-      };
-
-      const scheduleAnswers: Record<string, string> = {
-        hi: `आपकी सुबह की दवा ${m1Name} सुबह 8:30 बजे है, और रात की दवा ${m2Name} रात 8:30 बजे सोने से पहले है।`,
-        gu: `તમારી સવારની દવા ${m1Name} સવારે 8:30 વાગ્યે છે, અને રાતની દવા ${m2Name} રાત્રે 8:30 વાગ્યે છે.`,
-        en: `Your morning medicine ${m1Name} is at 8:30 AM, and your night medicine ${m2Name} is at 8:30 PM.`,
-        bn: `আপনার সকালের ওষুধ ${m1Name} সকাল ৮:৩০ টায়, এবং রাতের ওষুধ ${m2Name} রাত ৮:৩০ টায়।`,
-        as: `আপোনাৰ পুৱাৰ ঔষধ ${m1Name} পুৱা ৮:৩০ বজাত, আৰু ৰাতিৰ ঔষধ ${m2Name} ৰাতি ৮:৩০ বজাত।`,
-        mr: `आपले सकाळचे औषध ${m1Name} सकाळी 8:30 वाजता आहे, आणि रात्रीचे औषध ${m2Name} रात्री 8:30 वाजता आहे.`,
-      };
-
-      return {
-        handled: true,
-        responseText: scheduleAnswers[lang] || scheduleAnswers["en"],
-      };
-    }
-
-    // =========================================================================
-    // FLOW 4.5: FOLLOW-UP MEDICINE STOCK INQUIRY (Requirement 1 Example)
-    // User: "वही वाली कितने दिन की बची है?" / "How many days of that are left?"
-    // Understands "वही वाली" refers to the medicine discussed previously.
-    // =========================================================================
-    const isAskingStockOrRemaining =
-      t.includes("बची है") ||
-      t.includes("बाकी है") ||
-      t.includes("कितने दिन") ||
-      t.includes("कितनी बची") ||
-      t.includes("કેટલા દિવસ") ||
-      t.includes("બાકી છે") ||
-      t.includes("how many days") ||
-      t.includes("how much left") ||
-      t.includes("remaining") ||
-      t.includes("stock") ||
-      t.includes("वही वाली") ||
-      t.includes("वही दवा") ||
-      t.includes("તે જ દવા") ||
-      t.includes("that medicine");
-
-    if (isAskingStockOrRemaining) {
-      const medCtx = this._dialogue.medicineContext;
-      const targetMed =
-        (medCtx?.medicineId && store.medicines.find((m) => m.id === medCtx.medicineId)) ||
-        (medCtx?.medicineName && store.medicines.find((m) => m.name.toLowerCase().includes(medCtx.medicineName!.toLowerCase()))) ||
-        store.medicines[1] ||
-        store.medicines[0];
-
-      const medName = targetMed?.name || medCtx?.medicineName || "Donepezil Hydrochloride";
-      const dosage = targetMed?.dosage || medCtx?.dosage || "5 mg";
-      const stock = targetMed?.stock ?? (medCtx?.stock ?? 24);
-      const dailyUsage = targetMed?.daily_usage ?? (medCtx?.dailyUsage ?? 1);
-      const daysLeft = Math.max(1, Math.floor(stock / (dailyUsage || 1)));
-
-      const stockAnswers: Record<string, string> = {
-        hi: `वही दवा यानी ${medName} (${dosage}) की अभी ${stock} खुराकें (गोलियां) बची हैं, जो लगभग ${daysLeft} दिन चलेंगी। आप बिल्कुल निश्चिंत रहें, समय रहते रीफिल की सूचना दे दी जाएगी।`,
-        gu: `તે જ દવા ${medName} (${dosage}) ની હજુ ${stock} ગોળીઓ બાકી છે, જે આશરે ${daysLeft} દિવસ ચાલશે. તમે ચિંતા ન કરતા, સમયસર રીફિલ કરાવી લઈશું.`,
-        en: `That medicine, ${medName} (${dosage}), has ${stock} doses remaining in your stock, which will last approximately ${daysLeft} days. We will remind you well before it runs out.`,
-        as: `সেই ঔষধ ${medName} (${dosage}) ৰ এতিয়াও ${stock} টা বড়ি বাকী আছে, যিটো প্ৰায় ${daysLeft} দিন চলিব।`,
-        bn: `সেই ওষুধ ${medName} (${dosage}) এর এখনও ${stock} টি ডোজ বাকি আছে, যা প্রায় ${daysLeft} দিন চলবে।`,
-        mr: `त्याच औषधाच्या म्हणजेच ${medName} (${dosage}) च्या सध्या ${stock} गोळ्या शिल्लक आहेत, ज्या सुमारे ${daysLeft} दिवस पुरतील.`,
-      };
-
-      return {
-        handled: true,
-        responseText: stockAnswers[lang] || stockAnswers["en"],
-      };
-    }
-
-    // =========================================================================
-    // FLOW 4.6: YESTERDAY'S ACTIVITIES RECALL (Requirement 1 & 3 Example)
-    // User: "कल मैंने क्या किया था?" / "What did I do yesterday?"
-    // Retrieves actual Memory Bond data: routines, medicines, games from yesterday.
-    // =========================================================================
-    const isAskingYesterdayActivities =
-      (t.includes("kal") || t.includes("कल") || t.includes("કાલે") || t.includes("কাল") || t.includes("কালি") || t.includes("काल") || t.includes("yesterday")) &&
-      (t.includes("kya kiya") || t.includes("क्या किया") || t.includes("શું કર્યું") || t.includes("কি কৰিলোঁ") || t.includes("কি করেছি") || t.includes("काय केले") || t.includes("done") || t.includes("activities") || t.includes("routine") || t.includes("काम"));
-
-    if (isAskingYesterdayActivities) {
-      const yesterdayDate = new Date(Date.now() - 86400000);
-      const yesterdayStr = yesterdayDate.toISOString().slice(0, 10);
-      const routinesYesterday = store.routines.filter((r) => r.done_date === yesterdayStr);
-      const gamesYesterday = store.gameSessions.filter((s) => s.created_at?.startsWith(yesterdayStr));
-      const medsYesterday = store.medicines.filter((m) => m.adherence?.[yesterdayStr]);
-
-      const routineSummary = routinesYesterday.length > 0
-        ? `${routinesYesterday.length} दिनचर्या के कार्य (जैसे सुबह की सैर और जलपान)`
-        : "अपनी नियमित दिनचर्या";
-
-      const gameSummary = gamesYesterday.length > 0
-        ? `${gamesYesterday.length} मेमोरी गेम (${Math.max(...gamesYesterday.map((g) => g.accuracy || 75))}% सटीकता के साथ)`
-        : "कॉग्निटिव गेम्स";
-
-      const yesterdayAnswers: Record<string, string> = {
-        hi: `कल आपने बहुत व्यवस्थित और सुखद दिन बिताया था। आपने ${routineSummary} पूरे किए थे, अपनी दवाएं समय पर ली थीं, और ${gameSummary} खेले थे। आपका कल का दिन बहुत सकारात्मक रहा!`,
-        gu: `કાલે તમે ખૂબ સરસ દિવસ વિતાવ્યો હતો. તમે તમારી દિનચર્યા સાચવી હતી, સમયસર દવાઓ લીધી હતી અને રમતો રમીને મગજને તાજગી આપી હતી.`,
-        en: `Yesterday you had a calm, wonderful day. You completed your routine activities, took your scheduled medicines on time, and engaged in cognitive memory games.`,
-        bn: `গতকাল আপনি খুব সুন্দর দিন কাটিয়েছিলেন। আপনার দৈনন্দিন কাজ ও ওষুধ সময়মতো গ্রহণ করেছিলেন।`,
-        as: `কালি আপোনাৰ দিনটো বৰ শান্তিপূৰ্ণকৈ পাৰ হৈছিল। আপুনি সময়মতে ঔষধ খালে আৰু দৈনিক কামসমূহ সম্পূৰ্ণ কৰিলে।`,
-        mr: `काल आपण आपली दिनचर्या अतिशय चांगल्या प्रकारे पाळली होती आणि औषधे वेळेवर घेतली होती.`,
-      };
-
-      return {
-        handled: true,
-        responseText: yesterdayAnswers[lang] || yesterdayAnswers["en"],
-      };
-    }
-
-    // =========================================================================
-    // FLOW 4.7: CAREGIVER / FAMILY IDENTIFICATION (Requirement 10 Example)
-    // User: "ये कौन हैं?" / "यह व्यक्ति कौन है?" / "Who is this?"
-    // Uses saved caregiver family information and voice memories.
-    // =========================================================================
-    const isAskingWhoIsThis =
-      t.includes("ये कौन हैं") ||
-      t.includes("यह कौन है") ||
-      t.includes("ये कौन है") ||
-      t.includes("यह व्यक्ति कौन है") ||
-      t.includes("આ કોણ છે") ||
-      t.includes("who is this") ||
-      t.includes("who is this person") ||
-      t.includes("who is he") ||
-      t.includes("who is she");
-
-    if (isAskingWhoIsThis) {
-      const rahul = store.contacts.find((c) => c.name.toLowerCase().includes("rahul"));
-      const contact = rahul || store.contacts[0];
-
-      if (contact) {
-        const voiceMem = contact.voice_memory || `यह ${contact.name} हैं, आपके ${contact.relationship}।`;
-        const familyAnswers: Record<string, string> = {
-          hi: `${voiceMem} वे हर शाम आपसे बात करते हैं और आपके स्वास्थ्य व खुशहाली का पूरा ध्यान रखते हैं।`,
-          gu: `આ ${contact.name} છે, તમારા ${contact.relationship}. તેઓ હંમેશા તમારો હાલચાલ પૂછે છે અને તમારું ધ્યાન રાખે છે.`,
-          en: `This is ${contact.name}, your ${contact.relationship}. They check in on you regularly and care deeply about your health.`,
-          as: `এওঁ হৈছে ${contact.name}, আপোনাৰ ${contact.relationship}। তেওঁ সদায় আপোনাৰ খবৰ লয়।`,
-          bn: `ইনি হলেন ${contact.name}, আপনার ${contact.relationship}।`,
-          mr: `हे ${contact.name} आहेत, आपले ${contact.relationship}. ते नेहमी आपली काळजी घेतात.`,
-        };
-
-        return {
-          handled: true,
-          responseText: familyAnswers[lang] || familyAnswers["en"],
-        };
-      }
-    }
-
-    // =========================================================================
-    // FLOW 4.8: DOCTOR APPOINTMENT QUERY (Requirement 3 Example)
-    // User: "मेरा appointment कब है?" / "When is my appointment?"
-    // =========================================================================
-    const isAskingAppointment =
-      (t.includes("appointment") || t.includes("अपॉइंटमेंट") || t.includes("अपॉइन्टमेंट") || t.includes("doctor") || t.includes("डॉक्टर") || t.includes("તપાસ")) &&
-      (t.includes("kab") || t.includes("कब") || t.includes("ક્યારે") || t.includes("when") || t.includes("कधी") || t.includes("mera") || t.includes("my"));
-
-    if (isAskingAppointment) {
-      const nextApp = store.appointments[0] || {
-        title: "Dr. B. K. Barua (Memory & Wellness Clinic)",
-        date: "Next Wednesday",
-        time: "10:30 AM",
-        location: "Downtown Medical Centre, Room 204",
-      };
-
-      const appAnswers: Record<string, string> = {
-        hi: `आपका अगला डॉक्टर अपॉइंटमेंट ${nextApp.title} के साथ ${nextApp.date} को सुबह ${nextApp.time} बजे निर्धारित है (${nextApp.location})।`,
-        gu: `તમારી આગામી ડૉક્ટર મુલાકાત ${nextApp.title} સાથે ${nextApp.date} ના રોજ ${nextApp.time} વાગ્યે છે (${nextApp.location}).`,
-        en: `Your upcoming appointment with ${nextApp.title} is scheduled on ${nextApp.date} at ${nextApp.time} (${nextApp.location}).`,
-        as: `আপোনাৰ পৰৱৰ্তী চিকিৎসকৰ সাক্ষাত ${nextApp.title}ৰ সৈতে ${nextApp.date} তাৰিখে পুৱা ${nextApp.time} বজাত আছে।`,
-        bn: `আপনার পরবর্তী ডাক্তার অ্যাপয়েন্টমেন্ট ${nextApp.title} এর সাথে ${nextApp.date} তারিখে সকাল ${nextApp.time} টায়।`,
-        mr: `आपली पुढील डॉक्टरांची भेट ${nextApp.title} यांच्यासोबत ${nextApp.date} रोजी सकाळी ${nextApp.time} वाजता आहे.`,
-      };
-
-      return {
-        handled: true,
-        responseText: appAnswers[lang] || appAnswers["en"],
-      };
-    }
-
-    // =========================================================================
-    // FLOW 5: MEDICINE REMINDER TIME COLLECTION (Requirement 3 Example)
-    // User: "मुझे कल दवाई लेनी है।" -> AI: "किस समय याद दिलाऊँ?" -> User: "सुबह 8 बजे।"
-    // AI creates the reminder and confirms without asking "what are you talking about?"
-    // =========================================================================
-    if (this._dialogue.stage === "awaiting_reminder_time") {
-      const time = extractedTimeFn(raw);
-      const targetDate =
-        this._dialogue.targetDate ||
-        new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-      const title = this._dialogue.topic || "Morning Medicine";
-      const remType = this._dialogue.reminderType || "medicine";
-
-      store.addReminder({
-        title,
-        time,
-        date: targetDate,
-        repeat: "daily",
-        type: remType,
-        notes: "Created via Memory Bond conversational dialogue context",
-        active: true,
-      });
-
-      this.resetDialogue();
-
-      const timeConfirms: Record<string, string> = {
-        hi: `ठीक है। मैंने कल सुबह ${time} बजे दवा का रिमाइंडर सेट कर दिया है। मैं आपको समय पर याद दिलाऊँगा।`,
-        gu: `ઠીક છે. મેં કાલે સવારે ${time} વાગ્યે દવા માટે રિમાઇન્ડર ગોઠવી દીધું છે.`,
-        en: `Alright. I have set your medicine reminder for tomorrow at ${time}. I will remind you on time.`,
-        bn: `ঠিক আছে। আমি কাল ${time} টায় ওষুধের জন্য রিমাইন্ডার সেট করে দিয়েছি।`,
-        as: `ঠিক আছে। মই কাইলৈ ${time} বজাত ঔষধৰ বাবে সংকেত সংৰক্ষণ কৰিলোঁ।`,
-        mr: `ठीक आहे. मी उद्या ${time} वाजता औषधासाठी आठवण सेट केली आहे.`,
-        ta: `சரி. நாளை ${time} மணிக்கு மருந்துக்கு நினைவூட்டல் அமைத்துள்ளேன்.`,
-        te: `సరే. రేపు ${time} గంటలకు మందులకు రిమైండర్ సెట్ చేసాను.`,
-        kn: `ಸರಿ. ನಾಳೆ ${time} ಗಂಟೆಗೆ ಔಷಧಿಗಾಗಿ ಜ್ಞಾಪನೆಯನ್ನು ಹೊಂದಿಸಿದ್ದೇನೆ.`,
-        ml: `ശരി. നാളെ ${time} ന് മരുന്നിനായി ഓർമ്മപ്പെടുത്തൽ സജ്ਜമാക്കി.`,
-        pa: `ਠੀਕ ਹੈ। ਮੈਂ ਕੱਲ੍ਹ ${time} ਵਜੇ ਦਵਾਈ ਲਈ ਰੀਮਾਈਂਡਰ ਸੈੱਟ ਕਰ ਦਿੱਤਾ ਹੈ।`,
-        or: `ଠିକ୍ ଅଛି। ମୁଁ କାଲି ${time} ଟାରେ ଔଷଧ ପାଇଁ ରିମାଇଣ୍ଡର ସେଟ୍ କରିଦେଇଛି।`,
-      };
-
-      return {
-        handled: true,
-        responseText: timeConfirms[lang] || timeConfirms["en"],
-        action: "create_reminder",
-        actionData: { title, time, date: targetDate },
-      };
-    }
-
-    // Checking if user initiates a reminder creation without time:
-    // e.g. "मुझे कल दवाई लेनी है" / "I have to take medicine tomorrow" / "મારે કાલે દવા લેવાની છે"
-    const hasTomorrow =
-      t.includes("tomorrow") ||
-      t.includes("kal") ||
-      t.includes("कल") ||
-      t.includes("কাল") ||
-      t.includes("কাইলৈ") ||
-      t.includes("કાલે") ||
-      t.includes("उद्या") ||
-      t.includes("நாளை") ||
-      t.includes("రేపు") ||
-      t.includes("ನಾಳೆ") ||
-      t.includes("നാളെ") ||
-      t.includes("ਕੱਲ੍ਹ") ||
-      t.includes("କାଲି");
-
-    const mentionsMedicine =
-      t.includes("દવા") ||
-      t.includes("दवा") ||
-      t.includes("medicine") ||
-      t.includes("ঔষধ") ||
-      t.includes("ওষুধ") ||
-      t.includes("औषध") ||
-      t.includes("மருந்து") ||
-      t.includes("మందు") ||
-      t.includes("ಔಷಧಿ") ||
-      t.includes("മരുന്ന്") ||
-      t.includes("ਦਵਾਈ") ||
-      t.includes("ଔଷଧ");
-
-    const isTakeIntent =
-      t.includes("leni hai") ||
-      t.includes("लेनी है") ||
-      t.includes("खानी है") ||
-      t.includes("લેવાની છે") ||
-      t.includes("લેવી છે") ||
-      t.includes("খেতে হবে") ||
-      t.includes("খাব লাগিব") ||
-      t.includes("घ्यायचे आहे") ||
-      t.includes("take") ||
-      t.includes("need to take");
-
-    const isReminderIntent =
-      t.includes("remind") ||
-      t.includes("reminder") ||
-      t.includes("याद") ||
-      t.includes("याद दिला") ||
-      t.includes("याद दिलाओ") ||
-      t.includes("याद दिलाना") ||
-      t.includes("याद दिला देना") ||
-      t.includes("યાદ") ||
-      t.includes("মনে করিয়ে") ||
-      t.includes("মনত পেলাই") ||
-      t.includes("आठवण");
-
-    if (mentionsMedicine && (hasTomorrow || isTakeIntent || isReminderIntent) && !t.includes("मदद") && !t.includes("help")) {
-      const explicitTime = extractedTimeFn(raw);
-      const targetDate = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-
-      // If user already specified the time in the same sentence (e.g. "मुझे रात 8 बजे दवाई की याद दिलाओ" or "8 बजे")
-      if (explicitTime && (t.includes("बजे") || t.includes("વાગ્યે") || t.includes("baje") || t.includes("am") || t.includes("pm") || /\b\d{1,2}\b/.test(t))) {
-        store.addReminder({
-          title: "Medicine",
-          time: explicitTime,
-          date: hasTomorrow ? targetDate : null,
-          repeat: "daily",
-          type: "medicine",
-          notes: "Created via Voice Assistant",
-          active: true,
-        });
-
-        const [hhStr] = explicitTime.split(":");
-        const hhNum = parseInt(hhStr || "20", 10);
-        const isNightTime = hhNum >= 18;
-        const isMorningTime = hhNum < 12 && hhNum >= 4;
-        const isAfternoonTime = hhNum >= 12 && hhNum < 18;
-        const disp12 = hhNum % 12 === 0 ? 12 : hhNum % 12;
-        const timeFormattedHi = isNightTime ? `रात ${disp12} बजे` : isMorningTime ? `सुबह ${disp12} बजे` : isAfternoonTime ? `दोपहर ${disp12} बजे` : `${disp12} बजे`;
-        const timeFormattedGu = isNightTime ? `રાત્રે ${disp12} વાગ્યે` : isMorningTime ? `સવારે ${disp12} વાગ્યે` : `${disp12} વાગ્યે`;
-
-        const directConfirms: Record<string, string> = {
-          hi: `मैंने आपके लिए ${timeFormattedHi} दवा का रिमाइंडर सेट कर दिया है। मैं आपको समय पर याद दिलाऊँगा।`,
-          gu: `મેં તમારા માટે ${timeFormattedGu} દવાનું રિમાઇન્ડર ગોઠવી દીધું છે.`,
-          en: `I have set your medicine reminder for ${explicitTime}. I will make sure to remind you on time.`,
-          bn: `আমি আপনার জন্য ${explicitTime} টায় ওষুধের রিমাইন্ডার সেট করে দিয়েছি।`,
-          as: `মই আপোনাৰ বাবে ${explicitTime} বজাত সংকেত সংৰক্ষণ কৰিলোঁ।`,
-          mr: `मी आपल्यासाठी ${explicitTime} वाजता औषधाची आठवण सेट केली आहे.`,
-        };
-
-        return {
-          handled: true,
-          responseText: directConfirms[lang] || directConfirms["en"],
-          action: "create_reminder",
-          actionData: { time: explicitTime },
-        };
-      }
-
-      // Time was not given -> Ask "At what time should I remind you?"
-      this._dialogue = {
-        stage: "awaiting_reminder_time",
-        topic: "Medicine",
-        reminderType: "medicine",
-        targetDate,
-        turnCount: this._dialogue.turnCount + 1,
-      };
-
-      const askTime: Record<string, string> = {
-        hi: "किस समय याद दिलाऊँ?",
-        gu: "કયા સમયે યાદ દેવડાવું?",
-        en: "At what time should I remind you?",
-        bn: "কোন সময়ে মনে করিয়ে দেব?",
-        as: "কি সময়ত মনত পেলাই দিম?",
-        mr: "कोणत्या वेळी आठवण करून देऊ?",
-        ta: "எந்த நேரத்தில் நினைவூட்ட வேண்டும்?",
-        te: "ఏ సమయానికి గుర్తు చేయాలి?",
-        kn: "ಯಾವ ಸಮಯಕ್ಕೆ ಜ್ಞಾಪಿಸಬೇಕು?",
-        ml: "ഏത് സമയത്താണ് ഓർമ്മപ്പെടുത്തേണ്ടത്?",
-        pa: "ਕਿਸ ਸਮੇਂ ਯਾਦ ਦਿਵਾਵਾਂ?",
-        or: "କେଉଁ ସମୟରେ ମନେ ପକାଇବି?",
-      };
-
-      return {
-        handled: true,
-        responseText: askTime[lang] || askTime["en"],
-      };
     }
 
     return null;
@@ -1062,7 +1317,7 @@ export class ConversationalAIEngine {
 
   /**
    * Generates natural conversational reply when intent is general companion talk.
-   * Completely avoids "How can I help you?" / "What can I help you with?".
+   * Completely avoids robotic phrases like "How can I help you?" / "What can I help you with?".
    */
   public generateConversationalReply(
     userText: string,
@@ -1114,7 +1369,7 @@ export class ConversationalAIEngine {
       t.includes("खुश") ||
       t.includes("આનંદ") ||
       t.includes("મજા") ||
-      t.includes("সুখী") ||
+      t.includes("સુખી") ||
       t.includes("आनंद")
     ) {
       return bank.happy;
@@ -1270,7 +1525,7 @@ export class ConversationalAIEngine {
       return aaravBio[lang] || aaravBio["en"];
     }
 
-    // Contextual, intelligent elder-companion response (Strictly avoiding generic repetitive fillers)
+    // Contextual, intelligent elder-companion response
     const naturalCompanionReplies: Record<string, string> = {
       hi: "आप मुझसे अपनी दवा, डॉक्टर अपॉइंटमेंट, दिनचर्या, कोई पारिवारिक याद, या देश-दुनिया की किसी भी बात के बारे में पूछ सकते हैं। मैं आपकी पूरी सहायता करूँगा।",
       gu: "તમે મને તમારી દવાઓ, ડૉક્ટર મુલાકાત, દિનચર્યા કે દેશ-દુનિયાની કોઈ પણ બાબત વિશે પૂછી શકો છો. હું હંમેશા તમારી સાથે છું.",

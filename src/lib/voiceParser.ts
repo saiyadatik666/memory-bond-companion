@@ -683,6 +683,13 @@ export function parseVoiceIntent(
         confirmationMessage: multiTurn.responseText,
       };
     }
+    if (multiTurn.action === "navigate_reminders") {
+      return {
+        type: "NAVIGATE",
+        targetView: "reminders",
+        confirmationMessage: multiTurn.responseText,
+      };
+    }
     return {
       type: "ANSWER",
       message: multiTurn.responseText,
@@ -1094,6 +1101,13 @@ export async function parseVoiceIntentAsync(
       return {
         type: "NAVIGATE",
         targetView: "games",
+        confirmationMessage: multiTurn.responseText,
+      };
+    }
+    if (multiTurn.action === "navigate_reminders") {
+      return {
+        type: "NAVIGATE",
+        targetView: "reminders",
         confirmationMessage: multiTurn.responseText,
       };
     }

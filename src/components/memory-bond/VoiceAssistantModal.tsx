@@ -326,6 +326,7 @@ export function VoiceAssistantModal({
           if (onNavigate) {
             onNavigate(intent.targetView);
           }
+          onClose();
         });
         return;
       }
