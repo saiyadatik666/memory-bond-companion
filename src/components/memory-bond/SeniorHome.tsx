@@ -54,7 +54,16 @@ export function SeniorHome({
   const sosHoldTimerRef = useRef<any>(null);
   const sosHoldStartRef = useRef<number>(0);
 
+  const isSosCooldownActive = () => {
+    if (typeof window !== "undefined") {
+      const lockUntil = (window as any).__mb_last_sos_cancelled || 0;
+      if (Date.now() < lockUntil) return true;
+    }
+    return false;
+  };
+
   const handleSosHoldStart = () => {
+    if (isSosCooldownActive()) return;
     setIsHoldingSos(true);
     setSosHoldProgress(0);
     setSosHoldSeconds(5);
@@ -76,7 +85,9 @@ export function SeniorHome({
         clearInterval(sosHoldTimerRef.current);
         setIsHoldingSos(false);
         setSosHoldProgress(0);
-        onOpenSos();
+        if (!isSosCooldownActive()) {
+          onOpenSos();
+        }
       }
     }, 50);
   };
@@ -88,6 +99,8 @@ export function SeniorHome({
     const elapsed = Date.now() - sosHoldStartRef.current;
     setIsHoldingSos(false);
     setSosHoldProgress(0);
+
+    if (isSosCooldownActive()) return;
 
     // If quick tap (< 400ms), also open SOS
     if (elapsed < 400 && elapsed > 0) {
@@ -223,7 +236,10 @@ export function SeniorHome({
           </p>
           <button
             type="button"
-            onClick={onOpenSos}
+            onClick={() => {
+              if (isSosCooldownActive()) return;
+              onOpenSos();
+            }}
             className="w-full sm:w-80 h-20 rounded-3xl bg-destructive hover:bg-destructive/90 text-white font-black text-2xl tracking-wider shadow-2xl flex items-center justify-center gap-3 transition-transform active:scale-95 cursor-pointer"
           >
             <AlertOctagon className="h-9 w-9 animate-pulse" />
@@ -419,8 +435,6 @@ export function SeniorHome({
           onPointerDown={handleSosHoldStart}
           onPointerUp={handleSosHoldEnd}
           onPointerLeave={handleSosHoldEnd}
-          onTouchStart={handleSosHoldStart}
-          onTouchEnd={handleSosHoldEnd}
           className="relative overflow-hidden w-full sm:w-[420px] h-20 sm:h-22 rounded-3xl bg-destructive hover:bg-destructive/90 text-white font-black text-xl sm:text-2xl tracking-wider shadow-2xl flex items-center justify-center gap-3.5 transition-transform active:scale-95 cursor-pointer mx-auto border-2 border-white/20 select-none"
         >
           {/* Real-time hold progress fill */}

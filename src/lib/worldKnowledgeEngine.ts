@@ -107,6 +107,20 @@ const VERIFIED_FACTS: Array<{
 export function isWorldKnowledgeQuery(query: string): boolean {
   const q = query.toLowerCase();
 
+  // Exclude personal / family identification queries so they route to Caregiver family memories
+  if (
+    q.includes("ये कौन हैं") ||
+    q.includes("यह कौन है") ||
+    q.includes("ये कौन है") ||
+    q.includes("यह व्यक्ति कौन है") ||
+    q.includes("આ કોણ છે") ||
+    q.includes("who is this") ||
+    q.includes("who is he") ||
+    q.includes("who is she")
+  ) {
+    return false;
+  }
+
   // Explicit leader or geographical queries
   if (
     q.includes("प्रधानमंत्री") ||

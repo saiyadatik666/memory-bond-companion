@@ -25,6 +25,7 @@ import {
   Settings2,
   Sliders,
   Check,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -257,6 +258,69 @@ export function CaregiverDashboard({
               {recentSos ? "Location shared" : "Calm & safe"}
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* CAREGIVER / FAMILY CARE & CONTACTS (Requirement 10) */}
+      <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-sm space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg sm:text-xl font-black text-foreground flex items-center gap-2">
+              <Users className="h-5 w-5 text-rose-500" /> Family Care & Emergency Contacts
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Manage authorized family members, alert recipients, and voice memories for senior identification.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => onNavigate("family")}
+            className="rounded-xl font-bold text-xs gap-1.5 bg-primary text-primary-foreground"
+          >
+            <Plus className="h-3.5 w-3.5" /> Manage Family Members ({store.contacts.length})
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {store.contacts.map((contact) => (
+            <div
+              key={contact.id}
+              className="rounded-2xl border border-border bg-secondary/30 p-4 space-y-2 hover:border-primary/40 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center font-bold text-primary shrink-0 overflow-hidden">
+                  {contact.photo_url ? (
+                    <img src={contact.photo_url} alt={contact.name} className="w-full h-full object-cover" />
+                  ) : (
+                    contact.name.charAt(0)
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold text-sm text-foreground truncate">{contact.name}</div>
+                  <div className="text-xs text-muted-foreground">{contact.relationship} • {contact.phone}</div>
+                </div>
+              </div>
+
+              {contact.voice_memory && (
+                <div className="text-xs italic bg-card/60 p-2.5 rounded-xl text-muted-foreground border border-border/50">
+                  "{contact.voice_memory}"
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {contact.is_emergency && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-destructive/15 text-destructive border border-destructive/30">
+                    SOS Alerts Active
+                  </span>
+                )}
+                {contact.active_for_calls && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-primary/15 text-primary border border-primary/30">
+                    Calls Active
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

@@ -1048,7 +1048,8 @@ export function parseVoiceIntent(
 }
 
 /**
- * Asynchronous Voice Intent Parser supporting live web research for outside world knowledge
+ * Asynchronous Voice Intent Parser supporting multi-turn dialogue, direct commands,
+ * and live web research for outside world knowledge
  */
 export async function parseVoiceIntentAsync(
   rawText: string,
@@ -1057,6 +1058,52 @@ export async function parseVoiceIntentAsync(
   pendingContext?: VoiceIntent | null
 ): Promise<VoiceIntent> {
   const text = rawText.trim();
+
+  // 1. Context Retention Check: Did user confirm or reject previous pending action?
+  if (pendingContext && !isSpokenAnswer(pendingContext)) {
+    const lower = text.toLowerCase();
+    if (isAffirmative(lower)) {
+      return {
+        type: "CONFIRM_ACTION",
+        confirmationMessage: "Confirmed. Executing now.",
+      };
+    }
+    if (isNegative(lower)) {
+      return {
+        type: "CANCEL_ACTION",
+        confirmationMessage: pick(CANCELLED_MSG, locale),
+      };
+    }
+  }
+
+  // 2. Multi-turn conversational AI dialogue engine & direct actions
+  // (Medicine help, stock inquiry, yesterday's activities, reminder creation, appointment, games, family memory)
+  const multiTurn = conversationalAI.handleMultiTurnDialogue(text, store, locale, extractTime);
+  if (multiTurn && multiTurn.handled) {
+    if (multiTurn.action === "navigate_games") {
+      return {
+        type: "NAVIGATE",
+        targetView: "games",
+        confirmationMessage: multiTurn.responseText,
+      };
+    }
+    if (multiTurn.action === "next_level") {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("mb_start_next_level"));
+      }
+      return {
+        type: "NAVIGATE",
+        targetView: "games",
+        confirmationMessage: multiTurn.responseText,
+      };
+    }
+    return {
+      type: "ANSWER",
+      message: multiTurn.responseText,
+    };
+  }
+
+  // 3. Outside World Knowledge Check (Verified repository + Live Wikipedia/DuckDuckGo web research)
   if (isWorldKnowledgeQuery(text)) {
     const worldResult = await resolveWorldKnowledge(text, locale);
     if (worldResult && worldResult.answer) {
@@ -1066,6 +1113,7 @@ export async function parseVoiceIntentAsync(
       };
     }
   }
+
   return parseVoiceIntent(rawText, store, locale, pendingContext);
 }
 

@@ -65,6 +65,11 @@ export function FloatingAssistantBubble({
         setIsPressed(false);
         setHoldProgress(0);
         if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+
+        // Cooldown check: prevent retriggering if SOS was recently cancelled
+        const lockUntil = (window as any)?.__mb_last_sos_cancelled || 0;
+        if (Date.now() < lockUntil) return;
+
         // Haptic feedback if available
         if (typeof navigator !== "undefined" && navigator.vibrate) {
           navigator.vibrate([100, 50, 200]);

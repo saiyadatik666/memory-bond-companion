@@ -292,9 +292,33 @@ export interface CognitiveEngagementScore {
   disclaimer: string;
 }
 
-// STORAGE KEYS
+// STORAGE KEYS (Strict User Account Data Isolation)
 const STORAGE_PREFIX = "mb_app_v2_";
-const getKey = (key: string) => `${STORAGE_PREFIX}${key}`;
+export const getActiveUserId = (): string => {
+  if (typeof window === "undefined") return "guest";
+  try {
+    return localStorage.getItem("mb_authenticated_user_id") || "guest";
+  } catch {
+    return "guest";
+  }
+};
+
+export const getKey = (key: string): string => {
+  const uid = getActiveUserId();
+  return `${STORAGE_PREFIX}${uid}_${key}`;
+};
+
+export const getStoredItemWithFallback = (key: string): string | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const userSpecific = localStorage.getItem(getKey(key));
+    if (userSpecific !== null) return userSpecific;
+    // Fallback to legacy un-isolated key if migrating
+    return localStorage.getItem(`${STORAGE_PREFIX}${key}`);
+  } catch {
+    return null;
+  }
+};
 
 // Helper: Today YYYY-MM-DD
 export const getTodayDateString = () => new Date().toISOString().slice(0, 10);

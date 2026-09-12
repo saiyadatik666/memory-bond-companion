@@ -323,6 +323,22 @@ export function SosModal({
     isCancelledRef.current = true;
     cleanupTimers();
 
+    // Prevent any race condition or ghost click from re-opening SOS for 2.5 seconds
+    if (typeof window !== "undefined") {
+      (window as any).__mb_last_sos_cancelled = Date.now() + 2500;
+      if ("vibrate" in navigator) {
+        try {
+          navigator.vibrate(0);
+        } catch {}
+      }
+      if (window.speechSynthesis) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch {}
+      }
+    }
+    stopSpeaking();
+
     if (store && typeof store.cancelActiveSos === "function") {
       store.cancelActiveSos();
     }
@@ -520,8 +536,6 @@ export function SosModal({
                 onPointerDown={handleHoldStart}
                 onPointerUp={handleHoldEnd}
                 onPointerLeave={handleHoldEnd}
-                onTouchStart={handleHoldStart}
-                onTouchEnd={handleHoldEnd}
                 className={`absolute w-40 h-40 rounded-full bg-destructive text-white shadow-2xl flex flex-col items-center justify-center cursor-pointer select-none transition-all ${
                   step === "holding"
                     ? "scale-95 ring-8 ring-destructive/40 shadow-destructive/50"

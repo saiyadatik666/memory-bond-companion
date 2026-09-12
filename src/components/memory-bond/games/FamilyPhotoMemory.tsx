@@ -346,20 +346,27 @@ export function FamilyPhotoMemory({
   // Prioritize real caregiver-provided family members and scale memory load gradually across 30 levels
   const activeProfiles = useMemo(() => {
     // 1. Real caregiver contacts prioritized first!
-    const caregiverProfiles: FamilyProfile[] = (contacts || []).map((c) => ({
-      name: c.name,
-      relation: c.relationship,
-      avatar: c.relationship.toLowerCase().includes("son") ? "👨‍💻" :
-              c.relationship.toLowerCase().includes("daughter") ? "👩‍💼" :
-              c.relationship.toLowerCase().includes("grand") ? "👦" :
-              c.relationship.toLowerCase().includes("doctor") ? "👨‍⚕️" : "👵",
-      photoUrl: c.photo_url,
-      detail: c.voice_memory || `${c.relationship}. Phone: ${c.phone}`,
-      question: `Who is this family member (${c.relationship})?`,
-      options: [c.name, "Dr. Mehta", "Pooja (Neighbor)", "Suresh (Pharmacist)"],
-      correctAnswer: c.name,
-      voiceMessage: c.voice_memory || `यह ${c.name} हैं, आपके ${c.relationship}।`,
-    }));
+    const caregiverProfiles: FamilyProfile[] = (contacts || []).map((c) => {
+      const otherContactNames = (contacts || []).filter((o) => o.id !== c.id).map((o) => o.name);
+      const fallbackNames = ["Sunita", "Aarav", "Rajesh", "Kamala"];
+      const candidateDistractors = [...otherContactNames, ...fallbackNames].filter((n) => n !== c.name).slice(0, 3);
+      const dynamicOptions = [c.name, ...candidateDistractors].sort(() => Math.random() - 0.5);
+
+      return {
+        name: c.name,
+        relation: c.relationship,
+        avatar: c.relationship.toLowerCase().includes("son") ? "👨‍💻" :
+                c.relationship.toLowerCase().includes("daughter") ? "👩‍💼" :
+                c.relationship.toLowerCase().includes("grand") ? "👦" :
+                c.relationship.toLowerCase().includes("doctor") ? "👨‍⚕️" : "👵",
+        photoUrl: c.photo_url,
+        detail: c.voice_memory || `${c.relationship}. Phone: ${c.phone}`,
+        question: `Who is this family member (${c.relationship})?`,
+        options: dynamicOptions,
+        correctAnswer: c.name,
+        voiceMessage: c.voice_memory || `यह ${c.name} हैं, आपके ${c.relationship}।`,
+      };
+    });
 
     const customProfiles: FamilyProfile[] = memoryCues
       .filter((c) => ["person", "family_member", "child", "friend", "home", "place", "village"].includes(c.category))

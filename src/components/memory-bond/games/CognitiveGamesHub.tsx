@@ -96,8 +96,8 @@ export function CognitiveGamesHub({
     },
     {
       id: "object_recall",
-      title: "Spatial Home Vault",
-      description: "Remember where everyday items are placed around the home.",
+      title: "Keepsake Memory Tray",
+      description: "Observe cherished Indian keepsakes on the tray and spot the mystery change.",
       icon: Search,
       color: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border-cyan-500/30",
       component: ObjectRecall,
