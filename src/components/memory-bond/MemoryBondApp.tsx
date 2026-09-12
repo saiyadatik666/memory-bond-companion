@@ -29,6 +29,8 @@ import { NotificationDrawer } from "./NotificationDrawer";
 import { AuthModal } from "./AuthModal";
 import { Footer } from "./Footer";
 import { FloatingAssistantBubble } from "./FloatingAssistantBubble";
+import { SIHDemoTourModal } from "./SIHDemoTourModal";
+import { MemoryStoryModal } from "./MemoryStoryModal";
 
 export function MemoryBondApp() {
   const store = useMemoryBondStore();
@@ -38,6 +40,24 @@ export function MemoryBondApp() {
   const [isVoiceOpen, setIsVoiceOpen] = useState<boolean>(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState<boolean>(false);
   const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
+  const [isSihDemoOpen, setIsSihDemoOpen] = useState<boolean>(false);
+  const [isMemoryStoryOpen, setIsMemoryStoryOpen] = useState<boolean>(false);
+
+  // Global triggers for Memory Story & SIH Demo Tour
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      (window as any).__mb_open_memory_story = () => setIsMemoryStoryOpen(true);
+      (window as any).__mb_open_sih_demo = () => setIsSihDemoOpen(true);
+    }
+    const handleOpenMemoryStory = () => setIsMemoryStoryOpen(true);
+    const handleOpenSihDemo = () => setIsSihDemoOpen(true);
+    window.addEventListener("mb_open_memory_story", handleOpenMemoryStory);
+    window.addEventListener("mb_open_sih_demo", handleOpenSihDemo);
+    return () => {
+      window.removeEventListener("mb_open_memory_story", handleOpenMemoryStory);
+      window.removeEventListener("mb_open_sih_demo", handleOpenSihDemo);
+    };
+  }, []);
 
   // Centralized SOS Open with strict anti-restart cooldown guard
   const handleOpenSos = useCallback(() => {
@@ -117,6 +137,7 @@ export function MemoryBondApp() {
         store={store}
         onOpenSos={handleOpenSos}
         onNavigate={handleNavigate}
+        onOpenSihDemo={() => setIsSihDemoOpen(true)}
       />
 
       {/* Main Header */}
@@ -183,6 +204,7 @@ export function MemoryBondApp() {
         currentTab={currentTab}
         onSelectTab={handleNavigate}
         role={store.profile.role}
+        onOpenSos={handleOpenSos}
       />
 
       {/* Global Modals */}
@@ -209,6 +231,24 @@ export function MemoryBondApp() {
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
         store={store}
+      />
+
+      {/* Section 22: Interactive Memory Story Modal */}
+      <MemoryStoryModal
+        isOpen={isMemoryStoryOpen}
+        onClose={() => setIsMemoryStoryOpen(false)}
+        store={store}
+      />
+
+      {/* Section 39: 17-Step SIH Demo Mode Guided Tour for Evaluators */}
+      <SIHDemoTourModal
+        isOpen={isSihDemoOpen}
+        onClose={() => setIsSihDemoOpen(false)}
+        store={store}
+        onNavigate={handleNavigate}
+        onOpenVoice={() => setIsVoiceOpen(true)}
+        onOpenSos={handleOpenSos}
+        onOpenMemoryStory={() => setIsMemoryStoryOpen(true)}
       />
 
       {/* Attractive & Accessible Footer */}

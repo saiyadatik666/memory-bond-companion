@@ -26,6 +26,9 @@ import {
   Sliders,
   Check,
   Users,
+  MessageSquare,
+  Heart,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -44,6 +47,7 @@ export function CaregiverDashboard({
   const [selectedCaregiverId, setSelectedCaregiverId] = useState<string>(
     store.caregiverLinks[0]?.id || "cg-1"
   );
+  const [selectedSeniorId, setSelectedSeniorId] = useState<string>("sr-1");
   const [isAlertConfigOpen, setIsAlertConfigOpen] = useState<boolean>(false);
   const [trendTab, setTrendTab] = useState<"daily" | "weekly" | "monthly">("weekly");
 
@@ -84,26 +88,129 @@ export function CaregiverDashboard({
   const cognitiveDone = store.gameSessions.some((s) => s.created_at.startsWith(todayStr));
   const recentRoutineCall = store.routineCalls[0];
 
+  const assignedSeniors = store.assignedSeniors || [];
+  const activeSenior =
+    assignedSeniors.find((s) => s.id === selectedSeniorId) ||
+    assignedSeniors[0] || {
+      id: "sr-1",
+      name: store.profile.full_name,
+      age: 68,
+      region: "Assam",
+      status: "stable",
+      statusLabel: "🟢 Activity Status: Normal",
+      medicineStatus: "2 / 2",
+      hydration: `${store.hydrationGlasses || 4} / ${store.hydrationTarget || 6}`,
+      routine: "5 / 6",
+      gamesCompleted: 2,
+      lastActive: "10 minutes ago",
+      lastSync: store.lastSyncTime || "2 minutes ago",
+      alerts: ["Activity pattern normal"],
+      wellnessTrend: "Improving",
+    };
+
   return (
     <div className="space-y-6">
-      {/* Header & Senior Profile Snapshot */}
-      <div className="rounded-3xl border-2 border-border bg-card p-6 sm:p-8 shadow-sm space-y-4">
+      {/* SECTION 16: GOOD MORNING, CAREGIVER OVERVIEW */}
+      <div className="rounded-3xl border-2 border-primary/25 bg-linear-to-br from-primary/10 via-card to-card p-6 sm:p-8 shadow-sm space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">👋</span>
+              <h2 className="text-2xl sm:text-3xl font-black text-foreground">GOOD MORNING, CAREGIVER</h2>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">
+              Active caregiver oversight for elderly family members across the North Eastern Region
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="px-3.5 py-2 rounded-2xl bg-card border border-border shadow-xs flex items-center gap-2 text-xs font-black">
+              <Users className="h-4 w-4 text-primary" />
+              <span>Assigned Seniors:</span>
+              <span className="text-primary text-base font-black">5</span>
+            </div>
+            <div className="px-3 py-1.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span>🟢 Stable activity:</span>
+              <span className="font-black">3</span>
+            </div>
+            <div className="px-3 py-1.5 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-xs font-bold flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-500" />
+              <span>🟡 Needs attention:</span>
+              <span className="font-black">1</span>
+            </div>
+            <div className="px-3 py-1.5 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-700 dark:text-rose-400 text-xs font-bold flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-rose-500" />
+              <span>🔴 Urgent:</span>
+              <span className="font-black">1</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Multi-Senior Switcher Bar */}
+        <div className="pt-3 border-t border-border space-y-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span className="font-bold uppercase tracking-wider">Select Assigned Senior to Monitor:</span>
+            <span className="italic">Data syncs automatically</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+            {assignedSeniors.map((sn) => {
+              const isSelected = selectedSeniorId === sn.id;
+              return (
+                <button
+                  key={sn.id}
+                  onClick={() => setSelectedSeniorId(sn.id)}
+                  className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer ${
+                    isSelected
+                      ? "border-primary bg-primary/10 shadow-sm scale-102"
+                      : "border-border bg-card hover:bg-secondary/60"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="font-black text-sm text-foreground truncate">{sn.name}</span>
+                    <span className="text-xs">
+                      {sn.status === "stable" ? "🟢" : sn.status === "attention" ? "🟡" : "🔴"}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground truncate mt-0.5">
+                    {sn.age} yrs • {sn.region}
+                  </div>
+                  <div className={`text-[10px] font-bold mt-1 truncate ${
+                    sn.status === "stable" ? "text-emerald-600" : sn.status === "attention" ? "text-amber-600" : "text-destructive"
+                  }`}>
+                    {sn.statusLabel}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Senior Profile & Status Snapshot */}
+      <div className="rounded-3xl border-2 border-border bg-card p-6 sm:p-8 shadow-sm space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-3xl bg-primary/10 border-2 border-primary/30 flex items-center justify-center text-primary">
-              <User className="h-8 w-8" />
+            <div className="w-16 h-16 rounded-3xl bg-primary/10 border-2 border-primary/30 flex items-center justify-center text-primary font-black text-2xl">
+              {activeSenior.name.charAt(0)}
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-2xl sm:text-3xl font-black text-foreground">
-                  Caregiver Portal: {store.profile.full_name}
+                  {activeSenior.name}
                 </h2>
-                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-success/20 text-success">
-                  Connected Caregiver
+                <span className={`text-xs font-black px-3 py-1 rounded-full border ${
+                  activeSenior.status === "stable"
+                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-600"
+                    : activeSenior.status === "attention"
+                    ? "bg-amber-500/15 border-amber-500/30 text-amber-600"
+                    : "bg-rose-500/15 border-rose-500/30 text-rose-600"
+                }`}>
+                  {activeSenior.status === "stable" ? "🟢 Activity Status: Normal" : activeSenior.status === "attention" ? "🟡 Needs Attention" : "🔴 Urgent: Action Needed"}
                 </span>
               </div>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Member ID: <span className="font-mono font-bold text-foreground">{store.profile.member_id}</span> • Phone: {store.profile.phone}
+                Age: {activeSenior.age} • Region: {activeSenior.region} • Last active: <span className="font-semibold text-foreground">{activeSenior.lastActive}</span> • Last sync: <span className="font-mono text-foreground">{activeSenior.lastSync}</span>
               </p>
             </div>
           </div>
@@ -119,7 +226,7 @@ export function CaregiverDashboard({
             </Button>
             <a
               href={`tel:${store.profile.phone}`}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-xs"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-xs hover:bg-primary/90"
             >
               <PhoneCall className="h-4 w-4" /> Call Senior
             </a>
@@ -133,26 +240,209 @@ export function CaregiverDashboard({
           </div>
         </div>
 
-        {/* Caregiver Switcher & Permissions Summary */}
-        <div className="pt-3 border-t border-border flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-muted-foreground">Logged in as Caregiver:</span>
-            <select
-              value={selectedCaregiverId}
-              onChange={(e) => setSelectedCaregiverId(e.target.value)}
-              className="rounded-lg bg-secondary px-3 py-1 font-bold text-foreground border border-border"
-            >
-              {store.caregiverLinks.map((cg) => (
-                <option key={cg.id} value={cg.id}>
-                  {cg.caregiver_name} ({cg.relationship})
-                </option>
-              ))}
-            </select>
+        {/* Section 16 Core Indicators for Selected Senior */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-2">
+          {/* 1. Medicine */}
+          <div className="rounded-2xl border-2 border-border bg-secondary/30 p-3.5 space-y-1">
+            <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
+              <span>Medicine</span>
+              <Pill className="h-4 w-4 text-emerald-600" />
+            </div>
+            <div className="text-lg font-black text-foreground flex items-center gap-1">
+              <span>✅</span> {activeSenior.id === "sr-1" ? (missedLogs.length > 0 ? "1 / 2" : "2 / 2") : activeSenior.medicineStatus}
+            </div>
+            <div className="text-[11px] text-muted-foreground truncate">
+              {activeSenior.id === "sr-1" && missedLogs.length > 0 ? "1 missed dose" : "Prescribed on track"}
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <ShieldCheck className="h-4 w-4 text-success" />
-            <span>Permissions: Medicines, Reminders, Appointments, SOS, Cognitive Performance</span>
+          {/* 2. Hydration */}
+          <div className="rounded-2xl border-2 border-border bg-secondary/30 p-3.5 space-y-1">
+            <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
+              <span>Hydration</span>
+              <Droplets className="h-4 w-4 text-sky-600" />
+            </div>
+            <div className="text-lg font-black text-foreground flex items-center gap-1">
+              <span>💧</span> {activeSenior.id === "sr-1" ? `${store.hydrationGlasses || 4} / ${store.hydrationTarget || 6}` : activeSenior.hydration}
+            </div>
+            <div className="text-[11px] text-muted-foreground truncate">
+              Glasses today
+            </div>
+          </div>
+
+          {/* 3. Memory Games */}
+          <div className="rounded-2xl border-2 border-border bg-secondary/30 p-3.5 space-y-1">
+            <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
+              <span>Memory Games</span>
+              <Gamepad2 className="h-4 w-4 text-indigo-600" />
+            </div>
+            <div className="text-lg font-black text-foreground flex items-center gap-1">
+              <span>🧠</span> {activeSenior.gamesCompleted} completed
+            </div>
+            <div className="text-[11px] text-muted-foreground truncate">
+              Adaptive Level 2
+            </div>
+          </div>
+
+          {/* 4. Routine */}
+          <div className="rounded-2xl border-2 border-border bg-secondary/30 p-3.5 space-y-1">
+            <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
+              <span>Routine</span>
+              <Clock className="h-4 w-4 text-amber-600" />
+            </div>
+            <div className="text-lg font-black text-foreground flex items-center gap-1">
+              <span>📅</span> {activeSenior.id === "sr-1" ? `${routinesDone} / ${store.routines.length}` : activeSenior.routine}
+            </div>
+            <div className="text-[11px] text-muted-foreground truncate">
+              Daily tasks logged
+            </div>
+          </div>
+
+          {/* 5. Last Active */}
+          <div className="rounded-2xl border-2 border-border bg-secondary/30 p-3.5 space-y-1">
+            <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
+              <span>Last Active</span>
+              <Activity className="h-4 w-4 text-primary" />
+            </div>
+            <div className="text-base font-black text-foreground truncate">
+              ⏱️ {activeSenior.lastActive}
+            </div>
+            <div className="text-[11px] text-muted-foreground truncate">
+              Sync: {activeSenior.lastSync}
+            </div>
+          </div>
+
+          {/* 6. Wellness Trend */}
+          <div className="rounded-2xl border-2 border-border bg-secondary/30 p-3.5 space-y-1">
+            <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
+              <span>Wellness Trend</span>
+              <TrendingUp className="h-4 w-4 text-emerald-600" />
+            </div>
+            <div className="text-base font-black text-success flex items-center gap-1">
+              <span>↗️</span> {activeSenior.wellnessTrend}
+            </div>
+            <div className="text-[10px] text-muted-foreground truncate">
+              Non-diagnostic
+            </div>
+          </div>
+        </div>
+
+        {/* SECTION 17: CAREGIVER ALERT SYSTEM (Non-Diagnostic Wording) */}
+        <div className="rounded-2xl border-2 border-warning/40 bg-warning/10 p-4 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-warning font-black text-sm">
+              <AlertTriangle className="h-4 w-4" />
+              <span>Activity Pattern Signals (Section 17)</span>
+            </div>
+            <span className="text-[11px] font-bold text-muted-foreground">
+              These indicators are for activity tracking and are not a medical diagnosis.
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs">
+            <div className="p-2.5 rounded-xl bg-card border border-warning/30 flex items-start gap-2">
+              <span className="text-warning font-bold">⚠️</span>
+              <div>
+                <span className="font-bold text-foreground">Activity pattern needs attention:</span>
+                <p className="text-muted-foreground text-[11px]">
+                  {activeSenior.status === "urgent"
+                    ? "Missed morning medication and no routine check-in recorded."
+                    : activeSenior.status === "attention"
+                    ? "Slight dip in cognitive game participation this week."
+                    : "No concerning deviations; daily pattern is steady."}
+                </p>
+              </div>
+            </div>
+            <div className="p-2.5 rounded-xl bg-card border border-warning/30 flex items-start gap-2">
+              <span className="text-warning font-bold">⚠️</span>
+              <div>
+                <span className="font-bold text-foreground">Routine Adherence:</span>
+                <p className="text-muted-foreground text-[11px]">
+                  {routinesDone < store.routines.length ? "Tasks pending for afternoon & evening." : "All routine tasks complete."}
+                </p>
+              </div>
+            </div>
+            <div className="p-2.5 rounded-xl bg-card border border-warning/30 flex items-start gap-2">
+              <span className="text-warning font-bold">⚠️</span>
+              <div>
+                <span className="font-bold text-foreground">Caregiver Inactivity Watch:</span>
+                <p className="text-muted-foreground text-[11px]">
+                  Last active {activeSenior.lastActive}. Notification threshold set to 4 hours.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* SECTION 18: CAREGIVER ACTIONS (10 Distinct Core Actions) */}
+        <div className="pt-2 border-t border-border space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+              Caregiver Actions (Section 18)
+            </span>
+            <span className="text-xs text-primary font-bold">10 Available Actions</span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-xs font-bold">
+            <a
+              href={`tel:${store.profile.phone}`}
+              className="p-2.5 rounded-xl border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center gap-1.5 transition-all text-center"
+            >
+              <PhoneCall className="h-3.5 w-3.5 shrink-0" /> 1. Call Senior
+            </a>
+            <button
+              onClick={() => onNavigate("reminders")}
+              className="p-2.5 rounded-xl border border-border bg-card hover:bg-secondary flex items-center justify-center gap-1.5 transition-all text-foreground cursor-pointer"
+            >
+              <Send className="h-3.5 w-3.5 text-primary shrink-0" /> 2. Send Reminder
+            </button>
+            <button
+              onClick={() => onNavigate("reminders")}
+              className="p-2.5 rounded-xl border border-border bg-card hover:bg-secondary flex items-center justify-center gap-1.5 transition-all text-foreground cursor-pointer"
+            >
+              <Plus className="h-3.5 w-3.5 text-primary shrink-0" /> 3. Add Reminder
+            </button>
+            <button
+              onClick={() => onNavigate("routine")}
+              className="p-2.5 rounded-xl border border-border bg-card hover:bg-secondary flex items-center justify-center gap-1.5 transition-all text-foreground cursor-pointer"
+            >
+              <Calendar className="h-3.5 w-3.5 text-primary shrink-0" /> 4. Edit Routine
+            </button>
+            <button
+              onClick={() => onNavigate("appointments")}
+              className="p-2.5 rounded-xl border border-border bg-card hover:bg-secondary flex items-center justify-center gap-1.5 transition-all text-foreground cursor-pointer"
+            >
+              <Calendar className="h-3.5 w-3.5 text-primary shrink-0" /> 5. Add Appointment
+            </button>
+            <button
+              onClick={() => onNavigate("medicines")}
+              className="p-2.5 rounded-xl border border-border bg-card hover:bg-secondary flex items-center justify-center gap-1.5 transition-all text-foreground cursor-pointer"
+            >
+              <Pill className="h-3.5 w-3.5 text-primary shrink-0" /> 6. Medicine Schedule
+            </button>
+            <button
+              onClick={() => onNavigate("journal")}
+              className="p-2.5 rounded-xl border border-border bg-card hover:bg-secondary flex items-center justify-center gap-1.5 transition-all text-foreground cursor-pointer"
+            >
+              <History className="h-3.5 w-3.5 text-primary shrink-0" /> 7. Activity History
+            </button>
+            <button
+              onClick={() => onNavigate("games")}
+              className="p-2.5 rounded-xl border border-border bg-card hover:bg-secondary flex items-center justify-center gap-1.5 transition-all text-foreground cursor-pointer"
+            >
+              <Gamepad2 className="h-3.5 w-3.5 text-primary shrink-0" /> 8. Game Performance
+            </button>
+            <button
+              onClick={() => onNavigate("family")}
+              className="p-2.5 rounded-xl border border-border bg-card hover:bg-secondary flex items-center justify-center gap-1.5 transition-all text-foreground cursor-pointer"
+            >
+              <Heart className="h-3.5 w-3.5 text-rose-500 shrink-0" /> 9. Family Memories
+            </button>
+            <button
+              onClick={() => setIsAlertConfigOpen(true)}
+              className="p-2.5 rounded-xl border border-border bg-card hover:bg-secondary flex items-center justify-center gap-1.5 transition-all text-foreground cursor-pointer"
+            >
+              <Bell className="h-3.5 w-3.5 text-primary shrink-0" /> 10. Review Alerts
+            </button>
           </div>
         </div>
       </div>

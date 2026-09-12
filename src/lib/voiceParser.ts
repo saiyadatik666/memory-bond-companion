@@ -663,6 +663,93 @@ export function parseVoiceIntent(
     }
   }
 
+  // 1.3. Voice-First Daily Routine & Plan (SIH 2026 Section 10 & 11)
+  const isDailyPlanQuery =
+    lower.includes("what do i have today") ||
+    lower.includes("what do i need to do today") ||
+    lower.includes("what is my plan today") ||
+    lower.includes("what are my activities today") ||
+    lower.includes("what should i do today") ||
+    lower.includes("aaj mujhe kya karna hai") ||
+    lower.includes("aaj kya karna hai") ||
+    lower.includes("आज मुझे क्या करना है") ||
+    lower.includes("आज क्या करना है") ||
+    lower.includes("আজ মোৰ কি কাম আছে") ||
+    lower.includes("আজ কি কৰিব লাগিব") ||
+    lower.includes("আজকে কি করতে হবে");
+
+  if (isDailyPlanQuery) {
+    const nextMed = store.medicines[0];
+    const nextApp = store.appointments[0];
+    const recGame = store.activityRecommendation?.gameTitle || "Pattern Recall";
+
+    let reply = "";
+    if (locale.startsWith("hi")) {
+      reply = `आज आपको ${nextMed ? `${nextMed.times[0] || "8:30"} बजे ${nextMed.name}` : "8:30 बजे मॉर्निंग"} मेडिसिन लेनी है। 10:00 बजे ${recGame} मेमोरी गतिविधि है। ${nextApp ? `शाम 4:00 बजे ${nextApp.title} है।` : "शाम 6:00 बजे फैमिली कॉल है।"}`;
+    } else if (locale.startsWith("as") || locale.startsWith("bn")) {
+      reply = `আজি আপোনাৰ পুৱা ${nextMed ? `${nextMed.times[0] || "৮:৩০"} বজাত ${nextMed.name}` : "৮:৩০ বজাত ঔষধ"} খাব লাগিব। ১০:০০ বজাত ${recGame} স্মৃতি অনুশীলন আৰু ${nextApp ? `আবেলি ৪:০০ বজাত ডাক্তৰৰ সাক্ষাৎ আছে।` : "গধূলি পৰিয়ালৰ লগত কথা পতাৰ সময়।"}`;
+    } else {
+      reply = `Today at ${nextMed ? `${nextMed.times[0] || "8:30 AM"} you have your ${nextMed.name}` : "8:30 AM morning medicine"}. At 10:00 AM you have your ${recGame} memory activity. ${nextApp ? `At 4:00 PM you have ${nextApp.title}.` : "At 6:00 PM you have your family check-in call."}`;
+    }
+
+    return {
+      type: "ANSWER",
+      message: reply,
+    };
+  }
+
+  // 1.4. Direct Voice Quick Commands (Call Family, Start Game, Appointment Query)
+  if (
+    lower.includes("start my memory game") ||
+    lower.includes("start memory game") ||
+    lower.includes("start game") ||
+    lower.includes("khel shuru karo") ||
+    lower.includes("game shuru karo") ||
+    lower.includes("खेल शुरू करो") ||
+    lower.includes("গেম আৰম্ভ কৰক")
+  ) {
+    return {
+      type: "NAVIGATE",
+      targetView: "games",
+      confirmationMessage: locale.startsWith("hi") ? "आपका मेमोरी गेम शुरू कर रहे हैं। ध्यान से खेलें।" : "Starting your recommended memory activity now.",
+    };
+  }
+
+  if (
+    lower.includes("call my family") ||
+    lower.includes("call family") ||
+    lower.includes("call sunita") ||
+    lower.includes("call daughter") ||
+    lower.includes("family ko phone") ||
+    lower.includes("परिवार को फोन") ||
+    lower.includes("পৰিয়ালক ফোন")
+  ) {
+    return {
+      type: "NAVIGATE",
+      targetView: "family",
+      confirmationMessage: locale.startsWith("hi") ? "आपके परिवार और सुनीता जी से संपर्क कर रहे हैं।" : "Connecting you to your family circle now.",
+    };
+  }
+
+  if (
+    lower.includes("when is my appointment") ||
+    lower.includes("appointment kab hai") ||
+    lower.includes("doctor appointment kab hai") ||
+    lower.includes("डॉक्टर अपॉइंटमेंट कब है") ||
+    lower.includes("अपॉइंटमेंट कब है")
+  ) {
+    const nextApp = store.appointments[0];
+    const appMsg = nextApp
+      ? (locale.startsWith("hi")
+          ? `आपका अपॉइंटमेंट ${nextApp.date} को ${nextApp.time} बजे ${nextApp.title} के साथ है।`
+          : `Your next appointment is on ${nextApp.date} at ${nextApp.time} for ${nextApp.title}.`)
+      : (locale.startsWith("hi") ? "आज कोई नया क्लिनिक अपॉइंटमेंट शेड्यूल नहीं है।" : "You have no clinic appointments scheduled today.");
+    return {
+      type: "ANSWER",
+      message: appMsg,
+    };
+  }
+
   // 1.5. Conversational Multi-Turn Dialogue Engine (Contextual appointment/reminder consent, medicine help, activities, games)
   const multiTurn = conversationalAI.handleMultiTurnDialogue(text, store, locale, extractTime);
   if (multiTurn && multiTurn.handled) {

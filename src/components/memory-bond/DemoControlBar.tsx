@@ -22,10 +22,12 @@ export function DemoControlBar({
   store,
   onOpenSos,
   onNavigate,
+  onOpenSihDemo,
 }: {
   store: MemoryBondStore;
   onOpenSos: () => void;
   onNavigate?: (tab: string) => void;
+  onOpenSihDemo?: () => void;
 }) {
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
@@ -48,6 +50,17 @@ export function DemoControlBar({
         </div>
 
         <div className="flex items-center flex-wrap gap-2">
+          {/* Section 39: Prominent 17-Step SIH Demo Tour for Judges */}
+          {onOpenSihDemo && (
+            <Button
+              size="sm"
+              onClick={onOpenSihDemo}
+              className="h-8 rounded-xl text-xs gap-1.5 font-black bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 shadow-sm border border-amber-400/50 cursor-pointer animate-pulse"
+            >
+              <Sparkles className="h-3.5 w-3.5" /> 🎯 SIH Demo Mode
+            </Button>
+          )}
+
           {/* 4-Role Switcher (Section 16 & 21) */}
           <div className="flex items-center bg-secondary/80 rounded-xl p-1 font-bold">
             <button

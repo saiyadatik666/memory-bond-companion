@@ -45,6 +45,7 @@ import { VoiceMemoryQuiz } from "./VoiceMemoryQuiz";
 import { FindDifference } from "./FindDifference";
 import { WordMemory } from "./WordMemory";
 import { MatchTheObject } from "./MatchTheObject";
+import { NERCulturalMemoryGame } from "./NERCulturalMemoryGame";
 
 interface LastGameResult {
   score: number;
@@ -165,6 +166,14 @@ export function CognitiveGamesHub({
       icon: LinkIcon,
       color: "bg-teal-500/15 text-teal-600 dark:text-teal-400 border-teal-500/30",
       component: MatchTheObject,
+    },
+    {
+      id: "ner_cultural_memory",
+      title: "NER Cultural Memory (Remember Objects)",
+      description: "Culturally familiar North East keepsakes tray recall and recognition.",
+      icon: Compass,
+      color: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+      component: NERCulturalMemoryGame,
     },
   ];
 

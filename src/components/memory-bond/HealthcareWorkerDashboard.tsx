@@ -87,43 +87,97 @@ export function HealthcareWorkerDashboard({
     { domain: "Engagement", score: store.cognitiveScore.engagement, status: "High", target: 70 },
   ];
 
-  // Patients Assigned to this Healthcare Worker
+  // Patients Assigned to this Healthcare Worker (Section 19: Authorized Patient Information Only)
   const patients = [
     {
       id: "p1",
       name: store.profile.full_name,
       memberId: store.profile.member_id,
-      age: store.profile.age_range,
+      age: "68",
+      region: "Assam",
       triage: "green" as const,
+      priorityLevel: "Low Priority" as const,
       ces: store.cognitiveScore.overall,
       trend: "improving" as const,
-      lastActive: "Today (Morning check complete)",
-      missedMeds: store.medicineLogs.filter((l) => l.status === "missed").length,
+      recentActivity: "10 minutes ago (Pattern Recall)",
+      routineCompletion: "5 / 6 tasks",
+      gameParticipation: "2 games completed",
+      medicationStatus: "2 / 2 taken",
+      lastSync: store.lastSyncTime || "2 minutes ago",
+      alerts: "Activity pattern normal",
       primaryCaregiver: "Sunita Sharma (Daughter)",
     },
     {
       id: "p2",
       name: "Biren Gogoi",
       memberId: "MB-NER-781003-GOGOI",
-      age: "75-79",
+      age: "72",
+      region: "Assam",
       triage: "yellow" as const,
+      priorityLevel: "Medium Priority" as const,
       ces: 54,
       trend: "declining" as const,
-      lastActive: "Yesterday",
-      missedMeds: 2,
+      recentActivity: "Yesterday 6:00 PM",
+      routineCompletion: "2 / 6 tasks",
+      gameParticipation: "1 game completed",
+      medicationStatus: "1 / 2 (missed afternoon dose)",
+      lastSync: "3 hours ago",
+      alerts: "Reduced game participation & missed routine",
       primaryCaregiver: "Pranab Gogoi (Son)",
     },
     {
       id: "p3",
       name: "Meena Barman",
       memberId: "MB-NER-781022-BARMAN",
-      age: "80+",
-      triage: "green" as const,
-      ces: 68,
-      trend: "stable" as const,
-      lastActive: "Today",
-      missedMeds: 0,
+      age: "66",
+      region: "Meghalaya",
+      triage: "red" as const,
+      priorityLevel: "High Priority" as const,
+      ces: 42,
+      trend: "declining" as const,
+      recentActivity: "2 days ago",
+      routineCompletion: "0 / 6 tasks",
+      gameParticipation: "0 games completed",
+      medicationStatus: "0 / 2 (missed medicine)",
+      lastSync: "Yesterday",
+      alerts: "Repeated missed reminders & extended inactivity",
       primaryCaregiver: "Anita Barman (Daughter)",
+    },
+    {
+      id: "p4",
+      name: "Tashi Namgyal",
+      memberId: "MB-NER-781045-TASHI",
+      age: "70",
+      region: "Arunachal Pradesh",
+      triage: "green" as const,
+      priorityLevel: "Low Priority" as const,
+      ces: 72,
+      trend: "stable" as const,
+      recentActivity: "Today 11:30 AM",
+      routineCompletion: "4 / 6 tasks",
+      gameParticipation: "2 games completed",
+      medicationStatus: "2 / 2 taken",
+      lastSync: "15 minutes ago",
+      alerts: "Stable engagement",
+      primaryCaregiver: "Dorjee Namgyal (Brother)",
+    },
+    {
+      id: "p5",
+      name: "Lalrintluanga",
+      memberId: "MB-NER-781078-LALRIN",
+      age: "69",
+      region: "Mizoram",
+      triage: "green" as const,
+      priorityLevel: "Low Priority" as const,
+      ces: 76,
+      trend: "improving" as const,
+      recentActivity: "Today 1:00 PM",
+      routineCompletion: "5 / 6 tasks",
+      gameParticipation: "3 games completed",
+      medicationStatus: "2 / 2 taken",
+      lastSync: "5 minutes ago",
+      alerts: "Strong daily routine adherence",
+      primaryCaregiver: "Zoramthanga (Son)",
     },
   ];
 
@@ -395,16 +449,92 @@ export function HealthcareWorkerDashboard({
         </div>
       </div>
 
-      {/* PATIENT TRIAGE LIST (Section 16 Status System: Green, Yellow, Red) */}
-      <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-sm space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* SECTION 19 & 20: PATIENT OVERVIEW & ATTENTION-PRIORITY TRIAGE */}
+      <div className="rounded-3xl border-2 border-border bg-card p-6 sm:p-8 shadow-sm space-y-6">
+        {/* Section 19 Overview Header */}
+        <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border">
           <div>
-            <h4 className="text-lg font-black text-foreground">
-              Assigned Patient Roster & Triage Status
-            </h4>
-            <p className="text-xs text-muted-foreground">
-              GREEN = Normal / Stable • YELLOW = Needs Attention • RED = Flagged Concern
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🩺</span>
+              <h3 className="text-xl sm:text-2xl font-black text-foreground">Patient Overview</h3>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Authorized Senior Patients Roster (Assam & North Eastern Region Communities)
             </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
+            <span className="px-3 py-1.5 rounded-xl bg-card border border-border shadow-xs text-foreground font-black">
+              Assigned Seniors: 5
+            </span>
+            <span className="px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400">
+              🟢 Normal Activity: 3
+            </span>
+            <span className="px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-400">
+              🟡 Needs Attention: 1
+            </span>
+            <span className="px-3 py-1.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-700 dark:text-rose-400">
+              🔴 Urgent: 1
+            </span>
+          </div>
+        </div>
+
+        {/* Section 20: Attention-Priority Triage Guide Card */}
+        <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-5 space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2 text-primary font-black text-sm uppercase tracking-wider">
+              <ShieldCheck className="h-4 w-4" /> Attention-Priority Triage System (Section 20)
+            </div>
+            <span className="text-[11px] font-bold text-muted-foreground bg-card px-2.5 py-1 rounded-lg border border-border">
+              Configurable Activity Signals
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div className="p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 space-y-1">
+              <div className="font-black text-rose-600 flex items-center gap-1.5">
+                <span>🔴</span> HIGH PRIORITY
+              </div>
+              <ul className="text-muted-foreground list-disc list-inside space-y-0.5 text-[11px]">
+                <li>Repeated missed reminders</li>
+                <li>Extended inactivity (&gt; 24h)</li>
+                <li>Multiple concerning activity changes</li>
+              </ul>
+            </div>
+
+            <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 space-y-1">
+              <div className="font-black text-amber-600 flex items-center gap-1.5">
+                <span>🟡</span> MEDIUM PRIORITY
+              </div>
+              <ul className="text-muted-foreground list-disc list-inside space-y-0.5 text-[11px]">
+                <li>Reduced game participation</li>
+                <li>Missed routine activities</li>
+                <li>Mild engagement variations</li>
+              </ul>
+            </div>
+
+            <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 space-y-1">
+              <div className="font-black text-emerald-600 flex items-center gap-1.5">
+                <span>🟢</span> LOW PRIORITY
+              </div>
+              <ul className="text-muted-foreground list-disc list-inside space-y-0.5 text-[11px]">
+                <li>Normal activity variation</li>
+                <li>Routine tasks on schedule</li>
+                <li>Regular family interactions</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Statutory Triage Disclaimer */}
+          <div className="pt-2 text-center text-xs font-bold text-muted-foreground border-t border-border/60">
+            ⚠️ <span className="text-foreground">Statutory Notice:</span> "This is an activity-based support/triage indicator and not a medical diagnosis."
+          </div>
+        </div>
+
+        {/* Filter Controls */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+          <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+            Filter Patients by Activity Status:
           </div>
 
           <div className="flex items-center gap-1.5 bg-secondary p-1 rounded-xl text-xs font-bold">
@@ -419,88 +549,133 @@ export function HealthcareWorkerDashboard({
             <button
               onClick={() => setTriageFilter("green")}
               className={`px-3 py-1 rounded-lg transition-all ${
-                triageFilter === "green" ? "bg-success/20 text-success font-black" : "text-muted-foreground"
+                triageFilter === "green" ? "bg-emerald-500/20 text-emerald-600 font-black" : "text-muted-foreground"
               }`}
             >
-              Green
+              🟢 Normal (3)
             </button>
             <button
               onClick={() => setTriageFilter("yellow")}
               className={`px-3 py-1 rounded-lg transition-all ${
-                triageFilter === "yellow" ? "bg-warning/20 text-warning font-black" : "text-muted-foreground"
+                triageFilter === "yellow" ? "bg-amber-500/20 text-amber-600 font-black" : "text-muted-foreground"
               }`}
             >
-              Yellow
+              🟡 Needs Attention (1)
             </button>
             <button
               onClick={() => setTriageFilter("red")}
               className={`px-3 py-1 rounded-lg transition-all ${
-                triageFilter === "red" ? "bg-destructive/20 text-destructive font-black" : "text-muted-foreground"
+                triageFilter === "red" ? "bg-rose-500/20 text-rose-600 font-black" : "text-muted-foreground"
               }`}
             >
-              Red
+              🔴 Urgent (1)
             </button>
           </div>
         </div>
 
-        <div className="space-y-3">
+        {/* Section 19 Patient Cards with 8 Core Fields */}
+        <div className="space-y-3.5">
           {filteredPatients.map((p) => (
             <div
               key={p.id}
-              className={`p-4 rounded-2xl border-2 transition-all flex flex-wrap items-center justify-between gap-4 ${
+              className={`p-5 rounded-3xl border-2 transition-all space-y-3 ${
                 p.triage === "green"
-                  ? "border-success/30 bg-success/5"
+                  ? "border-emerald-500/30 bg-card hover:border-emerald-500/50"
                   : p.triage === "yellow"
-                  ? "border-warning/40 bg-warning/5"
-                  : "border-destructive/40 bg-destructive/5"
+                  ? "border-amber-500/40 bg-amber-500/5 hover:border-amber-500/60"
+                  : "border-rose-500/50 bg-rose-500/5 hover:border-rose-500/70"
               }`}
             >
-              <div className="flex items-center gap-3.5">
-                <div
-                  className={`w-3.5 h-3.5 rounded-full shrink-0 ${
-                    p.triage === "green"
-                      ? "bg-success animate-pulse"
-                      : p.triage === "yellow"
-                      ? "bg-warning"
-                      : "bg-destructive"
-                  }`}
-                />
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h5 className="font-bold text-base text-foreground">{p.name}</h5>
-                    <span className="text-xs font-mono text-muted-foreground">({p.memberId})</span>
-                    <span className="text-xs text-muted-foreground">• Age: {p.age}</span>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-4 h-4 rounded-full shrink-0 ${
+                      p.triage === "green"
+                        ? "bg-emerald-500 animate-pulse"
+                        : p.triage === "yellow"
+                        ? "bg-amber-500"
+                        : "bg-rose-500"
+                    }`}
+                  />
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h5 className="font-black text-lg text-foreground">{p.name}</h5>
+                      <span className="text-xs font-mono text-muted-foreground">({p.memberId})</span>
+                      <span className="text-xs text-muted-foreground">• Age: {p.age}</span>
+                      <span className="text-xs text-muted-foreground">• Region: {p.region}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      Caregiver: <span className="font-semibold text-foreground">{p.primaryCaregiver}</span> • Last Sync: <span className="font-mono">{p.lastSync}</span>
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    Caregiver: {p.primaryCaregiver} • Last Active: {p.lastActive}
-                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                  <span
+                    className={`text-xs font-black px-3 py-1 rounded-full border ${
+                      p.triage === "green"
+                        ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-600"
+                        : p.triage === "yellow"
+                        ? "bg-amber-500/15 border-amber-500/30 text-amber-600"
+                        : "bg-rose-500/15 border-rose-500/30 text-rose-600"
+                    }`}
+                  >
+                    {p.priorityLevel}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onNavigate("medicines")}
+                    className="rounded-xl text-xs font-bold h-9 gap-1"
+                  >
+                    Details <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
               </div>
 
-              <div className="flex items-center gap-4">
-                <div className="text-right">
-                  <div className="text-sm font-black text-foreground">CES: {p.ces} / 100</div>
-                  <div
-                    className={`text-xs font-bold ${
-                      p.triage === "green"
-                        ? "text-success"
-                        : p.triage === "yellow"
-                        ? "text-warning"
-                        : "text-destructive"
-                    }`}
-                  >
-                    {p.triage === "green" ? "Normal / Stable" : p.triage === "yellow" ? "Needs Attention" : "Flagged Decline"}
+              {/* Section 19 Metrics Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-2 border-t border-border/60 text-xs">
+                <div className="p-2.5 rounded-xl bg-secondary/40 space-y-0.5">
+                  <span className="text-[10px] text-muted-foreground font-bold uppercase">Recent Activity</span>
+                  <div className="font-bold text-foreground truncate">{p.recentActivity}</div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-secondary/40 space-y-0.5">
+                  <span className="text-[10px] text-muted-foreground font-bold uppercase">Routine Completion</span>
+                  <div className="font-bold text-foreground truncate">{p.routineCompletion}</div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-secondary/40 space-y-0.5">
+                  <span className="text-[10px] text-muted-foreground font-bold uppercase">Game Participation</span>
+                  <div className="font-bold text-foreground truncate">{p.gameParticipation}</div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-secondary/40 space-y-0.5">
+                  <span className="text-[10px] text-muted-foreground font-bold uppercase">Medication Reminders</span>
+                  <div className={`font-bold truncate ${p.triage === "red" ? "text-destructive" : "text-foreground"}`}>
+                    {p.medicationStatus}
                   </div>
                 </div>
 
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onNavigate("medicines")}
-                  className="rounded-xl text-xs font-bold h-9"
-                >
-                  View Details
-                </Button>
+                <div className="p-2.5 rounded-xl bg-secondary/40 space-y-0.5">
+                  <span className="text-[10px] text-muted-foreground font-bold uppercase">Activity Trend</span>
+                  <div className="font-bold text-foreground capitalize truncate">
+                    {p.trend === "improving" ? "↗️ Improving" : p.trend === "stable" ? "➡️ Stable" : "↘️ Variation"}
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-secondary/40 space-y-0.5">
+                  <span className="text-[10px] text-muted-foreground font-bold uppercase">Alerts / Support Notes</span>
+                  <div className="font-bold text-foreground truncate">{p.alerts}</div>
+                </div>
+              </div>
+
+              {/* Privacy Control Badge */}
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
+                <span className="flex items-center gap-1 text-primary font-semibold">
+                  <ShieldCheck className="h-3.5 w-3.5" /> Authorized Patient Record (ABDM & DPDP Compliant)
+                </span>
+                <span className="font-mono">CES: {p.ces} / 100</span>
               </div>
             </div>
           ))}

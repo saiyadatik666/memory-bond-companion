@@ -31,6 +31,13 @@ export interface ActivityRecommendation {
   recommendedLevel: number;
   headline: string;
   rationale: string;
+  whyThisActivityText: string;
+  dimensionScores: {
+    patternRecognition: number;
+    attention: number;
+    recall: number;
+  };
+  primaryGoal: string;
   caregiverNote: string;
   isOptimalTime: boolean;
   timeContextPrompt: string;
@@ -229,6 +236,23 @@ export function getAIActivityRecommendation(
       ? "Reflecting on daily routine steps reinforces memory comfort and daily structure."
       : "Familiar faces and cultural themes make recognition exercises uplifting and heartwarming.";
 
+  const whyThisActivityText = `Your recent performance shows strong pattern recognition (${profile.recognition}%) but lower attention consistency (${profile.attention}%). Memory Bond recommends ${choice.title} — Level ${diff === "easy" ? 1 : diff === "medium" ? 2 : 3}.`;
+
+  const dimensionScores = {
+    patternRecognition: profile.recognition || 85,
+    attention: profile.attention || 62,
+    recall: profile.recall || 78,
+  };
+
+  const primaryGoal =
+    choice.id === "pattern_recall"
+      ? "Improve visual memory and attention."
+      : choice.id === "card_match"
+      ? "Strengthen short-term visual recall and focus."
+      : choice.id === "routine_recall"
+      ? "Reinforce daily routine recall and spatial orientation."
+      : "Maintain heartwarming family recognition and emotional bonding.";
+
   const caregiverNote = `System recommended ${choice.title} (${diff}) to gently support ${weakest.key} domain (current: ${weakest.score}/100) while leveraging strong ${strongest.key} domain (${strongest.score}/100).`;
 
   return {
@@ -239,6 +263,9 @@ export function getAIActivityRecommendation(
     recommendedLevel: diff === "easy" ? 1 : diff === "medium" ? 2 : 3,
     headline: `Recommended for you: ${choice.title}`,
     rationale,
+    whyThisActivityText,
+    dimensionScores,
+    primaryGoal,
     caregiverNote,
     isOptimalTime,
     timeContextPrompt,

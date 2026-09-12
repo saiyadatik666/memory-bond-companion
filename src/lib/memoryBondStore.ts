@@ -327,14 +327,14 @@ export const getTodayDateString = () => new Date().toISOString().slice(0, 10);
 export const CES_DISCLAIMER =
   "This score is for tracking cognitive engagement, daily activity participation, and memory exercise performance. It is NOT a medical diagnosis and should never be used to diagnose dementia or any neurological disease.";
 
-// Realistic Initial Demo Dataset (North Eastern Region / Indian context)
+// Realistic Initial Demo Dataset (North Eastern Region / Indian context - Ramesh Das, 68, Assam)
 export const DEMO_PROFILE: Profile = {
   id: "demo-senior-ramesh",
   member_id: "MB-NER-781003-RAMESH",
-  full_name: "Ramesh Sharma",
+  full_name: "Ramesh Das",
   role: "senior",
   language: "en",
-  age_range: "70-79",
+  age_range: "68",
   phone: "+91 98640 55123",
   font_size: "large",
   high_contrast: false,
@@ -343,6 +343,8 @@ export const DEMO_PROFILE: Profile = {
   easy_mode: false,
   reduced_motion: false,
   voice_provider: "web_speech",
+  selected_ner_state: "Assam",
+  selected_state: "Assam",
   floating_bubble: true,
   baseline_assessment: {
     completed_at: "2026-02-10",
@@ -360,6 +362,200 @@ export const DEMO_PROFILE: Profile = {
     daily_routine: true,
   },
 };
+
+export interface MemoryStory {
+  id: string;
+  title: string;
+  category: "family" | "cultural" | "childhood" | "milestone";
+  imageUrl: string;
+  description: string;
+  familyContext: string;
+  addedBy: string;
+  relationship: string;
+  question: string;
+  voiceAudioUrl?: string;
+  voicePrompt?: string;
+  dateAdded: string;
+  reactions: { date: string; remembered: boolean; note?: string }[];
+}
+
+export const DEMO_MEMORY_STORIES: MemoryStory[] = [
+  {
+    id: "story-1",
+    title: "Family Picnic by the Lake",
+    category: "family",
+    imageUrl: "https://images.unsplash.com/photo-1511895426328-dc8714191300?w=600&auto=format&fit=crop&q=80",
+    description: "Family picnic near the serene lake on a peaceful Sunday morning.",
+    familyContext: "Daughter Sunita and grandson Aarav brought homemade vegetable luchi and warm Assam red tea in a thermos.",
+    addedBy: "Sunita Das",
+    relationship: "Daughter",
+    question: "Do you remember this sunny family picnic near the lake?",
+    voicePrompt: "Ramesh-ji, do you remember this peaceful family picnic with Sunita and young Aarav by the lake?",
+    dateAdded: "2026-02-18",
+    reactions: [{ date: "2026-03-01", remembered: true, note: "Smiled and mentioned Aarav running after butterflies" }],
+  },
+  {
+    id: "story-2",
+    title: "Handcrafting Traditional Bamboo Jaapi",
+    category: "cultural",
+    imageUrl: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80",
+    description: "Crafting a traditional woven sun hat with dried Tokou palm leaves.",
+    familyContext: "Your elder brother Vikram brought fresh Tokou palm leaves from Jorhat for the harvest festival.",
+    addedBy: "Vikram Das",
+    relationship: "Brother",
+    question: "Do you remember crafting this traditional Jaapi with Brother Vikram?",
+    voicePrompt: "Look at this handmade Jaapi. Remember how carefully we shaped the bamboo ribs together on the veranda?",
+    dateAdded: "2026-02-22",
+    reactions: [],
+  },
+  {
+    id: "story-3",
+    title: "Grandson Aarav's First Bihu Dance",
+    category: "family",
+    imageUrl: "https://images.unsplash.com/photo-1543332164-6e82f355badc?w=600&auto=format&fit=crop&q=80",
+    description: "Aarav wearing his first Phulam Gamosa and beating the small wooden dhol drum.",
+    familyContext: "You gifted Aarav his first little Bihu dhol on his 6th birthday.",
+    addedBy: "Anita Das",
+    relationship: "Caregiver & Family",
+    question: "Do you remember Aarav dancing to the Bihu dhol in his new kurta?",
+    voicePrompt: "Here is your grandson Aarav dancing happily with the wooden drum you gifted him!",
+    dateAdded: "2026-03-05",
+    reactions: [],
+  },
+];
+
+export interface AssignedSenior {
+  id: string;
+  name: string;
+  age: number;
+  region: string;
+  language: string;
+  status: "stable" | "needs_attention" | "urgent";
+  statusLabel: string;
+  medicineTaken: number;
+  medicineTotal: number;
+  hydrationGlasses: number;
+  hydrationTarget: number;
+  routinesDone: number;
+  routinesTotal: number;
+  gamesCompleted: number;
+  lastActive: string;
+  lastSync: string;
+  alertsCount: number;
+  recentAlert?: string;
+  cesScore: number;
+  trend: "improving" | "stable" | "declining";
+}
+
+export const DEMO_ASSIGNED_SENIORS: AssignedSenior[] = [
+  {
+    id: "senior-ramesh",
+    name: "Ramesh Das",
+    age: 68,
+    region: "Assam",
+    language: "Assamese / English",
+    status: "stable",
+    statusLabel: "Activity Status: Normal",
+    medicineTaken: 2,
+    medicineTotal: 2,
+    hydrationGlasses: 4,
+    hydrationTarget: 6,
+    routinesDone: 5,
+    routinesTotal: 6,
+    gamesCompleted: 2,
+    lastActive: "10 minutes ago",
+    lastSync: "2 minutes ago",
+    alertsCount: 0,
+    cesScore: 76,
+    trend: "improving",
+  },
+  {
+    id: "senior-biren",
+    name: "Biren Gogoi",
+    age: 76,
+    region: "Assam",
+    language: "Assamese",
+    status: "needs_attention",
+    statusLabel: "Activity pattern needs attention",
+    medicineTaken: 1,
+    medicineTotal: 2,
+    hydrationGlasses: 3,
+    hydrationTarget: 6,
+    routinesDone: 3,
+    routinesTotal: 6,
+    gamesCompleted: 1,
+    lastActive: "2 hours ago",
+    lastSync: "15 minutes ago",
+    alertsCount: 1,
+    recentAlert: "Missed scheduled evening Donepezil dose",
+    cesScore: 54,
+    trend: "declining",
+  },
+  {
+    id: "senior-meena",
+    name: "Meena Barman",
+    age: 81,
+    region: "Meghalaya",
+    language: "Khasi / English",
+    status: "urgent",
+    statusLabel: "Priority follow-up needed",
+    medicineTaken: 0,
+    medicineTotal: 2,
+    hydrationGlasses: 2,
+    hydrationTarget: 6,
+    routinesDone: 1,
+    routinesTotal: 6,
+    gamesCompleted: 0,
+    lastActive: "5 hours ago",
+    lastSync: "1 hour ago",
+    alertsCount: 2,
+    recentAlert: "Extended morning inactivity and 2 missed routines",
+    cesScore: 48,
+    trend: "declining",
+  },
+  {
+    id: "senior-tashi",
+    name: "Tashi Namgyal",
+    age: 71,
+    region: "Sikkim",
+    language: "Nepali / English",
+    status: "stable",
+    statusLabel: "Activity Status: Normal",
+    medicineTaken: 2,
+    medicineTotal: 2,
+    hydrationGlasses: 5,
+    hydrationTarget: 6,
+    routinesDone: 6,
+    routinesTotal: 6,
+    gamesCompleted: 2,
+    lastActive: "25 minutes ago",
+    lastSync: "5 minutes ago",
+    alertsCount: 0,
+    cesScore: 82,
+    trend: "improving",
+  },
+  {
+    id: "senior-lalrin",
+    name: "Lalrintluanga",
+    age: 74,
+    region: "Mizoram",
+    language: "Mizo / English",
+    status: "stable",
+    statusLabel: "Activity Status: Normal",
+    medicineTaken: 1,
+    medicineTotal: 1,
+    hydrationGlasses: 4,
+    hydrationTarget: 6,
+    routinesDone: 4,
+    routinesTotal: 6,
+    gamesCompleted: 1,
+    lastActive: "40 minutes ago",
+    lastSync: "8 minutes ago",
+    alertsCount: 0,
+    cesScore: 73,
+    trend: "stable",
+  },
+];
 
 export const DEMO_CAREGIVER_LINKS: CaregiverLink[] = [
   {
@@ -1103,6 +1299,49 @@ export function useMemoryBondStore() {
     }
   });
 
+  // Hydration Tracking State (SIH 2026 Section 13)
+  const [hydrationGlasses, setHydrationGlasses] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(getKey("hydration_glasses"));
+      return saved ? parseInt(saved, 10) : 4;
+    } catch {
+      return 4;
+    }
+  });
+
+  const [hydrationTarget, setHydrationTarget] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(getKey("hydration_target"));
+      return saved ? parseInt(saved, 10) : 6;
+    } catch {
+      return 6;
+    }
+  });
+
+  // Memory Stories (SIH 2026 Section 22)
+  const [memoryStories, setMemoryStories] = useState<MemoryStory[]>(() => {
+    try {
+      const saved = localStorage.getItem(getKey("memory_stories"));
+      return saved ? JSON.parse(saved) : DEMO_MEMORY_STORIES;
+    } catch {
+      return DEMO_MEMORY_STORIES;
+    }
+  });
+
+  // Multi-Senior Monitoring for Caregivers & Healthcare Workers (SIH 2026 Section 16 & 19)
+  const [assignedSeniors, setAssignedSeniors] = useState<AssignedSenior[]>(() => {
+    try {
+      const saved = localStorage.getItem(getKey("assigned_seniors"));
+      return saved ? JSON.parse(saved) : DEMO_ASSIGNED_SENIORS;
+    } catch {
+      return DEMO_ASSIGNED_SENIORS;
+    }
+  });
+
+  // Sync Timestamp & Status (SIH 2026 Section 26)
+  const [lastSyncTime, setLastSyncTime] = useState<string>("2 minutes ago");
+  const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "success" | "error">("idle");
+
   // Sync state to LocalStorage
   useEffect(() => {
     try {
@@ -1125,10 +1364,14 @@ export function useMemoryBondStore() {
       localStorage.setItem(getKey("sync_queue"), JSON.stringify(syncQueue));
       localStorage.setItem(getKey("reminder_escalations"), JSON.stringify(reminderEscalations));
       localStorage.setItem(getKey("audit_log"), JSON.stringify(auditLog));
+      localStorage.setItem(getKey("hydration_glasses"), String(hydrationGlasses));
+      localStorage.setItem(getKey("hydration_target"), String(hydrationTarget));
+      localStorage.setItem(getKey("memory_stories"), JSON.stringify(memoryStories));
+      localStorage.setItem(getKey("assigned_seniors"), JSON.stringify(assignedSeniors));
     } catch (e) {
       console.warn("LocalStorage save error:", e);
     }
-  }, [profile, medicines, medicineLogs, reminders, routines, appointments, memoryCues, journal, contacts, sosEvents, gameSessions, notifications, caregiverLinks, routineCalls, socialFeed, clinicalNotes, syncQueue, reminderEscalations, auditLog]);
+  }, [profile, medicines, medicineLogs, reminders, routines, appointments, memoryCues, journal, contacts, sosEvents, gameSessions, notifications, caregiverLinks, routineCalls, socialFeed, clinicalNotes, syncQueue, reminderEscalations, auditLog, hydrationGlasses, hydrationTarget, memoryStories, assignedSeniors]);
 
   // Network online/offline listener with automatic sync flush
   useEffect(() => {
@@ -1550,6 +1793,54 @@ export function useMemoryBondStore() {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   }, []);
 
+  // Hydration Actions (SIH 2026 Section 13)
+  const drinkGlassOfWater = useCallback(() => {
+    setHydrationGlasses((prev) => {
+      const next = Math.min(10, prev + 1);
+      enqueueOfflineAction("DRINK_WATER", { glasses: next, timestamp: new Date().toISOString() });
+      const notif: AppNotification = {
+        id: `hyd-${Date.now()}`,
+        category: "routine",
+        title: "Hydration Recorded 💧",
+        body: `Good job Ramesh! 1 glass of water recorded (${next} of ${hydrationTarget} glasses today).`,
+        read: false,
+        created_at: new Date().toISOString(),
+      };
+      setNotifications((n) => [notif, ...n]);
+
+      // Update in assigned seniors list for caregiver
+      setAssignedSeniors((seniors) =>
+        seniors.map((s) => (s.id === "senior-ramesh" ? { ...s, hydrationGlasses: next } : s))
+      );
+
+      return next;
+    });
+  }, [hydrationTarget, enqueueOfflineAction]);
+
+  // Memory Story Actions (SIH 2026 Section 22)
+  const recordMemoryStoryReaction = useCallback(
+    (storyId: string, remembered: boolean, note?: string) => {
+      setMemoryStories((prev) =>
+        prev.map((s) => {
+          if (s.id !== storyId) return s;
+          const newReaction = {
+            date: getTodayDateString(),
+            remembered,
+            note: note || (remembered ? "Confirmed personal memory recognition" : "Looked with gentle interest"),
+          };
+          return { ...s, reactions: [newReaction, ...s.reactions] };
+        })
+      );
+      enqueueOfflineAction("MEMORY_STORY_REACTION", {
+        storyId,
+        remembered,
+        note,
+        timestamp: new Date().toISOString(),
+      });
+    },
+    [enqueueOfflineAction]
+  );
+
   // Reset to rich realistic demo data
   const resetToDemoData = useCallback(() => {
     setProfile(DEMO_PROFILE);
@@ -1571,29 +1862,50 @@ export function useMemoryBondStore() {
     setSosEvents([]);
     setReminderEscalations(DEMO_REMINDER_ESCALATIONS);
     setAuditLog(DEMO_AUDIT_LOG);
+    setHydrationGlasses(4);
+    setHydrationTarget(6);
+    setMemoryStories(DEMO_MEMORY_STORIES);
+    setAssignedSeniors(DEMO_ASSIGNED_SENIORS);
+    setLastSyncTime("Just now");
+    setSyncStatus("idle");
   }, []);
 
   const effectiveOnline = !offlineModeForced && isOnline;
 
-  // Immediate Manual Offline Sync Flush
+  // Immediate Manual Offline Sync Flush with Realistic Visual States (SIH 2026 Section 26)
   const triggerSyncNow = useCallback(() => {
-    if (syncQueue.length === 0) return;
+    setSyncStatus("syncing");
     const count = syncQueue.length;
-    setSyncQueue([]);
-    try {
-      localStorage.setItem(getKey("sync_queue"), JSON.stringify([]));
-    } catch (e) {
-      console.warn("Error clearing sync queue:", e);
-    }
-    const syncNotif: AppNotification = {
-      id: `sync-manual-${Date.now()}`,
-      category: "general",
-      title: "Cloud Synchronized",
-      body: `Successfully synchronized ${count} offline pending action(s) to cloud servers.`,
-      read: false,
-      created_at: new Date().toISOString(),
-    };
-    setNotifications((prev) => [syncNotif, ...prev]);
+
+    setTimeout(() => {
+      setSyncQueue([]);
+      try {
+        localStorage.setItem(getKey("sync_queue"), JSON.stringify([]));
+      } catch (e) {
+        console.warn("Error clearing sync queue:", e);
+      }
+      setLastSyncTime("Just now");
+      setSyncStatus("success");
+      setTimeout(() => setSyncStatus("idle"), 3500);
+
+      // Update assigned senior Ramesh lastSync
+      setAssignedSeniors((prev) =>
+        prev.map((s) => (s.id === "senior-ramesh" ? { ...s, lastSync: "Just now" } : s))
+      );
+
+      const syncNotif: AppNotification = {
+        id: `sync-manual-${Date.now()}`,
+        category: "general",
+        title: "✅ Cloud Synchronization Complete",
+        body:
+          count > 0
+            ? `Successfully synchronized ${count} pending offline activity updates to cloud servers.`
+            : "Cloud servers verified. All patient activities, reminders, and game scores are up to date.",
+        read: false,
+        created_at: new Date().toISOString(),
+      };
+      setNotifications((prev) => [syncNotif, ...prev]);
+    }, 500);
   }, [syncQueue.length]);
 
   // Reminder Escalations (Stage 1 -> Stage 2 -> Stage 3 with Caregiver Alert)
@@ -1873,10 +2185,24 @@ export function useMemoryBondStore() {
       return newSession;
     }, []),
 
+    // Hydration (SIH 2026 Section 13)
+    hydrationGlasses,
+    hydrationTarget,
+    drinkGlassOfWater,
+
+    // Memory Stories (SIH 2026 Section 22)
+    memoryStories,
+    recordMemoryStoryReaction,
+
+    // Multi-Senior Monitoring for Caregivers & Healthcare Workers (SIH 2026 Section 16 & 19)
+    assignedSeniors,
+
+    // Sync Status & Timestamp (SIH 2026 Section 26)
+    lastSyncTime,
+    syncStatus,
+
     // Senior / Easy Mode
-    toggleEasyMode: useCallback(() => {
-      setProfile((prev) => ({ ...prev, easy_mode: !prev.easy_mode }));
-    }, []),
+    toggleEasyMode,
 
     // Sync Queue
     syncQueue,

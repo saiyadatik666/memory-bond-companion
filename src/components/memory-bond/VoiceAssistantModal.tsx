@@ -566,10 +566,11 @@ export function VoiceAssistantModal({
               ]
             : currentLocale.startsWith("hi")
             ? [
-                "मुझे कल सुबह दवा लेनी है",
-                "कल डॉक्टर के पास जाना है",
-                "मेरी अगली दवा कौन सी है?",
-                "कल सुबह 8 बजे दवा याद दिलाना",
+                "आज मुझे क्या करना है?",
+                "मेरी दवा कब है?",
+                "मेमोरी गेम शुरू करो",
+                "परिवार को कॉल करो",
+                "मेरा डॉक्टर अपॉइंटमेंट कब है?",
                 "मैंने दवा ले ली है",
               ]
             : currentLocale.startsWith("mr")
@@ -581,17 +582,20 @@ export function VoiceAssistantModal({
               ]
             : currentLocale.startsWith("as")
             ? [
-                "কাইলৈ পুৱা ঔষধ খাব লাগিব",
-                "মোৰ পৰৱৰ্তী ঔষধ কি?",
+                "আজি মোৰ কি কাম আছে?",
+                "মোৰ ঔষধৰ সময় কেতিয়া?",
+                "মেম'ৰি খেল আৰম্ভ কৰা",
+                "পৰিয়ালক কল কৰা",
                 "মই ঔষধ খালোঁ",
-                "পুৱা ৮ বজাত সংকেত দিয়া",
+                "কাইলৈ পুৱা ৮ বজাত সংকেত দিয়া",
               ]
             : currentLocale.startsWith("bn")
             ? [
-                "কাল সকালে ওষুধ খেতে হবে",
+                "আজ আমার কি কি কাজ আছে?",
                 "আমার পরের ওষুধ কি?",
                 "আমি ওষুধ খেয়েছি",
-                "কাল সকাল ৮ টায় মনে করিয়ে দিও",
+                "মেমোরি গেম শুরু করো",
+                "পরিবারকে কল করো",
               ]
             : currentLocale.startsWith("ta")
             ? [
@@ -627,10 +631,12 @@ export function VoiceAssistantModal({
                 "ମୋର ପରବର୍ତ୍ତୀ ଔଷଧ କ’ଣ?",
               ]
             : [
-                "I need to take medicine tomorrow morning",
-                "What is my next reminder?",
+                "What do I have today?",
+                "When is my medicine?",
+                "Start my memory game",
+                "Call my family",
+                "When is my appointment?",
                 "I took my scheduled medicine",
-                "Doctor appointment tomorrow 10 AM",
               ]
           ).map((sample, i) => (
             <button
@@ -720,11 +726,34 @@ export function VoiceAssistantModal({
           </div>
         )}
 
-        {/* Query response banner */}
+        {/* Query response banner with Listen Again & Speak Again (Section 10 & 11) */}
         {feedbackMessage && !pendingIntent && (
-          <div className="rounded-2xl bg-secondary/70 border border-border p-4 text-center space-y-2">
+          <div className="rounded-2xl bg-secondary/80 border-2 border-primary/30 p-5 text-center space-y-3 shadow-md animate-in fade-in">
             <Volume2 className="h-6 w-6 text-primary mx-auto" />
             <p className="font-bold text-foreground text-base leading-snug">{feedbackMessage}</p>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  stopSpeaking();
+                  speakText(feedbackMessage, currentLocaleRef.current);
+                }}
+                className="rounded-xl font-black text-xs gap-1.5 border-primary/40 text-primary hover:bg-primary/10 h-10 px-4"
+              >
+                <Volume2 className="h-4 w-4" /> 🔊 Listen Again
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  isActiveSessionRef.current = true;
+                  startListening();
+                }}
+                className="rounded-xl font-black text-xs gap-1.5 bg-primary text-white hover:bg-primary/90 h-10 px-4 shadow-xs"
+              >
+                <Mic className="h-4 w-4" /> 🎙️ Speak Again
+              </Button>
+            </div>
           </div>
         )}
 

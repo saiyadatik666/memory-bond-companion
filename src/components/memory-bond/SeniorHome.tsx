@@ -24,6 +24,8 @@ import {
   MessageCircle,
   Droplets,
   ShieldCheck,
+  WifiOff,
+  Heart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
@@ -47,9 +49,9 @@ export function SeniorHome({
   // Kept in state so server and first client render agree (no hydration mismatch)
   const [hour, setHour] = useState<number>(9);
 
-  // 5-Second Voice/SOS Hold State (Section 45)
+  // 3-Second SOS Hold State (SIH 2026 Section 30)
   const [sosHoldProgress, setSosHoldProgress] = useState<number>(0);
-  const [sosHoldSeconds, setSosHoldSeconds] = useState<number>(5);
+  const [sosHoldSeconds, setSosHoldSeconds] = useState<number>(3);
   const [isHoldingSos, setIsHoldingSos] = useState<boolean>(false);
   const sosHoldTimerRef = useRef<any>(null);
   const sosHoldStartRef = useRef<number>(0);
@@ -69,7 +71,7 @@ export function SeniorHome({
     }
     setIsHoldingSos(false);
     setSosHoldProgress(0);
-    setSosHoldSeconds(5);
+    setSosHoldSeconds(3);
   };
 
   const handleSosHoldStart = () => {
@@ -77,7 +79,7 @@ export function SeniorHome({
     clearSosHoldTimer();
     setIsHoldingSos(true);
     setSosHoldProgress(0);
-    setSosHoldSeconds(5);
+    setSosHoldSeconds(3);
     sosHoldStartRef.current = Date.now();
 
     if (typeof window !== "undefined" && "vibrate" in navigator) {
@@ -86,7 +88,7 @@ export function SeniorHome({
       } catch {}
     }
 
-    const durationMs = 5000;
+    const durationMs = 3000;
     sosHoldTimerRef.current = setInterval(() => {
       if (isSosCooldownActive()) {
         clearSosHoldTimer();
@@ -382,36 +384,96 @@ export function SeniorHome({
   // -------------------------------------------------------------------------
   return (
     <div className="space-y-6 sm:space-y-8 animate-in fade-in">
-      {/* Friendly Warm Hero Card with Proactive Personalization */}
-      <div className="relative overflow-hidden rounded-3xl aurora-surface p-6 sm:p-10 shadow-lg text-white">
-        <div className="relative z-10 max-w-2xl space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
+      {/* 1. VISIBLE OFFLINE MODE BANNER (SIH 2026 Section 24 & 25) */}
+      {!store.isOnline && (
+        <div className="rounded-3xl border-3 border-amber-500 bg-amber-500/15 p-5 sm:p-6 shadow-md flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <WifiOff className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="text-lg sm:text-xl font-black text-foreground flex items-center gap-2">
+                <span>🟠 OFFLINE MODE (অফলাইন মোড)</span>
+              </div>
+              <p className="text-sm font-semibold text-muted-foreground mt-0.5 max-w-xl">
+                Memory Bond is still working. Your medicines, routines, and games are saved locally and will synchronize automatically when connectivity returns.
+              </p>
+            </div>
+          </div>
+          {store.syncQueue.length > 0 && (
+            <span className="px-3 py-1 rounded-full bg-amber-500 text-white text-xs font-black shrink-0 shadow-xs">
+              {store.syncQueue.length} Activity Updates Stored Locally
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* 2. SECTION 38: HOME PAGE & VALUE PROPOSITION HERO */}
+      <div className="relative overflow-hidden rounded-3xl aurora-surface p-6 sm:p-10 shadow-lg text-white space-y-5">
+        <div className="relative z-10 space-y-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-1 text-xs font-bold tracking-wider uppercase backdrop-blur-md">
-              <Sparkles className="h-3.5 w-3.5" /> Memory Bond Companion
+              <Sparkles className="h-3.5 w-3.5" /> Memory Bond • SIH 2026
             </div>
             <button
               onClick={() => store.updateProfile({ easy_mode: true })}
-              className="inline-flex items-center gap-1.5 rounded-full bg-white/25 hover:bg-white/35 px-3 py-1 text-xs font-bold transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-full bg-white/25 hover:bg-white/35 px-3.5 py-1 text-xs font-bold transition-all cursor-pointer"
               title="Activate Senior Easy Mode"
             >
               <Sliders className="h-3.5 w-3.5" /> Switch to Easy Mode
             </button>
           </div>
 
-          <h2 className="text-3xl sm:text-4xl font-black tracking-tight">
-            {greeting}, {store.profile.full_name}
-          </h2>
-          <p className="text-base sm:text-lg text-white/95 font-semibold leading-relaxed">
-            ✨ {proactiveAiPrompt}
-          </p>
+          <div>
+            <h1 className="text-3xl sm:text-5xl font-black tracking-tight">
+              Memory Bond
+            </h1>
+            <p className="text-lg sm:text-xl font-bold text-white/90 mt-1">
+              AI-powered cognitive assistance for elderly care & dementia support
+            </p>
+          </div>
+
+          {/* Section 38 7 Core Capability Pills */}
+          <div className="flex flex-wrap gap-2 pt-1 text-xs font-bold">
+            <span className="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md">🧠 Adaptive Cognitive Games</span>
+            <span className="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md">🎙️ Multilingual Voice Assistance</span>
+            <span className="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md">💊 Smart Reminders</span>
+            <span className="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md">❤️ Family Memories</span>
+            <span className="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md">👨‍👩‍👧 Caregiver Monitoring</span>
+            <span className="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md">📡 Offline Support</span>
+            <span className="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md">🌏 NER Cultural Personalization</span>
+          </div>
+
+          <div className="pt-2 border-t border-white/20">
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
+              GOOD MORNING 👋 {greeting}, {store.profile.full_name}
+            </h2>
+            <p className="text-base sm:text-lg text-white/95 font-semibold leading-relaxed mt-1">
+              ✨ {proactiveAiPrompt}
+            </p>
+          </div>
 
           <div className="pt-2 flex flex-wrap gap-3">
             <Button
               size="lg"
-              onClick={onOpenVoiceAssistant}
-              className="bg-white text-foreground hover:bg-white/90 font-black rounded-2xl gap-2.5 h-14 px-6 text-base shadow-md"
+              onClick={() => {
+                const planEl = document.getElementById("senior-todays-plan");
+                if (planEl) {
+                  planEl.scrollIntoView({ behavior: "smooth" });
+                } else {
+                  onNavigate("routine");
+                }
+              }}
+              className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black rounded-2xl gap-2.5 h-14 px-7 text-base shadow-lg cursor-pointer scale-102"
             >
-              <Mic className="h-5 w-5 text-primary" /> {t("speak") || "Tap & Speak to Assistant"}
+              <Sparkles className="h-5 w-5" /> START MEMORY BOND
+            </Button>
+            <Button
+              size="lg"
+              onClick={onOpenVoiceAssistant}
+              className="bg-white text-foreground hover:bg-white/90 font-black rounded-2xl gap-2.5 h-14 px-6 text-base shadow-md cursor-pointer"
+            >
+              <Mic className="h-5 w-5 text-primary" /> 🎙️ Ask Memory Bond
             </Button>
             <Button
               size="lg"
@@ -427,7 +489,248 @@ export function SeniorHome({
         <div className="absolute -right-12 -bottom-12 w-64 h-64 rounded-full bg-white/10 blur-2xl pointer-events-none" />
       </div>
 
-      {/* DEDICATED CENTERED EMERGENCY SOS HERO (Section 4) */}
+      {/* 3. SENIOR "TODAY'S PLAN" DASHBOARD (SIH 2026 Section 4) */}
+      <div id="senior-todays-plan" className="rounded-3xl border-3 border-primary/40 bg-card p-6 sm:p-8 shadow-md space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+          <div>
+            <span className="text-xs font-black uppercase tracking-wider text-primary bg-primary/15 px-3 py-1 rounded-full">
+              TODAY'S PLAN (আজিৰ পৰিকল্পনা)
+            </span>
+            <h3 className="text-2xl sm:text-3xl font-black text-foreground mt-1">
+              What do I need to do today?
+            </h3>
+          </div>
+          <div className="text-xs font-bold text-muted-foreground bg-secondary/80 px-3 py-1.5 rounded-xl border border-border">
+            📅 {new Date().toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
+          </div>
+        </div>
+
+        {/* 5 Distinct Plan Items */}
+        <div className="space-y-3">
+          {/* Item 1: Medicine */}
+          <div className="rounded-2xl border-2 border-border bg-secondary/30 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 hover:border-primary/40 transition-all">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-teal-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                <Pill className="h-6 w-6" />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-teal-700 dark:text-teal-300 uppercase tracking-wider">
+                  💊 Medicine
+                </div>
+                <div className="text-lg font-black text-foreground">
+                  8:30 AM — Blood pressure medicine (Amlodipine 5mg)
+                </div>
+                <div className="text-xs font-bold text-muted-foreground mt-0.5">
+                  Status: {medsDoneToday > 0 ? "✅ Taken on time" : "⏳ Pending"}
+                </div>
+              </div>
+            </div>
+            {medsDoneToday === 0 ? (
+              <Button
+                onClick={() => store.takeMedicine("med-1")}
+                className="h-12 px-6 rounded-2xl font-black text-sm bg-teal-600 hover:bg-teal-700 text-white shadow-xs cursor-pointer"
+              >
+                [TAKEN]
+              </Button>
+            ) : (
+              <span className="px-4 py-1.5 rounded-xl bg-success/20 text-success text-xs font-black">
+                ✓ COMPLETED
+              </span>
+            )}
+          </div>
+
+          {/* Item 2: Hydration with I DRANK WATER button */}
+          <div className="rounded-2xl border-2 border-border bg-secondary/30 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 hover:border-primary/40 transition-all">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-sky-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                <Droplets className="h-6 w-6" />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-sky-700 dark:text-sky-300 uppercase tracking-wider">
+                  💧 Hydration
+                </div>
+                <div className="text-lg font-black text-foreground">
+                  {store.hydrationGlasses} / {store.hydrationTarget} Glasses Completed
+                </div>
+                <div className="text-xs font-bold text-muted-foreground mt-0.5">
+                  {store.hydrationGlasses >= store.hydrationTarget
+                    ? "✅ Great job! Daily water goal accomplished."
+                    : "Drink warm glass with lemon or herbal tea"}
+                </div>
+              </div>
+            </div>
+            <Button
+              onClick={() => store.drinkGlassOfWater()}
+              className="h-12 px-6 rounded-2xl font-black text-sm bg-sky-600 hover:bg-sky-700 text-white gap-2 shadow-xs cursor-pointer"
+            >
+              <Droplets className="h-4 w-4" /> I DRANK WATER
+            </Button>
+          </div>
+
+          {/* Item 3: Memory Activity */}
+          <div className="rounded-2xl border-2 border-border bg-secondary/30 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 hover:border-primary/40 transition-all">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                <Gamepad2 className="h-6 w-6" />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider">
+                  🧠 Memory Activity
+                </div>
+                <div className="text-lg font-black text-foreground">
+                  {store.activityRecommendation?.gameTitle || "Pattern Recall"} — Level {store.activityRecommendation?.recommendedLevel || 2} (10 minutes)
+                </div>
+                <div className="text-xs font-bold text-muted-foreground mt-0.5">
+                  Goal: {store.activityRecommendation?.primaryGoal || "Improve visual memory and attention"}
+                </div>
+              </div>
+            </div>
+            <Button
+              onClick={() => onNavigate("games")}
+              className="h-12 px-6 rounded-2xl font-black text-sm bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer"
+            >
+              Play Game
+            </Button>
+          </div>
+
+          {/* Item 4: Medical Appointment */}
+          <div className="rounded-2xl border-2 border-border bg-secondary/30 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 hover:border-primary/40 transition-all">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                <Calendar className="h-6 w-6" />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider">
+                  📅 Medical Appointment
+                </div>
+                <div className="text-lg font-black text-foreground">
+                  Doctor Appointment — 4:00 PM (Dr. Deepen Barua)
+                </div>
+                <div className="text-xs font-bold text-muted-foreground mt-0.5">
+                  Guwahati Neurological Clinic • Remind me scheduled
+                </div>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => onNavigate("appointments")}
+              className="h-12 px-5 rounded-2xl font-bold text-sm border-amber-500/40 text-foreground hover:bg-amber-500/10 cursor-pointer"
+            >
+              View Details
+            </Button>
+          </div>
+
+          {/* Item 5: Family Message Waiting */}
+          <div className="rounded-2xl border-2 border-border bg-secondary/30 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 hover:border-primary/40 transition-all">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                <Heart className="h-6 w-6" />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-rose-700 dark:text-rose-300 uppercase tracking-wider">
+                  ❤️ Family Message Waiting
+                </div>
+                <div className="text-lg font-black text-foreground">
+                  New Memory Story from Daughter Sunita & Grandson Aarav
+                </div>
+                <div className="text-xs font-bold text-muted-foreground mt-0.5">
+                  "Family Picnic by the Lake" • Tap to hear voice greeting
+                </div>
+              </div>
+            </div>
+            <Button
+              onClick={() => {
+                if (typeof (window as any).__mb_open_memory_story === "function") {
+                  (window as any).__mb_open_memory_story();
+                } else {
+                  onNavigate("family");
+                }
+              }}
+              className="h-12 px-6 rounded-2xl font-black text-sm bg-rose-600 hover:bg-rose-700 text-white shadow-xs cursor-pointer"
+            >
+              Open Story
+            </Button>
+          </div>
+        </div>
+
+        {/* Large Button: START TODAY'S ACTIVITY */}
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={() => onNavigate("games")}
+            className="w-full h-18 sm:h-20 rounded-3xl bg-primary hover:bg-primary/90 text-primary-foreground font-black text-xl sm:text-2xl shadow-xl flex items-center justify-center gap-3 transition-transform active:scale-98 cursor-pointer border-2 border-white/20"
+          >
+            <Sparkles className="h-7 w-7 sm:h-8 sm:w-8 animate-pulse" />
+            START TODAY'S ACTIVITY (আজিৰ কাম আৰম্ভ কৰক)
+          </button>
+        </div>
+      </div>
+
+      {/* 4. AI ADAPTATION EXPLANATION (SIH 2026 Section 6) */}
+      <div className="rounded-3xl border-2 border-primary/30 bg-card p-6 sm:p-7 shadow-sm space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <h4 className="text-xl font-black text-foreground">
+              🤖 Why this activity? (এই খেল কিয়?)
+            </h4>
+          </div>
+          <span className="text-xs font-semibold text-muted-foreground italic">
+            Transparent Adaptive Intelligence Engine
+          </span>
+        </div>
+
+        <p className="text-base text-foreground font-semibold leading-relaxed">
+          "{store.activityRecommendation?.whyThisActivityText || "Your recent performance shows strong pattern recognition (85%) but lower attention consistency (62%). Memory Bond recommends Pattern Recall — Level 2."}"
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="p-4 rounded-2xl bg-secondary/50 border border-border text-center">
+            <div className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400">
+              {store.activityRecommendation?.dimensionScores.patternRecognition || 85}%
+            </div>
+            <div className="text-xs font-bold text-muted-foreground uppercase mt-1">
+              Pattern Recognition
+            </div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-secondary/50 border border-border text-center">
+            <div className="text-2xl sm:text-3xl font-black text-amber-600 dark:text-amber-400">
+              {store.activityRecommendation?.dimensionScores.attention || 62}%
+            </div>
+            <div className="text-xs font-bold text-muted-foreground uppercase mt-1">
+              Attention
+            </div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-secondary/50 border border-border text-center">
+            <div className="text-2xl sm:text-3xl font-black text-sky-600 dark:text-sky-400">
+              {store.activityRecommendation?.dimensionScores.recall || 78}%
+            </div>
+            <div className="text-xs font-bold text-muted-foreground uppercase mt-1">
+              Recall
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-primary/10 border border-primary/25 flex flex-wrap items-center justify-between gap-3 text-sm">
+          <div>
+            <span className="font-bold text-foreground">Recommended Activity: </span>
+            <span className="font-black text-primary">🧩 {store.activityRecommendation?.gameTitle || "Pattern Recall"}</span>
+            <span className="mx-2 text-muted-foreground">•</span>
+            <span className="font-bold text-foreground">Difficulty: </span>
+            <span className="font-black text-primary">Level {store.activityRecommendation?.recommendedLevel || 2}</span>
+            <span className="mx-2 text-muted-foreground">•</span>
+            <span className="font-bold text-muted-foreground">Goal: </span>
+            <span className="font-semibold text-foreground">{store.activityRecommendation?.primaryGoal || "Improve visual memory and attention."}</span>
+          </div>
+          <Button size="sm" onClick={() => onNavigate("games")} className="rounded-xl font-black text-xs h-10 px-4">
+            Play Activity ➔
+          </Button>
+        </div>
+      </div>
+
+      {/* 5. DEDICATED CENTERED EMERGENCY SOS HERO (SIH 2026 Section 30) */}
       <div className="rounded-3xl border-4 border-destructive bg-destructive/10 p-6 sm:p-8 shadow-lg text-center flex flex-col items-center justify-center space-y-4 mx-auto w-full">
         <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-destructive bg-destructive/15 px-4 py-1.5 rounded-full">
           <AlertOctagon className="h-4 w-4" /> Priority Safety & SOS Assistance (आपत्कालीन मदद)
@@ -462,12 +765,12 @@ export function SeniorHome({
           <span className="relative z-10">
             {isHoldingSos
               ? `HOLDING... ${sosHoldSeconds}s`
-              : `${t("sos").toUpperCase()} (HOLD 5s FOR SOS)`}
+              : `${t("sos").toUpperCase()} (HOLD 3s FOR SOS)`}
           </span>
         </button>
 
         <p className="text-xs text-muted-foreground font-semibold">
-          Hold for 5 seconds to open SOS screen, or tap directly for instant emergency alert.
+          Hold for 3 seconds to confirm emergency alert, or tap directly for instant emergency assistance.
         </p>
       </div>
 
