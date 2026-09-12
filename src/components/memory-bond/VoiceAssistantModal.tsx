@@ -73,23 +73,31 @@ export function VoiceAssistantModal({
   const { lang, speechLocale, setLang } = useI18n();
   const askAIServerFn = useServerFn(askVoiceAssistant);
 
-  // States
+  // States with persistent session memory
   const [voiceState, setVoiceState] = useState<AssistantVoiceState>("idle");
   const [currentLocale, setCurrentLocale] = useState<string>(speechLocale || "en-IN");
   const [detectedLangName, setDetectedLangName] = useState<string>("Auto-Detect");
   const [transcript, setTranscript] = useState<string>("");
   const [inputDraft, setInputDraft] = useState<string>("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    try {
+      const saved = sessionStorage.getItem("mb_voice_chat_history");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [pendingIntent, setPendingIntent] = useState<VoiceIntent | null>(null);
   const [recognitionError, setRecognitionError] = useState<string | null>(null);
   const [conversationMode, setConversationMode] = useState<boolean>(true);
 
-  // References to preserve state across recognition callbacks
+  // References to preserve synchronous state across recognition and event loop callbacks
   const isOpenRef = useRef(isOpen);
   const isActiveSessionRef = useRef(false);
   const isThinkingRef = useRef(false);
   const isSpeakingRef = useRef(false);
   const currentLocaleRef = useRef(currentLocale);
+  const messagesRef = useRef<ChatMessage[]>(messages);
   const listenTimeoutRef = useRef<any>(null);
   const recognitionRef = useRef<any>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
@@ -101,6 +109,14 @@ export function VoiceAssistantModal({
   useEffect(() => {
     currentLocaleRef.current = currentLocale;
   }, [currentLocale]);
+
+  // Keep messagesRef in lockstep with messages state & persist to sessionStorage
+  useEffect(() => {
+    messagesRef.current = messages;
+    try {
+      sessionStorage.setItem("mb_voice_chat_history", JSON.stringify(messages.slice(-20)));
+    } catch {}
+  }, [messages]);
 
   // Sync locale when global language changes
   useEffect(() => {
@@ -127,6 +143,14 @@ export function VoiceAssistantModal({
   const toggleConversationMode = (enabled: boolean) => {
     setConversationMode(enabled);
     localStorage.setItem("mb_conversation_mode", String(enabled));
+  };
+
+  const handleClearChat = () => {
+    messagesRef.current = [];
+    setMessages([]);
+    try {
+      sessionStorage.removeItem("mb_voice_chat_history");
+    } catch {}
   };
 
   const SpeechRecognition =
@@ -355,6 +379,7 @@ export function VoiceAssistantModal({
 
   // -------------------------------------------------------------------------
   // Core AI Pipeline: STT -> AI Reasoning -> Automatic Language -> TTS
+  // (Full Context Retention via Synchronous messagesRef)
   // -------------------------------------------------------------------------
   const processQuery = async (queryText: string) => {
     const text = queryText.trim();
@@ -365,7 +390,14 @@ export function VoiceAssistantModal({
     setVoiceState("processing");
     setRecognitionError(null);
 
-    // 1. Append User Message
+    // 1. Extract previous history from messagesRef BEFORE adding current turn
+    const previousTurns = [...messagesRef.current];
+    const recentHistory = previousTurns.slice(-8).map((m) => ({
+      role: m.role,
+      content: m.text,
+    }));
+
+    // 2. Append User Message to messagesRef and state synchronously
     const userMsg: ChatMessage = {
       id: "u_" + Date.now(),
       role: "user",
@@ -373,27 +405,23 @@ export function VoiceAssistantModal({
       locale: currentLocaleRef.current,
       timestamp: Date.now(),
     };
-    setMessages((prev) => [...prev, userMsg]);
+    const updatedWithUser = [...previousTurns, userMsg];
+    messagesRef.current = updatedWithUser;
+    setMessages(updatedWithUser);
     setTranscript(text);
 
     if (store && typeof store.addConversation === "function") {
       store.addConversation(`User: ${text}`);
     }
 
-    // 2. Pre-detect language on client for immediate locale awareness
+    // 3. Pre-detect language on client for immediate locale awareness
     const clientDetected = detectLanguage(text, currentLocaleRef.current);
     if (clientDetected) {
       setCurrentLocale(clientDetected);
       currentLocaleRef.current = clientDetected;
     }
 
-    // 3. Prepare recent history for multi-turn conversational context
-    const recentHistory = messages.slice(-6).map((m) => ({
-      role: m.role,
-      content: m.text,
-    }));
-
-    // 4. Call Conversational AI via Secure Server Function
+    // 4. Call Conversational AI via Secure Server Function (Passing recentHistory)
     let aiResponse: VoiceAssistantResponse;
 
     try {
@@ -416,10 +444,15 @@ export function VoiceAssistantModal({
         },
       });
     } catch (err) {
-      console.warn("Server AI Function unavailable, using local conversational fallback:", err);
-      aiResponse = getLocalOfflineFallback(text, clientDetected || currentLocaleRef.current, {
-        userName: store.user?.name || "Senior",
-      });
+      console.warn("Server AI Function unavailable, using local conversational fallback with history:", err);
+      aiResponse = getLocalOfflineFallback(
+        text,
+        recentHistory,
+        clientDetected || currentLocaleRef.current,
+        {
+          userName: store.user?.name || "Senior",
+        }
+      );
     }
 
     isThinkingRef.current = false;
@@ -441,7 +474,7 @@ export function VoiceAssistantModal({
       }
     }
 
-    // 6. Append Assistant Message
+    // 6. Append Assistant Message to messagesRef and state synchronously
     const assistantMsg: ChatMessage = {
       id: "a_" + Date.now(),
       role: "assistant",
@@ -450,7 +483,9 @@ export function VoiceAssistantModal({
       locale: finalLocale,
       timestamp: Date.now(),
     };
-    setMessages((prev) => [...prev, assistantMsg]);
+    const updatedWithAssistant = [...messagesRef.current, assistantMsg];
+    messagesRef.current = updatedWithAssistant;
+    setMessages(updatedWithAssistant);
 
     if (store && typeof store.addConversation === "function") {
       store.addConversation(`Assistant: ${aiResponse.reply}`);
@@ -571,7 +606,7 @@ export function VoiceAssistantModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 sm:p-4 backdrop-blur-md animate-in fade-in">
       <div className="relative w-full max-w-2xl rounded-3xl border-2 border-primary/40 bg-card p-4 sm:p-7 shadow-2xl space-y-5 flex flex-col max-h-[92vh]">
         
-        {/* Top Header: STOP Button, Auto-Detected Language Pill, Close */}
+        {/* Top Header: STOP Button, Auto-Detected Language Pill, New Topic, Close */}
         <div className="flex items-center justify-between pb-3 border-b border-border/70 shrink-0">
           <div className="flex items-center gap-2">
             {/* Immediate Stop Speaking / Cancel Button */}
@@ -593,6 +628,19 @@ export function VoiceAssistantModal({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Clear Chat / Start New Topic Button */}
+            {messages.length > 0 && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleClearChat}
+                className="rounded-full text-xs font-bold gap-1 text-muted-foreground hover:text-foreground h-8 px-2.5"
+                title="Reset conversation memory for a new topic"
+              >
+                <RotateCcw className="h-3.5 w-3.5" /> New Topic
+              </Button>
+            )}
+
             {/* Optional Manual Language Override */}
             <select
               value={currentLocale}
@@ -709,7 +757,7 @@ export function VoiceAssistantModal({
           )}
         </div>
 
-        {/* Multi-Turn Conversation Stream (CRITICAL REQUIREMENT 1 & 8) */}
+        {/* Multi-Turn Conversation Stream with Persistent Context Memory (CRITICAL REQUIREMENT 1 & 8) */}
         <div
           ref={chatScrollRef}
           className="flex-1 overflow-y-auto space-y-3 p-3 sm:p-4 rounded-2xl bg-secondary/40 border border-border/70 min-h-[140px] max-h-[260px] scroll-smooth"
@@ -721,7 +769,7 @@ export function VoiceAssistantModal({
                 Speak in any Indian language (Hindi, Gujarati, English, Bengali, Marathi, etc.)
               </p>
               <p className="text-xs text-muted-foreground">
-                Ask about AI, science, stories, medicines, daily routine, or general chit-chat.
+                Ask follow-up questions naturally ("Explain it simply", "Ab Hindi mein samjhao", "હવે ગુજરાતીમાં કહો").
               </p>
             </div>
           ) : (
@@ -777,13 +825,13 @@ export function VoiceAssistantModal({
               </div>
               <div className="rounded-2xl p-3 text-sm bg-card border border-border text-foreground flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-amber-500 animate-spin" />
-                <span className="font-semibold text-xs">AI is thinking & understanding your language...</span>
+                <span className="font-semibold text-xs">AI is thinking with conversation context...</span>
               </div>
             </div>
           )}
         </div>
 
-        {/* Action Controls for Latest AI Answer (Repeat Answer + Speak Again) */}
+        {/* Action Controls for Latest AI Answer (Repeat Answer + Speak Again + Stop Speaking) */}
         {latestAssistantMessage && (
           <div className="flex flex-wrap items-center justify-center gap-2.5 shrink-0">
             {/* Repeat Answer Button (CRITICAL REQUIREMENT 7) */}
@@ -876,17 +924,16 @@ export function VoiceAssistantModal({
         {/* Quick Test Prompt Chips (Covering Hindi, Gujarati, English, Romanized, Mixed) */}
         <div className="flex flex-wrap gap-1.5 justify-center text-xs shrink-0 max-h-16 overflow-y-auto">
           {[
+            "What is AI?",
+            "Explain it simply",
+            "Ab Hindi mein samjhao",
+            "હવે ગુજરાતીમાં કહો",
             "kem cho?",
             "mare medicine kyare levani che?",
             "kaise ho?",
             "aaj kya karna hai?",
-            "What is AI?",
-            "Explain it simply",
             "Can you tell me aaj ka routine?",
-            "Ab Hindi mein samjhao",
-            "હવે ગુજરાતીમાં કહો",
             "Tell me a short moral story",
-            "What is 15 * 8?",
           ].map((prompt, i) => (
             <button
               key={i}
@@ -912,7 +959,7 @@ export function VoiceAssistantModal({
           <Input
             value={inputDraft}
             onChange={(e) => setInputDraft(e.target.value)}
-            placeholder="Or type here in any language (e.g., 'kem cho', 'What is AI?')..."
+            placeholder="Or type here (e.g. 'What is AI?', 'Explain it simply', 'Ab Hindi mein samjhao')..."
             className="h-11 rounded-2xl text-sm"
           />
           <Button

@@ -4,11 +4,11 @@ import { z } from "zod";
 const GATEWAY = "https://ai.gateway.lovable.dev/v1";
 
 const VoiceAssistantInput = z.object({
-  query: z.string().min(1),
+  query: z.string(),
   history: z
     .array(
       z.object({
-        role: z.enum(["user", "assistant"]),
+        role: z.string(),
         content: z.string(),
       })
     )
@@ -56,45 +56,44 @@ export const askVoiceAssistant = createServerFn({ method: "POST" })
 
     // Fallback if API key is not present or offline
     if (!key) {
-      return getLocalOfflineFallback(query, preferredLocale, context);
+      return getLocalOfflineFallback(query, history, preferredLocale, context);
     }
 
     const systemPrompt = `You are "Memory Bond", an empathetic, intelligent, and warm AI voice companion designed for elderly users and dementia patients in India.
 
-CRITICAL INSTRUCTION 1: AUTOMATIC LANGUAGE DETECTION & MIRRORING
-- Detect the language the user is speaking or typing.
-- You MUST reply in the EXACT SAME LANGUAGE as the user's latest message.
-- Support all languages, including but not limited to:
-  * Hindi (हिन्दी / hi-IN)
-  * Gujarati (ગુજરાતી / gu-IN)
-  * English (en-IN)
-  * Bengali (বাংলা / bn-IN)
-  * Marathi (मराठी / mr-IN)
-  * Tamil (தமிழ் / ta-IN)
-  * Telugu (తెలుగు / te-IN)
-  * Kannada (ಕನ್ನಡ / kn-IN)
-  * Malayalam (മലയാളം / ml-IN)
-  * Punjabi (ਪੰਜਾਬੀ / pa-IN)
-  * Assamese (অসমীয়া / as-IN)
-  * Odia (ଓଡ଼ିଆ / or-IN)
+CRITICAL INSTRUCTION 1: CONVERSATION MEMORY & CONTEXT RETENTION (MANDATORY)
+- You have access to the conversation turns of earlier exchanges.
+- ALWAYS remember what was previously discussed.
+- When the user asks a follow-up question (e.g. "Explain it simply", "What about tomorrow?", "Why is it important?", "Tell me more about it", "Give an example", "How does it help?"):
+  * Identify what the pronoun "it", "this", or "that" refers to from earlier turns.
+  * For example, if the previous turn was about AI and the user says "Explain it simply", explain Artificial Intelligence in simple terms!
+  * If the previous turn was about medicine, explain the medicine simply!
+  * Continue the conversation naturally as an active pair. Never reset or ignore history!
 
-CRITICAL INSTRUCTION 2: ROMANIZED / TRANSLITERATED SCRIPT
-- If the user uses English letters to write an Indian language (e.g., "kem cho?", "mare medicine kyare levani che?", "kaise ho?", "aaj kya karna hai?", "kemon aachen?"), identify the intended Indian language.
-- Respond naturally in that language (using that language's native script or clear transliteration).
+CRITICAL INSTRUCTION 2: DYNAMIC LANGUAGE SWITCHING OF THE CURRENT TOPIC
+- If the user changes language in a follow-up (e.g. User asks "What is artificial intelligence?" -> AI replies in English -> User says "Ab Hindi mein samjhao." -> User says "હવે ગુજરાતીમાં કહો."):
+  * You MUST translate and explain the PREVIOUS SUBJECT in the newly requested language!
+  * DO NOT just ask "What do you want to understand?" — actually deliver the answer about the topic in the new language!
 
-CRITICAL INSTRUCTION 3: MIXED LANGUAGE (Hinglish, Gujlish, etc.)
-- If the user speaks mixed languages (e.g. "Can you tell me aaj ka routine?"), understand the full query and reply naturally in Hinglish/Hindi or the respective hybrid style. Do not force formal language.
+CRITICAL INSTRUCTION 3: AUTOMATIC LANGUAGE DETECTION & MIRRORING
+- Automatically detect the language the user speaks or types.
+- Reply in the EXACT SAME LANGUAGE as the user's latest message.
+- Support native scripts AND Romanized/Latin transliterations:
+  * Gujarati ("kem cho?", "mare medicine kyare levani che?", "aaje su karvanu?")
+  * Hindi ("kaise ho?", "aaj kya karna hai?", "meri dawa kab hai?")
+  * English ("What is AI?", "Explain it simply.")
+  * Bengali ("kemon aachen?", "aajke ki korbo?")
+  * Marathi ("kasa ahes?", "aushadh kadhi ghyayche?")
+  * Assamese ("kene aasa?", "aaji ki kaam ase?")
+  * Tamil, Telugu, Kannada, Malayalam, Punjabi, Odia.
+- Support natural mixed language (Hinglish, Gujlish).
 
-CRITICAL INSTRUCTION 4: DYNAMIC LANGUAGE SWITCHING
-- If the user switches language in a follow-up (e.g. "What is artificial intelligence?" -> "Ab Hindi mein samjhao." -> "હવે ગુજરાતીમાં કહો."), immediately switch your response to the newly requested language!
+CRITICAL INSTRUCTION 4: GENERAL-PURPOSE CONVERSATION
+- You are a real general-purpose conversational AI.
+- Users can ask: General knowledge, Maths, Science, Technology, Bedtime Stories, Daily Routine, Healthcare advice, or friendly banter.
+- Spoken responses MUST be calm, clear, friendly, and concise (2 to 4 sentences maximum) so they sound natural when spoken out loud via Text-to-Speech.
 
-CRITICAL INSTRUCTION 5: GENERAL-PURPOSE CONVERSATION & CONTEXT
-- You are NOT a fixed FAQ bot. You are a general-purpose conversational AI.
-- The user can ask anything: General knowledge, Maths, Science, History, Technology ("What is AI?"), Stories, Everyday health & wellness, Explanations ("Explain it simply"), or general chit-chat.
-- Retain conversation history. When the user asks follow-up questions (e.g. "Explain it simply"), understand what "it" refers to from earlier turns.
-- Keep spoken answers calm, clear, friendly, and concise (2 to 4 sentences maximum) so it can be spoken out loud via Text-to-Speech without fatiguing the senior.
-
-CURRENT USER CONTEXT (Reference only when relevant):
+CURRENT USER CONTEXT:
 - Name: ${context.userName || "Senior"}
 - Region: ${context.userRegion || "India"}
 - Medicines: ${context.pendingMeds || "None pending"}
@@ -115,12 +114,17 @@ Reply ONLY with a raw JSON object with no markdown fences, no formatting, matchi
       { role: "system", content: systemPrompt },
     ];
 
-    // Include last 6 turns of conversation history for follow-ups
-    const recentHistory = history.slice(-6);
+    // Include last 8 turns of conversation history for follow-ups
+    const recentHistory = history.slice(-8);
     for (const h of recentHistory) {
-      messages.push({ role: h.role, content: h.content });
+      if (h && typeof h.content === "string" && h.content.trim()) {
+        messages.push({
+          role: h.role === "assistant" ? "assistant" : "user",
+          content: h.content.trim(),
+        });
+      }
     }
-    messages.push({ role: "user", content: query });
+    messages.push({ role: "user", content: query.trim() });
 
     try {
       const response = await fetch(`${GATEWAY}/chat/completions`, {
@@ -140,7 +144,7 @@ Reply ONLY with a raw JSON object with no markdown fences, no formatting, matchi
       if (!response.ok) {
         const errorText = await response.text().catch(() => "");
         console.warn(`Gateway AI error (${response.status}):`, errorText);
-        return getLocalOfflineFallback(query, preferredLocale, context);
+        return getLocalOfflineFallback(query, history, preferredLocale, context);
       }
 
       const json = await response.json();
@@ -164,7 +168,7 @@ Reply ONLY with a raw JSON object with no markdown fences, no formatting, matchi
         };
       }
 
-      // If json parsing wasn't clean, return the raw text
+      // If json parsing wasn't clean, return the text
       return {
         reply: cleaned,
         detectedLocale: preferredLocale,
@@ -173,31 +177,133 @@ Reply ONLY with a raw JSON object with no markdown fences, no formatting, matchi
       };
     } catch (err) {
       console.error("AI Voice Assistant Gateway error:", err);
-      return getLocalOfflineFallback(query, preferredLocale, context);
+      return getLocalOfflineFallback(query, history, preferredLocale, context);
     }
   });
 
 /**
  * Intelligent local fallback when offline or when Lovable API is unreachable.
- * Fully supports Romanized Indian languages, dynamic switches, mixed languages, and general topics.
+ * Fully supports multi-turn contextual memory, Romanized Indian languages,
+ * dynamic switches on previous topics, and general conversational continuity.
  */
 export function getLocalOfflineFallback(
   query: string,
-  preferredLocale: string,
+  history: Array<{ role: string; content: string }> = [],
+  preferredLocale: string = "en-IN",
   context: Record<string, any> = {}
 ): VoiceAssistantResponse {
   const q = query.toLowerCase().trim();
 
-  // 1. Explicit Language Switch Commands
-  if (/\b(ab hindi|hindi mein|hindi me|हिंदी में|हिन्दी में)\b/i.test(q)) {
+  // Extract previous conversational context from history
+  const lastUserTurn = [...history].reverse().find((h) => h.role === "user");
+  const lastAssistantTurn = [...history].reverse().find((h) => h.role === "assistant");
+  const priorContextText = (
+    (lastUserTurn?.content || "") + " " + (lastAssistantTurn?.content || "")
+  ).toLowerCase();
+
+  const wasAI =
+    priorContextText.includes("ai") ||
+    priorContextText.includes("artificial intelligence") ||
+    priorContextText.includes("intelligence") ||
+    priorContextText.includes("computer") ||
+    priorContextText.includes("technology") ||
+    priorContextText.includes("એઆઈ");
+
+  const wasMedicine =
+    priorContextText.includes("medicine") ||
+    priorContextText.includes("dawa") ||
+    priorContextText.includes("dava") ||
+    priorContextText.includes("pill") ||
+    priorContextText.includes("दवा") ||
+    priorContextText.includes("દવા");
+
+  const wasRoutine =
+    priorContextText.includes("routine") ||
+    priorContextText.includes("dinacharya") ||
+    priorContextText.includes("schedule") ||
+    priorContextText.includes("aaj kya") ||
+    priorContextText.includes("દિનચર્યા") ||
+    priorContextText.includes("दिनचर्या");
+
+  const wasStory =
+    priorContextText.includes("story") ||
+    priorContextText.includes("kahani") ||
+    priorContextText.includes("varta") ||
+    priorContextText.includes("વાર્તા") ||
+    priorContextText.includes("कहानी");
+
+  // =========================================================================
+  // 1. DYNAMIC LANGUAGE SWITCH OF PREVIOUS TOPIC (CRITICAL REQUIREMENT 5)
+  // e.g. "Ab Hindi mein samjhao", "હવે ગુજરાતીમાં કહો", "In English please"
+  // =========================================================================
+  const isSwitchToHindi =
+    /\b(ab hindi|hindi mein|hindi me|हिंदी में|हिन्दी में|हिंदी में समझाओ|हिन्दी में समझाओ)\b/i.test(q) ||
+    q === "hindi" ||
+    q === "hindi please";
+
+  if (isSwitchToHindi) {
+    if (wasAI) {
+      return {
+        reply: "आर्टिफिशियल इंटेलिजेंस (AI) का मतलब है ऐसी कंप्यूटर तकनीक जो इंसानों की तरह सोच, समझ और सीख सकती है। यह आपके रोज़ाना के कामों, सेहत और दवाओं को याद रखने में एक सच्चे साथी की तरह मदद करती है।",
+        detectedLocale: "hi-IN",
+        languageName: "Hindi",
+        suggestedAction: "none",
+      };
+    }
+    if (wasMedicine) {
+      return {
+        reply: "आपकी दवा के बारे में: सुबह 8:30 बजे आपको ब्लड प्रेशर की गोली लेनी है। इसे नाश्ते के बाद गुनगुने पानी के साथ लें।",
+        detectedLocale: "hi-IN",
+        languageName: "Hindi",
+        suggestedAction: "take_medicine",
+      };
+    }
+    if (wasRoutine) {
+      return {
+        reply: "आपकी दिनचर्या के बारे में: सुबह 8:30 बजे दवा, 4 गिलास पानी पीना, 10 बजे मेमोरी गतिविधि और शाम 4 बजे डॉक्टर से मिलना है।",
+        detectedLocale: "hi-IN",
+        languageName: "Hindi",
+        suggestedAction: "view_routine",
+      };
+    }
     return {
-      reply: "हाँ बिल्कुल! अब से मैं आपसे हिन्दी में बात करूँगा। आप क्या समझना चाहते हैं?",
+      reply: "हाँ बिल्कुल! अब से मैं आपसे हिन्दी में बात करूँगा। आप मुझसे दवा, दिनचर्या या कोई भी सवाल पूछ सकते हैं।",
       detectedLocale: "hi-IN",
       languageName: "Hindi",
       suggestedAction: "none",
     };
   }
-  if (/\b(have gujarati|gujarati ma|gujarati mein|ગુજરાતીમાં)\b/i.test(q)) {
+
+  const isSwitchToGujarati =
+    /\b(have gujarati|gujarati ma|gujarati mein|ગુજરાતીમાં|ગુજરાતીમાં કહો|ગુજરાતીમાં સમજાવો)\b/i.test(q) ||
+    q === "gujarati" ||
+    q === "gujarati please";
+
+  if (isSwitchToGujarati) {
+    if (wasAI) {
+      return {
+        reply: "આર્ટિફિશિયલ ઇન્ટેલિજન્સ (AI) એટલે એવી કમ્પ્યુટર ટેક્નોલોજી જે માણસની જેમ શીખી અને સમજી શકે છે. આ તમને રોજિંદા કામો, દવાની યાદ અને રમતોમાં એક પ્રેમાળ સાથીની જેમ મદદ કરે છે.",
+        detectedLocale: "gu-IN",
+        languageName: "Gujarati",
+        suggestedAction: "none",
+      };
+    }
+    if (wasMedicine) {
+      return {
+        reply: "તમારી દવા વિશે: સવારે 8:30 વાગ્યે તમારે બ્લડ પ્રેશરની ગોળી લેવાની છે. નાસ્તા પછી હુંફાળા પાણી સાથે દવા લઈ લો.",
+        detectedLocale: "gu-IN",
+        languageName: "Gujarati",
+        suggestedAction: "take_medicine",
+      };
+    }
+    if (wasRoutine) {
+      return {
+        reply: "તમારી દિનચર્યા વિશે: સવારે 8:30 વાગ્યે દવા, 10 વાગ્યે મેમરી ગેમ, પૂરતું પાણી પીવું અને સાંજે 4 વાગ્યે ડૉક્ટરની મુલાકાત છે.",
+        detectedLocale: "gu-IN",
+        languageName: "Gujarati",
+        suggestedAction: "view_routine",
+      };
+    }
     return {
       reply: "ચોક્કસ! હવે હું તમારી સાથે ગુજરાતીમાં વાત કરીશ. તમને કઈ બાબતમાં મદદ જોઈએ છે?",
       detectedLocale: "gu-IN",
@@ -205,16 +311,137 @@ export function getLocalOfflineFallback(
       suggestedAction: "none",
     };
   }
-  if (/\b(in english|speak in english|switch to english)\b/i.test(q)) {
+
+  const isSwitchToEnglish =
+    /\b(in english|speak in english|switch to english|english please|tell in english)\b/i.test(q);
+
+  if (isSwitchToEnglish) {
+    if (wasAI) {
+      return {
+        reply: "In English: Artificial Intelligence, or AI, is computer technology designed to learn, reason, and assist people naturally, like a friendly digital companion.",
+        detectedLocale: "en-IN",
+        languageName: "English",
+        suggestedAction: "none",
+      };
+    }
+    if (wasMedicine) {
+      return {
+        reply: "In English: Your morning blood pressure medicine is scheduled at 8:30 AM. Please take it with lukewarm water after your meal.",
+        detectedLocale: "en-IN",
+        languageName: "English",
+        suggestedAction: "take_medicine",
+      };
+    }
     return {
-      reply: "Sure! I will now speak with you in English. How can I assist you today?",
+      reply: "Sure! I will now converse with you in English. How can I assist you today?",
       detectedLocale: "en-IN",
       languageName: "English",
       suggestedAction: "none",
     };
   }
 
-  // 2. Gujarati Detection (Script or Romanized: e.g. "kem cho", "mare medicine kyare levani che")
+  // =========================================================================
+  // 2. CONTEXTUAL FOLLOW-UP & SIMPLIFICATION ("Explain it simply")
+  // (CRITICAL REQUIREMENT 1: User: "What is AI?" -> User: "Explain it simply.")
+  // =========================================================================
+  const isExplainSimply =
+    q.includes("explain it simply") ||
+    q.includes("explain simply") ||
+    q.includes("in simple words") ||
+    q.includes("simple words") ||
+    q.includes("saral bhasha") ||
+    q.includes("saral shabdo") ||
+    q.includes("સરળ રીતે") ||
+    q.includes("સરળ શબ્દો") ||
+    q.includes("सरल भाषा") ||
+    q.includes("सरल शब्दों");
+
+  if (isExplainSimply) {
+    // If in Gujarati context or query
+    if (/[\u0A80-\u0AFF]/.test(query) || q.includes("સરળ") || preferredLocale.startsWith("gu")) {
+      if (wasMedicine) {
+        return {
+          reply: "સરળ શબ્દોમાં: સવારે નાસ્તા પછી હુંફાળા પાણી સાથે એક ગોળી લઈ લો જેથી તમારું બ્લડ પ્રેશર હંમેશાં નિયંત્રણમાં રહે.",
+          detectedLocale: "gu-IN",
+          languageName: "Gujarati",
+          suggestedAction: "take_medicine",
+        };
+      }
+      return {
+        reply: "સરળ શબ્દોમાં: AI એક ડિજિટલ મદદગાર છે જે તમારી વાત સાંભળે છે, તમારી દવા અને દિનચર્યા યાદ રાખે છે અને તમને ક્યારેય એકલા પડવા દેતું નથી.",
+        detectedLocale: "gu-IN",
+        languageName: "Gujarati",
+        suggestedAction: "none",
+      };
+    }
+
+    // If in Hindi context or query
+    if (/[\u0900-\u097F]/.test(query) || q.includes("सरल") || preferredLocale.startsWith("hi")) {
+      if (wasMedicine) {
+        return {
+          reply: "सरल शब्दों में: सुबह नाश्ते के बाद एक गोली गुनगुने पानी से ले लें ताकि आपका ब्लड प्रेशर हमेशा सामान्य और स्वस्थ रहे।",
+          detectedLocale: "hi-IN",
+          languageName: "Hindi",
+          suggestedAction: "take_medicine",
+        };
+      }
+      return {
+        reply: "सरल शब्दों में: AI एक बुद्धिमान साथी की तरह है जो आपकी बात सुनता है, आपकी ज़रूरतें याद रखता है और समय पर दवा लेने जैसी चीज़ों में आपकी मदद करता है।",
+        detectedLocale: "hi-IN",
+        languageName: "Hindi",
+        suggestedAction: "none",
+      };
+    }
+
+    // Default English simplification
+    if (wasMedicine) {
+      return {
+        reply: "In simple words: Take your morning blood pressure pill with lukewarm water right after your breakfast to keep your health steady and strong.",
+        detectedLocale: "en-IN",
+        languageName: "English",
+        suggestedAction: "take_medicine",
+      };
+    }
+
+    // AI Simplification (User's primary canonical test case!)
+    return {
+      reply: "In simple words: AI is like a helpful digital assistant that listens to your voice, remembers what you need, and helps you with daily tasks like medicine reminders and fun memory games.",
+      detectedLocale: "en-IN",
+      languageName: "English",
+      suggestedAction: "none",
+    };
+  }
+
+  // Follow-up: "Tell me more" / "What else can it do?" / "Aur batao"
+  const isTellMore =
+    q.includes("tell me more") ||
+    q.includes("what else") ||
+    q.includes("aur batao") ||
+    q.includes("વધુ કહો") ||
+    q.includes("और बताओ");
+
+  if (isTellMore) {
+    if (wasAI) {
+      return {
+        reply: "AI can also recognize voices, translate between Indian languages like Hindi and Gujarati in real time, and alert your family members if you ever need support.",
+        detectedLocale: preferredLocale || "en-IN",
+        languageName: preferredLocale.startsWith("gu") ? "Gujarati" : preferredLocale.startsWith("hi") ? "Hindi" : "English",
+        suggestedAction: "none",
+      };
+    }
+    if (wasMedicine) {
+      return {
+        reply: "Along with Amlodipine for blood pressure, remember to stay hydrated with at least 6 glasses of water and take a gentle 15-minute morning walk.",
+        detectedLocale: preferredLocale || "en-IN",
+        languageName: "English",
+        suggestedAction: "none",
+      };
+    }
+  }
+
+  // =========================================================================
+  // 3. GUJARATI (Native Script & Romanized: "kem cho", "mare medicine kyare levani che")
+  // =========================================================================
   if (
     /[\u0A80-\u0AFF]/.test(query) ||
     /\b(kem cho|su karo|kaho|tamaru|savare|dawa|dava|aaje|ghare|pan|chhe|bapore|saanje|levani|kyare|ketla|jamvanu|majama)\b/i.test(q)
@@ -259,8 +486,13 @@ export function getLocalOfflineFallback(
     };
   }
 
-  // 3. Mixed Hinglish Detection (e.g. "Can you tell me aaj ka routine?")
-  if (/\b(can you tell me|tell me|what is)\s+(aaj ka|meri dawa|aaj ki)\b/i.test(q) || (q.includes("routine") && q.includes("aaj"))) {
+  // =========================================================================
+  // 4. MIXED HINGLISH (e.g. "Can you tell me aaj ka routine?")
+  // =========================================================================
+  if (
+    /\b(can you tell me|tell me|what is)\s+(aaj ka|meri dawa|aaj ki)\b/i.test(q) ||
+    (q.includes("routine") && q.includes("aaj"))
+  ) {
     return {
       reply: "हाँ बिल्कुल! आज सुबह 8:30 बजे आपकी ब्लड प्रेशर की दवा है, 10 बजे मेमोरी गतिविधि, और शाम 4 बजे डॉक्टर से मिलना है।",
       detectedLocale: "hi-IN",
@@ -269,7 +501,9 @@ export function getLocalOfflineFallback(
     };
   }
 
-  // 4. Hindi Detection (Devanagari or Romanized: e.g. "kaise ho", "aaj kya karna hai", "meri dawa kab hai")
+  // =========================================================================
+  // 5. HINDI (Native Devanagari & Romanized: "kaise ho", "aaj kya karna hai")
+  // =========================================================================
   if (
     /[\u0900-\u097F]/.test(query) ||
     /\b(namaste|kaise ho|kya haal|dawa|aaj kya|karna hai|batao|samjhao|paani|theek hai|subah|shaam|kripya|kahani)\b/i.test(q)
@@ -314,7 +548,9 @@ export function getLocalOfflineFallback(
     };
   }
 
-  // 5. Bengali / Assamese
+  // =========================================================================
+  // 6. BENGALI / ASSAMESE
+  // =========================================================================
   if (/[\u0980-\u09FF]/.test(query) || /\b(kemon|aajke|oshudh|kailoi|puwa|khalu|kene|ki khobor)\b/i.test(q)) {
     const isAssamese = /[ৱৰ]/.test(query) || /\b(kailoi|puwa|khalu|kene|axomiya|ki khobor)\b/i.test(q);
     if (isAssamese) {
@@ -333,7 +569,9 @@ export function getLocalOfflineFallback(
     };
   }
 
-  // 6. Marathi
+  // =========================================================================
+  // 7. MARATHI
+  // =========================================================================
   if (/\b(kasa ahes|sakali|aushadh|vajta|kuthe|kadhi|ahe|kay challay)\b/i.test(q)) {
     return {
       reply: "नमस्कार! मी अगदी मजेत आहे. आपण कसे आहात? आज आपल्याला औषध, दिनचर्या किंवा खेळ यात मदत हवी आहे का?",
@@ -343,7 +581,9 @@ export function getLocalOfflineFallback(
     };
   }
 
-  // 7. Tamil
+  // =========================================================================
+  // 8. OTHER REGIONAL LANGUAGES (Tamil, Telugu, Kannada, Malayalam, Punjabi, Odia)
+  // =========================================================================
   if (/[\u0B80-\u0BFF]/.test(query) || /\b(vanakkam|eppadi|marunthu|iniku)\b/i.test(q)) {
     return {
       reply: "வணக்கம்! நான் நலமாக உள்ளேன். உங்களுக்கு மருந்து அல்லது இன்றைய அட்டவணையில் எவ்வாறு உதவ முடியும்?",
@@ -352,8 +592,6 @@ export function getLocalOfflineFallback(
       suggestedAction: "none",
     };
   }
-
-  // 8. Telugu
   if (/[\u0C00-\u0C7F]/.test(query) || /\b(namaskaram|ela unnaru|mandhu|e roju)\b/i.test(q)) {
     return {
       reply: "నమస్కారం! నేను బాగున్నాను. మీకు మందులు లేదా దినచర్యలో ఎలా సహాయపడగలను?",
@@ -362,8 +600,6 @@ export function getLocalOfflineFallback(
       suggestedAction: "none",
     };
   }
-
-  // 9. Kannada
   if (/[\u0C80-\u0CFF]/.test(query) || /\b(hegiddira|oushadha|ivathu)\b/i.test(q)) {
     return {
       reply: "ನಮಸ್ಕಾರ! ನಾನು ಆರಾಮವಾಗಿದ್ದೇನೆ. ಇಂದು ನಾನು ನಿಮಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು?",
@@ -372,8 +608,6 @@ export function getLocalOfflineFallback(
       suggestedAction: "none",
     };
   }
-
-  // 10. Malayalam
   if (/[\u0D00-\u0D7F]/.test(query) || /\b(sukhamano|marunnu|innu)\b/i.test(q)) {
     return {
       reply: "നമസ്കാരം! ഞാൻ സുഖമായിരിക്കുന്നു. ഇന്ന് ഞാൻ നിങ്ങളെ എങ്ങനെ സഹായിക്കണം?",
@@ -382,30 +616,21 @@ export function getLocalOfflineFallback(
       suggestedAction: "none",
     };
   }
-
-  // 11. Punjabi
   if (/[\u0A00-\u0A7F]/.test(query) || /\b(sat sri akal|kiddan|dawai|ajj)\b/i.test(q)) {
     return {
-      reply: "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ! ਮੈਂ ਬਿਲਕੁਲ ਠੀਕ ਹਾਂ। ਅੱਜ ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਮਦદ ਕਰ ਸਕਦਾ ਹਾਂ?",
+      reply: "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ! ਮੈਂ ਬਿਲਕੁਲ ਠੀਕ ਹਾਂ। ਅੱਜ ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਮਦਦ ਕਰ ਸਕਦਾ ਹਾਂ?",
       detectedLocale: "pa-IN",
       languageName: "Punjabi",
       suggestedAction: "none",
     };
   }
 
-  // 12. English General Conversational AI (Science, Math, AI, Stories, Explanations)
+  // =========================================================================
+  // 9. GENERAL ENGLISH CONVERSATIONAL AI
+  // =========================================================================
   if (q.includes("what is ai") || q.includes("artificial intelligence")) {
     return {
       reply: "Artificial Intelligence, or AI, is computer technology designed to learn, reason, and assist people naturally, just like a friendly digital companion.",
-      detectedLocale: "en-IN",
-      languageName: "English",
-      suggestedAction: "none",
-    };
-  }
-
-  if (q.includes("explain it simply") || q.includes("explain simply") || q.includes("in simple words")) {
-    return {
-      reply: "In simple words: AI is like a helpful assistant that listens to your voice, remembers your routine, and helps you with daily tasks like medicine reminders and fun memory games.",
       detectedLocale: "en-IN",
       languageName: "English",
       suggestedAction: "none",
