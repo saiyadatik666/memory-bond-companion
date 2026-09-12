@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   AlertOctagon,
   X,
@@ -6,20 +6,23 @@ import {
   MapPin,
   CheckCircle2,
   AlertTriangle,
-  ShieldAlert,
-  Loader2,
-  Volume2,
   Mic,
   Square,
-  VolumeX,
   Check,
-  ShieldCheck,
-  Phone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MemoryBondStore, SosEvent } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
 import { speakText, stopSpeaking } from "@/lib/voiceParser";
+
+// Strict SOS Session State Machine
+export type SosSessionState =
+  | "IDLE"
+  | "CONFIRMATION"
+  | "COUNTDOWN"
+  | "VOICE_INPUT"
+  | "CANCELLED"
+  | "COMPLETED";
 
 // Web Audio API Synthesizer for Emergency Siren Sound
 function playEmergencySiren(): () => void {
@@ -74,16 +77,20 @@ export function SosModal({
 }) {
   const { t, speechLocale } = useI18n();
 
-  // Mode:
-  // "idle": Initial screen with large 10-sec hold button & "Speak what happened" button
-  // "holding": 10-second press-and-hold in progress
-  // "voice_input": Patient is speaking what happened
-  // "confirming": Full-screen confirmation ("Emergency alert is about to be sent. Cancel / I'm safe")
-  // "dispatched": SOS sent, call flow triggered, location shared
-  const [step, setStep] = useState<"idle" | "holding" | "voice_input" | "confirming" | "dispatched">("idle");
-  const [holdProgress, setHoldProgress] = useState<number>(0);
-  const [holdSecondsRemaining, setHoldSecondsRemaining] = useState<number>(10);
-  const [cancelCountdown, setCancelCountdown] = useState<number>(5);
+  // Session State Machine & In-Flight Refs
+  const [sessionState, setSessionState] = useState<SosSessionState>("IDLE");
+  const sessionStateRef = useRef<SosSessionState>("IDLE");
+  const activeSessionIdRef = useRef<string | null>(null);
+  const isCancelledRef = useRef<boolean>(false);
+  const isCancellingRef = useRef<boolean>(false);
+
+  // Synchronous State Setter to prevent React race conditions
+  const updateSessionState = useCallback((newState: SosSessionState) => {
+    sessionStateRef.current = newState;
+    setSessionState(newState);
+  }, []);
+
+  const [cancelCountdown, setCancelCountdown] = useState<number>(10);
   const [spokenEmergencyText, setSpokenEmergencyText] = useState<string>("");
   const [isVoiceListening, setIsVoiceListening] = useState<boolean>(false);
   const [locationStatus, setLocationStatus] = useState<"pending" | "granted" | "denied" | "unavailable" | "simulated">("pending");
@@ -95,46 +102,26 @@ export function SosModal({
   const [voiceNoteRecorded, setVoiceNoteRecorded] = useState<boolean>(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
-  const holdStartTimeRef = useRef<number>(0);
-  const holdIntervalRef = useRef<any>(null);
   const cancelCountdownIntervalRef = useRef<any>(null);
-  const holdDurationMs = 10000; // 10-second hold for accidental activation protection
   const sirenStopFnRef = useRef<(() => void) | null>(null);
   const recognitionRef = useRef<any>(null);
-  const isCancelledRef = useRef<boolean>(false);
 
-  // Reset and start 10-second confirmation on modal open
-  useEffect(() => {
-    if (isOpen) {
-      isCancelledRef.current = false;
-      goToConfirmation("Emergency SOS Activated");
-    } else {
-      isCancelledRef.current = true;
-      cleanupTimers();
-      setStep("idle");
-      setHoldProgress(0);
-      setHoldSecondsRemaining(10);
-      setCancelCountdown(10);
-      setSpokenEmergencyText("");
-      setIsVoiceListening(false);
-    }
-  }, [isOpen]);
-
-  const cleanupTimers = () => {
-    if (holdIntervalRef.current) {
-      clearInterval(holdIntervalRef.current);
-      holdIntervalRef.current = null;
-    }
+  // Immediate and comprehensive cleanup of all SOS timers, audio, vibration, and speech
+  const cleanupTimers = useCallback(() => {
     if (cancelCountdownIntervalRef.current) {
       clearInterval(cancelCountdownIntervalRef.current);
       cancelCountdownIntervalRef.current = null;
     }
     if (recognitionRef.current) {
-      try { recognitionRef.current.abort(); } catch {}
+      try {
+        recognitionRef.current.abort();
+      } catch {}
       recognitionRef.current = null;
     }
     if (sirenStopFnRef.current) {
-      try { sirenStopFnRef.current(); } catch {}
+      try {
+        sirenStopFnRef.current();
+      } catch {}
       sirenStopFnRef.current = null;
     }
     if (typeof window !== "undefined") {
@@ -150,65 +137,303 @@ export function SosModal({
       }
     }
     stopSpeaking();
-  };
+  }, []);
 
   // -------------------------------------------------------------------------
-  // 1. PRESS AND HOLD (10 SECONDS) WITH PROGRESS & HAPTIC VIBRATION
+  // START 10-SECOND COUNTDOWN SESSION (Session Token Bound)
   // -------------------------------------------------------------------------
-  const handleHoldStart = (e: React.SyntheticEvent) => {
-    e.preventDefault();
-    if (step === "dispatched" || step === "confirming") return;
+  const startCountdownSession = useCallback((sessionId: string, detail: string) => {
+    cleanupTimers();
+    updateSessionState("COUNTDOWN");
+    setCancelCountdown(10);
 
-    isCancelledRef.current = false;
-    setStep("holding");
-    setHoldProgress(0);
-    setHoldSecondsRemaining(10);
-    holdStartTimeRef.current = Date.now();
-
-    // Haptic feedback on touch start
-    if (typeof window !== "undefined" && "vibrate" in navigator) {
-      navigator.vibrate([100]);
+    // 1. Play siren alert
+    if (!sirenStopFnRef.current) {
+      sirenStopFnRef.current = playEmergencySiren();
     }
 
-    holdIntervalRef.current = setInterval(() => {
-      if (isCancelledRef.current) {
-        clearInterval(holdIntervalRef.current);
+    // 2. Strong device vibration pattern
+    if (typeof window !== "undefined" && "vibrate" in navigator) {
+      try {
+        navigator.vibrate([400, 200, 400, 200, 600]);
+      } catch {}
+    }
+
+    // 3. Spoken voice cue
+    const cue = "Emergency SOS countdown active. Tap Cancel if you are safe.";
+    speakText(cue, speechLocale);
+
+    // 4. Start 10-second countdown interval with strict session & cancel checks
+    let remaining = 10;
+    cancelCountdownIntervalRef.current = setInterval(() => {
+      // Immediate cancellation & session validation on each tick
+      if (
+        activeSessionIdRef.current !== sessionId ||
+        isCancelledRef.current ||
+        sessionStateRef.current !== "COUNTDOWN"
+      ) {
+        if (cancelCountdownIntervalRef.current) {
+          clearInterval(cancelCountdownIntervalRef.current);
+          cancelCountdownIntervalRef.current = null;
+        }
         return;
       }
-      const elapsed = Date.now() - holdStartTimeRef.current;
-      const pct = Math.min(100, (elapsed / holdDurationMs) * 100);
-      const sLeft = Math.max(1, Math.ceil((holdDurationMs - elapsed) / 1000));
 
-      setHoldProgress(pct);
-      setHoldSecondsRemaining(sLeft);
+      remaining -= 1;
+      setCancelCountdown(remaining);
 
-      // Periodic gentle pulse every 2 seconds
-      if (Math.floor(elapsed / 1000) % 2 === 0 && typeof window !== "undefined" && "vibrate" in navigator) {
-        navigator.vibrate([60]);
+      if (typeof window !== "undefined" && "vibrate" in navigator) {
+        try {
+          navigator.vibrate([200]);
+        } catch {}
       }
 
-      if (elapsed >= holdDurationMs) {
-        clearInterval(holdIntervalRef.current);
-        goToConfirmation("10-Second Emergency Hold Activated");
-      }
-    }, 50);
-  };
+      if (remaining <= 0) {
+        if (cancelCountdownIntervalRef.current) {
+          clearInterval(cancelCountdownIntervalRef.current);
+          cancelCountdownIntervalRef.current = null;
+        }
 
-  const handleHoldEnd = () => {
-    if (step === "holding") {
-      clearInterval(holdIntervalRef.current);
-      setStep("idle");
-      setHoldProgress(0);
-      setHoldSecondsRemaining(10);
-    }
-  };
+        // Final session guard before dispatching
+        if (
+          activeSessionIdRef.current === sessionId &&
+          !isCancelledRef.current &&
+          sessionStateRef.current === "COUNTDOWN"
+        ) {
+          updateSessionState("COMPLETED");
+          executeFinalDispatch(detail, sessionId);
+        }
+      }
+    }, 1000);
+  }, [cleanupTimers, speechLocale, updateSessionState]);
 
   // -------------------------------------------------------------------------
-  // 2. EMERGENCY VOICE INPUT ("Speak what happened")
+  // FINAL SOS DISPATCH & CALL ESCALATION
+  // -------------------------------------------------------------------------
+  const executeFinalDispatch = useCallback((emergencyNote?: string, sessionId?: string) => {
+    // Strict Terminal Guard: Do not execute if cancelled or session has expired
+    if (
+      isCancelledRef.current ||
+      sessionStateRef.current === "CANCELLED" ||
+      (sessionId && activeSessionIdRef.current !== sessionId)
+    ) {
+      return;
+    }
+
+    cleanupTimers();
+    updateSessionState("COMPLETED");
+
+    // 1. Play siren alert tone
+    sirenStopFnRef.current = playEmergencySiren();
+
+    // 2. Strong device vibration pattern
+    if (typeof window !== "undefined" && "vibrate" in navigator) {
+      try {
+        navigator.vibrate([400, 200, 400, 200, 800]);
+      } catch {}
+    }
+
+    // 3. Spoken voice confirmation
+    const alertMessage = t("sosSent") || "SOS is active. Your family and caregivers are being informed.";
+    speakText(alertMessage, speechLocale);
+
+    // 4. Capture Geolocation with cancellation check
+    if (typeof window !== "undefined" && "geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (
+            isCancelledRef.current ||
+            sessionStateRef.current === "CANCELLED" ||
+            (sessionId && activeSessionIdRef.current !== sessionId)
+          ) {
+            return;
+          }
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setUserCoords({ lat, lng });
+          setLocationStatus("granted");
+
+          const event = store.triggerSos({
+            latitude: lat,
+            longitude: lng,
+            status: "granted",
+            emergencyDescription: emergencyNote,
+          });
+          setDispatchedEvent(event);
+        },
+        () => {
+          if (
+            isCancelledRef.current ||
+            sessionStateRef.current === "CANCELLED" ||
+            (sessionId && activeSessionIdRef.current !== sessionId)
+          ) {
+            return;
+          }
+          const defaultLat = 26.1822;
+          const defaultLng = 91.7617;
+          setUserCoords({ lat: defaultLat, lng: defaultLng });
+          setLocationStatus("simulated");
+
+          const event = store.triggerSos({
+            latitude: defaultLat,
+            longitude: defaultLng,
+            status: "simulated",
+            emergencyDescription: emergencyNote,
+          });
+          setDispatchedEvent(event);
+        },
+        { timeout: 8000 }
+      );
+    } else {
+      if (
+        isCancelledRef.current ||
+        sessionStateRef.current === "CANCELLED" ||
+        (sessionId && activeSessionIdRef.current !== sessionId)
+      ) {
+        return;
+      }
+      const event = store.triggerSos({
+        latitude: 26.1822,
+        longitude: 91.7617,
+        status: "unavailable",
+        emergencyDescription: emergencyNote,
+      });
+      setDispatchedEvent(event);
+    }
+
+    // 5. Automatic Call Initiation to Top Priority Contact
+    const primaryContact = store.contacts
+      .filter((c) => c.is_emergency)
+      .sort((a, b) => a.priority - b.priority)[0];
+
+    if (
+      primaryContact &&
+      primaryContact.phone &&
+      !isCancelledRef.current &&
+      sessionStateRef.current === "COMPLETED" &&
+      (!sessionId || activeSessionIdRef.current === sessionId)
+    ) {
+      try {
+        window.location.href = `tel:${primaryContact.phone}`;
+      } catch {}
+    }
+  }, [cleanupTimers, speechLocale, store, t, updateSessionState]);
+
+  // -------------------------------------------------------------------------
+  // CANCEL / I'M SAFE — TRUE TERMINAL ACTION WITH ZERO RESTART
+  // -------------------------------------------------------------------------
+  const handleCancelAndImSafe = useCallback((e?: React.SyntheticEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    // IDEMPOTENCY GUARD: First tap cancels SOS. Additional taps do nothing.
+    if (
+      isCancelledRef.current ||
+      isCancellingRef.current ||
+      sessionStateRef.current === "CANCELLED"
+    ) {
+      return;
+    }
+
+    // 1. Mark cancellation flags immediately
+    isCancellingRef.current = true;
+    isCancelledRef.current = true;
+    updateSessionState("CANCELLED");
+
+    // 2. Invalidate active session token immediately
+    activeSessionIdRef.current = null;
+
+    // 3. Immediately stop countdown, timers, siren, voice, and vibration
+    cleanupTimers();
+
+    // 4. Set global 4-second cooldown to block ghost clicks or background hold timers
+    if (typeof window !== "undefined") {
+      (window as any).__mb_last_sos_cancelled = Date.now() + 4000;
+      if ("vibrate" in navigator) {
+        try {
+          navigator.vibrate(0);
+        } catch {}
+      }
+      if (window.speechSynthesis) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch {}
+      }
+    }
+    stopSpeaking();
+
+    // 5. Cancel pending alerts & log safety in store
+    if (store && typeof store.cancelActiveSos === "function") {
+      try {
+        store.cancelActiveSos();
+      } catch {}
+    }
+
+    // 6. Reset UI states safely
+    setCancelCountdown(10);
+    setSpokenEmergencyText("");
+    setIsVoiceListening(false);
+
+    // 7. Close confirmation modal immediately
+    onClose();
+
+    // 8. Safely unlock in-flight ref after modal unmounts
+    setTimeout(() => {
+      isCancellingRef.current = false;
+    }, 1000);
+  }, [cleanupTimers, onClose, store, updateSessionState]);
+
+  // Reset and start 10-second confirmation on modal open
+  useEffect(() => {
+    if (isOpen) {
+      // Cooldown check: prevent re-opening if recently cancelled
+      if (typeof window !== "undefined") {
+        const lockUntil = (window as any).__mb_last_sos_cancelled || 0;
+        if (Date.now() < lockUntil) {
+          console.warn("[SOS] Suppressing SOS open during cancellation cooldown.");
+          onClose();
+          return;
+        }
+      }
+
+      // Initialize brand-new SOS session with unique session token
+      const newSessionId = `sos_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      activeSessionIdRef.current = newSessionId;
+      isCancelledRef.current = false;
+      isCancellingRef.current = false;
+      setDispatchedEvent(null);
+      setUserCoords(null);
+      setLocationStatus("pending");
+      setSpokenEmergencyText("");
+      setIsVoiceListening(false);
+
+      startCountdownSession(newSessionId, "Emergency SOS Activated");
+    } else {
+      // When modal is not open, guarantee clean terminal state
+      isCancelledRef.current = true;
+      activeSessionIdRef.current = null;
+      updateSessionState("IDLE");
+      cleanupTimers();
+    }
+  }, [isOpen, startCountdownSession, cleanupTimers, onClose, updateSessionState]);
+
+  // Component unmount cleanup
+  useEffect(() => {
+    return () => {
+      isCancelledRef.current = true;
+      activeSessionIdRef.current = null;
+      cleanupTimers();
+    };
+  }, [cleanupTimers]);
+
+  // -------------------------------------------------------------------------
+  // EMERGENCY VOICE INPUT ("Speak what happened")
   // -------------------------------------------------------------------------
   const startEmergencyVoiceInput = () => {
-    isCancelledRef.current = false;
-    setStep("voice_input");
+    if (isCancelledRef.current || sessionStateRef.current === "CANCELLED") return;
+    updateSessionState("VOICE_INPUT");
     setSpokenEmergencyText("");
     setIsVoiceListening(true);
     stopSpeaking();
@@ -220,7 +445,9 @@ export function SosModal({
 
     if (!SpeechRecognition) {
       setIsVoiceListening(false);
-      goToConfirmation("Assistance requested via Emergency Tap");
+      if (activeSessionIdRef.current) {
+        startCountdownSession(activeSessionIdRef.current, "Assistance requested via Emergency Voice");
+      }
       return;
     }
 
@@ -235,7 +462,7 @@ export function SosModal({
       rec.maxAlternatives = 1;
 
       rec.onresult = (event: any) => {
-        if (isCancelledRef.current) return;
+        if (isCancelledRef.current || sessionStateRef.current === "CANCELLED") return;
         const text = event.results[0]?.[0]?.transcript;
         if (text) {
           setSpokenEmergencyText(text);
@@ -253,7 +480,9 @@ export function SosModal({
       rec.start();
     } catch {
       setIsVoiceListening(false);
-      goToConfirmation("Assistance requested via Emergency Tap");
+      if (activeSessionIdRef.current) {
+        startCountdownSession(activeSessionIdRef.current, "Assistance requested via Emergency Voice");
+      }
     }
   };
 
@@ -263,177 +492,12 @@ export function SosModal({
     }
     setIsVoiceListening(false);
     const detail = spokenEmergencyText.trim() || "Assistance requested via Emergency Voice";
-    goToConfirmation(detail);
-  };
-
-  // -------------------------------------------------------------------------
-  // 3. FULL-SCREEN CONFIRMATION FLOW (10-Second Countdown & Cancel / I'm Safe)
-  // -------------------------------------------------------------------------
-  const goToConfirmation = (detail: string) => {
-    if (isCancelledRef.current) return;
-    setStep("confirming");
-    setCancelCountdown(10);
-
-    // Play emergency siren immediately
-    if (!sirenStopFnRef.current) {
-      sirenStopFnRef.current = playEmergencySiren();
-    }
-
-    // Strong vibration alert
-    if (typeof window !== "undefined" && "vibrate" in navigator) {
-      navigator.vibrate([400, 200, 400, 200, 600]);
-    }
-
-    // Spoken voice cue
-    const cue = "Emergency SOS countdown active. Tap Cancel if you are safe.";
-    speakText(cue, speechLocale);
-
-    // 10-second countdown to automatic emergency dispatch
-    let remaining = 10;
-    if (cancelCountdownIntervalRef.current) {
-      clearInterval(cancelCountdownIntervalRef.current);
-    }
-    cancelCountdownIntervalRef.current = setInterval(() => {
-      if (isCancelledRef.current) {
-        clearInterval(cancelCountdownIntervalRef.current);
-        return;
-      }
-      remaining -= 1;
-      setCancelCountdown(remaining);
-
-      if (typeof window !== "undefined" && "vibrate" in navigator) {
-        navigator.vibrate([200]);
-      }
-
-      if (remaining <= 0) {
-        clearInterval(cancelCountdownIntervalRef.current);
-        if (!isCancelledRef.current) {
-          executeFinalDispatch(detail);
-        }
-      }
-    }, 1000);
-  };
-
-  const handleCancelAndImSafe = (e?: React.SyntheticEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    // Atomic cancellation flag: kills any pending timer or callback instantly
-    isCancelledRef.current = true;
-    cleanupTimers();
-
-    // Prevent any race condition or ghost click from re-opening SOS for 2.5 seconds
-    if (typeof window !== "undefined") {
-      (window as any).__mb_last_sos_cancelled = Date.now() + 2500;
-      if ("vibrate" in navigator) {
-        try {
-          navigator.vibrate(0);
-        } catch {}
-      }
-      if (window.speechSynthesis) {
-        try {
-          window.speechSynthesis.cancel();
-        } catch {}
-      }
-    }
-    stopSpeaking();
-
-    if (store && typeof store.cancelActiveSos === "function") {
-      store.cancelActiveSos();
-    }
-
-    setStep("idle");
-    setHoldProgress(0);
-    setHoldSecondsRemaining(10);
-    setCancelCountdown(10);
-    setSpokenEmergencyText("");
-    setIsVoiceListening(false);
-
-    onClose();
-  };
-
-  // -------------------------------------------------------------------------
-  // 4. FINAL SOS DISPATCH & CALL ESCALATION
-  // -------------------------------------------------------------------------
-  const executeFinalDispatch = (emergencyNote?: string) => {
-    if (isCancelledRef.current) return;
-    cleanupTimers();
-    setStep("dispatched");
-
-    // 1. Play siren alert tone
-    sirenStopFnRef.current = playEmergencySiren();
-
-    // 2. Strong device vibration pattern
-    if (typeof window !== "undefined" && "vibrate" in navigator) {
-      navigator.vibrate([400, 200, 400, 200, 800]);
-    }
-
-    // 3. Spoken voice confirmation
-    const alertMessage = t("sosSent") || "SOS is active. Your family and caregivers are being informed.";
-    speakText(alertMessage, speechLocale);
-
-    // 4. Capture Geolocation with cancellation check
-    if (typeof window !== "undefined" && "geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          if (isCancelledRef.current) return;
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          setUserCoords({ lat, lng });
-          setLocationStatus("granted");
-
-          const event = store.triggerSos({
-            latitude: lat,
-            longitude: lng,
-            status: "granted",
-            emergencyDescription: emergencyNote,
-          });
-          setDispatchedEvent(event);
-        },
-        () => {
-          if (isCancelledRef.current) return;
-          // Graceful fallback to default regional coordinates
-          const defaultLat = 26.1822;
-          const defaultLng = 91.7617;
-          setUserCoords({ lat: defaultLat, lng: defaultLng });
-          setLocationStatus("simulated");
-
-          const event = store.triggerSos({
-            latitude: defaultLat,
-            longitude: defaultLng,
-            status: "simulated",
-            emergencyDescription: emergencyNote,
-          });
-          setDispatchedEvent(event);
-        },
-        { timeout: 8000 }
-      );
-    } else {
-      if (isCancelledRef.current) return;
-      const event = store.triggerSos({
-        latitude: 26.1822,
-        longitude: 91.7617,
-        status: "unavailable",
-        emergencyDescription: emergencyNote,
-      });
-      setDispatchedEvent(event);
-    }
-
-    // 5. Automatic Call Initiation to Top Priority Contact
-    const primaryContact = store.contacts
-      .filter((c) => c.is_emergency)
-      .sort((a, b) => a.priority - b.priority)[0];
-
-    if (primaryContact && primaryContact.phone) {
-      try {
-        // Attempt phone call link
-        window.location.href = `tel:${primaryContact.phone}`;
-      } catch {}
+    if (activeSessionIdRef.current) {
+      startCountdownSession(activeSessionIdRef.current, detail);
     }
   };
 
-  // Emergency Voice Note Recorder
+  // Extra voice note recorder in dispatched screen
   const startEmergencyVoiceNote = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -464,23 +528,27 @@ export function SosModal({
     }
   };
 
-  if (!isOpen) return null;
+  const handleCloseDispatched = () => {
+    cleanupTimers();
+    activeSessionIdRef.current = null;
+    updateSessionState("IDLE");
+    onClose();
+  };
+
+  // When modal is closed or explicitly CANCELLED, render NOTHING
+  if (!isOpen || sessionState === "CANCELLED") return null;
 
   const emergencyContacts = store.contacts
     .filter((c) => c.is_emergency)
     .sort((a, b) => a.priority - b.priority);
 
-  // Circular progress calculations for 10-sec hold
-  const radius = 64;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (holdProgress / 100) * circumference;
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-3 sm:p-4 backdrop-blur-md animate-in fade-in overflow-y-auto">
       <div className="relative w-full max-w-lg rounded-3xl border-4 border-destructive bg-card p-6 sm:p-8 shadow-2xl space-y-6 text-center mx-auto my-auto">
-        {/* Close button (only available if not in dispatched mode) */}
-        {step !== "dispatched" && (
+        {/* Close / Cancel X button (available during countdown & voice input) */}
+        {sessionState !== "COMPLETED" && (
           <button
+            type="button"
             onClick={handleCancelAndImSafe}
             className="absolute right-4 top-4 rounded-full p-2.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors cursor-pointer"
             aria-label="Cancel and close SOS dialog"
@@ -490,103 +558,9 @@ export function SosModal({
         )}
 
         {/* ============================================================ */}
-        {/* STAGE 1: IDLE / 10-SEC HOLD OR TAP TO SPEAK EMERGENCY        */}
+        {/* STAGE 1: VOICE EMERGENCY LISTENING                           */}
         {/* ============================================================ */}
-        {(step === "idle" || step === "holding") && (
-          <div className="space-y-6">
-            <div className="space-y-1.5">
-              <span className="inline-flex items-center gap-1.5 text-xs font-black tracking-wider uppercase text-destructive bg-destructive/10 px-3.5 py-1 rounded-full">
-                <AlertOctagon className="h-4 w-4" /> Emergency SOS Assistance
-              </span>
-              <h3 className="text-3xl sm:text-4xl font-black text-foreground">
-                EMERGENCY SOS
-              </h3>
-              <p className="text-muted-foreground text-sm font-medium max-w-sm mx-auto">
-                Press and hold for 10 seconds, or tap the microphone below to tell us what happened.
-              </p>
-            </div>
-
-            {/* Centered Circular 10-Second Hold Button with SVG Progress Ring */}
-            <div className="relative flex items-center justify-center py-2">
-              <svg className="w-52 h-52 -rotate-90 transform" viewBox="0 0 160 160">
-                <circle
-                  cx="80"
-                  cy="80"
-                  r={radius}
-                  className="text-destructive/20 stroke-current"
-                  strokeWidth="10"
-                  fill="transparent"
-                />
-                <circle
-                  cx="80"
-                  cy="80"
-                  r={radius}
-                  className="text-destructive stroke-current transition-all duration-75"
-                  strokeWidth="10"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={strokeDashoffset}
-                  strokeLinecap="round"
-                  fill="transparent"
-                />
-              </svg>
-
-              {/* Center Touch & Hold Button */}
-              <button
-                type="button"
-                onPointerDown={handleHoldStart}
-                onPointerUp={handleHoldEnd}
-                onPointerLeave={handleHoldEnd}
-                className={`absolute w-40 h-40 rounded-full bg-destructive text-white shadow-2xl flex flex-col items-center justify-center cursor-pointer select-none transition-all ${
-                  step === "holding"
-                    ? "scale-95 ring-8 ring-destructive/40 shadow-destructive/50"
-                    : "hover:scale-105 active:scale-95"
-                }`}
-              >
-                <AlertOctagon className="h-11 w-11 animate-pulse" />
-                <span className="text-3xl font-black tracking-wider mt-1">
-                  {step === "holding" ? holdSecondsRemaining : "SOS"}
-                </span>
-                <span className="text-[11px] font-bold uppercase opacity-95">
-                  {step === "holding" ? "Keep Holding" : "Hold 10 Sec"}
-                </span>
-              </button>
-            </div>
-
-            {/* Status & Feedback message */}
-            <div className="min-h-[24px]">
-              {step === "holding" ? (
-                <p className="text-destructive font-black text-base animate-pulse">
-                  Holding to activate... ({holdSecondsRemaining}s left)
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground font-semibold">
-                  Accidental protection: Release early to cancel anytime.
-                </p>
-              )}
-            </div>
-
-            {/* Alternative One-Tap Voice Emergency Flow */}
-            <div className="border-t border-border pt-4 space-y-3">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                Or speak your emergency immediately:
-              </p>
-              <Button
-                size="lg"
-                variant="outline"
-                onClick={startEmergencyVoiceInput}
-                className="w-full h-14 rounded-2xl border-2 border-destructive/40 hover:bg-destructive/10 text-foreground font-black text-base gap-2.5 shadow-sm"
-              >
-                <Mic className="h-6 w-6 text-destructive animate-pulse" />
-                Tap to Speak What Happened
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* ============================================================ */}
-        {/* STAGE 2: VOICE EMERGENCY LISTENING                           */}
-        {/* ============================================================ */}
-        {step === "voice_input" && (
+        {sessionState === "VOICE_INPUT" && (
           <div className="space-y-6 animate-in zoom-in-95">
             <div className="w-20 h-20 rounded-full bg-destructive/15 border-2 border-destructive mx-auto flex items-center justify-center text-destructive animate-pulse">
               <Mic className="h-10 w-10" />
@@ -609,10 +583,16 @@ export function SosModal({
             <div className="flex gap-3">
               <Button
                 variant="outline"
-                onClick={() => setStep("idle")}
+                onClick={() => {
+                  if (activeSessionIdRef.current) {
+                    startCountdownSession(activeSessionIdRef.current, "Emergency Voice Cancelled");
+                  } else {
+                    handleCancelAndImSafe();
+                  }
+                }}
                 className="flex-1 rounded-2xl h-12 font-bold"
               >
-                Cancel
+                Back to Countdown
               </Button>
               <Button
                 onClick={handleFinishVoiceInput}
@@ -625,9 +605,9 @@ export function SosModal({
         )}
 
         {/* ============================================================ */}
-        {/* STAGE 3: FULL-SCREEN SOS CONFIRMATION WITH CANCEL / I'M SAFE */}
+        {/* STAGE 2: FULL-SCREEN SOS CONFIRMATION WITH 10-SEC COUNTDOWN  */}
         {/* ============================================================ */}
-        {step === "confirming" && (
+        {(sessionState === "COUNTDOWN" || sessionState === "CONFIRMATION" || sessionState === "IDLE") && (
           <div className="space-y-6 animate-in zoom-in-95">
             <div className="rounded-3xl border-3 border-destructive bg-destructive/15 p-6 space-y-3">
               <div className="w-16 h-16 rounded-full bg-destructive text-white mx-auto flex items-center justify-center animate-bounce shadow-lg">
@@ -654,6 +634,7 @@ export function SosModal({
 
             {/* Cancel / I'm Safe Button (Prominent, Extra Large & High Contrast) */}
             <button
+              type="button"
               onClick={handleCancelAndImSafe}
               className="w-full h-20 sm:h-22 rounded-3xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xl sm:text-2xl tracking-wider shadow-2xl flex items-center justify-center gap-3 transition-transform active:scale-95 cursor-pointer border-2 border-emerald-400"
             >
@@ -661,20 +642,31 @@ export function SosModal({
               <span>CANCEL / I'M SAFE (रद्द करें / सुरक्षित हूँ)</span>
             </button>
 
-            <Button
-              variant="outline"
-              onClick={() => executeFinalDispatch(spokenEmergencyText)}
-              className="w-full h-12 rounded-xl text-destructive font-black border-destructive/40 text-sm"
-            >
-              Send Alert Immediately (Do Not Wait)
-            </Button>
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                onClick={() => executeFinalDispatch(spokenEmergencyText, activeSessionIdRef.current || undefined)}
+                className="w-full h-12 rounded-xl text-destructive font-black border-destructive/40 text-sm"
+              >
+                Send Alert Immediately (Do Not Wait)
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={startEmergencyVoiceInput}
+                className="w-full text-xs font-bold text-muted-foreground hover:text-foreground gap-1.5"
+              >
+                <Mic className="h-4 w-4 text-destructive" /> Add Voice Details Before Sending
+              </Button>
+            </div>
           </div>
         )}
 
         {/* ============================================================ */}
-        {/* STAGE 4: SOS DISPATCHED & ESCALATION FLOW                     */}
+        {/* STAGE 3: SOS DISPATCHED & ESCALATION FLOW                     */}
         {/* ============================================================ */}
-        {step === "dispatched" && (
+        {sessionState === "COMPLETED" && (
           <div className="space-y-6 animate-in zoom-in-95">
             {/* Active Status Alert */}
             <div className="rounded-3xl border-3 border-destructive bg-destructive/15 p-5 space-y-2 text-center">
@@ -782,7 +774,7 @@ export function SosModal({
             {/* Dismiss / Close Emergency Screen */}
             <Button
               variant="outline"
-              onClick={onClose}
+              onClick={handleCloseDispatched}
               className="w-full font-bold h-12 rounded-xl text-sm"
             >
               Close Emergency Screen

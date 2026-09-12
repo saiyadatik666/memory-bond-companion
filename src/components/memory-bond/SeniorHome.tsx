@@ -62,19 +62,36 @@ export function SeniorHome({
     return false;
   };
 
+  const clearSosHoldTimer = () => {
+    if (sosHoldTimerRef.current) {
+      clearInterval(sosHoldTimerRef.current);
+      sosHoldTimerRef.current = null;
+    }
+    setIsHoldingSos(false);
+    setSosHoldProgress(0);
+    setSosHoldSeconds(5);
+  };
+
   const handleSosHoldStart = () => {
     if (isSosCooldownActive()) return;
+    clearSosHoldTimer();
     setIsHoldingSos(true);
     setSosHoldProgress(0);
     setSosHoldSeconds(5);
     sosHoldStartRef.current = Date.now();
 
     if (typeof window !== "undefined" && "vibrate" in navigator) {
-      navigator.vibrate([80]);
+      try {
+        navigator.vibrate([80]);
+      } catch {}
     }
 
     const durationMs = 5000;
     sosHoldTimerRef.current = setInterval(() => {
+      if (isSosCooldownActive()) {
+        clearSosHoldTimer();
+        return;
+      }
       const elapsed = Date.now() - sosHoldStartRef.current;
       const pct = Math.min(100, (elapsed / durationMs) * 100);
       const secLeft = Math.max(0, Math.ceil((durationMs - elapsed) / 1000));
@@ -82,9 +99,7 @@ export function SeniorHome({
       setSosHoldSeconds(secLeft);
 
       if (elapsed >= durationMs) {
-        clearInterval(sosHoldTimerRef.current);
-        setIsHoldingSos(false);
-        setSosHoldProgress(0);
+        clearSosHoldTimer();
         if (!isSosCooldownActive()) {
           onOpenSos();
         }
@@ -93,12 +108,8 @@ export function SeniorHome({
   };
 
   const handleSosHoldEnd = () => {
-    if (sosHoldTimerRef.current) {
-      clearInterval(sosHoldTimerRef.current);
-    }
     const elapsed = Date.now() - sosHoldStartRef.current;
-    setIsHoldingSos(false);
-    setSosHoldProgress(0);
+    clearSosHoldTimer();
 
     if (isSosCooldownActive()) return;
 
@@ -110,7 +121,7 @@ export function SeniorHome({
 
   useEffect(() => {
     return () => {
-      if (sosHoldTimerRef.current) clearInterval(sosHoldTimerRef.current);
+      clearSosHoldTimer();
     };
   }, []);
 
@@ -237,6 +248,7 @@ export function SeniorHome({
           <button
             type="button"
             onClick={() => {
+              clearSosHoldTimer();
               if (isSosCooldownActive()) return;
               onOpenSos();
             }}
@@ -435,6 +447,7 @@ export function SeniorHome({
           onPointerDown={handleSosHoldStart}
           onPointerUp={handleSosHoldEnd}
           onPointerLeave={handleSosHoldEnd}
+          onPointerCancel={handleSosHoldEnd}
           className="relative overflow-hidden w-full sm:w-[420px] h-20 sm:h-22 rounded-3xl bg-destructive hover:bg-destructive/90 text-white font-black text-xl sm:text-2xl tracking-wider shadow-2xl flex items-center justify-center gap-3.5 transition-transform active:scale-95 cursor-pointer mx-auto border-2 border-white/20 select-none"
         >
           {/* Real-time hold progress fill */}

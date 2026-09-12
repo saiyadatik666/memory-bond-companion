@@ -32,11 +32,21 @@ export function FloatingAssistantBubble({
   const dragStartPosYRef = useRef<number>(0);
   const hasMovedRef = useRef<boolean>(false);
 
+  const clearBubbleTimers = () => {
+    if (pressTimerRef.current) {
+      clearTimeout(pressTimerRef.current);
+      pressTimerRef.current = null;
+    }
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+  };
+
   // Clear timers on unmount
   useEffect(() => {
     return () => {
-      if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      clearBubbleTimers();
     };
   }, []);
 
@@ -48,6 +58,7 @@ export function FloatingAssistantBubble({
     dragStartPosYRef.current = positionY;
     setIsPressed(true);
     setHoldProgress(0);
+    clearBubbleTimers();
 
     // Progress tick towards 3s hold for SOS (Section 18 of prompt)
     const startTime = Date.now();
@@ -64,7 +75,7 @@ export function FloatingAssistantBubble({
       if (!hasMovedRef.current) {
         setIsPressed(false);
         setHoldProgress(0);
-        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+        clearBubbleTimers();
 
         // Cooldown check: prevent retriggering if SOS was recently cancelled
         const lockUntil = (window as any)?.__mb_last_sos_cancelled || 0;
@@ -72,7 +83,9 @@ export function FloatingAssistantBubble({
 
         // Haptic feedback if available
         if (typeof navigator !== "undefined" && navigator.vibrate) {
-          navigator.vibrate([100, 50, 200]);
+          try {
+            navigator.vibrate([100, 50, 200]);
+          } catch {}
         }
         onOpenSos();
       }
@@ -86,8 +99,7 @@ export function FloatingAssistantBubble({
       hasMovedRef.current = true;
       setIsDragging(true);
       // Cancel SOS trigger if user is dragging
-      if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      clearBubbleTimers();
       setHoldProgress(0);
 
       const newY = Math.max(80, Math.min(window.innerHeight - 140, dragStartPosYRef.current + dy));
@@ -96,8 +108,7 @@ export function FloatingAssistantBubble({
   };
 
   const handlePointerUp = () => {
-    if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
-    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+    clearBubbleTimers();
 
     const wasLongPress = holdProgress >= 95;
     const moved = hasMovedRef.current;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useMemoryBondStore } from "@/lib/memoryBondStore";
 import { Header } from "./Header";
 import { DemoControlBar } from "./DemoControlBar";
@@ -38,6 +38,25 @@ export function MemoryBondApp() {
   const [isVoiceOpen, setIsVoiceOpen] = useState<boolean>(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState<boolean>(false);
   const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
+
+  // Centralized SOS Open with strict anti-restart cooldown guard
+  const handleOpenSos = useCallback(() => {
+    if (isSosOpen) return;
+
+    if (typeof window !== "undefined") {
+      const lockUntil = (window as any).__mb_last_sos_cancelled || 0;
+      if (Date.now() < lockUntil) {
+        console.warn("[SOS] Suppressed SOS open trigger during cancellation cooldown.");
+        return;
+      }
+    }
+
+    setIsSosOpen(true);
+  }, [isSosOpen]);
+
+  const handleCloseSos = useCallback(() => {
+    setIsSosOpen(false);
+  }, []);
 
   // Sync tab if user switches role (Senior, Caregiver, Admin / Healthcare Worker)
   useEffect(() => {
@@ -96,7 +115,7 @@ export function MemoryBondApp() {
       {/* Top Demo Bar for Evaluators & Judges */}
       <DemoControlBar
         store={store}
-        onOpenSos={() => setIsSosOpen(true)}
+        onOpenSos={handleOpenSos}
         onNavigate={handleNavigate}
       />
 
@@ -115,7 +134,7 @@ export function MemoryBondApp() {
           <SeniorHome
             store={store}
             onNavigate={handleNavigate}
-            onOpenSos={() => setIsSosOpen(true)}
+            onOpenSos={handleOpenSos}
             onOpenVoiceAssistant={() => setIsVoiceOpen(true)}
           />
         )}
@@ -169,7 +188,7 @@ export function MemoryBondApp() {
       {/* Global Modals */}
       <SosModal
         isOpen={isSosOpen}
-        onClose={() => setIsSosOpen(false)}
+        onClose={handleCloseSos}
         store={store}
       />
 
@@ -196,7 +215,7 @@ export function MemoryBondApp() {
       <Footer
         store={store}
         onNavigate={handleNavigate}
-        onOpenSos={() => setIsSosOpen(true)}
+        onOpenSos={handleOpenSos}
         onOpenVoice={() => setIsVoiceOpen(true)}
         onOpenAuth={() => setIsAuthOpen(true)}
       />
@@ -205,7 +224,7 @@ export function MemoryBondApp() {
       {store.profile.floating_bubble !== false && (
         <FloatingAssistantBubble
           onOpenVoice={() => setIsVoiceOpen(true)}
-          onOpenSos={() => setIsSosOpen(true)}
+          onOpenSos={handleOpenSos}
         />
       )}
     </div>
