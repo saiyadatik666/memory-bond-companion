@@ -31,6 +31,7 @@ import type { MemoryBondStore, Reminder } from "@/lib/memoryBondStore";
 import { speakText, startSpeechRecognition } from "@/lib/voiceParser";
 import { useI18n } from "@/lib/i18n";
 
+// Memory Bond Reminders Engine — Senior-Friendly Light Theme
 export function RemindersView({ store }: { store: MemoryBondStore }) {
   const { t, speechLocale } = useI18n();
 
