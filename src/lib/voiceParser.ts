@@ -74,18 +74,18 @@ export function intentSpeech(intent: VoiceIntent): string {
 }
 
 // ---------------------------------------------------------------------------
-// Universal Language Detection Engine (Unicode Scripts + Transliterations)
+// Universal Language Detection Engine (Unicode Scripts + Transliterations + Mixed)
 // ---------------------------------------------------------------------------
 export function detectLanguage(text: string, currentSessionLocale?: string): string {
   const raw = text.trim();
   const t = raw.toLowerCase();
   if (!t) return currentSessionLocale || "en-IN";
 
-  // 1. Explicit user language switch commands
-  if (/\b(switch to|speak in|change to)\s+gujarati\b/i.test(t) || /\b(gujarati ma|ગુજરાતીમાં)\b/i.test(t)) return "gu-IN";
-  if (/\b(switch to|speak in|change to)\s+hindi\b/i.test(t) || /\b(hindi me|हिन्दी में)\b/i.test(t)) return "hi-IN";
+  // 1. Explicit user language switch commands (e.g. "Ab Hindi mein samjhao", "હવે ગુજરાતીમાં કહો", "In English please")
+  if (/\b(switch to|speak in|change to)\s+gujarati\b/i.test(t) || /\b(gujarati ma|gujarati mein|ગુજરાતીમાં)\b/i.test(t) || /\bhave gujarati\b/i.test(t)) return "gu-IN";
+  if (/\b(switch to|speak in|change to)\s+hindi\b/i.test(t) || /\b(hindi me|hindi mein|हिन्दी में|हिंदी में)\b/i.test(t) || /\bab hindi\b/i.test(t)) return "hi-IN";
   if (/\b(switch to|speak in|change to)\s+marathi\b/i.test(t) || /\b(marathit|मराठीत)\b/i.test(t)) return "mr-IN";
-  if (/\b(switch to|speak in|change to)\s+bengali\b/i.test(t) || /\b(bangla te|বাংলায়)\b/i.test(t)) return "bn-IN";
+  if (/\b(switch to|speak in|change to)\s+bengali\b/i.test(t) || /\b(bangla te|banglay|বাংলায়)\b/i.test(t)) return "bn-IN";
   if (/\b(switch to|speak in|change to)\s+assamese\b/i.test(t) || /\b(axomiya|অসমীয়াত)\b/i.test(t)) return "as-IN";
   if (/\b(switch to|speak in|change to)\s+tamil\b/i.test(t) || /\b(tamilil|தமிழில்)\b/i.test(t)) return "ta-IN";
   if (/\b(switch to|speak in|change to)\s+telugu\b/i.test(t) || /\b(telugulo|తెలుగులో)\b/i.test(t)) return "te-IN";
@@ -93,20 +93,20 @@ export function detectLanguage(text: string, currentSessionLocale?: string): str
   if (/\b(switch to|speak in|change to)\s+malayalam\b/i.test(t) || /\b(malayalathil|മലയാളത്തിൽ)\b/i.test(t)) return "ml-IN";
   if (/\b(switch to|speak in|change to)\s+punjabi\b/i.test(t) || /\b(punjabi vich|ਪੰਜਾਬੀ ਵਿੱਚ)\b/i.test(t)) return "pa-IN";
   if (/\b(switch to|speak in|change to)\s+odia\b/i.test(t) || /\b(odia re|ଓଡ଼ିଆରେ)\b/i.test(t)) return "or-IN";
-  if (/\b(switch to|speak in|change to)\s+english\b/i.test(t) || /\benglish please\b/i.test(t)) return "en-IN";
+  if (/\b(switch to|speak in|change to)\s+english\b/i.test(t) || /\b(in english|english please)\b/i.test(t)) return "en-IN";
 
-  // 2. Native Unicode Script Detection
-  if (/[\u0A80-\u0AFF]/.test(raw)) return "gu-IN"; // Gujarati
+  // 2. Native Unicode Script Detection (highest confidence)
+  if (/[\u0A80-\u0AFF]/.test(raw)) return "gu-IN"; // Gujarati Script
   if (/[\u0900-\u097F]/.test(raw)) {
-    // Marathi specific words / inflectional markers
-    if (/\b(आहे|आहोत|नाही|कसे|कसा|केले|झाले|पाहिजे|वाजता|दुपारी|सकाळी|औषध|घेते|घेतले|करा)\b/.test(raw)) {
+    // Marathi specific words / inflectional markers in Devanagari
+    if (/\b(आहे|आहोत|नाही|कसे|कसा|केले|झाले|पाहिजे|वाजता|दुपारी|सकाळी|औषध|घेते|घेतले|करा|सांगा)\b/.test(raw)) {
       return "mr-IN";
     }
-    return "hi-IN"; // Hindi
+    return "hi-IN"; // Hindi in Devanagari
   }
   if (/[\u0980-\u09FF]/.test(raw)) {
-    // Assamese specific characters: ৱ, ৰ or common Assamese words
-    if (/[ৱৰ]/.test(raw) || /\b(কাইলৈ|পুৱা|খালোঁ|আছিল|কৰিম|হ’ল|হয়|বজাত|কেনে)\b/.test(raw)) {
+    // Assamese specific characters (ৱ, ৰ) or common Assamese words
+    if (/[ৱৰ]/.test(raw) || /\b(কাইলৈ|পুৱা|খালোঁ|আছিল|কৰিম|হ’ল|হয়|বজাত|কেনে|আজি)\b/.test(raw)) {
       return "as-IN";
     }
     return "bn-IN"; // Bengali
@@ -118,43 +118,67 @@ export function detectLanguage(text: string, currentSessionLocale?: string): str
   if (/[\u0A00-\u0A7F]/.test(raw)) return "pa-IN"; // Punjabi
   if (/[\u0B00-\u0B7F]/.test(raw)) return "or-IN"; // Odia
 
-  // 3. Transliteration Markers in Latin Script
-  if (/\b(kem cho|ketla|vagye|vage|savare|kale savare|dawa levi|dava levi|levi che|maare|tamare|haji|haaji|nathi|aaje|bapore|saanje|chhe)\b/i.test(t)) {
+  // 3. Romanized / Transliterated Indian Language & Mixed Language Markers (PRIORITY BEFORE ENGLISH FALLBACK)
+  // Gujarati Transliteration (e.g. "kem cho", "mare medicine kyare levani che", "su kare che")
+  if (
+    /\b(kem cho|kaho|tamaru|tamari|tame|su karo|su chaley|su chhe|su che|mare|tamare|dawa levi|dava levi|levani che|kyare|savare|bapore|saanje|ketla|ketle|vagye|vage|aaje|pan|chhe|nathi|aapo|bhai|jamvanu|majama)\b/i.test(t)
+  ) {
     return "gu-IN";
   }
-  if (/\b(namaste|kaise|kya|dawa leni|subah|shaam|baje|kripya|haanji|nahin|theek hai|kholo|chalo|bahut)\b/i.test(t)) {
+
+  // Hindi & Hinglish Transliteration (e.g. "kaise ho", "aaj kya karna hai", "Can you tell me aaj ka routine", "meri dawa")
+  if (
+    /\b(kaise ho|kya haal|aaj kya|aaj ka|aaj ki|aaj ke|meri dawa|dawai|kab leni|batao|samjhao|kripya|namaste|theek hai|subah|shaam|baje|paani|pani|mujhe|mera|meri|karo|kholo|chalo|bahut|kaisa|kaisi|bolo|shuru|hai|hain|nahi|nahin|accha|acha|karna hai)\b/i.test(t)
+  ) {
     return "hi-IN";
   }
-  if (/\b(kasa ahes|sakali|sandhyakali|aushadh|vajta|kuthe|kadhi|ahe)\b/i.test(t)) {
+
+  // Marathi Transliteration
+  if (/\b(kasa ahes|kashi ahes|kay challay|aushadh kadhi|sakali|sandhyakali|sanga|kuthe|ahe|nahi|ghyayche)\b/i.test(t)) {
     return "mr-IN";
   }
-  if (/\b(kemon|aajke|oshudh|koto|shokal|shondhe|bikel|khabo|kheyechi|aami)\b/i.test(t)) {
+
+  // Bengali Transliteration
+  if (/\b(kemon aachen|kemon acho|ki korbo|oshudh koto|shokal|bikel|khabo|kheyechi|aajke|aami)\b/i.test(t)) {
     return "bn-IN";
   }
-  if (/\b(kene aasa|kailoi|puwa|khalu|khabor|bozat)\b/i.test(t)) {
+
+  // Assamese Transliteration
+  if (/\b(kene aasa|ki khobor|aaji ki kaam|kailoi|puwa|khalu|bozat|axomiya)\b/i.test(t)) {
     return "as-IN";
   }
-  if (/\b(vanakkam|eppadi|marunthu|naalai|kalai|neram|manikku)\b/i.test(t)) {
+
+  // Tamil Transliteration
+  if (/\b(eppadi irukkeenga|vanakkam|marunthu eppo|iniku enna|naalai|neram|manikku)\b/i.test(t)) {
     return "ta-IN";
   }
-  if (/\b(namaskaram|ela unnaru|mandhu|repu|udhayam|eppudu|gantalaku)\b/i.test(t)) {
+
+  // Telugu Transliteration
+  if (/\b(ela unnaru|namaskaram|mandhu eppudu|e roju emi|repu|gantalaku)\b/i.test(t)) {
     return "te-IN";
   }
-  if (/\b(hegiddira|oushadha|naale|beligge|eshtu|gantege)\b/i.test(t)) {
+
+  // Kannada Transliteration
+  if (/\b(hegiddira|oushadha yavaga|ivathu enu|beligge|gantege)\b/i.test(t)) {
     return "kn-IN";
   }
-  if (/\b(sukhamano|marunnu|naale|ravile|ethra|manikku)\b/i.test(t)) {
+
+  // Malayalam Transliteration
+  if (/\b(sukhamano|marunnu eppozha|innu entha|ravile|manikku)\b/i.test(t)) {
     return "ml-IN";
   }
-  if (/\b(sat sri akal|kiddan|dawai|savere|vaje)\b/i.test(t)) {
+
+  // Punjabi Transliteration
+  if (/\b(sat sri akal|kiddan|dawai kadon|ajj ki karna|savere|vaje)\b/i.test(t)) {
     return "pa-IN";
   }
-  if (/\b(kemiti|oushadha|kali|sakale|tare)\b/i.test(t)) {
+
+  // Odia Transliteration
+  if (/\b(kemiti achhanti|oushadha kete bele|aaji kana|sakale|tare)\b/i.test(t)) {
     return "or-IN";
   }
 
-  // 4. Preserve current session language during short multi-turn continuations
-  // e.g. "8", "8:30", "yes", "no", "ok", "confirm", "sure"
+  // 4. Short multi-turn answers (e.g. "yes", "no", "8:30", "confirm") preserve the active session language
   const isShortContinuation =
     raw.length <= 8 ||
     /^(yes|no|ok|okay|sure|confirm|cancel|8|9|10|7|6|5|4|3|2|1|pm|am|\d{1,2}([:.]\d{2})?)$/i.test(t);
@@ -163,13 +187,8 @@ export function detectLanguage(text: string, currentSessionLocale?: string): str
     return currentSessionLocale;
   }
 
-  // 5. Explicit English phrasing
-  if (/\b(what|remind|medicine|doctor|appointment|how|hello|today|tomorrow|morning|evening|night|water|routine|help|game|social)\b/i.test(t)) {
-    return "en-IN";
-  }
-
-  // 6. Default fallback preserves active session locale if available
-  return currentSessionLocale || "en-IN";
+  // 5. Default fallback to English for general queries ("What is AI?", "Explain it simply", "How does gravity work?")
+  return "en-IN";
 }
 
 /** Pick a localized value: exact locale, then fallback */

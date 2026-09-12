@@ -11,15 +11,23 @@ import {
   RotateCcw,
   Languages,
   AlertCircle,
+  MessageSquare,
+  Bot,
+  User,
+  HelpCircle,
+  StopCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  askVoiceAssistant,
+  getLocalOfflineFallback,
+  type VoiceAssistantResponse,
+} from "@/lib/voiceAssistant.functions";
+import { voiceManager } from "@/lib/voiceProvider";
 import {
   parseVoiceIntent,
-  parseVoiceIntentAsync,
-  speakText,
-  stopSpeaking,
-  isSpokenAnswer,
   type VoiceIntent,
   detectLanguage,
   pick,
@@ -32,11 +40,24 @@ import {
   RETRY_LABEL_MSG,
   BARGE_IN_HINT_MSG,
 } from "@/lib/voiceParser";
-import { voiceManager } from "@/lib/voiceProvider";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { useI18n, LANGUAGES } from "@/lib/i18n";
 
-export type AssistantVoiceState = "idle" | "listening" | "processing" | "speaking" | "error";
+export type AssistantVoiceState =
+  | "idle"        // 🎙️ Tap to speak
+  | "listening"   // 🔴 Listening...
+  | "processing"  // 🧠 Thinking...
+  | "speaking"    // 🔊 Speaking...
+  | "error";
+
+interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+  languageName?: string;
+  locale?: string;
+  timestamp: number;
+}
 
 export function VoiceAssistantModal({
   isOpen,
@@ -49,16 +70,21 @@ export function VoiceAssistantModal({
   store: MemoryBondStore;
   onNavigate?: (tab: string) => void;
 }) {
-  const { lang, speechLocale, setLang, t } = useI18n();
+  const { lang, speechLocale, setLang } = useI18n();
+  const askAIServerFn = useServerFn(askVoiceAssistant);
+
+  // States
   const [voiceState, setVoiceState] = useState<AssistantVoiceState>("idle");
   const [currentLocale, setCurrentLocale] = useState<string>(speechLocale || "en-IN");
+  const [detectedLangName, setDetectedLangName] = useState<string>("Auto-Detect");
   const [transcript, setTranscript] = useState<string>("");
+  const [inputDraft, setInputDraft] = useState<string>("");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [pendingIntent, setPendingIntent] = useState<VoiceIntent | null>(null);
-  const [feedbackMessage, setFeedbackMessage] = useState<string>("");
   const [recognitionError, setRecognitionError] = useState<string | null>(null);
   const [conversationMode, setConversationMode] = useState<boolean>(true);
 
-  // Synchronous refs to protect event loop from stale state
+  // References to preserve state across recognition callbacks
   const isOpenRef = useRef(isOpen);
   const isActiveSessionRef = useRef(false);
   const isThinkingRef = useRef(false);
@@ -66,6 +92,7 @@ export function VoiceAssistantModal({
   const currentLocaleRef = useRef(currentLocale);
   const listenTimeoutRef = useRef<any>(null);
   const recognitionRef = useRef<any>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     isOpenRef.current = isOpen;
@@ -90,6 +117,13 @@ export function VoiceAssistantModal({
     }
   }, []);
 
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [messages, voiceState]);
+
   const toggleConversationMode = (enabled: boolean) => {
     setConversationMode(enabled);
     localStorage.setItem("mb_conversation_mode", String(enabled));
@@ -105,9 +139,11 @@ export function VoiceAssistantModal({
   // -------------------------------------------------------------------------
   const handleBargeIn = () => {
     voiceManager.bargeIn();
-    stopSpeaking();
     isSpeakingRef.current = false;
     if (listenTimeoutRef.current) clearTimeout(listenTimeoutRef.current);
+    if (voiceState === "speaking") {
+      setVoiceState("idle");
+    }
   };
 
   // -------------------------------------------------------------------------
@@ -128,7 +164,7 @@ export function VoiceAssistantModal({
   };
 
   // -------------------------------------------------------------------------
-  // Start Listening with Echo Guard & Hardware AEC priming
+  // Start Listening (🔴 Listening...)
   // -------------------------------------------------------------------------
   const startListening = () => {
     if (!isOpenRef.current) return;
@@ -140,7 +176,7 @@ export function VoiceAssistantModal({
     if (!SpeechRecognition) {
       setVoiceState("error");
       setRecognitionError(
-        "Speech recognition is not supported in this browser. Please type your message below."
+        "Speech recognition is not supported in this browser. You can still type your questions naturally below."
       );
       return;
     }
@@ -155,9 +191,8 @@ export function VoiceAssistantModal({
       const recognition = new SpeechRecognition();
       recognitionRef.current = recognition;
 
-      // Use active speech locale
       recognition.lang = currentLocaleRef.current;
-      recognition.interimResults = false;
+      recognition.interimResults = true;
       recognition.maxAlternatives = 1;
 
       recognition.onstart = () => {
@@ -165,46 +200,60 @@ export function VoiceAssistantModal({
       };
 
       recognition.onresult = (event: any) => {
-        const text = event.results[0]?.[0]?.transcript?.trim();
-        if (!text) return;
+        let interimText = "";
+        let finalText = "";
 
-        // Echo rejection: discard if it is an acoustic echo of assistant's own TTS voice
-        if (voiceManager.isEcho(text)) {
-          return;
-        }
-
-        // Barge-in: if assistant was still speaking, cancel TTS immediately
-        if (isSpeakingRef.current) {
-          handleBargeIn();
-        }
-
-        // Auto-detect language and maintain language consistency
-        const detected = detectLanguage(text, currentLocaleRef.current);
-        if (detected) {
-          setCurrentLocale(detected);
-          currentLocaleRef.current = detected;
-          // Synchronize with i18n store if language code matched
-          const langMatch = LANGUAGES.find((l) => l.speech === detected);
-          if (langMatch) {
-            setLang(langMatch.code);
-            if (store && typeof store.updateLanguage === "function") {
-              store.updateLanguage(langMatch.code);
-            }
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const item = event.results[i];
+          if (item.isFinal) {
+            finalText += item[0].transcript;
+          } else {
+            interimText += item[0].transcript;
           }
         }
 
-        setTranscript(text);
-        processCommand(text, detected || currentLocaleRef.current);
+        const liveText = (finalText || interimText).trim();
+        if (liveText) {
+          setTranscript(liveText);
+        }
+
+        if (finalText.trim()) {
+          const clean = finalText.trim();
+
+          // Echo rejection: Discard if acoustic echo of assistant's own TTS output
+          if (voiceManager.isEcho(clean)) {
+            return;
+          }
+
+          // Barge-in: if assistant was still speaking, cancel immediately
+          if (isSpeakingRef.current) {
+            handleBargeIn();
+          }
+
+          // Process the recognized query
+          processQuery(clean);
+        }
       };
 
       recognition.onerror = (event: any) => {
         const errType = event?.error;
         if (errType === "no-speech") {
           // Senior paused or room is quiet: continue listening gracefully in continuous mode
-          if (conversationMode && isOpenRef.current && isActiveSessionRef.current && !isThinkingRef.current && !isSpeakingRef.current) {
+          if (
+            conversationMode &&
+            isOpenRef.current &&
+            isActiveSessionRef.current &&
+            !isThinkingRef.current &&
+            !isSpeakingRef.current
+          ) {
             if (listenTimeoutRef.current) clearTimeout(listenTimeoutRef.current);
             listenTimeoutRef.current = setTimeout(() => {
-              if (isOpenRef.current && isActiveSessionRef.current && !isThinkingRef.current && !isSpeakingRef.current) {
+              if (
+                isOpenRef.current &&
+                isActiveSessionRef.current &&
+                !isThinkingRef.current &&
+                !isSpeakingRef.current
+              ) {
                 startListening();
               }
             }, 300);
@@ -216,13 +265,11 @@ export function VoiceAssistantModal({
           return;
         }
 
-        // Hardware or permission error
         setVoiceState("error");
-        setRecognitionError(pick(ERROR_HEARING_MSG, currentLocaleRef.current));
+        setRecognitionError("Sorry, I couldn't understand that. Please try again.");
       };
 
       recognition.onend = () => {
-        // Automatically restart listening if active session is ongoing
         if (
           conversationMode &&
           isOpenRef.current &&
@@ -254,10 +301,14 @@ export function VoiceAssistantModal({
   };
 
   // -------------------------------------------------------------------------
-  // Speak with Echo Guard: halts mic, speaks response, returns to listening
+  // Speak Answer (🔊 Speaking...) with Audio & Echo Guard
   // -------------------------------------------------------------------------
-  const speakWithEchoGuard = (msg: string, locale: string, onFinish?: () => void) => {
-    // 1. Prevent mic from picking up TTS output
+  const speakAIAnswer = (
+    text: string,
+    locale: string,
+    onFinish?: () => void
+  ) => {
+    // 1. Temporarily pause mic so it doesn't pick up assistant's voice
     if (recognitionRef.current) {
       try {
         recognitionRef.current.abort();
@@ -267,87 +318,160 @@ export function VoiceAssistantModal({
     isSpeakingRef.current = true;
     setVoiceState("speaking");
 
-    speakText(msg, locale, () => {
-      isSpeakingRef.current = false;
-      if (store && typeof store.addConversation === "function") {
-        store.addConversation(`Assistant: ${msg}`);
-      }
-      if (onFinish) onFinish();
+    voiceManager.speak(
+      text,
+      locale,
+      undefined,
+      () => {
+        // Speech ended successfully
+        isSpeakingRef.current = false;
+        if (onFinish) onFinish();
 
-      // Continuous turn loop: automatically return to listening after 350ms acoustic buffer
-      if (conversationMode && isOpenRef.current && isActiveSessionRef.current) {
-        if (listenTimeoutRef.current) clearTimeout(listenTimeoutRef.current);
-        listenTimeoutRef.current = setTimeout(() => {
-          if (isOpenRef.current && isActiveSessionRef.current && !isThinkingRef.current) {
-            startListening();
-          }
-        }, 350);
-      } else {
+        // If continuous mode is enabled, wait 400ms then listen for user follow-up
+        if (conversationMode && isOpenRef.current && isActiveSessionRef.current) {
+          if (listenTimeoutRef.current) clearTimeout(listenTimeoutRef.current);
+          listenTimeoutRef.current = setTimeout(() => {
+            if (
+              isOpenRef.current &&
+              isActiveSessionRef.current &&
+              !isThinkingRef.current
+            ) {
+              startListening();
+            }
+          }, 400);
+        } else {
+          setVoiceState("idle");
+        }
+      },
+      (ttsErr) => {
+        // On TTS failure: Show text answer on screen gracefully without crashing
+        console.warn("TTS playback error/block:", ttsErr);
+        isSpeakingRef.current = false;
+        if (onFinish) onFinish();
         setVoiceState("idle");
       }
-    });
+    );
   };
 
   // -------------------------------------------------------------------------
-  // Process Spoken/Typed Command
+  // Core AI Pipeline: STT -> AI Reasoning -> Automatic Language -> TTS
   // -------------------------------------------------------------------------
-  const processCommand = async (text: string, locale?: string) => {
-    if (!text.trim()) return;
+  const processQuery = async (queryText: string) => {
+    const text = queryText.trim();
+    if (!text) return;
+
     handleBargeIn();
     isThinkingRef.current = true;
     setVoiceState("processing");
+    setRecognitionError(null);
+
+    // 1. Append User Message
+    const userMsg: ChatMessage = {
+      id: "u_" + Date.now(),
+      role: "user",
+      text,
+      locale: currentLocaleRef.current,
+      timestamp: Date.now(),
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    setTranscript(text);
 
     if (store && typeof store.addConversation === "function") {
       store.addConversation(`User: ${text}`);
     }
 
-    const usedLocale = locale || currentLocaleRef.current || "en-IN";
+    // 2. Pre-detect language on client for immediate locale awareness
+    const clientDetected = detectLanguage(text, currentLocaleRef.current);
+    if (clientDetected) {
+      setCurrentLocale(clientDetected);
+      currentLocaleRef.current = clientDetected;
+    }
+
+    // 3. Prepare recent history for multi-turn conversational context
+    const recentHistory = messages.slice(-6).map((m) => ({
+      role: m.role,
+      content: m.text,
+    }));
+
+    // 4. Call Conversational AI via Secure Server Function
+    let aiResponse: VoiceAssistantResponse;
 
     try {
-      const intent = await parseVoiceIntentAsync(text, store, usedLocale, pendingIntent);
-      isThinkingRef.current = false;
-
-      // If intent was confirming previous pending action
-      if (intent.type === "CONFIRM_ACTION") {
-        handleConfirmIntent();
-        return;
-      }
-
-      // If intent was cancelling previous pending action
-      if (intent.type === "CANCEL_ACTION") {
-        handleCancelIntent();
-        return;
-      }
-
-      if (intent.type === "NAVIGATE") {
-        setPendingIntent(null);
-        setFeedbackMessage(intent.confirmationMessage);
-        speakWithEchoGuard(intent.confirmationMessage, usedLocale, () => {
-          if (onNavigate) {
-            onNavigate(intent.targetView);
-          }
-          onClose();
-        });
-        return;
-      }
-
-      if (isSpokenAnswer(intent)) {
-        setPendingIntent(null);
-        setFeedbackMessage(intent.message);
-        speakWithEchoGuard(intent.message, usedLocale);
-      } else {
-        setPendingIntent(intent);
-        setFeedbackMessage("");
-        speakWithEchoGuard(intent.confirmationMessage, usedLocale);
-      }
+      aiResponse = await askAIServerFn({
+        data: {
+          query: text,
+          history: recentHistory,
+          context: {
+            userName: store.user?.name || "Senior",
+            userAge: String(store.user?.age || "72"),
+            userRegion: "NER India / Gujarat / India",
+            medicinesCount: store.medicines?.length || 0,
+            pendingMeds: store.medicines?.map((m) => m.name).join(", "),
+            routinesCompleted: `${
+              store.routines?.filter((r) => r.completed).length || 0
+            } completed`,
+            nextAppointment: store.appointments?.[0]?.title,
+          },
+          preferredLocale: clientDetected || currentLocaleRef.current,
+        },
+      });
     } catch (err) {
-      isThinkingRef.current = false;
-      setVoiceState("idle");
+      console.warn("Server AI Function unavailable, using local conversational fallback:", err);
+      aiResponse = getLocalOfflineFallback(text, clientDetected || currentLocaleRef.current, {
+        userName: store.user?.name || "Senior",
+      });
     }
+
+    isThinkingRef.current = false;
+
+    // 5. Apply Auto-Detected Language & Mirroring
+    const finalLocale = aiResponse.detectedLocale || clientDetected || currentLocaleRef.current;
+    setCurrentLocale(finalLocale);
+    currentLocaleRef.current = finalLocale;
+    setDetectedLangName(aiResponse.languageName || "Auto-Detected");
+
+    // Sync app language with detected language
+    const matchedLang = LANGUAGES.find(
+      (l) => l.speech.toLowerCase() === finalLocale.toLowerCase() || l.speech.startsWith(finalLocale.slice(0, 2))
+    );
+    if (matchedLang) {
+      setLang(matchedLang.code);
+      if (store && typeof store.updateLanguage === "function") {
+        store.updateLanguage(matchedLang.code);
+      }
+    }
+
+    // 6. Append Assistant Message
+    const assistantMsg: ChatMessage = {
+      id: "a_" + Date.now(),
+      role: "assistant",
+      text: aiResponse.reply,
+      languageName: aiResponse.languageName,
+      locale: finalLocale,
+      timestamp: Date.now(),
+    };
+    setMessages((prev) => [...prev, assistantMsg]);
+
+    if (store && typeof store.addConversation === "function") {
+      store.addConversation(`Assistant: ${aiResponse.reply}`);
+    }
+
+    // 7. Check if user requested a structured care action
+    if (aiResponse.suggestedAction && aiResponse.suggestedAction !== "none") {
+      try {
+        const intent = parseVoiceIntent(text, store, finalLocale, pendingIntent);
+        if (intent && intent.type !== "UNKNOWN" && intent.type !== "ANSWER") {
+          setPendingIntent(intent);
+        }
+      } catch {}
+    }
+
+    // 8. Speak the answer in the SAME detected language
+    speakAIAnswer(aiResponse.reply, finalLocale);
   };
 
   // -------------------------------------------------------------------------
-  // Intent Actions with 100% Native Language Confirmation
+  // Care Action Confirmations (Take Medicine, Reminders, Appointments, Games)
   // -------------------------------------------------------------------------
   const handleConfirmIntent = () => {
     if (!pendingIntent) return;
@@ -356,7 +480,10 @@ export function VoiceAssistantModal({
       const medId = pendingIntent.medicineId || store.medicines[0]?.id;
       if (medId) {
         store.takeMedicine(medId);
-        speakWithEchoGuard(pick(MEDICINE_TAKEN_SUCCESS_MSG, currentLocaleRef.current), currentLocaleRef.current);
+        speakAIAnswer(
+          pick(MEDICINE_TAKEN_SUCCESS_MSG, currentLocaleRef.current),
+          currentLocaleRef.current
+        );
       }
     } else if (pendingIntent.type === "CREATE_REMINDER") {
       store.addReminder({
@@ -369,7 +496,7 @@ export function VoiceAssistantModal({
         active: true,
       });
       const remFn = pick(REMINDER_SAVED_SUCCESS_MSG, currentLocaleRef.current);
-      speakWithEchoGuard(remFn(pendingIntent.time), currentLocaleRef.current);
+      speakAIAnswer(remFn(pendingIntent.time), currentLocaleRef.current);
     } else if (pendingIntent.type === "CREATE_APPOINTMENT") {
       store.addAppointment({
         title: pendingIntent.title,
@@ -379,7 +506,10 @@ export function VoiceAssistantModal({
         location: pendingIntent.location || "Clinic",
         notes: "Created via Voice Assistant",
       });
-      speakWithEchoGuard(pick(APPOINTMENT_SAVED_SUCCESS_MSG, currentLocaleRef.current), currentLocaleRef.current);
+      speakAIAnswer(
+        pick(APPOINTMENT_SAVED_SUCCESS_MSG, currentLocaleRef.current),
+        currentLocaleRef.current
+      );
     } else if (pendingIntent.type === "ADD_JOURNAL") {
       store.addJournalEntry({
         title: pendingIntent.title,
@@ -387,7 +517,10 @@ export function VoiceAssistantModal({
         entry_date: new Date().toISOString().slice(0, 10),
         kind: "voice",
       });
-      speakWithEchoGuard(pick(JOURNAL_SAVED_SUCCESS_MSG, currentLocaleRef.current), currentLocaleRef.current);
+      speakAIAnswer(
+        pick(JOURNAL_SAVED_SUCCESS_MSG, currentLocaleRef.current),
+        currentLocaleRef.current
+      );
     } else if (pendingIntent.type === "NAVIGATE") {
       if (onNavigate) {
         onNavigate(pendingIntent.targetView);
@@ -395,13 +528,14 @@ export function VoiceAssistantModal({
     }
 
     setPendingIntent(null);
-    setTranscript("");
   };
 
   const handleCancelIntent = () => {
     setPendingIntent(null);
-    setTranscript("");
-    speakWithEchoGuard(pick(CANCELLED_MSG, currentLocaleRef.current), currentLocaleRef.current);
+    speakAIAnswer(
+      pick(CANCELLED_MSG, currentLocaleRef.current),
+      currentLocaleRef.current
+    );
   };
 
   const handleRetry = () => {
@@ -411,7 +545,7 @@ export function VoiceAssistantModal({
   };
 
   // -------------------------------------------------------------------------
-  // Lifecycle: One-time start when modal opens, clean stop when modal closes
+  // Lifecycle: Auto-start on modal open, clean stop on close
   // -------------------------------------------------------------------------
   useEffect(() => {
     if (isOpen) {
@@ -424,31 +558,42 @@ export function VoiceAssistantModal({
       handleStop();
       setPendingIntent(null);
       setTranscript("");
-      setFeedbackMessage("");
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const currentLangObj = LANGUAGES.find((l) => l.speech === currentLocale) || LANGUAGES[0];
+  const latestAssistantMessage = [...messages]
+    .reverse()
+    .find((m) => m.role === "assistant");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md animate-in fade-in">
-      <div className="relative w-full max-w-lg rounded-3xl border-2 border-primary/40 bg-card p-6 sm:p-8 shadow-2xl space-y-6">
-        {/* Top Control Bar: STOP on left, Language Selector in center, Close on right */}
-        <div className="flex items-center justify-between pb-2 border-b border-border/60">
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={handleStop}
-            className="rounded-full px-3.5 py-1 text-xs font-black gap-1.5 shadow-sm"
-          >
-            <VolumeX className="h-4 w-4" /> STOP
-          </Button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 sm:p-4 backdrop-blur-md animate-in fade-in">
+      <div className="relative w-full max-w-2xl rounded-3xl border-2 border-primary/40 bg-card p-4 sm:p-7 shadow-2xl space-y-5 flex flex-col max-h-[92vh]">
+        
+        {/* Top Header: STOP Button, Auto-Detected Language Pill, Close */}
+        <div className="flex items-center justify-between pb-3 border-b border-border/70 shrink-0">
+          <div className="flex items-center gap-2">
+            {/* Immediate Stop Speaking / Cancel Button */}
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={handleStop}
+              className="rounded-full px-3.5 py-1.5 text-xs font-black gap-1.5 shadow-sm hover:scale-105 transition-transform"
+            >
+              <VolumeX className="h-4 w-4" /> STOP
+            </Button>
 
-          {/* Senior-Friendly Universal Multilingual Selector */}
-          <div className="flex items-center gap-1.5 bg-secondary/90 px-3 py-1 rounded-full border border-border">
-            <Languages className="h-4 w-4 text-primary shrink-0" />
+            {/* Auto-Detected Language Pill Badge (CRITICAL REQUIREMENT 2) */}
+            <div className="flex items-center gap-1.5 bg-emerald-500/15 border border-emerald-500/40 text-emerald-700 dark:text-emerald-300 px-3 py-1 rounded-full text-xs font-black shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <Languages className="h-3.5 w-3.5" />
+              <span>{detectedLangName}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Optional Manual Language Override */}
             <select
               value={currentLocale}
               onChange={(e) => {
@@ -457,70 +602,82 @@ export function VoiceAssistantModal({
                 currentLocaleRef.current = newLocale;
                 const matched = LANGUAGES.find((l) => l.speech === newLocale);
                 if (matched) {
+                  setDetectedLangName(matched.name);
                   setLang(matched.code);
-                  if (store && typeof store.updateLanguage === "function") {
-                    store.updateLanguage(matched.code);
-                  }
                 }
               }}
-              className="bg-transparent text-foreground text-xs font-bold cursor-pointer focus:outline-none"
+              className="bg-secondary text-foreground text-xs font-bold rounded-full px-2.5 py-1 border border-border cursor-pointer focus:outline-none"
+              title="Manual language override (Auto-detection is default)"
             >
+              <option value="auto">🌐 Auto-Detect</option>
               {LANGUAGES.map((l) => (
-                <option key={l.code} value={l.speech} className="bg-card text-foreground">
+                <option key={l.code} value={l.speech}>
                   {l.native} ({l.label})
                 </option>
               ))}
             </select>
-          </div>
 
-          <button
-            onClick={onClose}
-            className="rounded-full p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-          >
-            <X className="h-6 w-6" />
-          </button>
+            <button
+              onClick={onClose}
+              className="rounded-full p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
-        {/* 5-State Visualizer (Idle, Listening, Processing, Speaking, Error) */}
-        <div className="text-center space-y-3">
-          <div
-            onClick={voiceState === "speaking" ? handleBargeIn : undefined}
-            className={`mx-auto w-24 h-24 rounded-full border-3 flex items-center justify-center transition-all cursor-pointer ${
-              voiceState === "listening"
-                ? "bg-destructive/15 border-destructive text-destructive scale-110 shadow-xl shadow-destructive/25 animate-pulse"
-                : voiceState === "processing"
-                ? "bg-amber-500/15 border-amber-500 text-amber-600 scale-105 shadow-xl shadow-amber-500/20"
-                : voiceState === "speaking"
-                ? "bg-primary/20 border-primary text-primary scale-105 shadow-xl shadow-primary/25 animate-pulse"
-                : voiceState === "error"
-                ? "bg-destructive/10 border-destructive text-destructive"
-                : "bg-primary/10 border-primary/30 text-primary hover:scale-105"
-            }`}
-          >
-            {voiceState === "listening" ? (
-              <Mic className="h-12 w-12 animate-pulse" />
-            ) : voiceState === "processing" ? (
-              <Sparkles className="h-12 w-12 animate-spin text-amber-500" />
-            ) : voiceState === "speaking" ? (
-              <Volume2 className="h-12 w-12 animate-bounce text-primary" />
-            ) : voiceState === "error" ? (
-              <AlertCircle className="h-12 w-12 text-destructive" />
-            ) : (
-              <MicOff className="h-12 w-12 opacity-70" />
-            )}
+        {/* 4 Distinct Voice UI States: 🎙️ Tap to speak | 🔴 Listening... | 🧠 Thinking... | 🔊 Speaking... */}
+        <div className="text-center space-y-3 shrink-0">
+          {/* Large Central Microphone Button (CRITICAL REQUIREMENT 7) */}
+          <div className="flex justify-center">
+            <button
+              onClick={
+                voiceState === "speaking"
+                  ? handleBargeIn
+                  : voiceState === "listening"
+                  ? handleStop
+                  : () => {
+                      isActiveSessionRef.current = true;
+                      startListening();
+                    }
+              }
+              className={`h-24 w-24 sm:h-28 sm:w-28 rounded-full border-4 flex items-center justify-center transition-all duration-300 shadow-2xl focus:outline-none ${
+                voiceState === "listening"
+                  ? "bg-destructive text-white border-destructive/50 scale-110 shadow-destructive/40 animate-pulse ring-8 ring-destructive/20"
+                  : voiceState === "processing"
+                  ? "bg-amber-500 text-white border-amber-400 scale-105 shadow-amber-500/30 animate-pulse ring-8 ring-amber-500/20"
+                  : voiceState === "speaking"
+                  ? "bg-primary text-white border-primary/60 scale-105 shadow-primary/40 animate-pulse ring-8 ring-primary/20"
+                  : voiceState === "error"
+                  ? "bg-destructive/20 text-destructive border-destructive ring-4 ring-destructive/10"
+                  : "bg-primary hover:bg-primary/90 text-white border-primary/30 hover:scale-105 shadow-primary/30"
+              }`}
+              title={
+                voiceState === "speaking"
+                  ? "Tap to interrupt speech"
+                  : voiceState === "listening"
+                  ? "Tap to pause listening"
+                  : "Tap to speak"
+              }
+            >
+              {voiceState === "listening" ? (
+                <Mic className="h-12 w-12 sm:h-14 sm:w-14 animate-bounce" />
+              ) : voiceState === "processing" ? (
+                <Sparkles className="h-12 w-12 sm:h-14 sm:w-14 animate-spin" />
+              ) : voiceState === "speaking" ? (
+                <Volume2 className="h-12 w-12 sm:h-14 sm:w-14 animate-pulse" />
+              ) : voiceState === "error" ? (
+                <AlertCircle className="h-12 w-12 sm:h-14 sm:w-14" />
+              ) : (
+                <Mic className="h-12 w-12 sm:h-14 sm:w-14" />
+              )}
+            </button>
           </div>
 
-          <div className="space-y-1">
-            <h3 className="text-2xl font-black text-foreground">AI Voice Companion</h3>
-            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-              Continuous Multilingual Voice • SIH26003
-            </p>
-          </div>
-
-          {/* State Indicator Banner */}
-          <div className="flex items-center justify-center gap-2.5">
+          {/* Explicit State Indicator Label */}
+          <div className="flex items-center justify-center gap-2">
             <span
-              className={`inline-block w-3.5 h-3.5 rounded-full ${
+              className={`w-3 h-3 rounded-full ${
                 voiceState === "listening"
                   ? "bg-destructive animate-ping"
                   : voiceState === "processing"
@@ -529,22 +686,20 @@ export function VoiceAssistantModal({
                   ? "bg-primary animate-pulse"
                   : voiceState === "error"
                   ? "bg-destructive"
-                  : "bg-muted-foreground/60"
+                  : "bg-muted-foreground/50"
               }`}
             />
-            <span className="text-base font-black text-foreground">
+            <h2 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
               {voiceState === "listening"
-                ? "🎤 Listening to you… (Speak naturally)"
+                ? "🔴 Listening... (Speak naturally)"
                 : voiceState === "processing"
-                ? "🧠 Understanding your words…"
+                ? "🧠 Thinking... (Understanding your question)"
                 : voiceState === "speaking"
-                ? "🔊 Speaking to you… (Tap to interrupt)"
+                ? "🔊 Speaking... (Tap button to interrupt)"
                 : voiceState === "error"
-                ? "⚠️ Speech Detection Note"
-                : pendingIntent
-                ? "Awaiting your confirmation"
-                : "🎤 Tap to speak"}
-            </span>
+                ? "⚠️ Speech Error"
+                : "🎙️ Tap to speak"}
+            </h2>
           </div>
 
           {voiceState === "speaking" && (
@@ -554,171 +709,163 @@ export function VoiceAssistantModal({
           )}
         </div>
 
-        {/* Quick Suggestion Chips (Localized across Indian regional elders) */}
-        <div className="flex flex-wrap gap-2 justify-center text-xs">
-          {(currentLocale.startsWith("gu")
-            ? [
-                "મારે કાલે સવારે દવા લેવાની છે",
-                "કેટલા વાગ્યે?",
-                "મારી આગલી દવા કઈ છે?",
-                "મને સવારે ૮ વાગ્યે દવા યાદ દેવડાવજો",
-                "મેં દવા લઈ લીધી",
-              ]
-            : currentLocale.startsWith("hi")
-            ? [
-                "आज मुझे क्या करना है?",
-                "मेरी दवा कब है?",
-                "मेमोरी गेम शुरू करो",
-                "परिवार को कॉल करो",
-                "मेरा डॉक्टर अपॉइंटमेंट कब है?",
-                "मैंने दवा ले ली है",
-              ]
-            : currentLocale.startsWith("mr")
-            ? [
-                "मला उद्या सकाळी औषध घ्यायचे आहे",
-                "माझे पुढील औषध कोणते आहे?",
-                "मी औषध घेतले आहे",
-                "उद्या 8 वाजता आठवण करा",
-              ]
-            : currentLocale.startsWith("as")
-            ? [
-                "আজি মোৰ কি কাম আছে?",
-                "মোৰ ঔষধৰ সময় কেতিয়া?",
-                "মেম'ৰি খেল আৰম্ভ কৰা",
-                "পৰিয়ালক কল কৰা",
-                "মই ঔষধ খালোঁ",
-                "কাইলৈ পুৱা ৮ বজাত সংকেত দিয়া",
-              ]
-            : currentLocale.startsWith("bn")
-            ? [
-                "আজ আমার কি কি কাজ আছে?",
-                "আমার পরের ওষুধ কি?",
-                "আমি ওষুধ খেয়েছি",
-                "মেমোরি গেম শুরু করো",
-                "পরিবারকে কল করো",
-              ]
-            : currentLocale.startsWith("ta")
-            ? [
-                "நாளை காலை மருந்து சாப்பிட வேண்டும்",
-                "என் அடுத்த மருந்து என்ன?",
-                "மருந்து உட்கொண்டேன்",
-              ]
-            : currentLocale.startsWith("te")
-            ? [
-                "రేపు ఉదయం మందులు వేసుకోవాలి",
-                "నా తదుపరి మందు ఏది?",
-                "మందులు వేసుకున్నాను",
-              ]
-            : currentLocale.startsWith("kn")
-            ? [
-                "ನಾಳೆ ಬೆಳಿಗ್ಗೆ ಔಷಧಿ ತೆಗೆದುಕೊಳ್ಳಬೇಕು",
-                "ನನ್ನ ಮುಂದಿನ ಔಷಧಿ ಯಾವುದು?",
-                "ಔಷಧಿ ತೆಗೆದುಕೊಂಡೆ",
-              ]
-            : currentLocale.startsWith("ml")
-            ? [
-                "നാളെ രാവിലെ മരുന്ന് കഴിക്കണം",
-                "എന്റെ അടുത്ത മരുന്ന് ഏതാണ്?",
-              ]
-            : currentLocale.startsWith("pa")
-            ? [
-                "ਕੱਲ੍ਹ ਸਵੇਰੇ ਦਵਾਈ ਲੈਣੀ ਹੈ",
-                "ਮੇਰੀ ਅਗਲੀ ਦਵਾਈ ਕਿਹੜੀ ਹੈ?",
-              ]
-            : currentLocale.startsWith("or")
-            ? [
-                "କାଲି ସକାଳେ ଔଷଧ ଖାଇବାକୁ ହେବ",
-                "ମୋର ପରବର୍ତ୍ତୀ ଔଷଧ କ’ଣ?",
-              ]
-            : [
-                "What do I have today?",
-                "When is my medicine?",
-                "Start my memory game",
-                "Call my family",
-                "When is my appointment?",
-                "I took my scheduled medicine",
-              ]
-          ).map((sample, i) => (
-            <button
-              key={i}
-              onClick={() => {
-                setTranscript(sample);
-                processCommand(sample, currentLocaleRef.current);
-              }}
-              className="rounded-full bg-secondary/80 hover:bg-secondary px-3 py-1.5 text-foreground font-semibold transition-all border border-border/60 text-xs"
-            >
-              "{sample}"
-            </button>
-          ))}
-        </div>
-
-        {/* Central Voice Trigger Button with Barge-In & Continuous Cycle */}
-        <div className="text-center py-1">
-          <Button
-            size="lg"
-            onClick={
-              voiceState === "speaking"
-                ? handleBargeIn
-                : voiceState === "listening"
-                ? handleStop
-                : () => {
-                    isActiveSessionRef.current = true;
-                    startListening();
-                  }
-            }
-            className={`h-20 w-20 rounded-full shadow-xl font-bold transition-all ${
-              voiceState === "listening"
-                ? "bg-destructive hover:bg-destructive/90 text-white scale-105"
-                : voiceState === "speaking"
-                ? "bg-amber-500 hover:bg-amber-600 text-white animate-pulse"
-                : "bg-primary hover:bg-primary/90 text-white hover:scale-105"
-            }`}
-          >
-            {voiceState === "listening" ? (
-              <MicOff className="h-8 w-8" />
-            ) : voiceState === "speaking" ? (
-              <VolumeX className="h-8 w-8" />
-            ) : (
-              <Mic className="h-8 w-8" />
-            )}
-          </Button>
-          <p className="mt-2 text-xs font-semibold text-muted-foreground">
-            {voiceState === "speaking"
-              ? "Tap button or screen to interrupt"
-              : conversationMode
-              ? "Press once to start continuous conversation"
-              : "Tap microphone to speak"}
-          </p>
-        </div>
-
-        {/* Text Fallback Input */}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            processCommand(transcript, currentLocaleRef.current);
-          }}
-          className="flex gap-2"
+        {/* Multi-Turn Conversation Stream (CRITICAL REQUIREMENT 1 & 8) */}
+        <div
+          ref={chatScrollRef}
+          className="flex-1 overflow-y-auto space-y-3 p-3 sm:p-4 rounded-2xl bg-secondary/40 border border-border/70 min-h-[140px] max-h-[260px] scroll-smooth"
         >
-          <Input
-            value={transcript}
-            onChange={(e) => setTranscript(e.target.value)}
-            placeholder="Type your message or query here..."
-            className="h-12 rounded-2xl text-base"
-          />
-          <Button type="submit" className="h-12 px-5 rounded-2xl font-bold">
-            <Send className="h-5 w-5" />
-          </Button>
-        </form>
+          {messages.length === 0 ? (
+            <div className="text-center py-6 text-muted-foreground space-y-2">
+              <Bot className="h-10 w-10 mx-auto opacity-40 text-primary" />
+              <p className="font-bold text-sm">
+                Speak in any Indian language (Hindi, Gujarati, English, Bengali, Marathi, etc.)
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Ask about AI, science, stories, medicines, daily routine, or general chit-chat.
+              </p>
+            </div>
+          ) : (
+            messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`flex gap-2.5 ${
+                  msg.role === "user" ? "justify-end" : "justify-start"
+                }`}
+              >
+                {msg.role === "assistant" && (
+                  <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center shrink-0 mt-1">
+                    <Bot className="h-4 w-4" />
+                  </div>
+                )}
+                <div
+                  className={`max-w-[82%] rounded-2xl p-3.5 text-sm sm:text-base leading-relaxed ${
+                    msg.role === "user"
+                      ? "bg-primary text-primary-foreground font-semibold rounded-tr-none shadow-md"
+                      : "bg-card border-2 border-primary/20 text-foreground font-medium rounded-tl-none shadow-md"
+                  }`}
+                >
+                  <p>{msg.text}</p>
+                  {msg.role === "assistant" && msg.languageName && (
+                    <span className="inline-block mt-1 text-[10px] font-black uppercase tracking-wider text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+                      {msg.languageName}
+                    </span>
+                  )}
+                </div>
+                {msg.role === "user" && (
+                  <div className="w-8 h-8 rounded-full bg-secondary text-foreground flex items-center justify-center shrink-0 mt-1">
+                    <User className="h-4 w-4" />
+                  </div>
+                )}
+              </div>
+            ))
+          )}
 
-        {/* Senior-Friendly Error Display with Retry */}
+          {/* Live Transcript Bubble while user is speaking */}
+          {voiceState === "listening" && transcript && (
+            <div className="flex justify-end gap-2">
+              <div className="max-w-[80%] rounded-2xl p-3 text-sm bg-primary/20 border border-primary/30 text-foreground italic rounded-tr-none animate-pulse">
+                " {transcript} "
+              </div>
+            </div>
+          )}
+
+          {/* Thinking Animation Bubble */}
+          {voiceState === "processing" && (
+            <div className="flex gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center shrink-0">
+                <Bot className="h-4 w-4" />
+              </div>
+              <div className="rounded-2xl p-3 text-sm bg-card border border-border text-foreground flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-amber-500 animate-spin" />
+                <span className="font-semibold text-xs">AI is thinking & understanding your language...</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Action Controls for Latest AI Answer (Repeat Answer + Speak Again) */}
+        {latestAssistantMessage && (
+          <div className="flex flex-wrap items-center justify-center gap-2.5 shrink-0">
+            {/* Repeat Answer Button (CRITICAL REQUIREMENT 7) */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                handleBargeIn();
+                speakAIAnswer(
+                  latestAssistantMessage.text,
+                  latestAssistantMessage.locale || currentLocaleRef.current
+                );
+              }}
+              className="rounded-xl font-black text-xs gap-1.5 border-primary/50 text-primary hover:bg-primary/10 h-9 px-3.5 shadow-xs"
+            >
+              <Volume2 className="h-4 w-4" /> 🔊 Listen Again
+            </Button>
+
+            {/* Speak Again Follow-up Button */}
+            <Button
+              size="sm"
+              onClick={() => {
+                isActiveSessionRef.current = true;
+                startListening();
+              }}
+              className="rounded-xl font-black text-xs gap-1.5 bg-primary text-white hover:bg-primary/90 h-9 px-3.5 shadow-sm"
+            >
+              <Mic className="h-4 w-4" /> 🎙️ Speak Again
+            </Button>
+
+            {/* Stop Speaking Button */}
+            {voiceState === "speaking" && (
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={handleBargeIn}
+                className="rounded-xl font-black text-xs gap-1.5 h-9 px-3.5 shadow-sm animate-pulse"
+              >
+                <StopCircle className="h-4 w-4" /> ⏹️ Stop Speaking
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Structured Action Confirmation Card (Caregiver & Senior Safety) */}
+        {pendingIntent && (
+          <div className="rounded-2xl border-2 border-primary bg-primary/10 p-4 space-y-3 shrink-0 animate-in zoom-in-95">
+            <div className="flex items-center gap-2 text-primary font-black text-xs uppercase tracking-wider">
+              <Sparkles className="h-4 w-4" /> Confirm Action
+            </div>
+            <p className="text-sm sm:text-base font-bold text-foreground">
+              {"confirmationMessage" in pendingIntent
+                ? (pendingIntent as any).confirmationMessage
+                : "Would you like to execute this action?"}
+            </p>
+            <div className="grid grid-cols-2 gap-2.5">
+              <Button
+                onClick={handleConfirmIntent}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black h-11 rounded-xl text-sm"
+              >
+                <Check className="h-4 w-4 mr-1" /> CONFIRM
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleCancelIntent}
+                className="font-black h-11 rounded-xl text-sm"
+              >
+                <X className="h-4 w-4 mr-1" /> CANCEL
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Error Notification with User-Friendly Retry (CRITICAL REQUIREMENT 10) */}
         {recognitionError && (
-          <div className="rounded-2xl bg-destructive/10 border border-destructive/30 p-4 text-center space-y-2 animate-in fade-in">
+          <div className="rounded-2xl bg-destructive/15 border border-destructive/30 p-3.5 text-center space-y-2 shrink-0 animate-in fade-in">
             <p className="text-xs text-destructive font-bold">{recognitionError}</p>
             <Button
               size="sm"
               variant="outline"
               onClick={handleRetry}
-              className="rounded-full font-bold border-destructive/40 hover:bg-destructive/20 text-destructive text-xs gap-1.5"
+              className="rounded-full font-bold border-destructive/40 text-destructive text-xs gap-1.5 h-8"
             >
               <RotateCcw className="h-3.5 w-3.5" />
               {pick(RETRY_LABEL_MSG, currentLocaleRef.current)}
@@ -726,79 +873,70 @@ export function VoiceAssistantModal({
           </div>
         )}
 
-        {/* Query response banner with Listen Again & Speak Again (Section 10 & 11) */}
-        {feedbackMessage && !pendingIntent && (
-          <div className="rounded-2xl bg-secondary/80 border-2 border-primary/30 p-5 text-center space-y-3 shadow-md animate-in fade-in">
-            <Volume2 className="h-6 w-6 text-primary mx-auto" />
-            <p className="font-bold text-foreground text-base leading-snug">{feedbackMessage}</p>
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  stopSpeaking();
-                  speakText(feedbackMessage, currentLocaleRef.current);
-                }}
-                className="rounded-xl font-black text-xs gap-1.5 border-primary/40 text-primary hover:bg-primary/10 h-10 px-4"
-              >
-                <Volume2 className="h-4 w-4" /> 🔊 Listen Again
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => {
-                  isActiveSessionRef.current = true;
-                  startListening();
-                }}
-                className="rounded-xl font-black text-xs gap-1.5 bg-primary text-white hover:bg-primary/90 h-10 px-4 shadow-xs"
-              >
-                <Mic className="h-4 w-4" /> 🎙️ Speak Again
-              </Button>
-            </div>
-          </div>
-        )}
+        {/* Quick Test Prompt Chips (Covering Hindi, Gujarati, English, Romanized, Mixed) */}
+        <div className="flex flex-wrap gap-1.5 justify-center text-xs shrink-0 max-h-16 overflow-y-auto">
+          {[
+            "kem cho?",
+            "mare medicine kyare levani che?",
+            "kaise ho?",
+            "aaj kya karna hai?",
+            "What is AI?",
+            "Explain it simply",
+            "Can you tell me aaj ka routine?",
+            "Ab Hindi mein samjhao",
+            "હવે ગુજરાતીમાં કહો",
+            "Tell me a short moral story",
+            "What is 15 * 8?",
+          ].map((prompt, i) => (
+            <button
+              key={i}
+              onClick={() => processQuery(prompt)}
+              className="rounded-full bg-secondary hover:bg-secondary/80 text-foreground font-semibold px-2.5 py-1 transition-all border border-border/60 text-[11px]"
+            >
+              "{prompt}"
+            </button>
+          ))}
+        </div>
 
-        {/* Confirmation Card before creating reminders or recording items */}
-        {pendingIntent && !isSpokenAnswer(pendingIntent) && (
-          <div className="rounded-2xl border-2 border-primary bg-primary/10 p-5 space-y-4 animate-in zoom-in-95">
-            <div className="flex items-center gap-2 text-primary font-black text-xs uppercase tracking-wider">
-              <Sparkles className="h-4 w-4" /> Action Confirmation
-            </div>
-            <p className="text-base sm:text-lg font-bold text-foreground leading-snug">
-              {pendingIntent.confirmationMessage}
-            </p>
+        {/* Text Fallback Input (CRITICAL REQUIREMENT 10) */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (inputDraft.trim()) {
+              processQuery(inputDraft);
+              setInputDraft("");
+            }
+          }}
+          className="flex gap-2 shrink-0"
+        >
+          <Input
+            value={inputDraft}
+            onChange={(e) => setInputDraft(e.target.value)}
+            placeholder="Or type here in any language (e.g., 'kem cho', 'What is AI?')..."
+            className="h-11 rounded-2xl text-sm"
+          />
+          <Button
+            type="submit"
+            disabled={!inputDraft.trim() || voiceState === "processing"}
+            className="h-11 px-4 rounded-2xl font-bold"
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        </form>
 
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <Button
-                variant="default"
-                onClick={handleConfirmIntent}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black h-13 rounded-2xl text-base shadow-md"
-              >
-                <Check className="h-5 w-5 mr-1.5" /> CONFIRM
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleCancelIntent}
-                className="font-black h-13 rounded-2xl text-base shadow-md"
-              >
-                <X className="h-5 w-5 mr-1.5" /> CANCEL
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Continuous Conversation Mode Preference */}
-        <div className="flex items-center justify-between pt-2 border-t border-border/60 text-xs text-muted-foreground">
-          <span>Continuous Conversation:</span>
+        {/* Continuous Conversation Toggle */}
+        <div className="flex items-center justify-between pt-1 border-t border-border/60 text-xs text-muted-foreground shrink-0">
+          <span>Continuous Natural Conversation:</span>
           <button
             type="button"
             onClick={() => toggleConversationMode(!conversationMode)}
-            className={`font-bold px-3 py-1 rounded-full border transition-all ${
+            className={`font-bold px-3 py-0.5 rounded-full border transition-all text-[11px] ${
               conversationMode
                 ? "bg-primary text-primary-foreground border-primary"
                 : "bg-secondary text-muted-foreground border-border"
             }`}
           >
-            {conversationMode ? "Active (Continuous)" : "Single-turn"}
+            {conversationMode ? "Active (Natural Turn Loop)" : "Single Turn"}
           </button>
         </div>
       </div>
