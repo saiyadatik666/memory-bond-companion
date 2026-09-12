@@ -200,6 +200,50 @@ export function VoiceAssistantModal({
   };
 
   // -------------------------------------------------------------------------
+  // Clean Exit: Stops voice/TTS, mic, continuous loops, closes modal & returns to Home
+  // -------------------------------------------------------------------------
+  const handleExit = () => {
+    // 1. Immediately halt session & any continuous turn loops
+    isActiveSessionRef.current = false;
+    if (listenTimeoutRef.current) {
+      clearTimeout(listenTimeoutRef.current);
+      listenTimeoutRef.current = null;
+    }
+
+    // 2. Stop microphone/listening if active
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch {}
+      recognitionRef.current = null;
+    }
+
+    // 3. Immediately stop any currently playing AI voice/TTS & clear audio queue
+    isThinkingRef.current = false;
+    isSpeakingRef.current = false;
+    voiceManager.stopSpeaking();
+
+    // 4. Clean up audio/conversation states
+    setVoiceState("idle");
+    setPendingIntent(null);
+    setTranscript("");
+
+    // 5. Close Voice Assistant modal
+    onClose();
+
+    // 6. Return user directly to Home Screen / Dashboard using existing navigation
+    if (onNavigate) {
+      const homeTab =
+        store?.profile?.role === "caregiver"
+          ? "caregiver"
+          : store?.profile?.role === "healthcare_worker"
+          ? "healthcare"
+          : "home";
+      onNavigate(homeTab);
+    }
+  };
+
+  // -------------------------------------------------------------------------
   // Start Listening (🔴 Listening...)
   // -------------------------------------------------------------------------
   const startListening = () => {
@@ -694,6 +738,17 @@ export function VoiceAssistantModal({
     }
   }, [isOpen]);
 
+  // Escape key handler to trigger clean Exit
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpenRef.current) {
+        handleExit();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   if (!isOpen) return null;
 
   const latestAssistantMessage = [...messages]
@@ -701,11 +756,18 @@ export function VoiceAssistantModal({
     .find((m) => m.role === "assistant");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 sm:p-4 backdrop-blur-md animate-in fade-in">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 sm:p-4 backdrop-blur-md animate-in fade-in"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          handleExit();
+        }
+      }}
+    >
       <div className="relative w-full max-w-2xl rounded-3xl border-2 border-primary/40 bg-card p-4 sm:p-7 shadow-2xl space-y-5 flex flex-col max-h-[92vh]">
         
-        {/* Top Header: STOP Button, Auto-Detected Language Pill, New Topic, Close */}
-        <div className="flex items-center justify-between pb-3 border-b border-border/70 shrink-0">
+        {/* Top Header: STOP Button, Auto-Detected Language Pill, New Topic, Language Selector, Exit Button */}
+        <div className="flex items-center justify-between pb-3 border-b border-border/70 shrink-0 gap-2 flex-wrap sm:flex-nowrap">
           <div className="flex items-center gap-2">
             {/* Immediate Stop Speaking / Cancel Button */}
             <Button
@@ -717,7 +779,7 @@ export function VoiceAssistantModal({
               <VolumeX className="h-4 w-4" /> STOP
             </Button>
 
-            {/* Auto-Detected Language Pill Badge (CRITICAL REQUIREMENT 2) */}
+            {/* Auto-Detected Language Pill Badge */}
             <div className="flex items-center gap-1.5 bg-emerald-500/15 border border-emerald-500/40 text-emerald-700 dark:text-emerald-300 px-3 py-1 rounded-full text-xs font-black shadow-xs">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <Languages className="h-3.5 w-3.5" />
@@ -725,7 +787,7 @@ export function VoiceAssistantModal({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
             {/* Clear Chat / Start New Topic Button */}
             {messages.length > 0 && (
               <Button
@@ -752,7 +814,7 @@ export function VoiceAssistantModal({
                   setLang(matched.code);
                 }
               }}
-              className="bg-secondary text-foreground text-xs font-bold rounded-full px-2.5 py-1 border border-border cursor-pointer focus:outline-none"
+              className="bg-secondary text-foreground text-xs font-bold rounded-full px-2.5 py-1 border border-border cursor-pointer focus:outline-none max-w-[135px] sm:max-w-none text-ellipsis overflow-hidden"
               title="Manual language override (Auto-detection is default)"
             >
               <option value="auto">🌐 Auto-Detect</option>
@@ -763,12 +825,18 @@ export function VoiceAssistantModal({
               ))}
             </select>
 
-            <button
-              onClick={onClose}
-              className="rounded-full p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            {/* Clearly Visible Exit Button (Accessible, Mobile-Friendly, Top-Right Corner) */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleExit}
+              className="rounded-full px-3.5 py-1.5 text-xs font-black gap-1.5 border-destructive/50 text-destructive hover:bg-destructive hover:text-white transition-all shadow-xs h-8 sm:h-9 shrink-0 hover:scale-105"
+              title="Exit Voice Assistant"
+              aria-label="Exit Voice Assistant"
             >
-              <X className="h-5 w-5" />
-            </button>
+              <X className="h-4 w-4" />
+              <span>Exit</span>
+            </Button>
           </div>
         </div>
 
