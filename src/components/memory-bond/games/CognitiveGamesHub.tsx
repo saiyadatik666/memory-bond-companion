@@ -594,7 +594,7 @@ export function CognitiveGamesHub({
                           size="lg"
                           className="rounded-2xl font-bold text-base px-6 py-6 border-border"
                         >
-                          <ArrowLeft className="h-5 w-5 mr-1" /> All 10 Games
+                          <ArrowLeft className="h-5 w-5 mr-1" /> All Cognitive Games
                         </Button>
                       </div>
                     </div>

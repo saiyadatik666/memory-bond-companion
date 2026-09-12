@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import type { UserRole } from "@/lib/memoryBondStore";
+import { SosHoldControl } from "./SosHoldControl";
 
 export function BottomNavigation({
   currentTab,
@@ -65,38 +66,34 @@ export function BottomNavigation({
           const Icon = tab.icon;
           const isActive = currentTab === tab.id;
 
-          const handleClick = () => {
-            if (tab.isSos && onOpenSos) {
-              onOpenSos();
-            } else {
-              onSelectTab(tab.id);
-            }
-          };
+          if (tab.isSos && onOpenSos) {
+            return (
+              <div key={tab.id} className="flex flex-col items-center justify-center min-w-0 flex-1">
+                <SosHoldControl variant="bottomNav" onTrigger={onOpenSos} />
+              </div>
+            );
+          }
 
           return (
             <button
               key={tab.id}
-              onClick={handleClick}
+              onClick={() => onSelectTab(tab.id)}
               className={`flex flex-col items-center justify-center gap-0.5 sm:gap-1 py-1 px-1 sm:px-2 rounded-2xl transition-all cursor-pointer min-w-0 flex-1 ${
-                tab.isSos
-                  ? "text-destructive hover:scale-105 font-black"
-                  : isActive
+                isActive
                   ? "text-primary font-black scale-105"
                   : "text-muted-foreground hover:text-foreground font-semibold"
               }`}
             >
               <div
                 className={`p-1 sm:p-1.5 rounded-xl transition-all ${
-                  tab.isSos
-                    ? "bg-destructive/15 text-destructive border border-destructive/30 shadow-xs"
-                    : isActive
+                  isActive
                     ? "bg-primary/15 text-primary shadow-xs"
                     : "text-muted-foreground"
                 }`}
               >
-                <Icon className="h-5 w-5 shrink-0" />
+                <Icon className="h-5 w-5" />
               </div>
-              <span className={`text-[10px] sm:text-[11px] leading-tight truncate max-w-[62px] ${tab.isSos ? "font-black text-destructive" : ""}`}>
+              <span className="text-[11px] sm:text-xs truncate font-bold tracking-tight">
                 {tab.label}
               </span>
             </button>

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { LANGUAGES, useI18n, type LangCode } from "@/lib/i18n";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
+import { SosHoldControl } from "./SosHoldControl";
 
 interface FooterProps {
   store: MemoryBondStore;
@@ -95,13 +96,7 @@ export function Footer({
               <span>Voice Assistant</span>
             </button>
 
-            <button
-              onClick={onOpenSos}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 border border-rose-500/30 transition-all font-bold cursor-pointer hover:shadow-sm"
-            >
-              <PhoneCall className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
-              <span>Emergency SOS</span>
-            </button>
+            <SosHoldControl variant="compact" onTrigger={onOpenSos} />
 
             <button
               onClick={scrollToTop}

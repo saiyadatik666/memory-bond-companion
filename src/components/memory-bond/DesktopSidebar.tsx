@@ -24,6 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import type { MemoryBondStore, UserRole } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
+import { SosHoldControl } from "./SosHoldControl";
 
 export function DesktopSidebar({
   currentTab,
@@ -170,14 +171,8 @@ export function DesktopSidebar({
           </Button>
         </div>
 
-        {/* Emergency SOS Quick Button */}
-        <button
-          onClick={onOpenSos}
-          className="w-full py-3 px-4 rounded-2xl bg-destructive hover:bg-destructive/90 text-white font-black text-sm tracking-wide shadow-md flex items-center justify-center gap-2.5 transition-transform active:scale-98 cursor-pointer"
-        >
-          <AlertOctagon className="h-5 w-5 animate-pulse shrink-0" />
-          <span>EMERGENCY SOS</span>
-        </button>
+        {/* Emergency SOS 3-Second Hold Control */}
+        <SosHoldControl variant="sidebarButton" onTrigger={onOpenSos} />
 
         {/* Offline Sync Status Badge */}
         {!store.isOnline ? (

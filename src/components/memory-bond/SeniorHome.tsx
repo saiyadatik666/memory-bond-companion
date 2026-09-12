@@ -34,6 +34,7 @@ import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
 import { speakText, stopSpeaking } from "@/lib/voiceParser";
 import { MemoryGarden } from "./MemoryGarden";
+import { SosHoldControl } from "./SosHoldControl";
 
 export function SeniorHome({
   store,
@@ -64,13 +65,7 @@ export function SeniorHome({
     );
   };
 
-  // 3-Second SOS Hold State (SIH 2026 Section 30)
-  const [sosHoldProgress, setSosHoldProgress] = useState<number>(0);
-  const [sosHoldSeconds, setSosHoldSeconds] = useState<number>(3);
-  const [isHoldingSos, setIsHoldingSos] = useState<boolean>(false);
-  const sosHoldTimerRef = useRef<any>(null);
-  const sosHoldStartRef = useRef<number>(0);
-
+  // Anti-restart cooldown check
   const isSosCooldownActive = () => {
     if (typeof window !== "undefined") {
       const lockUntil = (window as any).__mb_last_sos_cancelled || 0;
@@ -78,69 +73,6 @@ export function SeniorHome({
     }
     return false;
   };
-
-  const clearSosHoldTimer = () => {
-    if (sosHoldTimerRef.current) {
-      clearInterval(sosHoldTimerRef.current);
-      sosHoldTimerRef.current = null;
-    }
-    setIsHoldingSos(false);
-    setSosHoldProgress(0);
-    setSosHoldSeconds(3);
-  };
-
-  const handleSosHoldStart = () => {
-    if (isSosCooldownActive()) return;
-    clearSosHoldTimer();
-    setIsHoldingSos(true);
-    setSosHoldProgress(0);
-    setSosHoldSeconds(3);
-    sosHoldStartRef.current = Date.now();
-
-    if (typeof window !== "undefined" && "vibrate" in navigator) {
-      try {
-        navigator.vibrate([80]);
-      } catch {}
-    }
-
-    const durationMs = 3000;
-    sosHoldTimerRef.current = setInterval(() => {
-      if (isSosCooldownActive()) {
-        clearSosHoldTimer();
-        return;
-      }
-      const elapsed = Date.now() - sosHoldStartRef.current;
-      const pct = Math.min(100, (elapsed / durationMs) * 100);
-      const secLeft = Math.max(0, Math.ceil((durationMs - elapsed) / 1000));
-      setSosHoldProgress(pct);
-      setSosHoldSeconds(secLeft);
-
-      if (elapsed >= durationMs) {
-        clearSosHoldTimer();
-        if (!isSosCooldownActive()) {
-          onOpenSos();
-        }
-      }
-    }, 50);
-  };
-
-  const handleSosHoldEnd = () => {
-    const elapsed = Date.now() - sosHoldStartRef.current;
-    clearSosHoldTimer();
-
-    if (isSosCooldownActive()) return;
-
-    // If quick tap (< 400ms), also open SOS
-    if (elapsed < 400 && elapsed > 0) {
-      onOpenSos();
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      clearSosHoldTimer();
-    };
-  }, []);
 
   useEffect(() => {
     const updateTime = () => {
@@ -251,30 +183,8 @@ export function SeniorHome({
           </div>
         </div>
 
-        {/* EMERGENCY SOS SECTION — CENTERED & HIGHLY PROMINENT (Section 4) */}
-        <div className="rounded-3xl border-4 border-destructive bg-destructive/10 p-6 sm:p-8 shadow-lg text-center flex flex-col items-center justify-center space-y-4">
-          <span className="text-xs font-black uppercase tracking-widest text-destructive bg-destructive/15 px-4 py-1 rounded-full">
-            Emergency Assistance System
-          </span>
-          <h3 className="text-2xl sm:text-3xl font-black text-destructive">
-            NEED HELP IMMEDIATELY?
-          </h3>
-          <p className="text-sm font-bold text-foreground max-w-sm mx-auto">
-            One tap to speak with AI or call your family & emergency services.
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              clearSosHoldTimer();
-              if (isSosCooldownActive()) return;
-              onOpenSos();
-            }}
-            className="w-full sm:w-80 h-20 rounded-3xl bg-destructive hover:bg-destructive/90 text-white font-black text-2xl tracking-wider shadow-2xl flex items-center justify-center gap-3 transition-transform active:scale-95 cursor-pointer"
-          >
-            <AlertOctagon className="h-9 w-9 animate-pulse" />
-            {t("sos").toUpperCase()} (मदद लें)
-          </button>
-        </div>
+        {/* EMERGENCY SOS SECTION — STRICT 3-SECOND CONTINUOUS HOLD */}
+        <SosHoldControl variant="heroCard" onTrigger={onOpenSos} />
 
         {/* 4 Massive Essential Action Tiles (2-Column Layout) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">

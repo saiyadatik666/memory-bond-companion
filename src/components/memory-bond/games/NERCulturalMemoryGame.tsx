@@ -23,6 +23,8 @@ export interface NERCulturalMemoryGameProps {
   level?: number;
   nerState?: string;
   adaptiveDifficulty?: "easy" | "medium" | "challenging";
+  cycleNumber?: number;
+  cycleSeed?: number;
 }
 
 export function NERCulturalMemoryGame({
@@ -30,13 +32,15 @@ export function NERCulturalMemoryGame({
   level = 1,
   nerState = "all",
   adaptiveDifficulty = "medium",
+  cycleNumber = 1,
+  cycleSeed = 0,
 }: NERCulturalMemoryGameProps) {
   const { lang, speechLocale } = useI18n();
 
   // Phase: "memorize" -> "test" -> "result"
   const [phase, setPhase] = useState<"memorize" | "test" | "result">("memorize");
-  const [secondsLeft, setSecondsLeft] = useState<number>(6);
-  const [testMode, setTestMode] = useState<"first" | "missing">("first");
+  const [secondsLeft, setSecondsLeft] = useState<number>(7);
+  const [testMode, setTestMode] = useState<"first" | "last" | "missing">("first");
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [isAnswerChecked, setIsAnswerChecked] = useState<boolean>(false);
   const [isCorrect, setIsCorrect] = useState<boolean>(false);
@@ -54,20 +58,37 @@ export function NERCulturalMemoryGame({
     return pool;
   }, [nerState]);
 
-  // Determine items count & observation duration based on level and adaptive difficulty
-  // Level 1: 3 items, Level 2: 4 items, Level 3+: 5 items
-  const itemCount = level === 1 ? 3 : level === 2 ? 4 : 5;
-  const baseObsTime = adaptiveDifficulty === "easy" ? 7 : adaptiveDifficulty === "challenging" ? 4 : 5;
+  // 30 Levels progression for elderly:
+  // L1-5: 3 items (8s base)
+  // L6-10: 4 items (7s base)
+  // L11-15: 5 items (6s base)
+  // L16-20: 6 items (6s base)
+  // L21-25: 7 items (5s base)
+  // L26-30: 8 items (5s base)
+  const itemCount =
+    level <= 5 ? 3 :
+    level <= 10 ? 4 :
+    level <= 15 ? 5 :
+    level <= 20 ? 6 :
+    level <= 25 ? 7 : 8;
 
-  // Pick random unique items for this round
+  const baseObsTime = Math.max(
+    4,
+    (level <= 5 ? 8 : level <= 10 ? 7 : level <= 20 ? 6 : 5) +
+      (adaptiveDifficulty === "easy" ? 2 : adaptiveDifficulty === "challenging" ? -1 : 0)
+  );
+
+  // Pick unique items for this round rotated with 8-day cycle offset
   const targetItems = useMemo(() => {
-    const shuffled = [...availableItems].sort(() => 0.5 - Math.random());
+    const cycleOffset = ((cycleNumber - 1) * 3 + (level - 1) * 2) % Math.max(1, availableItems.length);
+    const rotated = [...availableItems.slice(cycleOffset), ...availableItems.slice(0, cycleOffset)];
+    const shuffled = [...rotated].sort(() => 0.5 - Math.random());
     return shuffled.slice(0, itemCount);
-  }, [availableItems, itemCount, level]);
+  }, [availableItems, itemCount, level, cycleNumber]);
 
-  // For "missing" mode, remove 1 item; for "first" mode, target is targetItems[0]
+  // For "missing" mode, remove 1 item; for "first"/"last", use corresponding index
   const missingItem = useMemo(() => {
-    return targetItems[Math.floor(Math.random() * targetItems.length)];
+    return targetItems[Math.floor(Math.random() * targetItems.length)] || targetItems[0];
   }, [targetItems]);
 
   const shownItemsAfterHide = useMemo(() => {
@@ -76,7 +97,11 @@ export function NERCulturalMemoryGame({
 
   // Options pool for the test question
   const questionOptions = useMemo(() => {
-    const correctItem = testMode === "first" ? targetItems[0] : missingItem;
+    const correctItem =
+      testMode === "first" ? targetItems[0] :
+      testMode === "last" ? targetItems[targetItems.length - 1] :
+      missingItem;
+
     const others = availableItems
       .filter((it) => it.id !== correctItem.id)
       .slice(0, 3);
@@ -91,8 +116,19 @@ export function NERCulturalMemoryGame({
     setIsAnswerChecked(false);
     setStartTime(Date.now());
 
-    // Alternate test mode based on level
-    setTestMode(level % 2 === 1 ? "first" : "missing");
+    // Alternate test mode across the 30 levels:
+    // Levels 1-10: alternating "first" and "missing"
+    // Levels 11-20: alternating "first", "last", and "missing"
+    // Levels 21-30: alternating "last", "missing", "first"
+    if (level <= 10) {
+      setTestMode(level % 2 === 1 ? "first" : "missing");
+    } else if (level <= 20) {
+      const m = level % 3;
+      setTestMode(m === 0 ? "last" : m === 1 ? "first" : "missing");
+    } else {
+      const m = level % 3;
+      setTestMode(m === 0 ? "missing" : m === 1 ? "last" : "first");
+    }
 
     if (timerRef.current) clearInterval(timerRef.current);
 
@@ -120,7 +156,10 @@ export function NERCulturalMemoryGame({
   const handleCheckAnswer = () => {
     if (!selectedAnswer) return;
 
-    const correctItem = testMode === "first" ? targetItems[0] : missingItem;
+    const correctItem =
+      testMode === "first" ? targetItems[0] :
+      testMode === "last" ? targetItems[targetItems.length - 1] :
+      missingItem;
     const correct = selectedAnswer === correctItem.id;
     setIsCorrect(correct);
     setIsAnswerChecked(true);
@@ -142,7 +181,10 @@ export function NERCulturalMemoryGame({
     });
   };
 
-  const correctTarget = testMode === "first" ? targetItems[0] : missingItem;
+  const correctTarget =
+    testMode === "first" ? targetItems[0] :
+    testMode === "last" ? targetItems[targetItems.length - 1] :
+    missingItem;
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto text-card-foreground">
@@ -212,11 +254,15 @@ export function NERCulturalMemoryGame({
             <h4 className="text-xl sm:text-2xl font-black text-foreground">
               {testMode === "first"
                 ? "Which object was placed FIRST on the tray?"
+                : testMode === "last"
+                ? "Which object was placed LAST on the tray?"
                 : "Which object is MISSING from the tray?"}
             </h4>
             <p className="text-sm font-semibold text-muted-foreground">
               {testMode === "first"
-                ? "Recall the very first item you observed on the left."
+                ? "Recall the very first item you observed on the left (#1)."
+                : testMode === "last"
+                ? `Recall the very last item you observed on the right (#${targetItems.length}).`
                 : "One item has been removed from the cultural tray."}
             </p>
           </div>

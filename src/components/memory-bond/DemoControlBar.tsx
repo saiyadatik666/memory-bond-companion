@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
+import { SosHoldControl } from "./SosHoldControl";
 
 export function DemoControlBar({
   store,
@@ -214,14 +215,7 @@ export function DemoControlBar({
               <Pill className="h-3.5 w-3.5 text-warning" /> Trigger Low Medicine Stock
             </Button>
 
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={onOpenSos}
-              className="h-8 text-xs font-bold rounded-xl gap-1.5 text-destructive border-destructive/40"
-            >
-              <AlertOctagon className="h-3.5 w-3.5" /> Test 5-Second SOS Emergency
-            </Button>
+            <SosHoldControl variant="compact" onTrigger={onOpenSos} />
 
 
             {onNavigate && (
