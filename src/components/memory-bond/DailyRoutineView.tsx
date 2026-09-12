@@ -314,16 +314,16 @@ export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
   return (
     <div className="space-y-6">
       {/* 1. Interactive "Daily Routine Call" Feature Banner (Section 10 of Prompt) */}
-      <div className="rounded-3xl aurora-surface p-6 sm:p-8 shadow-lg text-white space-y-4">
+      <div className="rounded-3xl border-2 border-primary/25 bg-gradient-to-br from-primary/10 via-card to-card p-6 sm:p-8 shadow-sm text-foreground space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-1.5 max-w-xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3.5 py-1 text-xs font-bold tracking-wider uppercase backdrop-blur-md">
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 text-primary border border-primary/20 px-3.5 py-1 text-xs font-bold tracking-wider uppercase">
               <Sparkles className="h-3.5 w-3.5" /> Featured Daily Interaction
             </div>
-            <h2 className="text-2xl sm:text-3xl font-black">
+            <h2 className="text-2xl sm:text-3xl font-black text-foreground">
               {t("dailyRoutineCall") || "Daily Routine Call"}
             </h2>
-            <p className="text-white/90 text-sm sm:text-base leading-relaxed">
+            <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
               {t("routineCallDesc") ||
                 "A warm, natural daily conversation to check on your morning, medicines, and well-being."}
             </p>
@@ -332,9 +332,9 @@ export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
           <Button
             size="lg"
             onClick={startRoutineCall}
-            className="bg-white text-foreground hover:bg-white/90 font-black rounded-2xl gap-2.5 h-14 px-8 text-base shadow-lg hover:scale-105 transition-all"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 font-black rounded-2xl gap-2.5 h-14 px-8 text-base shadow-sm hover:scale-105 transition-all cursor-pointer"
           >
-            <PhoneCall className="h-5 w-5 text-primary animate-bounce" />
+            <PhoneCall className="h-5 w-5 animate-bounce" />
             {t("startRoutineCall") || "Start Daily Routine Call"}
           </Button>
         </div>
@@ -417,7 +417,7 @@ export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
 
       {/* Interactive Daily Routine Call Dialog Modal */}
       {isCallActive && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-md animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-md animate-in fade-in">
           <div className="relative w-full max-w-lg rounded-3xl border-2 border-primary/40 bg-card p-6 sm:p-8 shadow-2xl space-y-6 animate-in zoom-in-95">
             {/* Top Close Button */}
             <button
@@ -604,7 +604,7 @@ export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
 
       {/* Add Routine Modal */}
       {isAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-md animate-in fade-in">
           <div className="w-full max-w-md rounded-3xl border-2 border-border bg-card p-6 sm:p-8 shadow-xl space-y-4 animate-in zoom-in-95">
             <h3 className="text-2xl font-black text-foreground">Add Custom Routine</h3>
 

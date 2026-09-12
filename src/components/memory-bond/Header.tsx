@@ -38,25 +38,25 @@ export function Header({
   const currentLangObj = LANGUAGES.find((l) => l.code === lang) || LANGUAGES[0];
 
   return (
-    <header className="border-b border-border bg-card/80 backdrop-blur-md sticky top-10 sm:top-9 z-30">
+    <header className="border-b border-border bg-card/95 backdrop-blur-md sticky top-10 sm:top-9 z-30 shadow-xs">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:gap-4">
         {/* Brand Logo */}
         <button
           onClick={() => onNavigate("home")}
-          className="flex min-w-0 items-center gap-2 sm:gap-3 text-left group transition-all"
+          className="flex min-w-0 items-center gap-2.5 sm:gap-3 text-left group transition-all cursor-pointer"
         >
-          <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-2xl aurora-surface flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform">
-            <Heart className="h-5 w-5 sm:h-6 sm:w-6 fill-white/20" />
+          <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-2xl bg-primary flex items-center justify-center text-white shadow-xs group-hover:scale-105 transition-transform">
+            <Heart className="h-5 w-5 sm:h-6 sm:w-6 fill-white/30" />
           </div>
           <div className="min-w-0">
             <h1 className="truncate text-base sm:text-xl font-black tracking-tight text-foreground flex items-center gap-1.5">
               MEMORY BOND
-              <span className="hidden md:inline text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/15 text-primary shrink-0">
-                AI Companion
+              <span className="hidden md:inline text-[10px] font-black px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">
+                Healthcare AI
               </span>
             </h1>
-            <p className="truncate text-xs text-muted-foreground hidden sm:block">
-              {t("tagline") || "A calm companion for memory, medicines and family"}
+            <p className="truncate text-xs font-semibold text-muted-foreground hidden sm:block">
+              {t("tagline") || "Technology with a human heart — Elderly & Memory Care"}
             </p>
           </div>
         </button>

@@ -146,15 +146,15 @@ export function MedicineManagerView({ store }: { store: MemoryBondStore }) {
         </div>
       </div>
 
-      {/* Critical Low Stock Warning Banner (Section 8: 2-3 days remaining) */}
+      {/* Gentle Refill Reminder Banner (Section 7: 2-3 days remaining) */}
       {lowStockMeds.length > 0 && (
-        <div className="rounded-3xl border-2 border-destructive/50 bg-destructive/10 p-6 space-y-3 animate-in fade-in">
-          <div className="flex items-center gap-3 text-destructive font-black text-lg">
-            <AlertTriangle className="h-7 w-7 animate-bounce" />
-            <span>REFILL ALERT: {lowStockMeds.length} MEDICINE(S) RUNNING LOW (2–3 Days Supply Left)</span>
+        <div className="rounded-3xl border-2 border-amber-500/40 bg-amber-50/80 dark:bg-amber-950/20 p-5 sm:p-6 space-y-3 shadow-xs animate-in fade-in">
+          <div className="flex items-center gap-3 text-amber-900 dark:text-amber-200 font-black text-base sm:text-lg">
+            <AlertTriangle className="h-6 w-6 text-amber-600 shrink-0" />
+            <span>⚠ REFILL REMINDER: {lowStockMeds.length} medicine(s) running low (2–3 days supply remaining)</span>
           </div>
-          <p className="text-sm text-foreground font-medium">
-            Authorized family and caregivers have been notified to arrange replenishment:
+          <p className="text-xs sm:text-sm text-amber-800 dark:text-amber-300 font-semibold">
+            Caregiver and family have been gently notified to help prepare a refill soon:
           </p>
           <div className="flex flex-wrap gap-2.5 pt-1">
             {lowStockMeds.map((med) => {
@@ -162,16 +162,16 @@ export function MedicineManagerView({ store }: { store: MemoryBondStore }) {
               return (
                 <div
                   key={med.id}
-                  className="flex items-center gap-2 rounded-xl bg-card border border-destructive/40 px-3.5 py-2 shadow-xs text-sm font-bold text-foreground"
+                  className="flex items-center gap-2 rounded-2xl bg-card border border-amber-300 px-3.5 py-2 shadow-xs text-sm font-bold text-foreground"
                 >
                   <span>{med.name}</span>
-                  <span className="text-destructive font-mono">
+                  <span className="text-amber-700 font-semibold text-xs">
                     ({med.stock} {med.unit}s left • ~{daysLeft} days)
                   </span>
                   <Button
                     size="sm"
                     onClick={() => setRefillMedId(med.id)}
-                    className="h-7 text-xs font-bold rounded-lg px-2.5 ml-1"
+                    className="h-8 text-xs font-bold rounded-xl px-3 ml-1 bg-amber-600 hover:bg-amber-700 text-white"
                   >
                     Refill Now
                   </Button>
@@ -191,33 +191,42 @@ export function MedicineManagerView({ store }: { store: MemoryBondStore }) {
 
             // Check if logged today
             const todayLog = store.medicineLogs.find((l) => l.medicine_id === med.id);
+            const isTaken = todayLog?.status === "taken";
 
             return (
               <div
                 key={med.id}
                 className={`rounded-3xl border-2 bg-card p-6 shadow-sm space-y-4 transition-all ${
-                  isLow ? "border-destructive/60 bg-destructive/5" : "border-border"
+                  isLow ? "border-amber-400/60 bg-amber-50/20" : "border-border"
                 }`}
               >
-                {/* Header */}
+                {/* Header with Visual Status State (✓ Taken / ○ Upcoming / ⚠ Low Stock) */}
                 <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-xl font-bold text-foreground">{med.name}</h3>
-                      {isLow && (
-                        <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-destructive text-white">
-                          Refill Due (~{daysLeft}d)
+                      {isTaken ? (
+                        <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-800 border border-teal-200 flex items-center gap-1">
+                          ✓ Taken
+                        </span>
+                      ) : isLow ? (
+                        <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1">
+                          ⚠ Low Stock (~{daysLeft}d)
+                        </span>
+                      ) : (
+                        <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200 flex items-center gap-1">
+                          ○ Upcoming
                         </span>
                       )}
                     </div>
                     <p className="text-sm font-semibold text-primary">{med.dosage}</p>
                   </div>
-                  <div className="text-right">
-                    <div className={`text-2xl font-black ${isLow ? "text-destructive" : "text-foreground"}`}>
+                  <div className="text-right shrink-0">
+                    <div className={`text-2xl font-black ${isLow ? "text-amber-700" : "text-foreground"}`}>
                       {med.stock} <span className="text-sm font-normal text-muted-foreground">{med.unit}s</span>
                     </div>
-                    <div className="text-xs text-muted-foreground font-medium">
-                      ~{daysLeft} days remaining
+                    <div className="text-xs text-muted-foreground font-semibold">
+                      ~{daysLeft} days left
                     </div>
                   </div>
                 </div>
@@ -395,7 +404,7 @@ export function MedicineManagerView({ store }: { store: MemoryBondStore }) {
 
       {/* Refill Dialog Modal */}
       {refillMedId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-md animate-in fade-in">
           <div className="w-full max-w-md rounded-3xl border-2 border-border bg-card p-6 sm:p-8 shadow-xl space-y-5 animate-in zoom-in-95">
             <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
               <RefreshCw className="h-5 w-5 text-primary" /> Log Medicine Refill
@@ -462,7 +471,7 @@ export function MedicineManagerView({ store }: { store: MemoryBondStore }) {
 
       {/* Add New Medicine Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-md animate-in fade-in">
           <div className="w-full max-w-lg rounded-3xl border-2 border-border bg-card p-6 sm:p-8 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
             <h3 className="text-2xl font-black text-foreground">Add New Prescription</h3>
 

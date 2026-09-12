@@ -991,57 +991,74 @@ export function CognitiveGamesHub({
             </div>
           </div>
 
-          {/* 10 Games Grid (All 10 Games Preserved, Complete & Progress-tracked) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {games.map((g, idx) => {
+          {/* 10 Games Grid (All 10 Games Preserved, Senior-Friendly Cognitive Cards) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+            {games.map((g) => {
               const Icon = g.icon;
               const prog = getGameProgress(g.id);
+              const progressPct = Math.round((prog.high / 30) * 100);
               return (
                 <div
                   key={g.id}
-                  className="group relative rounded-3xl border-2 border-border bg-card p-6 text-left shadow-xs transition-all hover:border-primary hover:shadow-md flex flex-col justify-between h-64"
+                  className="group rounded-3xl border-2 border-border/80 bg-card p-6 text-left shadow-sm transition-all hover:border-primary/60 hover:shadow-md flex flex-col justify-between"
                 >
-                  <div onClick={() => handleSelectGame(g.id)} className="cursor-pointer">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center ${g.color}`}>
-                        <Icon className="h-6 w-6" />
+                  <div className="space-y-4">
+                    {/* Header: Icon & Read Aloud & Level Pill */}
+                    <div className="flex items-center justify-between">
+                      <div className={`w-14 h-14 rounded-2xl border flex items-center justify-center shadow-xs ${g.color}`}>
+                        <Icon className="h-7 w-7" />
                       </div>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            speakText(`${g.title}. ${g.description}`, speechLocale);
-                          }}
-                          className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                          onClick={() => speakText(`${g.title}. ${g.description}`, speechLocale)}
+                          className="p-2 rounded-xl hover:bg-secondary text-muted-foreground hover:text-primary transition-colors cursor-pointer"
                           title="Read aloud"
+                          aria-label="Read game title aloud"
                         >
                           <Volume2 className="h-4 w-4" />
                         </button>
-                        <span className="text-xs font-black px-2.5 py-1 rounded-full bg-primary/15 text-primary">
+                        <span className="text-xs font-black px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
                           Lvl {prog.high}/30
                         </span>
                       </div>
                     </div>
-                    <h3 className="text-lg sm:text-xl font-bold text-foreground group-hover:text-primary transition-colors">
-                      {g.title}
-                    </h3>
-                    <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 leading-relaxed line-clamp-2">
-                      {g.description}
-                    </p>
+
+                    {/* Title & Description */}
+                    <div>
+                      <h3 className="text-xl font-black text-foreground group-hover:text-primary transition-colors">
+                        {g.title}
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed min-h-[40px]">
+                        {g.description}
+                      </p>
+                    </div>
+
+                    {/* Progress Bar & Best Score stats */}
+                    <div className="bg-secondary/30 rounded-2xl p-3 border border-border/60 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-muted-foreground">Progress: Level {prog.cur}</span>
+                        <span className="font-extrabold text-foreground">{prog.best > 0 ? `Best: ${prog.best}%` : "Ready to Start"}</span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-border/60 overflow-hidden">
+                        <div
+                          className="h-full bg-primary rounded-full transition-all duration-300"
+                          style={{ width: `${Math.max(5, progressPct)}%` }}
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  <div
-                    onClick={() => handleSelectGame(g.id)}
-                    className="pt-3 border-t border-border/60 flex items-center justify-between text-sm font-bold text-primary cursor-pointer"
-                  >
-                    <span className="text-xs text-muted-foreground font-semibold">
-                      {prog.best > 0 ? `Best: ${prog.best}%` : "Ready to Play"}
-                    </span>
-                    <span className="flex items-center gap-1 text-primary group-hover:translate-x-1 transition-transform">
+                  {/* Prominent Senior-Friendly PLAY Button */}
+                  <div className="pt-4 mt-2">
+                    <Button
+                      onClick={() => handleSelectGame(g.id)}
+                      className="w-full h-12 rounded-2xl font-black text-base shadow-xs bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.01]"
+                    >
+                      <Gamepad2 className="h-5 w-5" />
                       <span>{t("play") || "Play Level"} {prog.cur}</span>
-                      <ArrowRight className="h-4 w-4" />
-                    </span>
+                      <ArrowRight className="h-4 w-4 ml-1" />
+                    </Button>
                   </div>
                 </div>
               );

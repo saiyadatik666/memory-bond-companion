@@ -543,8 +543,8 @@ export function SosModal({
     .sort((a, b) => a.priority - b.priority);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-3 sm:p-4 backdrop-blur-md animate-in fade-in overflow-y-auto">
-      <div className="relative w-full max-w-lg rounded-3xl border-4 border-destructive bg-card p-6 sm:p-8 shadow-2xl space-y-6 text-center mx-auto my-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-3 sm:p-4 backdrop-blur-md animate-in fade-in overflow-y-auto">
+      <div className="relative w-full max-w-lg rounded-3xl border-2 border-destructive/60 bg-card p-6 sm:p-8 shadow-2xl space-y-6 text-center mx-auto my-auto">
         {/* Close / Cancel X button (available during countdown & voice input) */}
         {sessionState !== "COMPLETED" && (
           <button

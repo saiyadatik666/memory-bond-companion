@@ -59,8 +59,8 @@ export function BottomNavigation({
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 bg-card/95 backdrop-blur-md border-t border-border shadow-lg pb-[env(safe-area-inset-bottom,0px)]">
-      <div className="max-w-xl mx-auto flex items-center justify-around py-1.5 px-1 sm:px-2">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-card/95 backdrop-blur-md border-t border-border shadow-lg pb-[env(safe-area-inset-bottom,0px)]">
+      <div className="max-w-xl mx-auto flex items-center justify-around py-2 px-1 sm:px-3">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = currentTab === tab.id;

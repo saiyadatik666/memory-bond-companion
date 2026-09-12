@@ -218,7 +218,7 @@ export function FloatingAssistantBubble({
 
       {/* Android Overlay Explanation Modal */}
       {showAndroidInfo && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-md animate-in fade-in flex items-center justify-center p-4">
           <div className="bg-card border-2 border-border max-w-lg w-full rounded-3xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">

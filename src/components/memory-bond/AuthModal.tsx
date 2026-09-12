@@ -201,7 +201,7 @@ export function AuthModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-md animate-in fade-in">
       <div className="relative w-full max-w-md rounded-3xl border-2 border-border bg-card p-6 sm:p-8 shadow-2xl space-y-5 animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
         {/* Close Button */}
         <button
@@ -213,7 +213,7 @@ export function AuthModal({
 
         {/* Header */}
         <div className="text-center space-y-2">
-          <div className="mx-auto w-14 h-14 rounded-2xl aurora-surface flex items-center justify-center text-white shadow-md">
+          <div className="mx-auto w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-xs">
             <ShieldCheck className="h-7 w-7" />
           </div>
           <h3 className="text-2xl font-black text-foreground">

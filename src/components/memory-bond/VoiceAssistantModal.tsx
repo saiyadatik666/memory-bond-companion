@@ -757,30 +757,30 @@ export function VoiceAssistantModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 sm:p-4 backdrop-blur-md animate-in fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-3 sm:p-4 backdrop-blur-md animate-in fade-in"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           handleExit();
         }
       }}
     >
-      <div className="relative w-full max-w-2xl rounded-3xl border-2 border-primary/40 bg-card p-4 sm:p-7 shadow-2xl space-y-5 flex flex-col max-h-[92vh]">
+      <div className="relative w-full max-w-2xl rounded-3xl border border-border bg-card p-5 sm:p-7 shadow-2xl space-y-5 flex flex-col max-h-[92vh]">
         
         {/* Top Header: STOP Button, Auto-Detected Language Pill, New Topic, Language Selector, Exit Button */}
-        <div className="flex items-center justify-between pb-3 border-b border-border/70 shrink-0 gap-2 flex-wrap sm:flex-nowrap">
+        <div className="flex items-center justify-between pb-3 border-b border-border shrink-0 gap-2 flex-wrap sm:flex-nowrap">
           <div className="flex items-center gap-2">
             {/* Immediate Stop Speaking / Cancel Button */}
             <Button
               size="sm"
               variant="destructive"
               onClick={handleStop}
-              className="rounded-full px-3.5 py-1.5 text-xs font-black gap-1.5 shadow-sm hover:scale-105 transition-transform"
+              className="rounded-full px-3.5 py-1.5 text-xs font-black gap-1.5 shadow-xs hover:scale-105 transition-transform"
             >
               <VolumeX className="h-4 w-4" /> STOP
             </Button>
 
             {/* Auto-Detected Language Pill Badge */}
-            <div className="flex items-center gap-1.5 bg-emerald-500/15 border border-emerald-500/40 text-emerald-700 dark:text-emerald-300 px-3 py-1 rounded-full text-xs font-black shadow-xs">
+            <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 px-3 py-1 rounded-full text-xs font-black shadow-xs">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <Languages className="h-3.5 w-3.5" />
               <span>{detectedLangName}</span>
@@ -830,7 +830,7 @@ export function VoiceAssistantModal({
               size="sm"
               variant="outline"
               onClick={handleExit}
-              className="rounded-full px-3.5 py-1.5 text-xs font-black gap-1.5 border-destructive/50 text-destructive hover:bg-destructive hover:text-white transition-all shadow-xs h-8 sm:h-9 shrink-0 hover:scale-105"
+              className="rounded-full px-3.5 py-1.5 text-xs font-black gap-1.5 border-destructive/40 text-destructive hover:bg-destructive hover:text-white transition-all shadow-xs h-8 sm:h-9 shrink-0 hover:scale-105"
               title="Exit Voice Assistant"
               aria-label="Exit Voice Assistant"
             >
@@ -842,8 +842,8 @@ export function VoiceAssistantModal({
 
         {/* 4 Distinct Voice UI States: 🎙️ Tap to speak | 🔴 Listening... | 🧠 Thinking... | 🔊 Speaking... */}
         <div className="text-center space-y-3 shrink-0">
-          {/* Large Central Microphone Button (CRITICAL REQUIREMENT 7) */}
-          <div className="flex justify-center">
+          {/* Large Central Microphone Control Button */}
+          <div className="flex flex-col items-center justify-center gap-3">
             <button
               onClick={
                 voiceState === "speaking"
@@ -855,16 +855,16 @@ export function VoiceAssistantModal({
                       startListening();
                     }
               }
-              className={`h-24 w-24 sm:h-28 sm:w-28 rounded-full border-4 flex items-center justify-center transition-all duration-300 shadow-2xl focus:outline-none ${
+              className={`h-24 w-24 sm:h-28 sm:w-28 rounded-full border-4 flex items-center justify-center transition-all duration-300 shadow-xl focus:outline-none cursor-pointer ${
                 voiceState === "listening"
-                  ? "bg-destructive text-white border-destructive/50 scale-110 shadow-destructive/40 animate-pulse ring-8 ring-destructive/20"
+                  ? "bg-destructive text-white border-destructive/50 scale-110 shadow-destructive/30 animate-pulse ring-8 ring-destructive/15"
                   : voiceState === "processing"
-                  ? "bg-amber-500 text-white border-amber-400 scale-105 shadow-amber-500/30 animate-pulse ring-8 ring-amber-500/20"
+                  ? "bg-amber-500 text-white border-amber-400 scale-105 shadow-amber-500/25 animate-pulse ring-8 ring-amber-500/15"
                   : voiceState === "speaking"
-                  ? "bg-primary text-white border-primary/60 scale-105 shadow-primary/40 animate-pulse ring-8 ring-primary/20"
+                  ? "bg-primary text-white border-primary/60 scale-105 shadow-primary/30 animate-pulse ring-8 ring-primary/15"
                   : voiceState === "error"
-                  ? "bg-destructive/20 text-destructive border-destructive ring-4 ring-destructive/10"
-                  : "bg-primary hover:bg-primary/90 text-white border-primary/30 hover:scale-105 shadow-primary/30"
+                  ? "bg-destructive/10 text-destructive border-destructive ring-4 ring-destructive/10"
+                  : "bg-primary hover:bg-primary/90 text-white border-primary/20 hover:scale-105 shadow-primary/25"
               }`}
               title={
                 voiceState === "speaking"
@@ -886,6 +886,18 @@ export function VoiceAssistantModal({
                 <Mic className="h-12 w-12 sm:h-14 sm:w-14" />
               )}
             </button>
+
+            {/* Audio Waveform Animation (Speaking / Listening) */}
+            {(voiceState === "speaking" || voiceState === "listening") && (
+              <div className="flex items-center justify-center gap-1.5 h-6">
+                <span className="w-1.5 h-5 rounded-full bg-primary animate-pulse" style={{ animationDelay: "0ms" }} />
+                <span className="w-1.5 h-7 rounded-full bg-primary animate-pulse" style={{ animationDelay: "150ms" }} />
+                <span className="w-1.5 h-3 rounded-full bg-primary animate-pulse" style={{ animationDelay: "300ms" }} />
+                <span className="w-1.5 h-8 rounded-full bg-primary animate-pulse" style={{ animationDelay: "100ms" }} />
+                <span className="w-1.5 h-4 rounded-full bg-primary animate-pulse" style={{ animationDelay: "250ms" }} />
+                <span className="w-1.5 h-6 rounded-full bg-primary animate-pulse" style={{ animationDelay: "350ms" }} />
+              </div>
+            )}
           </div>
 
           {/* Explicit State Indicator Label */}
@@ -900,19 +912,19 @@ export function VoiceAssistantModal({
                   ? "bg-primary animate-pulse"
                   : voiceState === "error"
                   ? "bg-destructive"
-                  : "bg-muted-foreground/50"
+                  : "bg-primary/40"
               }`}
             />
             <h2 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
               {voiceState === "listening"
-                ? "🔴 Listening... (Speak naturally)"
+                ? "🔴 LISTENING (Speak naturally)"
                 : voiceState === "processing"
-                ? "🧠 Thinking... (Understanding your question)"
+                ? "🧠 PROCESSING (Understanding your question)"
                 : voiceState === "speaking"
-                ? "🔊 Speaking... (Tap button to interrupt)"
+                ? "🔊 SPEAKING (Tap mic to interrupt)"
                 : voiceState === "error"
                 ? "⚠️ Speech Error"
-                : "🎙️ Tap to speak"}
+                : "🎙️ READY (Tap microphone to speak)"}
             </h2>
           </div>
 

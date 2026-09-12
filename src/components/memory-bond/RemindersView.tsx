@@ -42,7 +42,7 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState<boolean>(false);
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
-  const [activeTab, setActiveTab] = useState<"active" | "history">("active");
+  const [activeTab, setActiveTab] = useState<"today" | "upcoming" | "completed">("today");
 
   // Form State
   const [title, setTitle] = useState<string>("");
@@ -57,23 +57,87 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
   const getReminderIcon = (remType: Reminder["type"]) => {
     switch (remType) {
       case "medicine":
-        return <Pill className="h-5 w-5 text-emerald-500" />;
+        return <Pill className="h-5 w-5 text-emerald-600" />;
       case "hydration":
-        return <Droplets className="h-5 w-5 text-sky-500" />;
+        return <Droplets className="h-5 w-5 text-sky-600" />;
       case "walking":
         return <Footprints className="h-5 w-5 text-teal-600" />;
       case "meal":
-        return <Utensils className="h-5 w-5 text-amber-500" />;
+        return <Utensils className="h-5 w-5 text-amber-600" />;
       case "shopping":
-        return <ShoppingBag className="h-5 w-5 text-purple-500" />;
+        return <ShoppingBag className="h-5 w-5 text-purple-600" />;
       case "family_call":
-        return <Phone className="h-5 w-5 text-rose-500" />;
+        return <Phone className="h-5 w-5 text-rose-600" />;
       case "routine":
         return <Sun className="h-5 w-5 text-amber-600" />;
       default:
         return <Bell className="h-5 w-5 text-primary" />;
     }
   };
+
+  // Filter into clear groups
+  const todayReminders = store.reminders.filter(
+    (r) => r.active && (r.repeat === "daily" || !r.date || r.date === todayStr) && r.last_done !== todayStr
+  );
+  const upcomingReminders = store.reminders.filter(
+    (r) => r.active && r.date && r.date > todayStr && r.repeat !== "daily"
+  );
+  const completedReminders = store.reminders.filter(
+    (r) => r.last_done === todayStr
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-secondary/30 p-6">
+        <div>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-foreground flex items-center gap-3">
+            <Bell className="h-8 w-8 text-primary" /> Smart Reminders Engine
+          </h2>
+          <p className="text-muted-foreground mt-1 text-base">
+            Natural language reminders for medicines, hydration, walking, market shopping, and doctor visits.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="inline-flex rounded-2xl border border-border bg-card p-1 shadow-xs">
+            <button
+              onClick={() => setActiveTab("today")}
+              className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                activeTab === "today"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Today ({todayReminders.length})
+            </button>
+            <button
+              onClick={() => setActiveTab("upcoming")}
+              className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                activeTab === "upcoming"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Upcoming ({upcomingReminders.length})
+            </button>
+            <button
+              onClick={() => setActiveTab("completed")}
+              className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === "completed"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <History className="h-3.5 w-3.5" /> Done ({completedReminders.length})
+            </button>
+          </div>
+
+          <Button onClick={handleOpenAdd} className="gap-2 font-bold text-base h-12 px-6 rounded-2xl cursor-pointer">
+            <Plus className="h-5 w-5" /> New Reminder
+          </Button>
+        </div>
+      </div>
 
   // Direct Speech Recognition for Reminders
   const handleStartVoiceInput = () => {
@@ -359,15 +423,36 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
 
       {/* Reminders List */}
       <div className="space-y-4">
-        {store.reminders.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-border bg-card p-12 text-center text-muted-foreground">
-            No active reminders. Type above or tap "New Reminder"!
-          </div>
-        ) : (
-          store.reminders
-            .filter((r) => (activeTab === "history" ? r.last_done === todayStr : true))
-            .map((rem) => {
-              const isDoneToday = rem.last_done === todayStr;
+        {(() => {
+          const currentList =
+            activeTab === "today"
+              ? todayReminders
+              : activeTab === "upcoming"
+              ? upcomingReminders
+              : completedReminders;
+
+          if (currentList.length === 0) {
+            return (
+              <div className="rounded-3xl border border-dashed border-border bg-card p-10 text-center space-y-2">
+                <Bell className="h-10 w-10 text-primary/40 mx-auto" />
+                <h4 className="text-base font-bold text-foreground">
+                  {activeTab === "today"
+                    ? "All clear for today! No pending reminders."
+                    : activeTab === "upcoming"
+                    ? "No upcoming reminders scheduled for future dates."
+                    : "No completed reminders recorded yet today."}
+                </h4>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                  {activeTab === "today"
+                    ? "You are all caught up. Would you like to create a new reminder?"
+                    : "Use the voice input or tap '+ New Reminder' above."}
+                </p>
+              </div>
+            );
+          }
+
+          return currentList.map((rem) => {
+            const isDoneToday = rem.last_done === todayStr;
 
               return (
                 <div
@@ -488,13 +573,13 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
                   </div>
                 </div>
               );
-            })
-        )}
+            });
+        })()}
       </div>
 
       {/* Add / Edit Modal */}
       {isAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-md animate-in fade-in">
           <div className="w-full max-w-md rounded-3xl border-2 border-border bg-card p-6 sm:p-8 shadow-xl space-y-4 animate-in zoom-in-95">
             <h3 className="text-2xl font-black text-foreground">
               {editingReminder ? "Edit Reminder" : "Create New Reminder"}

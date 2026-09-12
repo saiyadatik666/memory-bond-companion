@@ -59,7 +59,7 @@ export function NotificationDrawer({
     : store.notifications;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-xs animate-in fade-in">
+    <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-md animate-in fade-in">
       <div className="w-full max-w-md bg-card border-l-2 border-border h-full shadow-2xl p-6 flex flex-col justify-between overflow-hidden">
         {/* Header */}
         <div className="space-y-4">

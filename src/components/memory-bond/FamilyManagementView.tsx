@@ -297,32 +297,45 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
         {store.contacts.map((contact, idx) => (
           <div
             key={contact.id}
-            className="rounded-3xl border-2 border-border bg-card p-6 shadow-sm space-y-4 flex flex-col justify-between"
+            className="rounded-3xl border-2 border-border bg-card p-6 shadow-sm space-y-4 flex flex-col justify-between hover:shadow-md transition-all"
           >
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                   {contact.photo_url ? (
                     <img
                       src={contact.photo_url}
                       alt={contact.name}
-                      className="w-14 h-14 rounded-2xl object-cover border-2 border-primary/30 shadow-xs"
+                      className="w-16 h-16 rounded-2xl object-cover border-2 border-primary/25 shadow-xs shrink-0"
                     />
                   ) : (
-                    <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-2xl font-black text-primary">
+                    <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-2xl font-black text-primary shrink-0">
                       {contact.name.charAt(0)}
                     </div>
                   )}
                   <div>
-                    <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                    <h3 className="text-xl sm:text-2xl font-black text-foreground flex items-center gap-2">
                       {contact.name}
-                      {contact.is_emergency && (
-                        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-destructive/15 text-destructive">
-                          SOS #{idx + 1}
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                        {contact.relationship}
+                      </span>
+                      {contact.is_emergency ? (
+                        <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-destructive/15 text-destructive border border-destructive/30 flex items-center gap-1">
+                          <ShieldAlert className="h-3 w-3" /> SOS #{idx + 1}
+                        </span>
+                      ) : (
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                          Family Circle
                         </span>
                       )}
-                    </h3>
-                    <p className="text-sm font-semibold text-primary">{contact.relationship}</p>
+                      {contact.active_for_calls !== false && (
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                          Active for Calls
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -330,7 +343,9 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
                   size="sm"
                   variant="ghost"
                   onClick={() => store.deleteContact(contact.id)}
-                  className="rounded-xl text-destructive hover:bg-destructive/10 p-2"
+                  className="rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 p-2"
+                  title="Remove contact"
+                  aria-label={`Remove ${contact.name}`}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -338,7 +353,7 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
 
               {/* Spoken Voice Memory Context */}
               {contact.voice_memory && (
-                <div className="rounded-2xl bg-primary/5 border border-primary/20 p-3 flex items-center justify-between gap-3">
+                <div className="rounded-2xl bg-secondary/50 border border-border p-3.5 flex items-center justify-between gap-3">
                   <div className="text-xs text-foreground italic space-y-0.5">
                     <span className="font-bold not-italic text-primary text-[10px] uppercase tracking-wider block">
                       Saved Voice Memory ("ये कौन हैं?")
@@ -349,7 +364,7 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
                     size="sm"
                     variant="outline"
                     onClick={() => speakText(contact.voice_memory || "", "hi-IN")}
-                    className="h-8 px-2.5 rounded-xl text-xs font-bold gap-1 shrink-0 bg-card"
+                    className="h-9 px-3 rounded-xl text-xs font-bold gap-1.5 shrink-0 bg-card border-border hover:bg-secondary"
                   >
                     <Volume2 className="h-3.5 w-3.5 text-primary" /> Listen
                   </Button>
@@ -359,7 +374,7 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
               <div className="space-y-1.5 pt-1 text-sm text-foreground">
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-primary" />
-                  <span className="font-mono font-bold">{contact.phone}</span>
+                  <span className="font-mono font-bold text-base">{contact.phone}</span>
                 </div>
                 {contact.email && (
                   <div className="flex items-center gap-2 text-muted-foreground text-xs">
@@ -370,7 +385,7 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
               </div>
 
               {/* Alert & Calling Toggles */}
-              <div className="space-y-2 pt-2 border-t border-border">
+              <div className="space-y-2 pt-2 border-t border-border/80">
                 <div className="flex items-center justify-between text-xs font-semibold">
                   <span className="text-muted-foreground">Receive Emergency SOS Alerts:</span>
                   <Switch
@@ -388,12 +403,12 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
               </div>
             </div>
 
-            <div className="pt-3 border-t border-border flex justify-end gap-2">
+            <div className="pt-3 border-t border-border/80 flex justify-end gap-2">
               <a
                 href={`tel:${contact.phone}`}
-                className="inline-flex items-center gap-2 text-sm font-bold bg-secondary hover:bg-secondary/80 px-4 py-2 rounded-xl text-foreground transition-all"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-sm font-black bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-6 rounded-2xl shadow-xs transition-all hover:scale-[1.01]"
               >
-                <PhoneCall className="h-4 w-4 text-primary" /> Call Now
+                <PhoneCall className="h-4 w-4" /> Call {contact.name.split(" ")[0]}
               </a>
             </div>
           </div>
@@ -402,7 +417,7 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
 
       {/* Add Family Member Modal */}
       {isAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-md animate-in fade-in overflow-y-auto">
           <div className="w-full max-w-lg rounded-3xl border-2 border-border bg-card p-6 sm:p-8 shadow-xl space-y-4 animate-in zoom-in-95 my-auto">
             <h3 className="text-2xl font-black text-foreground">Add Family Member</h3>
             <p className="text-xs text-muted-foreground">

@@ -3,6 +3,7 @@ import { useMemoryBondStore } from "@/lib/memoryBondStore";
 import { Header } from "./Header";
 import { DemoControlBar } from "./DemoControlBar";
 import { BottomNavigation } from "./BottomNavigation";
+import { DesktopSidebar } from "./DesktopSidebar";
 
 // Views
 import { SeniorHome } from "./SeniorHome";
@@ -149,55 +150,66 @@ export function MemoryBondApp() {
         onNavigate={handleNavigate}
       />
 
-      {/* Main View Container with safe bottom navigation clearance */}
-      <main className="max-w-7xl mx-auto w-full px-3 sm:px-6 pt-4 pb-24 sm:pb-28 flex-1 animate-in fade-in">
-        {currentTab === "home" && (
-          <SeniorHome
-            store={store}
-            onNavigate={handleNavigate}
-            onOpenSos={handleOpenSos}
-            onOpenVoiceAssistant={() => setIsVoiceOpen(true)}
-          />
-        )}
+      {/* Main Responsive Body: Left Sidebar on Desktop + Centered Main Canvas */}
+      <div className="flex-1 w-full max-w-[1600px] mx-auto flex items-start">
+        <DesktopSidebar
+          currentTab={currentTab}
+          onNavigate={handleNavigate}
+          store={store}
+          onOpenVoice={() => setIsVoiceOpen(true)}
+          onOpenSos={handleOpenSos}
+        />
 
-        {currentTab === "caregiver" && (
-          <CaregiverDashboard store={store} onNavigate={handleNavigate} />
-        )}
+        {/* Main View Container with safe clearance */}
+        <main className="flex-1 min-w-0 px-3 sm:px-6 pt-4 pb-24 sm:pb-28 lg:pb-12 animate-in fade-in">
+          {currentTab === "home" && (
+            <SeniorHome
+              store={store}
+              onNavigate={handleNavigate}
+              onOpenSos={handleOpenSos}
+              onOpenVoiceAssistant={() => setIsVoiceOpen(true)}
+            />
+          )}
 
-        {currentTab === "healthcare" && (
-          <HealthcareWorkerDashboard store={store} onNavigate={handleNavigate} />
-        )}
+          {currentTab === "caregiver" && (
+            <CaregiverDashboard store={store} onNavigate={handleNavigate} />
+          )}
 
-        {currentTab === "cultural" && (
-          <NorthEastCulturalConnect store={store} />
-        )}
+          {currentTab === "healthcare" && (
+            <HealthcareWorkerDashboard store={store} onNavigate={handleNavigate} />
+          )}
 
-        {currentTab === "social" && (
-          <SocialEngagementModule store={store} />
-        )}
+          {currentTab === "cultural" && (
+            <NorthEastCulturalConnect store={store} />
+          )}
 
-        {currentTab === "medicines" && <MedicineManagerView store={store} />}
+          {currentTab === "social" && (
+            <SocialEngagementModule store={store} />
+          )}
 
-        {currentTab === "reminders" && <RemindersView store={store} />}
+          {currentTab === "medicines" && <MedicineManagerView store={store} />}
 
-        {currentTab === "games" && (
-          <CognitiveGamesHub store={store} onNavigate={handleNavigate} />
-        )}
+          {currentTab === "reminders" && <RemindersView store={store} />}
 
-        {currentTab === "checkin" && <CognitiveCheckIn store={store} />}
+          {currentTab === "games" && (
+            <CognitiveGamesHub store={store} onNavigate={handleNavigate} />
+          )}
 
-        {currentTab === "cues" && <MemoryCuesView store={store} />}
+          {currentTab === "checkin" && <CognitiveCheckIn store={store} />}
 
-        {currentTab === "journal" && <MemoryJournalView store={store} />}
+          {currentTab === "cues" && <MemoryCuesView store={store} />}
 
-        {currentTab === "routine" && <DailyRoutineView store={store} />}
+          {currentTab === "journal" && <MemoryJournalView store={store} />}
 
-        {currentTab === "appointments" && <AppointmentsView store={store} />}
+          {currentTab === "routine" && <DailyRoutineView store={store} />}
 
-        {currentTab === "family" && <FamilyManagementView store={store} />}
+          {currentTab === "appointments" && <AppointmentsView store={store} />}
 
-        {currentTab === "settings" && <SettingsView store={store} />}
-      </main>
+          {currentTab === "family" && <FamilyManagementView store={store} />}
+
+          {currentTab === "settings" && <SettingsView store={store} />}
+        </main>
+      </div>
 
       {/* Bottom Navigation */}
       <BottomNavigation
