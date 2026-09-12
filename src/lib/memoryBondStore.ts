@@ -2035,6 +2035,10 @@ export function useMemoryBondStore() {
     setProfile((prev) => ({ ...prev, selected_ner_state: nerState }));
   }, []);
 
+  const toggleEasyMode = useCallback(() => {
+    setProfile((prev) => ({ ...prev, easy_mode: !prev.easy_mode }));
+  }, []);
+
   return {
     // Network & Demo state
     isOnline: effectiveOnline,
