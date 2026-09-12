@@ -5,7 +5,7 @@ export type SosHoldState = "IDLE" | "HOLDING" | "TRIGGERED" | "CANCELLED";
 
 export interface SosHoldControlProps {
   onTrigger: () => void;
-  variant?: "heroCard" | "sidebarButton" | "bottomNav" | "compactButton";
+  variant?: "heroCard" | "sidebarButton" | "bottomNav" | "compact" | "compactButton";
   className?: string;
   disabled?: boolean;
 }

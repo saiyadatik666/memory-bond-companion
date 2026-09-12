@@ -824,49 +824,8 @@ export function SeniorHome({
         </div>
       </div>
 
-      {/* 5. DEDICATED CENTERED EMERGENCY SOS HERO (SIH 2026 Section 30) */}
-      <div className="rounded-3xl border-2 border-destructive/30 bg-rose-50/70 dark:bg-rose-950/20 p-6 sm:p-8 shadow-sm text-center flex flex-col items-center justify-center space-y-4 mx-auto w-full">
-        <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-destructive bg-destructive/10 px-4 py-1.5 rounded-full border border-destructive/20">
-          <AlertOctagon className="h-4 w-4" /> Priority Safety & SOS Assistance (आपत्कालीन मदद)
-        </div>
-        
-        <div className="space-y-1 max-w-md mx-auto">
-          <h3 className="text-2xl sm:text-3xl font-black text-destructive tracking-tight">
-            NEED IMMEDIATE HELP? (मदद चाहिए?)
-          </h3>
-          <p className="text-sm sm:text-base font-semibold text-foreground/80">
-            One tap to speak with AI or instantly notify family & emergency services with your location.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onPointerDown={handleSosHoldStart}
-          onPointerUp={handleSosHoldEnd}
-          onPointerLeave={handleSosHoldEnd}
-          onPointerCancel={handleSosHoldEnd}
-          className="relative overflow-hidden w-full sm:w-[420px] h-20 sm:h-22 rounded-3xl bg-destructive hover:bg-destructive/90 text-white font-black text-xl sm:text-2xl tracking-wider shadow-2xl flex items-center justify-center gap-3.5 transition-transform active:scale-95 cursor-pointer mx-auto border-2 border-white/20 select-none"
-        >
-          {/* Real-time hold progress fill */}
-          {isHoldingSos && (
-            <div
-              className="absolute left-0 top-0 bottom-0 bg-white/30 transition-all duration-75 pointer-events-none"
-              style={{ width: `${sosHoldProgress}%` }}
-            />
-          )}
-
-          <AlertOctagon className="h-8 w-8 sm:h-9 sm:w-9 animate-pulse shrink-0 relative z-10" />
-          <span className="relative z-10">
-            {isHoldingSos
-              ? `HOLDING... ${sosHoldSeconds}s`
-              : `${t("sos").toUpperCase()} (HOLD 3s FOR SOS)`}
-          </span>
-        </button>
-
-        <p className="text-xs text-muted-foreground font-semibold">
-          Hold for 3 seconds to confirm emergency alert, or tap directly for instant emergency assistance.
-        </p>
-      </div>
+      {/* 5. DEDICATED CENTERED EMERGENCY SOS HERO (STRICT 3-SECOND CONTINUOUS HOLD) */}
+      <SosHoldControl variant="heroCard" onTrigger={onOpenSos} />
 
       {/* Critical Refill Warning Banner if any */}
       {lowStockMeds.length > 0 && (

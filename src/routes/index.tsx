@@ -39,6 +39,11 @@ class SafeRouteErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundary
             <p className="text-sm text-muted-foreground">
               A temporary issue occurred while loading this view. Tap below to reload the companion.
             </p>
+            {this.state.error && (
+              <p className="p-2.5 rounded-xl bg-destructive/10 text-destructive text-xs font-mono break-all text-left">
+                {this.state.error.message}
+              </p>
+            )}
             <Button
               onClick={() => {
                 this.setState({ hasError: false });
