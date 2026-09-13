@@ -42,8 +42,8 @@ export function DemoControlBar({
   };
 
   return (
-    <div className="sticky top-0 z-40 bg-card/95 backdrop-blur-md border-b border-border shadow-xs">
-      <div className="max-w-7xl mx-auto px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+    <div className="relative z-40 bg-sky-50/60 backdrop-blur-md border-b border-sky-100 shadow-xs">
+      <div className="max-w-[1600px] mx-auto px-3 sm:px-6 py-1.5 flex flex-wrap items-center justify-between gap-2 text-xs">
         <div className="flex items-center gap-2 font-bold text-foreground">
           <span className="w-2.5 h-2.5 rounded-full bg-success animate-pulse" />
           <span className="text-primary font-black uppercase tracking-wider">Demo Evaluator Bar</span>

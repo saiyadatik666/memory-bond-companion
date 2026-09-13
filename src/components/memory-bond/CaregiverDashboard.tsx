@@ -130,12 +130,12 @@ export function CaregiverDashboard({
   return (
     <div className="space-y-6">
       {/* SECTION 16: GOOD MORNING, CAREGIVER OVERVIEW */}
-      <div className="rounded-3xl border-2 border-primary/25 bg-linear-to-br from-primary/10 via-card to-card p-6 sm:p-8 shadow-sm space-y-5">
+      <div className="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50/80 via-white to-white p-6 sm:p-8 shadow-xs space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
               <span className="text-2xl">👋</span>
-              <h2 className="text-2xl sm:text-3xl font-black text-foreground">GOOD MORNING, CAREGIVER</h2>
+              <h2 className="text-2xl sm:text-3xl font-black text-foreground font-display">GOOD MORNING, CAREGIVER</h2>
             </div>
             <p className="text-sm text-muted-foreground mt-1">
               Active caregiver oversight for elderly family members across the North Eastern Region
@@ -207,7 +207,7 @@ export function CaregiverDashboard({
       </div>
 
       {/* CAREGIVER UNIQUE QR + PAIRING IDENTITY (Requirements 20 & 22) */}
-      <div className="rounded-3xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 via-card to-card p-6 sm:p-8 shadow-sm space-y-5">
+      <div className="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50/50 via-white to-white p-6 sm:p-8 shadow-xs space-y-5">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-3 max-w-xl">
             <div className="flex items-center gap-2">

@@ -336,6 +336,7 @@ export function MemoryBondApp() {
         onSelectTab={handleNavigate}
         role={store.profile.role}
         onOpenSos={handleOpenSos}
+        onOpenVoice={() => setIsVoiceOpen(true)}
       />
 
       {/* Global Modals */}

@@ -26,7 +26,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { QRScannerModal } from "./QRScannerModal";
-import { LANGUAGES, useI18n, type LangCode } from "@/lib/i18n";
+import { LANGUAGES, useI18n } from "@/lib/i18n";
 import { speakText } from "@/lib/voiceParser";
 import { connectSeniorToCaregiver } from "@/lib/caregiverConnectionService";
 
@@ -217,9 +217,9 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
     }, 600);
   };
 
-  // SENIOR ACCOUNT LINKING VIA CODE / QR (Unified & Timeout Protected)
+  // SENIOR ACCOUNT LINKING VIA CODE / QR
   const handleVerifyAndLinkSenior = async (codeToVerify: string) => {
-    if (isLinking) return; // Prevent duplicate taps
+    if (isLinking) return;
     const cleanCode = codeToVerify.trim().toUpperCase();
     setLinkingError(null);
     setLinkingSuccess(null);
@@ -257,7 +257,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
     }
   };
 
-  // DIRECT SENIOR ENTRY (Without caregiver link upfront)
+  // DIRECT SENIOR ENTRY
   const handleDirectSeniorContinue = () => {
     if (isLinking) return;
     const seniorId = `senior_${Date.now()}`;
@@ -284,65 +284,65 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
   };
 
   // ==========================================================================
-  // SCREEN 1: WELCOME SCREEN (Requirement 4)
+  // SCREEN 1: WELCOME SCREEN (Warm, Clean, Elder-Friendly)
   // ==========================================================================
   if (stage === "welcome") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-amber-500/10 via-background to-primary/10 flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
-        <div className="w-full max-w-lg rounded-3xl bg-card border-2 border-border/80 shadow-2xl p-8 sm:p-10 text-center space-y-8">
-          {/* Logo & Glow */}
-          <div className="relative mx-auto w-24 h-24 flex items-center justify-center">
-            <div className="absolute inset-0 rounded-3xl bg-primary/20 blur-xl animate-pulse" />
-            <div className="relative w-20 h-20 rounded-3xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-white shadow-xl shadow-primary/30">
-              <Heart className="h-11 w-11 fill-white/20 text-white" />
+      <div className="min-h-screen bg-ambient flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
+        <div className="w-full max-w-lg rounded-3xl bg-white border border-sky-100 shadow-xl p-7 sm:p-10 text-center space-y-7">
+          {/* Heart Logo with Soft Glow */}
+          <div className="relative mx-auto w-20 h-20 flex items-center justify-center">
+            <div className="absolute inset-0 rounded-3xl bg-primary/15 blur-lg" />
+            <div className="relative w-20 h-20 rounded-3xl bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white shadow-lg shadow-primary/25">
+              <Heart className="h-10 w-10 fill-white/25 text-white" />
             </div>
           </div>
 
           {/* Title & Tagline */}
-          <div className="space-y-3">
-            <span className="text-xs uppercase tracking-widest font-black text-primary bg-primary/10 px-4 py-1.5 rounded-full">
+          <div className="space-y-2.5">
+            <span className="text-xs uppercase tracking-widest font-black text-primary bg-primary/10 px-4 py-1.5 rounded-full border border-primary/20">
               AI Senior Companion
             </span>
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-foreground">
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-foreground font-display">
               MEMORY BOND
             </h1>
-            <p className="text-lg sm:text-xl font-bold text-muted-foreground max-w-sm mx-auto leading-relaxed">
-              Helping you remember what matters.
+            <p className="text-base sm:text-lg font-bold text-muted-foreground max-w-sm mx-auto leading-relaxed">
+              Technology with a human heart — Helping you remember what matters.
             </p>
           </div>
 
-          {/* Key Feature Highlights */}
-          <div className="grid grid-cols-2 gap-3 text-left pt-2">
-            <div className="p-3.5 rounded-2xl bg-secondary/60 border border-border space-y-1">
-              <div className="text-base font-black text-foreground flex items-center gap-1.5">
-                <span>💊</span> Medicine
+          {/* 4 Pastel Highlights */}
+          <div className="grid grid-cols-2 gap-3 text-left pt-1">
+            <div className="p-3.5 rounded-2xl bg-teal-50/70 border border-teal-100 space-y-1">
+              <div className="text-sm font-black text-teal-900 flex items-center gap-1.5">
+                <span>💊</span> Medicines
               </div>
               <p className="text-xs text-muted-foreground font-semibold">
-                Timely alarms & photo confirmations
+                Timely alerts & stock tracking
               </p>
             </div>
-            <div className="p-3.5 rounded-2xl bg-secondary/60 border border-border space-y-1">
-              <div className="text-base font-black text-foreground flex items-center gap-1.5">
+            <div className="p-3.5 rounded-2xl bg-sky-50/70 border border-sky-100 space-y-1">
+              <div className="text-sm font-black text-sky-900 flex items-center gap-1.5">
                 <span>🎙️</span> AI Voice
               </div>
               <p className="text-xs text-muted-foreground font-semibold">
                 Natural talks in your language
               </p>
             </div>
-            <div className="p-3.5 rounded-2xl bg-secondary/60 border border-border space-y-1">
-              <div className="text-base font-black text-foreground flex items-center gap-1.5">
+            <div className="p-3.5 rounded-2xl bg-rose-50/70 border border-rose-100 space-y-1">
+              <div className="text-sm font-black text-rose-900 flex items-center gap-1.5">
                 <span>👨‍👩‍👧</span> Family Link
               </div>
               <p className="text-xs text-muted-foreground font-semibold">
-                Caregivers paired in one scan
+                Caregiver paired in 1 scan
               </p>
             </div>
-            <div className="p-3.5 rounded-2xl bg-secondary/60 border border-border space-y-1">
-              <div className="text-base font-black text-foreground flex items-center gap-1.5">
+            <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-100 space-y-1">
+              <div className="text-sm font-black text-indigo-900 flex items-center gap-1.5">
                 <span>🧠</span> Memory Games
               </div>
               <p className="text-xs text-muted-foreground font-semibold">
-                Family photos & brain exercises
+                Calm & stimulating exercises
               </p>
             </div>
           </div>
@@ -351,10 +351,10 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
           <Button
             size="lg"
             onClick={() => setStage("language")}
-            className="w-full h-16 rounded-2xl text-xl font-black bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/25 gap-3 cursor-pointer transition-all hover:scale-[1.01]"
+            className="w-full h-14 rounded-2xl text-lg font-black bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 gap-3 cursor-pointer transition-transform hover:scale-[1.01] active:scale-98"
           >
-            <span>Get Started</span>
-            <ArrowRight className="h-6 w-6" />
+            <span>Get Started / শুরু কৰক</span>
+            <ArrowRight className="h-5 w-5" />
           </Button>
         </div>
       </div>
@@ -362,26 +362,26 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
   }
 
   // ==========================================================================
-  // SCREEN 2: LANGUAGE SELECTION (Requirement 5)
+  // SCREEN 2: LANGUAGE SELECTION
   // ==========================================================================
   if (stage === "language") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-card to-background flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
-        <div className="w-full max-w-xl rounded-3xl bg-card border-2 border-border shadow-2xl p-6 sm:p-10 space-y-6">
+      <div className="min-h-screen bg-ambient flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
+        <div className="w-full max-w-xl rounded-3xl bg-white border border-sky-100 shadow-xl p-6 sm:p-9 space-y-6">
           <div className="text-center space-y-2">
             <div className="inline-flex items-center gap-2 text-primary bg-primary/10 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider">
-              <Languages className="h-3.5 w-3.5" /> Language / भाषा
+              <Languages className="h-3.5 w-3.5" /> Language / ভাষা
             </div>
-            <h2 className="text-2xl sm:text-3xl font-black text-foreground">
+            <h2 className="text-2xl sm:text-3xl font-black text-foreground font-display">
               Choose Your Language
             </h2>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground font-medium">
               Select the language you feel most comfortable speaking and reading
             </p>
           </div>
 
           {/* 12 Verified Indian Languages */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto p-1">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto p-1 custom-scrollbar">
             {LANGUAGES.map((l) => {
               const isSelected = lang === l.code;
               return (
@@ -395,14 +395,14 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
                       speakText(l.native, l.code);
                     } catch {}
                   }}
-                  className={`p-3.5 rounded-2xl border-2 text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                  className={`p-3.5 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 select-none ${
                     isSelected
-                      ? "bg-primary text-white border-primary shadow-lg scale-105"
-                      : "bg-secondary/50 hover:bg-secondary border-border text-foreground"
+                      ? "bg-primary text-white border-primary shadow-md font-black scale-102"
+                      : "bg-secondary/40 hover:bg-secondary border-border/80 text-foreground"
                   }`}
                 >
-                  <div className="text-xl font-black">{l.native}</div>
-                  <div className={`text-xs font-semibold ${isSelected ? "text-white/90" : "text-muted-foreground"}`}>
+                  <div className="text-lg font-black">{l.native}</div>
+                  <div className={`text-xs font-semibold ${isSelected ? "text-white/80" : "text-muted-foreground"}`}>
                     {l.label}
                   </div>
                 </button>
@@ -415,7 +415,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
             <Button
               variant="outline"
               onClick={() => setStage("welcome")}
-              className="h-12 px-5 rounded-xl font-bold cursor-pointer gap-2"
+              className="h-11 px-5 rounded-xl font-bold cursor-pointer gap-2"
             >
               <ArrowLeft className="h-4 w-4" /> Back
             </Button>
@@ -423,7 +423,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
             <Button
               size="lg"
               onClick={() => setStage("role")}
-              className="flex-1 h-14 rounded-2xl font-black text-lg bg-primary hover:bg-primary/90 text-white shadow-md gap-2 cursor-pointer"
+              className="flex-1 h-12 rounded-2xl font-black text-base bg-primary hover:bg-primary/90 text-white shadow-md gap-2 cursor-pointer"
             >
               <span>Continue / आगे बढ़ें</span>
               <ArrowRight className="h-5 w-5" />
@@ -435,63 +435,63 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
   }
 
   // ==========================================================================
-  // SCREEN 3: SIMPLE 2-ROLE SELECTION (Requirement 3)
+  // SCREEN 3: 2-ROLE SELECTION (Senior vs Caregiver)
   // ==========================================================================
   if (stage === "role") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-card to-background flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
-        <div className="w-full max-w-xl rounded-3xl bg-card border-2 border-border shadow-2xl p-6 sm:p-10 space-y-8">
+      <div className="min-h-screen bg-ambient flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
+        <div className="w-full max-w-xl rounded-3xl bg-white border border-sky-100 shadow-xl p-6 sm:p-10 space-y-7">
           <div className="text-center space-y-2">
-            <div className="mx-auto w-14 h-14 rounded-2xl bg-primary/15 text-primary flex items-center justify-center shadow-xs">
-              <Heart className="h-7 w-7" />
+            <div className="mx-auto w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shadow-xs">
+              <Heart className="h-6 w-6" />
             </div>
-            <h2 className="text-2xl sm:text-3xl font-black text-foreground">
+            <h2 className="text-2xl sm:text-3xl font-black text-foreground font-display">
               What is your role?
             </h2>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground font-medium">
               Please choose how you will be using Memory Bond today
             </p>
           </div>
 
-          {/* Large Role Cards */}
+          {/* 2 Large Role Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Senior Card */}
             <button
               type="button"
               onClick={() => setStage("senior_auth")}
-              className="group p-6 rounded-3xl border-3 border-border hover:border-primary bg-secondary/30 hover:bg-primary/5 text-left space-y-4 transition-all duration-200 cursor-pointer hover:shadow-xl hover:scale-[1.02]"
+              className="group p-6 rounded-3xl border-2 border-amber-200 hover:border-amber-400 bg-amber-50/40 hover:bg-amber-50 text-left space-y-3.5 transition-all cursor-pointer hover:shadow-md hover:scale-[1.01]"
             >
-              <div className="w-16 h-16 rounded-2xl bg-amber-500/15 border-2 border-amber-500/30 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
+              <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
                 👴
               </div>
               <div className="space-y-1">
-                <h3 className="text-2xl font-black text-foreground group-hover:text-primary">
+                <h3 className="text-xl font-black text-foreground group-hover:text-amber-900 font-display">
                   Senior
                 </h3>
-                <p className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider">
+                <p className="text-xs font-bold text-amber-800 uppercase tracking-wider">
                   Self / Elderly
                 </p>
                 <p className="text-xs text-muted-foreground leading-relaxed pt-1">
                   Gentle reminders, medicine alerts, voice conversations, and brain games.
                 </p>
               </div>
-              <div className="flex items-center gap-1.5 text-xs font-black text-primary pt-2">
+              <div className="flex items-center gap-1.5 text-xs font-black text-amber-900 pt-1">
                 <span>Enter as Senior</span>
                 <ArrowRight className="h-3.5 w-3.5" />
               </div>
             </button>
 
-            {/* Caregiver / Family Card */}
+            {/* Caregiver Card */}
             <button
               type="button"
               onClick={() => setStage("caregiver_auth")}
-              className="group p-6 rounded-3xl border-3 border-border hover:border-primary bg-secondary/30 hover:bg-primary/5 text-left space-y-4 transition-all duration-200 cursor-pointer hover:shadow-xl hover:scale-[1.02]"
+              className="group p-6 rounded-3xl border-2 border-sky-200 hover:border-sky-400 bg-sky-50/40 hover:bg-sky-50 text-left space-y-3.5 transition-all cursor-pointer hover:shadow-md hover:scale-[1.01]"
             >
-              <div className="w-16 h-16 rounded-2xl bg-primary/15 border-2 border-primary/30 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
+              <div className="w-14 h-14 rounded-2xl bg-sky-500/20 border border-sky-500/30 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
                 👨‍👩‍👧
               </div>
               <div className="space-y-1">
-                <h3 className="text-2xl font-black text-foreground group-hover:text-primary">
+                <h3 className="text-xl font-black text-foreground group-hover:text-primary font-display">
                   Caregiver / Family
                 </h3>
                 <p className="text-xs font-bold text-primary uppercase tracking-wider">
@@ -501,7 +501,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
                   Manage medicines, schedule reminders, add family photos, and track wellness.
                 </p>
               </div>
-              <div className="flex items-center gap-1.5 text-xs font-black text-primary pt-2">
+              <div className="flex items-center gap-1.5 text-xs font-black text-primary pt-1">
                 <span>Enter as Caregiver</span>
                 <ArrowRight className="h-3.5 w-3.5" />
               </div>
@@ -526,7 +526,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
   }
 
   // ==========================================================================
-  // SCREEN 4A: SENIOR LINKING & ACCESS (Requirement 26 & 27)
+  // SCREEN 4A: SENIOR LINKING & ACCESS
   // ==========================================================================
   if (stage === "senior_auth") {
     const isHindi = lang === "hi";
@@ -571,8 +571,8 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
     };
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-card to-background flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
-        <div className="w-full max-w-md rounded-3xl bg-card border-2 border-border shadow-2xl p-6 sm:p-8 space-y-6">
+      <div className="min-h-screen bg-ambient flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
+        <div className="w-full max-w-md rounded-3xl bg-white border border-sky-100 shadow-xl p-6 sm:p-8 space-y-6">
           <div className="flex items-center justify-between border-b border-border pb-3">
             <button
               onClick={() => setStage("role")}
@@ -582,15 +582,15 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
               <ArrowLeft className="h-5 w-5" />
             </button>
             <div className="text-center">
-              <h2 className="text-xl font-black text-foreground">{labels.title}</h2>
-              <p className="text-xs text-muted-foreground">{labels.subtitle}</p>
+              <h2 className="text-xl font-black text-foreground font-display">{labels.title}</h2>
+              <p className="text-xs text-muted-foreground font-medium">{labels.subtitle}</p>
             </div>
             <div className="w-8" />
           </div>
 
-          {/* Senior Name */}
+          {/* Senior Name Input */}
           <div className="space-y-1.5">
-            <Label className="text-sm font-bold">{labels.nameQuestion}</Label>
+            <Label className="text-xs font-bold text-foreground">{labels.nameQuestion}</Label>
             <div className="relative">
               <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -598,14 +598,14 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
                 onChange={(e) => setSeniorName(e.target.value)}
                 disabled={isLinking}
                 placeholder={labels.namePlaceholder}
-                className="h-12 pl-10 text-base font-bold rounded-2xl"
+                className="h-12 pl-10 text-base font-bold rounded-2xl bg-secondary/30"
               />
             </div>
           </div>
 
           {/* Pairing Options */}
-          <div className="p-4 rounded-2xl bg-secondary/40 border border-border space-y-4">
-            <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-center">
+          <div className="p-4 rounded-2xl bg-sky-50/50 border border-sky-100 space-y-3.5">
+            <div className="text-xs font-bold text-sky-900 uppercase tracking-wider text-center">
               {labels.connectHeader}
             </div>
 
@@ -614,14 +614,14 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
               type="button"
               disabled={isLinking}
               onClick={() => setIsScannerOpen(true)}
-              className="w-full h-14 rounded-2xl font-black text-base bg-primary hover:bg-primary/90 text-white shadow-md gap-2.5 cursor-pointer disabled:opacity-50"
+              className="w-full h-12 rounded-2xl font-black text-sm bg-primary hover:bg-primary/90 text-white shadow-sm gap-2 cursor-pointer disabled:opacity-50"
             >
-              <Camera className="h-5 w-5" />
+              <Camera className="h-4 w-4" />
               {labels.scanQrBtn}
             </Button>
 
-            {/* Option 2: Manual 6-Digit Code */}
-            <div className="space-y-2 pt-1">
+            {/* Option 2: Manual Code */}
+            <div className="space-y-1.5 pt-1">
               <Label className="text-xs font-bold text-muted-foreground">
                 {labels.orManual}
               </Label>
@@ -631,17 +631,16 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
                   onChange={(e) => setConnectionCode(e.target.value.toUpperCase())}
                   disabled={isLinking}
                   placeholder="MB-CG-781042"
-                  className="h-12 font-mono font-black tracking-wider uppercase text-base rounded-2xl"
+                  className="h-11 font-mono font-black tracking-wider uppercase text-sm rounded-2xl bg-white"
                 />
                 <Button
                   onClick={() => handleVerifyAndLinkSenior(connectionCode)}
                   disabled={isLinking || !connectionCode.trim()}
-                  className="h-12 px-5 rounded-2xl font-bold bg-primary text-white cursor-pointer disabled:opacity-50 min-w-[5rem]"
+                  className="h-11 px-4 rounded-2xl font-bold text-xs bg-primary text-white cursor-pointer disabled:opacity-50 min-w-[4.5rem]"
                 >
                   {isLinking ? (
-                    <span className="flex items-center gap-1.5 text-xs">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      {labels.linkingBtn}
+                    <span className="flex items-center gap-1 text-xs">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     </span>
                   ) : (
                     labels.linkBtn
@@ -666,26 +665,26 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
 
           {/* Feedback alerts */}
           {linkingError && (
-            <div className="p-3.5 rounded-2xl bg-destructive/15 border border-destructive/40 flex items-start gap-2.5 text-xs text-destructive animate-in fade-in duration-200">
+            <div className="p-3.5 rounded-2xl bg-destructive/15 border border-destructive/40 flex items-start gap-2 text-xs text-destructive">
               <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
               <span className="font-semibold leading-relaxed">{linkingError}</span>
             </div>
           )}
 
           {linkingSuccess && (
-            <div className="p-3.5 rounded-2xl bg-success/15 border border-success/40 flex items-start gap-2.5 text-xs text-success animate-in fade-in duration-200">
+            <div className="p-3.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 flex items-start gap-2 text-xs text-emerald-800">
               <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
               <span className="font-semibold leading-relaxed">{linkingSuccess}</span>
             </div>
           )}
 
-          {/* Continue without link */}
+          {/* Continue Directly */}
           <div className="pt-2 border-t border-border">
             <Button
               variant="outline"
               disabled={isLinking}
               onClick={handleDirectSeniorContinue}
-              className="w-full h-12 rounded-2xl text-xs font-bold cursor-pointer disabled:opacity-50"
+              className="w-full h-11 rounded-2xl text-xs font-bold cursor-pointer disabled:opacity-50 bg-white hover:bg-secondary"
             >
               {labels.continueDirect}
             </Button>
@@ -709,11 +708,11 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
   }
 
   // ==========================================================================
-  // SCREEN 4B: CAREGIVER / FAMILY SIGN IN (Requirement 3 & 26)
+  // SCREEN 4B: CAREGIVER / FAMILY SIGN IN
   // ==========================================================================
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-card to-background flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
-      <div className="w-full max-w-md rounded-3xl bg-card border-2 border-border shadow-2xl p-6 sm:p-8 space-y-6">
+    <div className="min-h-screen bg-ambient flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
+      <div className="w-full max-w-md rounded-3xl bg-white border border-sky-100 shadow-xl p-6 sm:p-8 space-y-6">
         <div className="flex items-center justify-between border-b border-border pb-3">
           <button
             onClick={() => setStage("role")}
@@ -722,8 +721,8 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="text-center">
-            <h2 className="text-xl font-black text-foreground">Caregiver & Family</h2>
-            <p className="text-xs text-muted-foreground">Sign in to manage and assist your senior</p>
+            <h2 className="text-xl font-black text-foreground font-display">Caregiver & Family</h2>
+            <p className="text-xs text-muted-foreground font-medium">Sign in to manage and assist your senior</p>
           </div>
           <div className="w-8" />
         </div>
@@ -735,7 +734,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
             onClick={() => setAuthMode("signin")}
             className={`py-2 rounded-xl transition-all cursor-pointer ${
               authMode === "signin"
-                ? "bg-primary text-white shadow-sm font-black"
+                ? "bg-primary text-white shadow-xs font-black"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -746,7 +745,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
             onClick={() => setAuthMode("signup")}
             className={`py-2 rounded-xl transition-all cursor-pointer ${
               authMode === "signup"
-                ? "bg-primary text-white shadow-sm font-black"
+                ? "bg-primary text-white shadow-xs font-black"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -765,7 +764,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Sunita Sharma"
-                  className="h-12 pl-10 rounded-2xl text-sm font-semibold"
+                  className="h-11 pl-10 rounded-2xl text-sm font-semibold bg-secondary/30"
                 />
               </div>
             </div>
@@ -780,7 +779,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="caregiver@family.org"
-                className="h-12 pl-10 rounded-2xl text-sm font-semibold"
+                className="h-11 pl-10 rounded-2xl text-sm font-semibold bg-secondary/30"
                 required
               />
             </div>
@@ -795,7 +794,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="h-12 pl-10 pr-10 rounded-2xl text-sm font-semibold"
+                className="h-11 pl-10 pr-10 rounded-2xl text-sm font-semibold bg-secondary/30"
                 required
               />
               <button
@@ -810,14 +809,14 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
 
           {/* Feedback alerts */}
           {errorMessage && (
-            <div className="p-3.5 rounded-2xl bg-destructive/15 border border-destructive/40 flex items-start gap-2.5 text-xs text-destructive">
+            <div className="p-3 rounded-2xl bg-destructive/15 border border-destructive/40 flex items-start gap-2 text-xs text-destructive">
               <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
               <span className="font-semibold leading-relaxed">{errorMessage}</span>
             </div>
           )}
 
           {successMessage && (
-            <div className="p-3.5 rounded-2xl bg-success/15 border border-success/40 flex items-start gap-2.5 text-xs text-success">
+            <div className="p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 flex items-start gap-2 text-xs text-emerald-800">
               <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
               <span className="font-semibold leading-relaxed">{successMessage}</span>
             </div>
@@ -826,7 +825,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full h-13 rounded-2xl font-black text-base bg-primary hover:bg-primary/90 text-white shadow-md cursor-pointer"
+            className="w-full h-12 rounded-2xl font-black text-sm bg-primary hover:bg-primary/90 text-white shadow-md cursor-pointer"
           >
             {isLoading ? (
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -838,13 +837,13 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
           </Button>
         </form>
 
-        {/* One-Click Instant Caregiver Demo Access */}
+        {/* 1-Click Instant Caregiver Demo Access */}
         <div className="pt-2 border-t border-border space-y-2">
           <Button
             type="button"
             onClick={handleDemoCaregiverLogin}
             variant="secondary"
-            className="w-full h-12 rounded-2xl font-black text-xs gap-2 border border-primary/30 text-foreground cursor-pointer hover:bg-primary/10"
+            className="w-full h-11 rounded-2xl font-black text-xs gap-2 border border-primary/30 text-foreground cursor-pointer hover:bg-primary/10"
           >
             <Sparkles className="h-4 w-4 text-primary" />
             1-Click Demo Caregiver Portal Access

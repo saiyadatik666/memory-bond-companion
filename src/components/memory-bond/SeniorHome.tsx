@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   Sun,
   Pill,
@@ -28,6 +28,11 @@ import {
   Heart,
   Bot,
   ShoppingBag,
+  Leaf,
+  BookOpen,
+  ArrowRight,
+  PhoneCall,
+  Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
@@ -49,7 +54,6 @@ export function SeniorHome({
 }) {
   const { t, lang, speechLocale } = useI18n();
   const [currentTime, setCurrentTime] = useState<string>("");
-  // Kept in state so server and first client render agree (no hydration mismatch)
   const [hour, setHour] = useState<number>(9);
 
   // Daily Shopping & Quick Checklist State (Section 13)
@@ -63,15 +67,6 @@ export function SeniorHome({
     setShoppingItems((prev) =>
       prev.map((item) => (item.id === id ? { ...item, done: !item.done } : item))
     );
-  };
-
-  // Anti-restart cooldown check
-  const isSosCooldownActive = () => {
-    if (typeof window !== "undefined") {
-      const lockUntil = (window as any).__mb_last_sos_cancelled || 0;
-      if (Date.now() < lockUntil) return true;
-    }
-    return false;
   };
 
   useEffect(() => {
@@ -106,7 +101,7 @@ export function SeniorHome({
     return "Good Evening";
   })();
 
-  // Proactive Personalized AI Recommendation (Section 12)
+  // Proactive Personalized AI Recommendation
   const proactiveAiPrompt = (() => {
     if (hour >= 8 && hour < 12) {
       return lang === "hi"
@@ -124,7 +119,10 @@ export function SeniorHome({
 
   const speakWelcome = () => {
     stopSpeaking();
-    speakText(proactiveAiPrompt, speechLocale || "en-IN");
+    speakText(
+      `${greeting}, ${store.profile.full_name}. ${proactiveAiPrompt}. Small steps every day keep your mind active and happy.`,
+      speechLocale || "en-IN"
+    );
   };
 
   // -------------------------------------------------------------------------
@@ -134,28 +132,29 @@ export function SeniorHome({
     return (
       <div className="space-y-6 max-w-4xl mx-auto animate-in fade-in">
         {/* Easy Mode Top Banner */}
-        <div className="flex items-center justify-between bg-primary/10 border-2 border-primary/30 p-4 rounded-3xl">
-          <div className="flex items-center gap-2 text-primary font-black text-sm">
-            <Sparkles className="h-5 w-5" /> Senior Easy Mode Active (सरल मोड)
+        <div className="flex items-center justify-between bg-sky-50 border-2 border-sky-200 p-4 rounded-3xl shadow-xs">
+          <div className="flex items-center gap-2 text-sky-800 font-black text-sm">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <span>Senior Easy Mode Active (सरल मोड)</span>
           </div>
           <Button
             variant="outline"
             size="sm"
             onClick={() => store.updateProfile({ easy_mode: false })}
-            className="rounded-2xl font-bold border-2 border-primary/40 text-foreground hover:bg-primary/20"
+            className="rounded-2xl font-black text-xs border-sky-300 text-sky-900 bg-white hover:bg-sky-100 cursor-pointer shadow-xs"
           >
             Switch to Standard View
           </Button>
         </div>
 
-        {/* Easy Mode Massive Hero Card */}
-        <div className="rounded-3xl border-3 border-foreground/30 bg-card p-6 sm:p-8 shadow-md text-card-foreground space-y-4">
+        {/* Easy Mode Hero Card */}
+        <div className="rounded-3xl border border-sky-100 bg-white p-6 sm:p-8 shadow-sm space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <div className="text-4xl sm:text-6xl font-black tracking-tight text-foreground">
+              <div className="text-4xl sm:text-6xl font-black tracking-tight text-foreground font-display">
                 {currentTime || "10:00 AM"}
               </div>
-              <div className="text-lg sm:text-xl font-bold text-muted-foreground mt-1">
+              <div className="text-base sm:text-lg font-bold text-muted-foreground mt-1">
                 {new Date().toLocaleDateString(undefined, {
                   weekday: "long",
                   month: "long",
@@ -167,14 +166,14 @@ export function SeniorHome({
             <Button
               size="lg"
               onClick={speakWelcome}
-              className="rounded-2xl font-black gap-2 h-14 px-6 text-base bg-secondary hover:bg-secondary/80 text-foreground border-2 border-border shadow-xs"
+              className="rounded-2xl font-black gap-2 h-14 px-6 text-base bg-sky-100 hover:bg-sky-200 text-sky-900 border border-sky-200 shadow-xs cursor-pointer"
             >
               <Volume2 className="h-6 w-6 text-primary" /> Read Aloud
             </Button>
           </div>
 
-          <div className="border-t-2 border-border pt-3">
-            <h2 className="text-2xl sm:text-3xl font-black text-foreground">
+          <div className="border-t border-border pt-3">
+            <h2 className="text-2xl sm:text-3xl font-black text-foreground font-display">
               {greeting}, {store.profile.full_name}
             </h2>
             <p className="text-base font-bold text-primary mt-1">
@@ -183,26 +182,27 @@ export function SeniorHome({
           </div>
         </div>
 
-        {/* EMERGENCY SOS SECTION — STRICT 3-SECOND CONTINUOUS HOLD */}
+        {/* Emergency SOS Control */}
         <SosHoldControl variant="heroCard" onTrigger={onOpenSos} />
 
-        {/* 4 Massive Essential Action Tiles (2-Column Layout) */}
+        {/* 4 Massive Action Tiles */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          {/* Tile 1: Routine & Today */}
+          {/* Tile 1: Routine */}
           <button
+            type="button"
             onClick={() => onNavigate("routine")}
-            className="rounded-3xl border-3 border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20 p-6 sm:p-8 text-left space-y-3 hover:border-amber-500 hover:scale-[1.02] active:scale-95 transition-all shadow-sm flex flex-col justify-between min-h-[190px]"
+            className="rounded-3xl border-2 border-amber-200 bg-amber-50/70 p-6 sm:p-8 text-left space-y-3 hover:border-amber-400 hover:shadow-md active:scale-98 transition-all flex flex-col justify-between min-h-[190px] cursor-pointer"
           >
             <div className="flex items-center justify-between">
               <div className="w-16 h-16 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md">
                 <Sun className="h-9 w-9" />
               </div>
-              <span className="text-sm font-black uppercase tracking-wider px-3 py-1 rounded-full bg-amber-500/20 text-amber-900 dark:text-amber-200">
+              <span className="text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full bg-amber-200/80 text-amber-900">
                 1. TODAY
               </span>
             </div>
             <div>
-              <div className="text-2xl sm:text-3xl font-black text-foreground">
+              <div className="text-2xl sm:text-3xl font-black text-foreground font-display">
                 {t("today").toUpperCase()} & ROUTINE
               </div>
               <p className="text-base font-bold text-muted-foreground mt-1">
@@ -213,22 +213,23 @@ export function SeniorHome({
 
           {/* Tile 2: Medicines */}
           <button
+            type="button"
             onClick={() => onNavigate("medicines")}
-            className="rounded-3xl border-3 border-teal-500/50 bg-teal-50/50 dark:bg-teal-950/20 p-6 sm:p-8 text-left space-y-3 hover:border-teal-500 hover:scale-[1.02] active:scale-95 transition-all shadow-sm flex flex-col justify-between min-h-[190px]"
+            className="rounded-3xl border-2 border-teal-200 bg-emerald-50/70 p-6 sm:p-8 text-left space-y-3 hover:border-teal-400 hover:shadow-md active:scale-98 transition-all flex flex-col justify-between min-h-[190px] cursor-pointer"
           >
             <div className="flex items-center justify-between">
               <div className="w-16 h-16 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-md">
                 <Pill className="h-9 w-9" />
               </div>
-              <span className="text-sm font-black uppercase tracking-wider px-3 py-1 rounded-full bg-teal-500/20 text-teal-900 dark:text-teal-200">
+              <span className="text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full bg-teal-200/80 text-teal-900">
                 2. MEDICINES
               </span>
             </div>
             <div>
-              <div className="text-2xl sm:text-3xl font-black text-foreground">
+              <div className="text-2xl sm:text-3xl font-black text-foreground font-display">
                 {t("medicines").toUpperCase()}
               </div>
-              <p className="text-base font-bold text-teal-700 dark:text-teal-300 mt-1">
+              <p className="text-base font-bold text-teal-800 mt-1 truncate">
                 {nextMedicine ? `${nextMedicine.name} (${nextMedicine.dosage})` : "All medicines taken"}
               </p>
             </div>
@@ -236,19 +237,20 @@ export function SeniorHome({
 
           {/* Tile 3: Voice Companion */}
           <button
+            type="button"
             onClick={onOpenVoiceAssistant}
-            className="rounded-3xl border-3 border-primary/50 bg-primary/10 p-6 sm:p-8 text-left space-y-3 hover:border-primary hover:scale-[1.02] active:scale-95 transition-all shadow-sm flex flex-col justify-between min-h-[190px]"
+            className="rounded-3xl border-2 border-blue-200 bg-sky-50/70 p-6 sm:p-8 text-left space-y-3 hover:border-blue-400 hover:shadow-md active:scale-98 transition-all flex flex-col justify-between min-h-[190px] cursor-pointer"
           >
             <div className="flex items-center justify-between">
-              <div className="w-16 h-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-md">
+              <div className="w-16 h-16 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md">
                 <Mic className="h-9 w-9" />
               </div>
-              <span className="text-sm font-black uppercase tracking-wider px-3 py-1 rounded-full bg-primary/20 text-primary">
+              <span className="text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full bg-blue-200/80 text-blue-900">
                 3. VOICE AI
               </span>
             </div>
             <div>
-              <div className="text-2xl sm:text-3xl font-black text-foreground">
+              <div className="text-2xl sm:text-3xl font-black text-foreground font-display">
                 SPEAK TO COMPANION
               </div>
               <p className="text-base font-bold text-muted-foreground mt-1">
@@ -257,21 +259,22 @@ export function SeniorHome({
             </div>
           </button>
 
-          {/* Tile 4: Reminders & Walk */}
+          {/* Tile 4: Reminders */}
           <button
+            type="button"
             onClick={() => onNavigate("reminders")}
-            className="rounded-3xl border-3 border-sky-500/50 bg-sky-50/50 dark:bg-sky-950/20 p-6 sm:p-8 text-left space-y-3 hover:border-sky-500 hover:scale-[1.02] active:scale-95 transition-all shadow-sm flex flex-col justify-between min-h-[190px]"
+            className="rounded-3xl border-2 border-indigo-200 bg-indigo-50/70 p-6 sm:p-8 text-left space-y-3 hover:border-indigo-400 hover:shadow-md active:scale-98 transition-all flex flex-col justify-between min-h-[190px] cursor-pointer"
           >
             <div className="flex items-center justify-between">
-              <div className="w-16 h-16 rounded-2xl bg-sky-600 text-white flex items-center justify-center shadow-md">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
                 <Bell className="h-9 w-9" />
               </div>
-              <span className="text-sm font-black uppercase tracking-wider px-3 py-1 rounded-full bg-sky-500/20 text-sky-900 dark:text-sky-200">
+              <span className="text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full bg-indigo-200/80 text-indigo-900">
                 4. REMINDERS
               </span>
             </div>
             <div>
-              <div className="text-2xl sm:text-3xl font-black text-foreground">
+              <div className="text-2xl sm:text-3xl font-black text-foreground font-display">
                 SMART REMINDERS
               </div>
               <p className="text-base font-bold text-muted-foreground mt-1">
@@ -279,26 +282,6 @@ export function SeniorHome({
               </p>
             </div>
           </button>
-        </div>
-
-        {/* Quick Cultural Connect & Games */}
-        <div className="grid grid-cols-2 gap-4 pt-2">
-          <Button
-            size="lg"
-            variant="outline"
-            onClick={() => onNavigate("cultural")}
-            className="rounded-2xl h-16 text-lg font-bold border-2 border-emerald-500/40 gap-2 bg-emerald-500/10 text-foreground"
-          >
-            <Compass className="h-6 w-6 text-emerald-600" /> North-East Cultural Hub
-          </Button>
-          <Button
-            size="lg"
-            variant="outline"
-            onClick={() => onNavigate("social")}
-            className="rounded-2xl h-16 text-lg font-bold border-2 border-rose-500/40 gap-2 bg-rose-500/10 text-foreground"
-          >
-            <MessageCircle className="h-6 w-6 text-rose-600" /> Family Voice Feed
-          </Button>
         </div>
       </div>
     );
@@ -309,858 +292,646 @@ export function SeniorHome({
   // -------------------------------------------------------------------------
   return (
     <div className="space-y-6 sm:space-y-8 animate-in fade-in">
-      {/* 1. VISIBLE OFFLINE MODE BANNER (SIH 2026 Section 24 & 25) */}
+      {/* 1. VISIBLE OFFLINE MODE BANNER */}
       {!store.isOnline && (
-        <div className="rounded-3xl border-3 border-amber-500 bg-amber-500/15 p-5 sm:p-6 shadow-md flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm">
-              <WifiOff className="h-6 w-6" />
+        <div className="rounded-3xl border border-amber-200 bg-amber-50/90 p-4 sm:p-5 shadow-xs flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <WifiOff className="h-5 w-5" />
             </div>
             <div>
-              <div className="text-lg sm:text-xl font-black text-foreground flex items-center gap-2">
-                <span>🟠 OFFLINE MODE (অফলাইন মোড)</span>
+              <div className="text-base font-black text-amber-900 flex items-center gap-2">
+                <span>Offline Mode (অফলাইন মোড)</span>
               </div>
-              <p className="text-sm font-semibold text-muted-foreground mt-0.5 max-w-xl">
-                Memory Bond is still working. Your medicines, routines, and games are saved locally and will synchronize automatically when connectivity returns.
+              <p className="text-xs font-semibold text-amber-800/80 mt-0.5 max-w-xl">
+                Memory Bond is safely working offline. Your medicines and games are stored on your device and will sync automatically.
               </p>
             </div>
           </div>
           {store.syncQueue.length > 0 && (
-            <span className="px-3 py-1 rounded-full bg-amber-500 text-white text-xs font-black shrink-0 shadow-xs">
-              {store.syncQueue.length} Activity Updates Stored Locally
+            <span className="px-3 py-1 rounded-full bg-amber-500 text-white text-xs font-black shrink-0">
+              {store.syncQueue.length} Updates Saved Locally
             </span>
           )}
         </div>
       )}
-
-      {/* 2. WELCOMING TOP SECTION (Section 5) */}
-      <div className="relative overflow-hidden rounded-3xl bg-linear-to-br from-blue-50/90 via-indigo-50/50 to-amber-50/60 dark:from-blue-950/20 dark:via-indigo-950/20 dark:to-amber-950/20 border border-border p-6 sm:p-9 shadow-xs space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/20 px-3.5 py-1 text-xs font-black text-primary uppercase tracking-wider">
-            <Sparkles className="h-3.5 w-3.5" /> Memory Bond • Technology with a human heart
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-muted-foreground bg-card px-3 py-1 rounded-full border border-border shadow-xs">
-              🕒 {currentTime || "10:00 AM"} • {new Date().toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
-            </span>
-            <button
-              onClick={() => store.updateProfile({ easy_mode: true })}
-              className="inline-flex items-center gap-1.5 rounded-full bg-card hover:bg-secondary px-3 py-1 text-xs font-bold text-foreground transition-all border border-border shadow-xs cursor-pointer"
-              title="Activate Senior Easy Mode"
-            >
-              <Sliders className="h-3.5 w-3.5 text-primary" /> Easy Mode
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] items-center gap-6 pt-1">
-          <div className="space-y-1.5">
-            <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-foreground">
-              {greeting}, {store.profile.full_name || "Dadi Ji"} 👋
-            </h1>
-            <p className="text-base sm:text-lg font-bold text-primary flex items-center gap-2">
-              <Sparkles className="h-4 w-4 shrink-0" />
-              {proactiveAiPrompt}
-            </p>
-          </div>
-
-          <Button
-            size="lg"
-            onClick={speakWelcome}
-            variant="outline"
-            className="rounded-2xl font-black gap-2 h-12 px-5 text-sm bg-card hover:bg-secondary border border-border text-foreground shadow-xs shrink-0 cursor-pointer"
-          >
-            <Volume2 className="h-5 w-5 text-primary" /> Read Aloud
-          </Button>
-        </div>
-
-        {/* 7 Core Capability Pills */}
-        <div className="flex flex-wrap gap-2 pt-2 border-t border-border/80 text-xs font-bold text-muted-foreground">
-          <span className="px-3 py-1 rounded-full bg-card border border-border shadow-xs">🧠 Cognitive Games</span>
-          <span className="px-3 py-1 rounded-full bg-card border border-border shadow-xs">🎙️ Voice Assistant</span>
-          <span className="px-3 py-1 rounded-full bg-card border border-border shadow-xs">💊 Smart Medicines</span>
-          <span className="px-3 py-1 rounded-full bg-card border border-border shadow-xs">❤️ Family Moments</span>
-          <span className="px-3 py-1 rounded-full bg-card border border-border shadow-xs">👨‍👩‍👧 Caregiver Sync</span>
-          <span className="px-3 py-1 rounded-full bg-card border border-border shadow-xs">📡 Offline Ready</span>
-          <span className="px-3 py-1 rounded-full bg-card border border-border shadow-xs">🌏 Cultural Hub</span>
-        </div>
-      </div>
-
-      {/* 3. WARM HUMAN AI COMPANION SECTION (Section 5 & 6) */}
-      <div className="rounded-3xl bg-card border-2 border-primary/25 p-6 sm:p-7 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 hover:border-primary/40 transition-all">
-        <div className="flex items-center gap-4.5">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-xs shrink-0">
-            <Bot className="h-9 w-9 text-primary" />
-          </div>
-          <div>
-            <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
-              ✨ Your AI Companion
-            </div>
-            <h3 className="text-xl sm:text-2xl font-black text-foreground mt-0.5">
-              Always here to help you.
-            </h3>
-            <p className="text-sm font-semibold text-muted-foreground mt-0.5">
-              Tap to talk anytime in English, हिन्दी, অসমীয়া, বাংলা, ગુજરાતી, or Marathi.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto shrink-0">
-          <Button
-            size="lg"
-            onClick={onOpenVoiceAssistant}
-            className="w-full sm:w-auto h-14 px-8 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black text-base shadow-md gap-3 cursor-pointer"
-          >
-            <Mic className="h-5 w-5 animate-pulse" />
-            <span>🎙️ Speak with Companion</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* 4. SENIOR "WHAT DO I NEED TO DO TODAY?" DASHBOARD (Section 5) */}
-      <div id="senior-todays-plan" className="rounded-3xl border-2 border-border bg-card p-6 sm:p-8 shadow-sm space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
-          <div>
-            <span className="text-xs font-black uppercase tracking-wider text-primary bg-primary/10 px-3 py-1 rounded-full">
-              TODAY'S PRIORITIES (আজিৰ কাম)
-            </span>
-            <h3 className="text-2xl sm:text-3xl font-black text-foreground mt-1">
-              What do I need to do today?
-            </h3>
-          </div>
-          <div className="text-xs font-bold text-muted-foreground bg-secondary px-3 py-1.5 rounded-xl border border-border">
-            📅 {new Date().toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
-          </div>
-        </div>
-
-        {/* 8 Clear Daily Feature Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Card 1: Medicines */}
-          <div className="rounded-2xl border-2 border-border bg-secondary/30 p-4 sm:p-5 flex flex-col justify-between space-y-3 hover:border-teal-500/40 transition-all">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-teal-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <Pill className="h-6 w-6" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-teal-700 dark:text-teal-400 uppercase tracking-wider">
-                    💊 Medicines
-                  </div>
-                  <div className="text-lg font-black text-foreground">
-                    {nextMedicine ? `${nextMedicine.name} (${nextMedicine.dosage})` : "Blood Pressure (Amlodipine 5mg)"}
-                  </div>
-                  <div className="text-xs font-semibold text-muted-foreground">
-                    Time: {nextMedicine?.times?.[0] || "8:30 AM"} • After breakfast
-                  </div>
-                </div>
-              </div>
-              <span className={`px-2.5 py-1 rounded-xl text-xs font-black shrink-0 ${
-                medsDoneToday > 0 ? "bg-teal-100 text-teal-800 border border-teal-200" : "bg-blue-100 text-blue-800 border border-blue-200"
-              }`}>
-                {medsDoneToday > 0 ? "✓ Taken" : "○ Upcoming"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between pt-1 border-t border-border/60">
-              <span className="text-xs font-semibold text-muted-foreground">
-                Stock: {nextMedicine?.stock ?? 28} left
-              </span>
-              {medsDoneToday === 0 ? (
-                <Button
-                  size="sm"
-                  onClick={() => store.takeMedicine("med-1")}
-                  className="h-10 px-5 rounded-xl font-black text-xs bg-teal-600 hover:bg-teal-700 text-white shadow-xs cursor-pointer"
-                >
-                  Mark as Taken
-                </Button>
-              ) : (
-                <span className="text-xs font-black text-teal-700 dark:text-teal-400">
-                  ✓ Recorded
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Card 2: Today's Reminders */}
-          <div className="rounded-2xl border-2 border-border bg-secondary/30 p-4 sm:p-5 flex flex-col justify-between space-y-3 hover:border-sky-500/40 transition-all">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-sky-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <Bell className="h-6 w-6" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-sky-700 dark:text-sky-400 uppercase tracking-wider">
-                    🔔 Today's Reminder
-                  </div>
-                  <div className="text-lg font-black text-foreground">
-                    {nextReminder ? nextReminder.title : "Gentle 20-min Evening Walk"}
-                  </div>
-                  <div className="text-xs font-semibold text-muted-foreground">
-                    Time: {nextReminder ? nextReminder.time : "5:30 PM"} • Fresh air & movement
-                  </div>
-                </div>
-              </div>
-              <span className="px-2.5 py-1 rounded-xl text-xs font-black bg-sky-100 text-sky-800 border border-sky-200 shrink-0">
-                Scheduled
-              </span>
-            </div>
-            <div className="flex items-center justify-between pt-1 border-t border-border/60">
-              <span className="text-xs font-semibold text-muted-foreground">
-                {store.reminders.length} reminders configured
-              </span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onNavigate("reminders")}
-                className="h-10 px-4 rounded-xl font-bold text-xs"
-              >
-                View All Reminders
-              </Button>
-            </div>
-          </div>
-
-          {/* Card 3: Daily Tasks & Routine */}
-          <div className="rounded-2xl border-2 border-border bg-secondary/30 p-4 sm:p-5 flex flex-col justify-between space-y-3 hover:border-amber-500/40 transition-all">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <Sun className="h-6 w-6" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wider">
-                    📅 Daily Tasks & Routine
-                  </div>
-                  <div className="text-lg font-black text-foreground">
-                    {routinesDone} of {store.routines.length} Tasks Completed
-                  </div>
-                  <div className="text-xs font-semibold text-muted-foreground">
-                    Morning tea, medicine, watering plants, sunlight
-                  </div>
-                </div>
-              </div>
-              <span className="px-2.5 py-1 rounded-xl text-xs font-black bg-amber-100 text-amber-900 border border-amber-200 shrink-0">
-                {Math.round((routinesDone / Math.max(1, store.routines.length)) * 100)}% Done
-              </span>
-            </div>
-            <div className="flex items-center justify-between pt-1 border-t border-border/60">
-              <span className="text-xs font-semibold text-muted-foreground">
-                Keep up the peaceful rhythm!
-              </span>
-              <Button
-                size="sm"
-                onClick={() => onNavigate("routine")}
-                className="h-10 px-4 rounded-xl font-bold text-xs bg-amber-600 hover:bg-amber-700 text-white"
-              >
-                Checklist ➔
-              </Button>
-            </div>
-          </div>
-
-          {/* Card 4: Appointments */}
-          <div className="rounded-2xl border-2 border-border bg-secondary/30 p-4 sm:p-5 flex flex-col justify-between space-y-3 hover:border-blue-500/40 transition-all">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <Calendar className="h-6 w-6" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider">
-                    🩺 Medical Appointment
-                  </div>
-                  <div className="text-lg font-black text-foreground">
-                    {nextAppointment ? nextAppointment.title : "Dr. Deepen Barua (Review)"}
-                  </div>
-                  <div className="text-xs font-semibold text-muted-foreground">
-                    {nextAppointment ? `${nextAppointment.date} at ${nextAppointment.time}` : "Tomorrow at 4:00 PM • Neurological Clinic"}
-                  </div>
-                </div>
-              </div>
-              <span className="px-2.5 py-1 rounded-xl text-xs font-black bg-blue-100 text-blue-800 border border-blue-200 shrink-0">
-                Confirmed
-              </span>
-            </div>
-            <div className="flex items-center justify-between pt-1 border-t border-border/60">
-              <span className="text-xs font-semibold text-muted-foreground">
-                Family & Caregiver synced
-              </span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onNavigate("appointments")}
-                className="h-10 px-4 rounded-xl font-bold text-xs"
-              >
-                View Appointment
-              </Button>
-            </div>
-          </div>
-
-          {/* Card 5: Shopping List & Daily Needs (Section 13) */}
-          <div className="rounded-2xl border-2 border-border bg-secondary/30 p-4 sm:p-5 flex flex-col justify-between space-y-3 hover:border-purple-500/40 transition-all">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <ShoppingBag className="h-6 w-6" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider">
-                    🛒 Daily Shopping & Needs
-                  </div>
-                  <div className="text-base font-black text-foreground">
-                    Quick Grocery & Pharmacy Checklist
-                  </div>
-                </div>
-              </div>
-              <span className="px-2.5 py-1 rounded-xl text-xs font-black bg-purple-100 text-purple-800 border border-purple-200 shrink-0">
-                {shoppingItems.filter((i) => i.done).length} / {shoppingItems.length}
-              </span>
-            </div>
-            {/* Checklist Items with Large Checkboxes */}
-            <div className="space-y-1.5 pt-1">
-              {shoppingItems.map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => toggleShoppingItem(item.id)}
-                  className="flex items-center gap-3 p-2 rounded-xl bg-card border border-border/70 hover:bg-secondary/60 cursor-pointer transition-all"
-                >
-                  <input
-                    type="checkbox"
-                    checked={item.done}
-                    onChange={() => {}}
-                    className="w-5 h-5 rounded text-primary focus:ring-primary cursor-pointer shrink-0 accent-primary"
-                  />
-                  <span className={`text-xs font-bold ${item.done ? "line-through text-muted-foreground" : "text-foreground"}`}>
-                    {item.name}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Card 6: Memory Games */}
-          <div className="rounded-2xl border-2 border-border bg-secondary/30 p-4 sm:p-5 flex flex-col justify-between space-y-3 hover:border-indigo-500/40 transition-all">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <Gamepad2 className="h-6 w-6" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">
-                    🧠 Memory Games
-                  </div>
-                  <div className="text-lg font-black text-foreground">
-                    {store.activityRecommendation?.gameTitle || "Pattern Recall"} (Level 2)
-                  </div>
-                  <div className="text-xs font-semibold text-muted-foreground">
-                    Calm cognitive exercise • 10 minutes
-                  </div>
-                </div>
-              </div>
-              <span className="px-2.5 py-1 rounded-xl text-xs font-black bg-indigo-100 text-indigo-800 border border-indigo-200 shrink-0">
-                Recommended
-              </span>
-            </div>
-            <div className="flex items-center justify-between pt-1 border-t border-border/60">
-              <span className="text-xs font-semibold text-muted-foreground">
-                Best Score: {store.cognitiveScore.overall} pts
-              </span>
-              <Button
-                size="sm"
-                onClick={() => onNavigate("games")}
-                className="h-10 px-5 rounded-xl font-black text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer"
-              >
-                Play Game ➔
-              </Button>
-            </div>
-          </div>
-
-          {/* Card 7: Family & Loved Ones */}
-          <div className="rounded-2xl border-2 border-border bg-secondary/30 p-4 sm:p-5 flex flex-col justify-between space-y-3 hover:border-rose-500/40 transition-all">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <Heart className="h-6 w-6" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider">
-                    ❤️ Family Connection
-                  </div>
-                  <div className="text-lg font-black text-foreground">
-                    Rahul (Son) — Primary Contact
-                  </div>
-                  <div className="text-xs font-semibold text-muted-foreground">
-                    Available for call & photo memory review
-                  </div>
-                </div>
-              </div>
-              <span className="px-2.5 py-1 rounded-xl text-xs font-black bg-rose-100 text-rose-800 border border-rose-200 shrink-0">
-                Connected
-              </span>
-            </div>
-            <div className="flex items-center justify-between pt-1 border-t border-border/60">
-              <span className="text-xs font-semibold text-muted-foreground">
-                Last checked in today
-              </span>
-              <Button
-                size="sm"
-                onClick={() => onNavigate("family")}
-                className="h-10 px-5 rounded-xl font-black text-xs bg-rose-600 hover:bg-rose-700 text-white shadow-xs cursor-pointer"
-              >
-                Call Family ➔
-              </Button>
-            </div>
-          </div>
-
-          {/* Card 8: Health & Hydration */}
-          <div className="rounded-2xl border-2 border-border bg-secondary/30 p-4 sm:p-5 flex flex-col justify-between space-y-3 hover:border-teal-500/40 transition-all">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-teal-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <Droplets className="h-6 w-6" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-teal-700 dark:text-teal-400 uppercase tracking-wider">
-                    💧 Health & Hydration
-                  </div>
-                  <div className="text-lg font-black text-foreground">
-                    {store.hydrationGlasses} / {store.hydrationTarget} Glasses Drank
-                  </div>
-                  <div className="text-xs font-semibold text-muted-foreground">
-                    {store.hydrationGlasses >= store.hydrationTarget ? "Daily hydration goal achieved!" : "Drink warm water with lemon"}
-                  </div>
-                </div>
-              </div>
-              <span className="px-2.5 py-1 rounded-xl text-xs font-black bg-teal-100 text-teal-800 border border-teal-200 shrink-0">
-                Hydration
-              </span>
-            </div>
-            <div className="flex items-center justify-between pt-1 border-t border-border/60">
-              <span className="text-xs font-semibold text-muted-foreground">
-                Target: {store.hydrationTarget} glasses
-              </span>
-              <Button
-                size="sm"
-                onClick={() => store.drinkGlassOfWater()}
-                className="h-10 px-4 rounded-xl font-black text-xs bg-teal-600 hover:bg-teal-700 text-white shadow-xs cursor-pointer"
-              >
-                + I Drank Water
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Large Button: START TODAY'S ACTIVITY */}
-        <div className="pt-2">
-          <button
-            type="button"
-            onClick={() => onNavigate("games")}
-            className="w-full h-18 sm:h-20 rounded-3xl bg-primary hover:bg-primary/90 text-primary-foreground font-black text-xl sm:text-2xl shadow-xl flex items-center justify-center gap-3 transition-transform active:scale-98 cursor-pointer border-2 border-white/20"
-          >
-            <Sparkles className="h-7 w-7 sm:h-8 sm:w-8 animate-pulse" />
-            START TODAY'S ACTIVITY (আজিৰ কাম আৰম্ভ কৰক)
-          </button>
-        </div>
-      </div>
-
-      {/* 4. AI ADAPTATION EXPLANATION (SIH 2026 Section 6) */}
-      <div className="rounded-3xl border-2 border-primary/30 bg-card p-6 sm:p-7 shadow-sm space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <h4 className="text-xl font-black text-foreground">
-              🤖 Why this activity? (এই খেল কিয়?)
-            </h4>
-          </div>
-          <span className="text-xs font-semibold text-muted-foreground italic">
-            Transparent Adaptive Intelligence Engine
-          </span>
-        </div>
-
-        <p className="text-base text-foreground font-semibold leading-relaxed">
-          "{store.activityRecommendation?.whyThisActivityText || "Your recent performance shows strong pattern recognition (85%) but lower attention consistency (62%). Memory Bond recommends Pattern Recall — Level 2."}"
-        </p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="p-4 rounded-2xl bg-secondary/50 border border-border text-center">
-            <div className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400">
-              {store.activityRecommendation?.dimensionScores.patternRecognition || 85}%
-            </div>
-            <div className="text-xs font-bold text-muted-foreground uppercase mt-1">
-              Pattern Recognition
-            </div>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-secondary/50 border border-border text-center">
-            <div className="text-2xl sm:text-3xl font-black text-amber-600 dark:text-amber-400">
-              {store.activityRecommendation?.dimensionScores.attention || 62}%
-            </div>
-            <div className="text-xs font-bold text-muted-foreground uppercase mt-1">
-              Attention
-            </div>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-secondary/50 border border-border text-center">
-            <div className="text-2xl sm:text-3xl font-black text-sky-600 dark:text-sky-400">
-              {store.activityRecommendation?.dimensionScores.recall || 78}%
-            </div>
-            <div className="text-xs font-bold text-muted-foreground uppercase mt-1">
-              Recall
-            </div>
-          </div>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-primary/10 border border-primary/25 flex flex-wrap items-center justify-between gap-3 text-sm">
-          <div>
-            <span className="font-bold text-foreground">Recommended Activity: </span>
-            <span className="font-black text-primary">🧩 {store.activityRecommendation?.gameTitle || "Pattern Recall"}</span>
-            <span className="mx-2 text-muted-foreground">•</span>
-            <span className="font-bold text-foreground">Difficulty: </span>
-            <span className="font-black text-primary">Level {store.activityRecommendation?.recommendedLevel || 2}</span>
-            <span className="mx-2 text-muted-foreground">•</span>
-            <span className="font-bold text-muted-foreground">Goal: </span>
-            <span className="font-semibold text-foreground">{store.activityRecommendation?.primaryGoal || "Improve visual memory and attention."}</span>
-          </div>
-          <Button size="sm" onClick={() => onNavigate("games")} className="rounded-xl font-black text-xs h-10 px-4">
-            Play Activity ➔
-          </Button>
-        </div>
-      </div>
-
-      {/* 5. DEDICATED CENTERED EMERGENCY SOS HERO (STRICT 3-SECOND CONTINUOUS HOLD) */}
-      <SosHoldControl variant="heroCard" onTrigger={onOpenSos} />
 
       {/* Critical Refill Warning Banner if any */}
       {lowStockMeds.length > 0 && (
         <div
           onClick={() => onNavigate("medicines")}
-          className="rounded-3xl border-2 border-warning/60 bg-warning/15 p-5 shadow-sm flex items-center justify-between gap-4 cursor-pointer hover:bg-warning/20 transition-all"
+          className="rounded-3xl border border-amber-200 bg-amber-50/80 p-4 sm:p-5 shadow-xs flex items-center justify-between gap-4 cursor-pointer hover:bg-amber-100/80 transition-colors"
         >
           <div className="flex items-center gap-3">
-            <AlertTriangle className="h-7 w-7 text-warning shrink-0" />
+            <AlertTriangle className="h-6 w-6 text-amber-600 shrink-0" />
             <div>
-              <h4 className="text-lg font-bold text-foreground">
+              <h4 className="text-base font-bold text-foreground font-display">
                 {t("medicineLow") || "Your medicine is running low."}
               </h4>
-              <p className="text-sm text-muted-foreground font-medium">
-                {lowStockMeds[0]?.name} has {lowStockMeds[0]?.stock} {lowStockMeds[0]?.unit}s remaining (~{Math.floor(lowStockMeds[0]?.stock / (lowStockMeds[0]?.daily_usage || 1))} days). Caregiver notified.
+              <p className="text-xs text-muted-foreground font-semibold mt-0.5">
+                {lowStockMeds[0]?.name} has {lowStockMeds[0]?.stock} {lowStockMeds[0]?.unit}s remaining. Caregiver has been notified.
               </p>
             </div>
           </div>
-          <ChevronRight className="h-6 w-6 text-foreground shrink-0" />
+          <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
         </div>
       )}
 
-      {/* Senior Status Overview Ribbon: Next Med, Reminder/Tasks, Appointment, Hydration, Caregiver, CES Score */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-        {/* 1. Medicine Status */}
-        <div
-          onClick={() => onNavigate("medicines")}
-          className="rounded-3xl border-2 border-border bg-card p-4 sm:p-5 shadow-xs space-y-1.5 cursor-pointer hover:border-primary/50 transition-all flex flex-col justify-between"
-        >
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-[11px] font-bold uppercase tracking-wider">{t("medicines")}</span>
-            <Pill className="h-4 w-4 text-primary" />
-          </div>
-          <div>
-            <div className="text-lg font-bold text-foreground truncate">{nextMedicine ? nextMedicine.name : "Meds"}</div>
-            <div className="text-xs font-semibold text-primary">
-              {medsDoneToday > 0 ? `✓ ${medsDoneToday} Taken Today` : nextMedicine?.times[0] ? `At ${nextMedicine.times[0]}` : "All Done"}
+      {/* 2. COMPACT WELCOME HERO SECTION (Requirements 9 & 10) */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-sky-50 via-white to-emerald-50/40 border border-sky-100 p-5 sm:p-7 shadow-xs">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] items-center gap-6">
+          <div className="space-y-3">
+            {/* Top Bar: Pill & Time */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-black uppercase tracking-wider">
+                <Sparkles className="h-3.5 w-3.5" /> Memory Bond • Daily Care
+              </span>
+              <span className="text-xs font-bold text-muted-foreground bg-white/90 px-3 py-1 rounded-full border border-border shadow-xs">
+                🕒 {currentTime || "10:00 AM"} • {new Date().toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
+              </span>
+              <button
+                type="button"
+                onClick={() => store.updateProfile({ easy_mode: true })}
+                className="inline-flex items-center gap-1 rounded-full bg-white hover:bg-sky-50 px-2.5 py-1 text-xs font-bold text-foreground border border-border transition-colors cursor-pointer shadow-xs"
+                title="Switch to Senior Easy Mode"
+              >
+                <Sliders className="h-3 w-3 text-primary" /> Easy Mode
+              </button>
             </div>
-          </div>
-        </div>
 
-        {/* 2. Next Reminder & Tasks */}
-        <div
-          onClick={() => onNavigate("reminders")}
-          className="rounded-3xl border-2 border-border bg-card p-4 sm:p-5 shadow-xs space-y-1.5 cursor-pointer hover:border-primary/50 transition-all flex flex-col justify-between"
-        >
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Reminder</span>
-            <Bell className="h-4 w-4 text-sky-500" />
-          </div>
-          <div>
-            <div className="text-lg font-bold text-foreground truncate">
-              {nextReminder ? nextReminder.title : "Daily Tasks"}
+            {/* Main Greeting & Quote */}
+            <div>
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-foreground font-display">
+                {greeting}, {store.profile.full_name || "Dadi Ji"} 👋
+              </h2>
+              <p className="text-sm sm:text-base font-bold text-sky-800 mt-1 italic">
+                “Small steps every day keep your mind active and happy.”
+              </p>
             </div>
-            <div className="text-xs font-semibold text-primary">
-              {nextReminder ? `${nextReminder.time}` : "Completed"}
-            </div>
-          </div>
-        </div>
 
-        {/* 3. Appointment Status */}
-        <div
-          onClick={() => onNavigate("appointments")}
-          className="rounded-3xl border-2 border-border bg-card p-4 sm:p-5 shadow-xs space-y-1.5 cursor-pointer hover:border-primary/50 transition-all flex flex-col justify-between"
-        >
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Appointment</span>
-            <Calendar className="h-4 w-4 text-amber-500" />
-          </div>
-          <div>
-            <div className="text-lg font-bold text-foreground truncate">
-              {nextAppointment ? nextAppointment.title : "Doctor Visit"}
+            {/* Proactive AI Whisper */}
+            <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-foreground/80 bg-white/70 p-2.5 rounded-2xl border border-sky-100/80 max-w-2xl">
+              <span className="text-base">✨</span>
+              <span>{proactiveAiPrompt}</span>
             </div>
-            <div className="text-xs font-semibold text-primary">
-              {nextAppointment ? `${nextAppointment.date} • ${nextAppointment.time}` : "No clinic today"}
-            </div>
-          </div>
-        </div>
 
-        {/* 4. Hydration Status */}
-        <div
-          onClick={() => onNavigate("routine")}
-          className="rounded-3xl border-2 border-border bg-card p-4 sm:p-5 shadow-xs space-y-1.5 cursor-pointer hover:border-primary/50 transition-all flex flex-col justify-between"
-        >
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Hydration</span>
-            <Droplets className="h-4 w-4 text-blue-400" />
-          </div>
-          <div>
-            <div className="text-lg font-bold text-foreground">
-              {isHydrated ? "Hydrated" : "Drink Water"}
-            </div>
-            <div className="text-xs font-semibold text-primary">
-              {isHydrated ? "✓ Goal Met Today" : "💧 Warm glass advised"}
-            </div>
-          </div>
-        </div>
-
-        {/* 5. Family & Caregiver Connection Status */}
-        <div
-          onClick={() => onNavigate("family")}
-          className="rounded-3xl border-2 border-border bg-card p-4 sm:p-5 shadow-xs space-y-1.5 cursor-pointer hover:border-primary/50 transition-all flex flex-col justify-between"
-        >
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Caregiver</span>
-            <ShieldCheck className="h-4 w-4 text-emerald-500" />
-          </div>
-          <div>
-            <div className="text-lg font-bold text-foreground truncate">
-              {primaryCaregiver ? primaryCaregiver.caregiver_name.split(" ")[0] : "Family"}
-            </div>
-            <div className="text-xs font-semibold text-emerald-400">
-              ● Connected & Safe
-            </div>
-          </div>
-        </div>
-
-        {/* 6. Daily Mind Activity (Senior privacy: non-clinical status, no raw test scores) */}
-        <div
-          onClick={() => onNavigate("games")}
-          className="rounded-3xl border-2 border-border bg-card p-4 sm:p-5 shadow-xs space-y-1.5 cursor-pointer hover:border-primary/50 transition-all flex flex-col justify-between"
-        >
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Mind Care</span>
-            <Sparkles className="h-4 w-4 text-primary" />
-          </div>
-          <div>
-            <div className="text-lg font-black text-foreground">
-              Mind Active
-            </div>
-            <div className="text-xs font-bold text-success">
-              Daily Practice Ready
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* DYNAMIC COGNITIVE PROFILE RIBBON (Restricted: Visible ONLY to authorized Caregivers / Healthcare Workers) */}
-      {store.profile.role !== "senior" && store.dynamicCognitiveProfile && (
-        <div className="rounded-3xl border-2 border-border bg-card p-5 sm:p-6 shadow-xs space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              <h3 className="text-base sm:text-lg font-black text-foreground">
-                Authorized Caregiver Cognitive Wellness Indicators
-              </h3>
-            </div>
-            <span className="text-xs font-semibold text-muted-foreground italic">
-              Non-diagnostic wellness & engagement indicators
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3">
-            {[
-              { label: "Memory", val: store.dynamicCognitiveProfile.memory, color: "text-rose-500 bg-rose-500/10" },
-              { label: "Attention", val: store.dynamicCognitiveProfile.attention, color: "text-amber-500 bg-amber-500/10" },
-              { label: "Recognition", val: store.dynamicCognitiveProfile.recognition, color: "text-emerald-500 bg-emerald-500/10" },
-              { label: "Recall", val: store.dynamicCognitiveProfile.recall, color: "text-sky-500 bg-sky-500/10" },
-              { label: "Reaction", val: store.dynamicCognitiveProfile.reactionTime, color: "text-indigo-500 bg-indigo-500/10" },
-              { label: "Consistency", val: store.dynamicCognitiveProfile.consistency, color: "text-purple-500 bg-purple-500/10" },
-              { label: "Engagement", val: store.dynamicCognitiveProfile.engagement, color: "text-teal-500 bg-teal-500/10" },
-            ].map((dim) => (
-              <div key={dim.label} className="p-3 rounded-2xl bg-secondary/30 border border-border text-center space-y-1">
-                <div className="text-xs font-bold text-muted-foreground">{dim.label}</div>
-                <div className={`text-xl font-black py-0.5 rounded-lg ${dim.color}`}>{dim.val}</div>
-                <div className="text-[10px] text-muted-foreground font-semibold">/ 100</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Activity Recommendation Card */}
-          {store.activityRecommendation && (
-            <div
-              onClick={() => onNavigate("games")}
-              className="rounded-2xl border-2 border-primary/30 bg-primary/10 p-4 flex flex-wrap items-center justify-between gap-3 cursor-pointer hover:bg-primary/15 transition-all"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center text-xl shrink-0">
-                  🎯
-                </div>
-                <div>
-                  <div className="text-xs font-black uppercase tracking-wider text-primary">
-                    Caregiver Recommendation
-                  </div>
-                  <h4 className="text-sm sm:text-base font-black text-foreground">
-                    {store.activityRecommendation.headline}
-                  </h4>
-                  <p className="text-xs text-muted-foreground line-clamp-1">
-                    {store.activityRecommendation.rationale}
-                  </p>
-                </div>
-              </div>
-              <Button size="sm" className="rounded-xl font-black text-xs gap-1">
-                Open Activity ➔
+            {/* Action Buttons */}
+            <div className="flex flex-wrap items-center gap-2.5 pt-1">
+              <Button
+                size="sm"
+                onClick={speakWelcome}
+                variant="outline"
+                className="rounded-2xl font-bold gap-2 h-10 px-4 text-xs bg-white hover:bg-sky-50 border-sky-200 text-sky-900 shadow-xs cursor-pointer"
+              >
+                <Volume2 className="h-4 w-4 text-primary" /> Read Aloud
+              </Button>
+              <Button
+                size="sm"
+                onClick={onOpenVoiceAssistant}
+                className="rounded-2xl font-black gap-2 h-10 px-4 text-xs bg-primary hover:bg-primary/90 text-white shadow-xs cursor-pointer"
+              >
+                <Mic className="h-4 w-4" /> Speak with Companion
               </Button>
             </div>
-          )}
-        </div>
-      )}
+          </div>
 
-      {/* Senior-Friendly Uplifting Daily Activity Card (Encouraging, strictly non-clinical) */}
-      {store.profile.role === "senior" && (
-        <div
-          onClick={() => onNavigate("games")}
-          className="rounded-3xl border-2 border-primary/20 bg-linear-to-r from-primary/10 via-amber-500/10 to-rose-500/10 p-5 sm:p-6 shadow-xs flex flex-wrap items-center justify-between gap-4 cursor-pointer hover:border-primary/40 transition-all"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center text-2xl shadow-xs shrink-0">
-              🌸
-            </div>
-            <div>
-              <span className="text-xs font-black uppercase tracking-wider text-primary">
-                Daily Mind Care & Joy
+          {/* Warm Indian Family Memory Photograph (Requirement 10) */}
+          <div className="relative w-full lg:w-72 sm:h-44 h-40 rounded-2xl overflow-hidden shadow-sm border border-sky-200/60 shrink-0">
+            <img
+              src="/images/family_memory_hero.jpg"
+              alt="Elderly Indian grandfather sharing happy family memory photo album with granddaughter"
+              className="w-full h-full object-cover object-center"
+              loading="eager"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent flex items-end p-3">
+              <span className="text-[11px] font-black text-white drop-shadow-sm flex items-center gap-1.5">
+                <Heart className="h-3.5 w-3.5 fill-rose-400 text-rose-400" />
+                Cherished Family Memories
               </span>
-              <h3 className="text-base sm:text-lg font-black text-foreground">
-                Today's Peaceful Memory Exercises
-              </h3>
-              <p className="text-xs text-muted-foreground font-semibold">
-                Enjoy relaxing visual matching, nostalgic keepsakes, and cheerful brain stimulation at your own calm pace.
-              </p>
             </div>
           </div>
-          <Button size="sm" className="rounded-2xl font-black text-xs px-5 py-5 shadow-xs">
-            Start Today's Exercises ➔
-          </Button>
-        </div>
-      )}
-
-      {/* Memory Garden (Section 1 & 5) */}
-      <MemoryGarden store={store} onNavigate={onNavigate} compact={true} />
-
-      {/* 8 PRIMARY LARGE ACTION TILES */}
-      <div>
-        <h3 className="text-xl font-black text-foreground mb-4">Daily Activities & Memory Support</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
-          {/* 1. TODAY */}
-          <button
-            onClick={() => onNavigate("routine")}
-            className="group rounded-3xl border-2 border-border bg-card p-6 text-center space-y-3 shadow-sm hover:border-primary hover:shadow-md active:scale-95 transition-all flex flex-col items-center justify-center h-44 cursor-pointer"
-          >
-            <div className="w-16 h-16 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-600 group-hover:scale-110 transition-transform">
-              <Sun className="h-8 w-8" />
-            </div>
-            <span className="text-lg font-black text-foreground group-hover:text-primary">
-              1. {t("today").toUpperCase()}
-            </span>
-          </button>
-
-          {/* 2. MEDICINES */}
-          <button
-            onClick={() => onNavigate("medicines")}
-            className="group rounded-3xl border-2 border-border bg-card p-6 text-center space-y-3 shadow-sm hover:border-primary hover:shadow-md active:scale-95 transition-all flex flex-col items-center justify-center h-44 cursor-pointer"
-          >
-            <div className="w-16 h-16 rounded-2xl bg-teal-500/15 border border-teal-500/30 flex items-center justify-center text-teal-600 group-hover:scale-110 transition-transform">
-              <Pill className="h-8 w-8" />
-            </div>
-            <span className="text-lg font-black text-foreground group-hover:text-primary">
-              2. {t("medicines").toUpperCase()}
-            </span>
-          </button>
-
-          {/* 3. MY REMINDERS */}
-          <button
-            onClick={() => onNavigate("reminders")}
-            className="group rounded-3xl border-2 border-border bg-card p-6 text-center space-y-3 shadow-sm hover:border-primary hover:shadow-md active:scale-95 transition-all flex flex-col items-center justify-center h-44 cursor-pointer"
-          >
-            <div className="w-16 h-16 rounded-2xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-600 group-hover:scale-110 transition-transform">
-              <Bell className="h-8 w-8" />
-            </div>
-            <span className="text-lg font-black text-foreground group-hover:text-primary">
-              3. {t("reminders").toUpperCase()}
-            </span>
-          </button>
-
-          {/* 4. MEMORY GAMES */}
-          <button
-            onClick={() => onNavigate("games")}
-            className="group rounded-3xl border-2 border-border bg-card p-6 text-center space-y-3 shadow-sm hover:border-primary hover:shadow-md active:scale-95 transition-all flex flex-col items-center justify-center h-44 cursor-pointer"
-          >
-            <div className="w-16 h-16 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
-              <Gamepad2 className="h-8 w-8" />
-            </div>
-            <span className="text-lg font-black text-foreground group-hover:text-primary">
-              4. {t("games").toUpperCase()}
-            </span>
-          </button>
-
-          {/* 5. NER CULTURAL CONNECT (Section 14) */}
-          <button
-            onClick={() => onNavigate("cultural")}
-            className="group rounded-3xl border-2 border-emerald-500/30 bg-emerald-500/5 p-6 text-center space-y-3 shadow-sm hover:border-emerald-500 hover:shadow-md active:scale-95 transition-all flex flex-col items-center justify-center h-44 cursor-pointer"
-          >
-            <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
-              <Compass className="h-8 w-8" />
-            </div>
-            <span className="text-lg font-black text-foreground group-hover:text-emerald-600">
-              5. CULTURAL HUB
-            </span>
-          </button>
-
-          {/* 6. FAMILY TREE (Merged Sections 6, 7, and 8) */}
-          <button
-            onClick={() => onNavigate("family_tree")}
-            className="group rounded-3xl border-2 border-rose-500/30 bg-rose-500/5 p-6 text-center space-y-3 shadow-sm hover:border-rose-500 hover:shadow-md active:scale-95 transition-all flex flex-col items-center justify-center h-44 cursor-pointer"
-          >
-            <div className="w-16 h-16 rounded-2xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-600 group-hover:scale-110 transition-transform">
-              <Users className="h-8 w-8" />
-            </div>
-            <span className="text-lg font-black text-foreground group-hover:text-rose-600">
-              6. FAMILY TREE
-            </span>
-          </button>
         </div>
       </div>
 
-      {/* Memory Check-in Baseline Quick Card */}
-      <div className="rounded-3xl border-2 border-primary/30 bg-primary/5 p-6 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center">
-            <ClipboardCheck className="h-6 w-6" />
+      {/* 3. DAILY SUMMARY CARDS (Requirement 11: Real application data, subtle pastels) */}
+      <section aria-label="Daily Summary">
+        <div className="flex items-center justify-between mb-3.5">
+          <h3 className="text-lg sm:text-xl font-black text-foreground font-display flex items-center gap-2">
+            <span>Today's Wellness Summary</span>
+            <span className="text-xs font-bold text-muted-foreground font-sans">
+              (আজিৰ স্বাস্থ্য তথ্য)
+            </span>
+          </h3>
+          <span className="text-xs font-bold text-muted-foreground">
+            {new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+          {/* Card 1: Today's Games */}
+          <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/70 to-white p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-3 hover:border-indigo-300 transition-all">
+            <div className="flex items-start justify-between gap-2">
+              <div className="w-11 h-11 rounded-2xl bg-indigo-500 text-white flex items-center justify-center shadow-xs shrink-0">
+                <Gamepad2 className="h-6 w-6" />
+              </div>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-800 uppercase tracking-wider">
+                Games
+              </span>
+            </div>
+            <div>
+              <span className="text-[11px] font-bold text-indigo-800 uppercase tracking-wider">
+                Today's Games
+              </span>
+              <div className="text-xl font-black text-foreground mt-0.5 font-display">
+                {store.activityRecommendation?.gameTitle || "Pattern Recall"}
+              </div>
+              <p className="text-xs text-muted-foreground font-semibold mt-0.5">
+                Level {store.activityRecommendation?.recommendedLevel || 2} • 10 mins peaceful practice
+              </p>
+            </div>
+            <div className="pt-2 border-t border-indigo-100 flex items-center justify-between">
+              <span className="text-[11px] font-bold text-indigo-700">
+                Score: {store.cognitiveScore.overall} pts
+              </span>
+              <Button
+                size="sm"
+                onClick={() => onNavigate("games")}
+                className="h-8 px-3.5 rounded-xl font-black text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer"
+              >
+                Play ➔
+              </Button>
+            </div>
           </div>
-          <div>
-            <h4 className="text-xl font-bold text-foreground">{t("checkin")} & Baseline Profile</h4>
-            <p className="text-sm text-muted-foreground font-medium">
-              5-minute non-diagnostic mental agility and orientation check-in.
-            </p>
+
+          {/* Card 2: Medicines */}
+          <div className="rounded-2xl border border-teal-100 bg-gradient-to-br from-emerald-50/70 to-white p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-3 hover:border-teal-300 transition-all">
+            <div className="flex items-start justify-between gap-2">
+              <div className="w-11 h-11 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-xs shrink-0">
+                <Pill className="h-6 w-6" />
+              </div>
+              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                medsDoneToday > 0 ? "bg-teal-100 text-teal-800" : "bg-blue-100 text-blue-800"
+              }`}>
+                {medsDoneToday > 0 ? "✓ Taken" : "Scheduled"}
+              </span>
+            </div>
+            <div>
+              <span className="text-[11px] font-bold text-teal-800 uppercase tracking-wider">
+                Medicines
+              </span>
+              <div className="text-xl font-black text-foreground mt-0.5 truncate font-display">
+                {nextMedicine ? nextMedicine.name : "Amlodipine"}
+              </div>
+              <p className="text-xs text-muted-foreground font-semibold mt-0.5">
+                {nextMedicine?.times?.[0] || "8:30 AM"} • After food ({nextMedicine?.stock ?? 28} left)
+              </p>
+            </div>
+            <div className="pt-2 border-t border-teal-100 flex items-center justify-between">
+              <span className="text-[11px] font-bold text-teal-700">
+                {medsDoneToday > 0 ? "Recorded today" : "Due morning"}
+              </span>
+              {medsDoneToday === 0 ? (
+                <Button
+                  size="sm"
+                  onClick={() => store.takeMedicine("med-1")}
+                  className="h-8 px-3 rounded-xl font-black text-xs bg-teal-600 hover:bg-teal-700 text-white shadow-xs cursor-pointer"
+                >
+                  Mark Taken
+                </Button>
+              ) : (
+                <span className="text-xs font-black text-teal-700">✓ Completed</span>
+              )}
+            </div>
+          </div>
+
+          {/* Card 3: Appointments */}
+          <div className="rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50/70 to-white p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-3 hover:border-sky-300 transition-all">
+            <div className="flex items-start justify-between gap-2">
+              <div className="w-11 h-11 rounded-2xl bg-sky-600 text-white flex items-center justify-center shadow-xs shrink-0">
+                <Calendar className="h-6 w-6" />
+              </div>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-sky-100 text-sky-800 uppercase tracking-wider">
+                Clinic
+              </span>
+            </div>
+            <div>
+              <span className="text-[11px] font-bold text-sky-800 uppercase tracking-wider">
+                Appointments
+              </span>
+              <div className="text-xl font-black text-foreground mt-0.5 truncate font-display">
+                {nextAppointment ? nextAppointment.title : "Dr. Deepen Barua"}
+              </div>
+              <p className="text-xs text-muted-foreground font-semibold mt-0.5">
+                {nextAppointment ? `${nextAppointment.date} at ${nextAppointment.time}` : "Tomorrow, 4:00 PM • Review"}
+              </p>
+            </div>
+            <div className="pt-2 border-t border-sky-100 flex items-center justify-between">
+              <span className="text-[11px] font-bold text-sky-700">Family Synced</span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onNavigate("appointments")}
+                className="h-8 px-3 rounded-xl font-bold text-xs border-sky-200 text-sky-900 bg-white hover:bg-sky-50 cursor-pointer"
+              >
+                View
+              </Button>
+            </div>
+          </div>
+
+          {/* Card 4: Hydration */}
+          <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/70 to-white p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-3 hover:border-blue-300 transition-all">
+            <div className="flex items-start justify-between gap-2">
+              <div className="w-11 h-11 rounded-2xl bg-blue-500 text-white flex items-center justify-center shadow-xs shrink-0">
+                <Droplets className="h-6 w-6" />
+              </div>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-800 uppercase tracking-wider">
+                Hydration
+              </span>
+            </div>
+            <div>
+              <span className="text-[11px] font-bold text-blue-800 uppercase tracking-wider">
+                Hydration Tracker
+              </span>
+              <div className="text-xl font-black text-foreground mt-0.5 font-display">
+                {store.hydrationGlasses} of {store.hydrationTarget} Glasses
+              </div>
+              <p className="text-xs text-muted-foreground font-semibold mt-0.5">
+                {store.hydrationGlasses >= store.hydrationTarget ? "Daily goal achieved! 🌟" : "Drink a warm glass with lemon"}
+              </p>
+            </div>
+            <div className="pt-2 border-t border-blue-100 flex items-center justify-between">
+              <span className="text-[11px] font-bold text-blue-700">Goal: {store.hydrationTarget} glasses</span>
+              <Button
+                size="sm"
+                onClick={() => store.drinkGlassOfWater()}
+                className="h-8 px-3 rounded-xl font-black text-xs bg-blue-600 hover:bg-blue-700 text-white shadow-xs cursor-pointer"
+              >
+                + Drank Water
+              </Button>
+            </div>
           </div>
         </div>
-        <Button
-          size="lg"
-          onClick={() => onNavigate("checkin")}
-          className="font-bold rounded-2xl px-6 h-12 text-base"
-        >
-          Start Check-in
-        </Button>
+      </section>
+
+      {/* 4. MAIN CONTENT & RIGHT CONTEXTUAL PANELS (Responsive Grid for Desktop) */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+        {/* LEFT/CENTER 8 COLUMNS: Quick Access Features + Daily Routine */}
+        <div className="xl:col-span-8 space-y-6">
+          {/* QUICK ACCESS (Requirement 12: 10 Unified Feature Cards) */}
+          <section aria-label="Quick Access Features" className="rounded-3xl border border-border bg-card p-5 sm:p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg sm:text-xl font-black text-foreground font-display">
+                  Quick Access (সুবিধাসমূহ)
+                </h3>
+                <p className="text-xs font-semibold text-muted-foreground">
+                  Tap any card to open your daily memory, family, and health companion tools
+                </p>
+              </div>
+              <span className="text-xs font-bold text-primary px-3 py-1 rounded-full bg-primary/10">
+                10 Activities
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {/* 1. Play Games */}
+              <button
+                type="button"
+                onClick={() => onNavigate("games")}
+                className="group p-3.5 rounded-2xl border border-indigo-100 bg-indigo-50/40 hover:bg-indigo-50 hover:border-indigo-300 text-left space-y-2 transition-all cursor-pointer flex flex-col justify-between min-h-[125px] shadow-xs active:scale-98"
+              >
+                <div className="w-10 h-10 rounded-xl bg-indigo-500 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                  <Gamepad2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-sm font-black text-foreground group-hover:text-indigo-700">Play Games</div>
+                  <p className="text-[11px] text-muted-foreground font-medium line-clamp-1">Mind stimulation</p>
+                </div>
+              </button>
+
+              {/* 2. Medicine Reminders */}
+              <button
+                type="button"
+                onClick={() => onNavigate("medicines")}
+                className="group p-3.5 rounded-2xl border border-teal-100 bg-emerald-50/40 hover:bg-emerald-50 hover:border-teal-300 text-left space-y-2 transition-all cursor-pointer flex flex-col justify-between min-h-[125px] shadow-xs active:scale-98"
+              >
+                <div className="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                  <Pill className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-sm font-black text-foreground group-hover:text-teal-700">Medicines</div>
+                  <p className="text-[11px] text-muted-foreground font-medium line-clamp-1">Refills & timing</p>
+                </div>
+              </button>
+
+              {/* 3. Appointments */}
+              <button
+                type="button"
+                onClick={() => onNavigate("appointments")}
+                className="group p-3.5 rounded-2xl border border-sky-100 bg-sky-50/40 hover:bg-sky-50 hover:border-sky-300 text-left space-y-2 transition-all cursor-pointer flex flex-col justify-between min-h-[125px] shadow-xs active:scale-98"
+              >
+                <div className="w-10 h-10 rounded-xl bg-sky-600 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                  <Calendar className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-sm font-black text-foreground group-hover:text-sky-700">Appointments</div>
+                  <p className="text-[11px] text-muted-foreground font-medium line-clamp-1">Doctor reviews</p>
+                </div>
+              </button>
+
+              {/* 4. Hydration */}
+              <button
+                type="button"
+                onClick={() => onNavigate("routine")}
+                className="group p-3.5 rounded-2xl border border-blue-100 bg-blue-50/40 hover:bg-blue-50 hover:border-blue-300 text-left space-y-2 transition-all cursor-pointer flex flex-col justify-between min-h-[125px] shadow-xs active:scale-98"
+              >
+                <div className="w-10 h-10 rounded-xl bg-blue-500 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                  <Droplets className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-sm font-black text-foreground group-hover:text-blue-700">Hydration</div>
+                  <p className="text-[11px] text-muted-foreground font-medium line-clamp-1">Daily water goal</p>
+                </div>
+              </button>
+
+              {/* 5. Family Tree */}
+              <button
+                type="button"
+                onClick={() => onNavigate("family_tree")}
+                className="group p-3.5 rounded-2xl border border-rose-100 bg-rose-50/40 hover:bg-rose-50 hover:border-rose-300 text-left space-y-2 transition-all cursor-pointer flex flex-col justify-between min-h-[125px] shadow-xs active:scale-98"
+              >
+                <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                  <Users className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-sm font-black text-foreground group-hover:text-rose-700">Family Tree</div>
+                  <p className="text-[11px] text-muted-foreground font-medium line-clamp-1">Loved ones & ties</p>
+                </div>
+              </button>
+
+              {/* 6. Family Memories */}
+              <button
+                type="button"
+                onClick={() => onNavigate("social")}
+                className="group p-3.5 rounded-2xl border border-purple-100 bg-purple-50/40 hover:bg-purple-50 hover:border-purple-300 text-left space-y-2 transition-all cursor-pointer flex flex-col justify-between min-h-[125px] shadow-xs active:scale-98"
+              >
+                <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                  <Heart className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-sm font-black text-foreground group-hover:text-purple-700">Memories</div>
+                  <p className="text-[11px] text-muted-foreground font-medium line-clamp-1">Photos & greetings</p>
+                </div>
+              </button>
+
+              {/* 7. Voice Assistant */}
+              <button
+                type="button"
+                onClick={onOpenVoiceAssistant}
+                className="group p-3.5 rounded-2xl border border-blue-100 bg-blue-50/40 hover:bg-blue-50 hover:border-blue-300 text-left space-y-2 transition-all cursor-pointer flex flex-col justify-between min-h-[125px] shadow-xs active:scale-98"
+              >
+                <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                  <Mic className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-sm font-black text-foreground group-hover:text-primary">Voice AI</div>
+                  <p className="text-[11px] text-muted-foreground font-medium line-clamp-1">Speak in regional</p>
+                </div>
+              </button>
+
+              {/* 8. Cherished Notes */}
+              <button
+                type="button"
+                onClick={() => onNavigate("journal")}
+                className="group p-3.5 rounded-2xl border border-amber-100 bg-amber-50/40 hover:bg-amber-50 hover:border-amber-300 text-left space-y-2 transition-all cursor-pointer flex flex-col justify-between min-h-[125px] shadow-xs active:scale-98"
+              >
+                <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                  <BookOpen className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-sm font-black text-foreground group-hover:text-amber-700">Cherished Notes</div>
+                  <p className="text-[11px] text-muted-foreground font-medium line-clamp-1">Audio diary & joy</p>
+                </div>
+              </button>
+
+              {/* 9. Memory Garden */}
+              <button
+                type="button"
+                onClick={() => onNavigate("routine")}
+                className="group p-3.5 rounded-2xl border border-emerald-100 bg-emerald-50/40 hover:bg-emerald-50 hover:border-emerald-300 text-left space-y-2 transition-all cursor-pointer flex flex-col justify-between min-h-[125px] shadow-xs active:scale-98"
+              >
+                <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                  <Leaf className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-sm font-black text-foreground group-hover:text-emerald-700">Memory Garden</div>
+                  <p className="text-[11px] text-muted-foreground font-medium line-clamp-1">Daily blooming</p>
+                </div>
+              </button>
+
+              {/* 10. Cultural Hub */}
+              <button
+                type="button"
+                onClick={() => onNavigate("cultural")}
+                className="group p-3.5 rounded-2xl border border-teal-100 bg-teal-50/40 hover:bg-teal-50 hover:border-teal-300 text-left space-y-2 transition-all cursor-pointer flex flex-col justify-between min-h-[125px] shadow-xs active:scale-98"
+              >
+                <div className="w-10 h-10 rounded-xl bg-teal-700 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                  <Compass className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-sm font-black text-foreground group-hover:text-teal-700">Cultural Hub</div>
+                  <p className="text-[11px] text-muted-foreground font-medium line-clamp-1">North East roots</p>
+                </div>
+              </button>
+            </div>
+          </section>
+
+          {/* DAILY ROUTINES & SHOPPING CHECKLIST */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Daily Routine Summary Card */}
+            <div className="rounded-3xl border border-amber-100 bg-white p-5 shadow-xs space-y-3">
+              <div className="flex items-center justify-between border-b border-border/80 pb-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-xs">
+                    <Sun className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-base font-black text-foreground font-display">Daily Routine</h4>
+                    <span className="text-[11px] font-bold text-muted-foreground">{routinesDone} of {store.routines.length} completed</span>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onNavigate("routine")}
+                  className="h-8 px-3 rounded-xl font-bold text-xs"
+                >
+                  View All
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                {store.routines.slice(0, 3).map((rt) => {
+                  const isDone = rt.done_date === todayStr;
+                  return (
+                    <div
+                      key={rt.id}
+                      onClick={() => store.toggleRoutine(rt.id)}
+                      className="flex items-center justify-between p-2.5 rounded-xl bg-secondary/50 border border-border/70 hover:bg-secondary cursor-pointer transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 border ${
+                          isDone ? "bg-primary border-primary text-white" : "border-muted-foreground/50 bg-white"
+                        }`}>
+                          {isDone && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+                        </div>
+                        <span className={`text-xs font-bold truncate ${isDone ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                          {rt.title}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-bold text-muted-foreground shrink-0">{rt.time}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Daily Shopping & Pharmacy Checklist */}
+            <div className="rounded-3xl border border-purple-100 bg-white p-5 shadow-xs space-y-3">
+              <div className="flex items-center justify-between border-b border-border/80 pb-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-xs">
+                    <ShoppingBag className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-base font-black text-foreground font-display">Daily Needs</h4>
+                    <span className="text-[11px] font-bold text-muted-foreground">
+                      {shoppingItems.filter((i) => i.done).length} of {shoppingItems.length} purchased
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {shoppingItems.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => toggleShoppingItem(item.id)}
+                    className="flex items-center gap-2.5 p-2.5 rounded-xl bg-secondary/50 border border-border/70 hover:bg-secondary cursor-pointer transition-colors"
+                  >
+                    <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 border ${
+                      item.done ? "bg-purple-600 border-purple-600 text-white" : "border-muted-foreground/50 bg-white"
+                    }`}>
+                      {item.done && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+                    </div>
+                    <span className={`text-xs font-bold ${item.done ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                      {item.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* TRANSPARENT AI ADAPTATION ENGINE (Senior-friendly non-clinical view) */}
+          <div className="rounded-3xl border border-sky-100 bg-white p-5 sm:p-6 shadow-xs space-y-3">
+            <div className="flex items-center justify-between border-b border-border pb-2.5">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <h4 className="text-base font-black text-foreground font-display">
+                  Why this game was chosen for you today
+                </h4>
+              </div>
+              <span className="text-[11px] font-bold text-sky-800 bg-sky-50 px-2.5 py-0.5 rounded-full border border-sky-200">
+                Personalized
+              </span>
+            </div>
+
+            <p className="text-xs sm:text-sm text-foreground/80 font-semibold leading-relaxed">
+              "{store.activityRecommendation?.whyThisActivityText || "Your recent practice shows strong visual memory and steady recall. Today's Pattern Recall exercise gently sharpens active attention."}"
+            </p>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-1 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-muted-foreground">Focus Area:</span>
+                <span className="font-black text-primary">Visual Memory & Focus</span>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => onNavigate("games")}
+                className="h-8 px-4 rounded-xl font-black text-xs bg-primary hover:bg-primary/90 text-white shadow-xs cursor-pointer"
+              >
+                Start Practice ➔
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT 4 COLUMNS: Contextual Desktop Panels (AI Assistant, Memory Garden, Emergency SOS) */}
+        <div className="xl:col-span-4 space-y-6">
+          {/* AI ASSISTANT DEDICATED CARD (Requirement 13) */}
+          <div className="rounded-3xl border border-sky-200 bg-gradient-to-br from-sky-50 via-white to-blue-50/50 p-5 sm:p-6 shadow-xs space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/20 shrink-0">
+                <Bot className="h-7 w-7" />
+              </div>
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
+                  Caring AI Companion
+                </span>
+                <h3 className="text-lg font-black text-foreground font-display mt-0.5">
+                  Need Help?
+                </h3>
+                <p className="text-xs text-muted-foreground font-semibold">
+                  Talk to your AI Assistant anytime
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-foreground/80 font-medium leading-relaxed bg-white/80 p-3 rounded-2xl border border-sky-100">
+              Ask about your medicines, weather, daily appointments, or just have a peaceful conversation in your language.
+            </p>
+
+            <Button
+              size="lg"
+              onClick={onOpenVoiceAssistant}
+              className="w-full h-12 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black text-sm shadow-sm gap-2.5 cursor-pointer active:scale-98"
+            >
+              <Mic className="h-5 w-5 animate-pulse" />
+              <span>🎙️ Talk to AI Assistant</span>
+            </Button>
+          </div>
+
+          {/* MEMORY GARDEN PREVIEW (Requirement 14) */}
+          <div className="rounded-3xl border border-emerald-100 bg-white p-5 shadow-xs">
+            <MemoryGarden store={store} onNavigate={onNavigate} compact={true} />
+          </div>
+
+          {/* EMERGENCY SOS 3-SECOND CONTINUOUS HOLD HERO (Reassuring, Clear, Accessible) */}
+          <div className="rounded-3xl border border-rose-100 bg-white p-4 shadow-xs">
+            <SosHoldControl variant="heroCard" onTrigger={onOpenSos} />
+          </div>
+
+          {/* FAMILY & CAREGIVER SYNC QUICK STATUS */}
+          <div className="rounded-3xl border border-border bg-white p-4 sm:p-5 shadow-xs flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shrink-0">
+                <Heart className="h-5 w-5 fill-rose-500/20 text-rose-600" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  Caregiver Link
+                </div>
+                <div className="text-sm font-black text-foreground truncate">
+                  {primaryCaregiver ? primaryCaregiver.caregiver_name : "Rahul (Son)"}
+                </div>
+              </div>
+            </div>
+            <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 shrink-0">
+              ● Connected
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -56,21 +56,21 @@ export function Footer({
   };
 
   return (
-    <footer className="relative mt-12 bg-card border-t border-border shadow-xs text-foreground transition-colors overflow-hidden">
+    <footer className="relative mt-12 bg-white border-t border-border/80 shadow-xs text-foreground transition-colors overflow-hidden">
       {/* Top Accent Gradient Line */}
-      <div className="h-1 w-full bg-gradient-to-r from-blue-600 via-indigo-500 to-teal-500 opacity-80" />
+      <div className="h-1 w-full bg-gradient-to-r from-sky-400 via-primary to-emerald-400 opacity-80" />
 
       {/* Quick Interactive Utility Bar */}
-      <div className="border-b border-border/60 bg-muted/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div className="border-b border-border/60 bg-sky-50/40">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 text-xs">
           {/* Left: Role Switcher & Live Pulse */}
           <div className="flex items-center flex-wrap gap-2.5">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/80 border border-border text-foreground font-medium shadow-sm">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-border text-foreground font-medium shadow-xs">
               <span className="relative flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
               </span>
-              <span>System: <strong className="text-emerald-600 dark:text-emerald-400 font-bold">Online & Encrypted</strong></span>
+              <span>System: <strong className="text-emerald-700 font-bold">Online & Encrypted</strong></span>
             </div>
 
             <button
@@ -80,7 +80,7 @@ export function Footer({
             >
               <Users className="h-3.5 w-3.5 group-hover:scale-110 transition-transform" />
               <span>Current Role: <strong>{isCaregiver ? "Caregiver Portal" : "Senior Companion"}</strong></span>
-              <span className="text-[10px] uppercase tracking-wider bg-primary text-primary-foreground px-1.5 py-0.5 rounded font-black ml-1">
+              <span className="text-[10px] uppercase tracking-wider bg-primary text-white px-1.5 py-0.5 rounded font-black ml-1">
                 Switch
               </span>
             </button>
@@ -90,9 +90,9 @@ export function Footer({
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={onOpenVoice}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-teal-500/15 hover:bg-teal-500/25 text-teal-700 dark:text-teal-300 border border-teal-500/30 transition-all font-bold cursor-pointer hover:shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sky-100 hover:bg-sky-200 text-sky-900 border border-sky-200 transition-all font-bold cursor-pointer shadow-xs"
             >
-              <Mic className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400 animate-pulse" />
+              <Mic className="h-3.5 w-3.5 text-primary animate-pulse" />
               <span>Voice Assistant</span>
             </button>
 
@@ -100,7 +100,7 @@ export function Footer({
 
             <button
               onClick={scrollToTop}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-background/80 hover:bg-muted text-muted-foreground hover:text-foreground border border-border transition-all font-semibold cursor-pointer shadow-sm group"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-white hover:bg-secondary text-muted-foreground hover:text-foreground border border-border transition-all font-semibold cursor-pointer shadow-xs group"
               title="Back to Top"
             >
               <ArrowUp className="h-3.5 w-3.5 group-hover:-translate-y-0.5 transition-transform" />
@@ -111,17 +111,17 @@ export function Footer({
       </div>
 
       {/* Main Footer Body */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-10 pb-8">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 pt-10 pb-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-10">
           
           {/* Column 1: Brand, Mission & Hackathon Badges (Span 4) */}
           <div className="lg:col-span-4 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center text-white shadow-lg shadow-teal-500/20 group-hover:scale-105 transition-transform">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white shadow-md shadow-primary/25">
                 <Heart className="h-6 w-6 fill-white/25" />
               </div>
               <div>
-                <h3 className="text-2xl font-black tracking-tight font-display bg-gradient-to-r from-teal-600 via-cyan-600 to-primary dark:from-teal-300 dark:via-cyan-300 dark:to-primary bg-clip-text text-transparent">
+                <h3 className="text-xl font-black tracking-tight font-display text-foreground">
                   MEMORY BOND
                 </h3>
                 <p className="text-xs font-semibold text-muted-foreground">
