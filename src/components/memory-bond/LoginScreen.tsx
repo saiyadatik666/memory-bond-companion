@@ -28,6 +28,7 @@ import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { QRScannerModal } from "./QRScannerModal";
 import { LANGUAGES, useI18n, type LangCode } from "@/lib/i18n";
 import { speakText } from "@/lib/voiceParser";
+import { connectSeniorToCaregiver } from "@/lib/caregiverConnectionService";
 
 interface LoginScreenProps {
   store: MemoryBondStore;
@@ -124,6 +125,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
             caregiverCode,
           })
         );
+        localStorage.setItem("mb_authenticated_user_id", userId);
         localStorage.setItem("mb_welcome_completed", "true");
 
         store.updateProfile({
@@ -164,6 +166,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
             caregiverCode,
           })
         );
+        localStorage.setItem("mb_authenticated_user_id", userId);
         localStorage.setItem("mb_welcome_completed", "true");
 
         store.updateProfile({
@@ -199,6 +202,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
         caregiverCode,
       })
     );
+    localStorage.setItem("mb_authenticated_user_id", demoId);
     localStorage.setItem("mb_welcome_completed", "true");
 
     store.updateProfile({
@@ -213,67 +217,67 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
     }, 600);
   };
 
-  // SENIOR ACCOUNT LINKING VIA CODE / QR
-  const handleVerifyAndLinkSenior = (codeToVerify: string) => {
+  // SENIOR ACCOUNT LINKING VIA CODE / QR (Unified & Timeout Protected)
+  const handleVerifyAndLinkSenior = async (codeToVerify: string) => {
+    if (isLinking) return; // Prevent duplicate taps
     const cleanCode = codeToVerify.trim().toUpperCase();
     setLinkingError(null);
     setLinkingSuccess(null);
     setIsLinking(true);
 
-    if (!cleanCode) {
-      setLinkingError("Please enter a valid Caregiver connection code or scan a QR code.");
+    try {
+      const result = await connectSeniorToCaregiver({
+        code: cleanCode,
+        seniorName: seniorName.trim() || store.profile.full_name || "Ramesh Sharma",
+        store,
+        currentLanguage: lang,
+        timeoutMs: 8000,
+      });
+
+      if (!result.success) {
+        setLinkingError(result.error || "Could not link to caregiver. Please verify the code and try again.");
+        return;
+      }
+
+      const displayName = result.caregiverName || "Caregiver";
+      const successMsg = result.alreadyConnected
+        ? `Already linked to Caregiver (${result.code})! Opening Senior Companion...`
+        : `Successfully linked to Caregiver ${displayName} (${result.code})! Opening Senior Companion...`;
+
+      setLinkingSuccess(successMsg);
+
+      setTimeout(() => {
+        onAuthenticated("senior");
+      }, 750);
+    } catch (err: any) {
+      console.error("Connection error:", err);
+      setLinkingError(err?.message || "An unexpected error occurred during connection.");
+    } finally {
       setIsLinking(false);
-      return;
     }
-
-    const isValidFormat = cleanCode.startsWith("MB-CG-") || cleanCode === "MB-CAREGIVER-2026";
-    if (!isValidFormat) {
-      setLinkingError("Invalid code format. Codes must start with 'MB-CG-' (e.g. MB-CG-781042).");
-      setIsLinking(false);
-      return;
-    }
-
-    // Perform pairing
-    store.linkCaregiver(cleanCode, "Caregiver Linked");
-    localStorage.setItem("mb_linked_caregiver_code", cleanCode);
-    localStorage.setItem(
-      "mb_active_session",
-      JSON.stringify({
-        userId: `senior_${Date.now()}`,
-        role: "senior",
-        fullName: seniorName.trim() || "Ramesh Sharma",
-        linkedCaregiverCode: cleanCode,
-      })
-    );
-    localStorage.setItem("mb_welcome_completed", "true");
-
-    store.updateProfile({
-      full_name: seniorName.trim() || "Ramesh Sharma",
-      role: "senior",
-    });
-    store.setRole("senior");
-
-    setLinkingSuccess(`Successfully linked to Caregiver (${cleanCode})! Opening Senior Companion...`);
-    setTimeout(() => {
-      onAuthenticated("senior");
-    }, 800);
   };
 
   // DIRECT SENIOR ENTRY (Without caregiver link upfront)
   const handleDirectSeniorContinue = () => {
+    if (isLinking) return;
+    const seniorId = `senior_${Date.now()}`;
+    const name = seniorName.trim() || "Ramesh Sharma";
+
     localStorage.setItem(
       "mb_active_session",
       JSON.stringify({
-        userId: `senior_${Date.now()}`,
+        userId: seniorId,
         role: "senior",
-        fullName: seniorName.trim() || "Ramesh Sharma",
+        fullName: name,
       })
     );
+    localStorage.setItem("mb_authenticated_user_id", seniorId);
     localStorage.setItem("mb_welcome_completed", "true");
 
     store.updateProfile({
-      full_name: seniorName.trim() || "Ramesh Sharma",
+      full_name: name,
       role: "senior",
+      onboarded: true,
     });
     store.setRole("senior");
     onAuthenticated("senior");
@@ -525,32 +529,75 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
   // SCREEN 4A: SENIOR LINKING & ACCESS (Requirement 26 & 27)
   // ==========================================================================
   if (stage === "senior_auth") {
+    const isHindi = lang === "hi";
+    const isGujarati = lang === "gu";
+
+    const labels = {
+      title: isHindi ? "सीनियर एक्सेस" : isGujarati ? "સિનિયર એક્સેસ" : "Senior Access",
+      subtitle: isHindi
+        ? "अपने केयरगिवर के साथ त्वरित लिंक"
+        : isGujarati
+        ? "તમારા કેરગીવર સાથે ઝડપી લિંક"
+        : "Quick link with your caregiver",
+      nameQuestion: isHindi ? "आपका नाम क्या है?" : isGujarati ? "તમારું નામ શું છે?" : "What is your name?",
+      namePlaceholder: isHindi ? "उदा. रमेश शर्मा" : isGujarati ? "દા.ત. રમેશ શર્મા" : "e.g. Ramesh Sharma",
+      connectHeader: isHindi
+        ? "केयरगिवर के खाते से जुड़ें"
+        : isGujarati
+        ? "કેરગીવરના ખાતા સાથે જોડાઓ"
+        : "Connect to Caregiver's Account",
+      scanQrBtn: isHindi
+        ? "केयरगिवर का क्यूआर कोड स्कैन करें"
+        : isGujarati
+        ? "કેરગીવરનો QR કોડ સ્કેન કરો"
+        : "Scan Caregiver's QR Code",
+      orManual: isHindi
+        ? "या केयरगिवर कनेक्शन कोड टाइप करें:"
+        : isGujarati
+        ? "અથવા કેરગીવર કનેક્શન કોડ લખો:"
+        : "Or Type Caregiver Connection Code:",
+      linkBtn: isHindi ? "जोड़ें" : isGujarati ? "જોડો" : "Link",
+      linkingBtn: isHindi ? "जोड़ रहा है..." : isGujarati ? "જોડાઈ રહ્યું છે..." : "Linking...",
+      useDemo: isHindi
+        ? "डेमो कोड का उपयोग करें: MB-CG-781042"
+        : isGujarati
+        ? "ડેમો કોડ વાપરો: MB-CG-781042"
+        : "Use Demo Code: MB-CG-781042",
+      continueDirect: isHindi
+        ? "सीधे सीनियर के रूप में जारी रखें"
+        : isGujarati
+        ? "સીધા સિનિયર તરીકે ચાલુ રાખો"
+        : "Continue Directly as Senior",
+    };
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-card to-background flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
         <div className="w-full max-w-md rounded-3xl bg-card border-2 border-border shadow-2xl p-6 sm:p-8 space-y-6">
           <div className="flex items-center justify-between border-b border-border pb-3">
             <button
               onClick={() => setStage("role")}
-              className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+              disabled={isLinking}
+              className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer disabled:opacity-50"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
             <div className="text-center">
-              <h2 className="text-xl font-black text-foreground">Senior Access</h2>
-              <p className="text-xs text-muted-foreground">Quick link with your caregiver</p>
+              <h2 className="text-xl font-black text-foreground">{labels.title}</h2>
+              <p className="text-xs text-muted-foreground">{labels.subtitle}</p>
             </div>
             <div className="w-8" />
           </div>
 
           {/* Senior Name */}
           <div className="space-y-1.5">
-            <Label className="text-sm font-bold">What is your name?</Label>
+            <Label className="text-sm font-bold">{labels.nameQuestion}</Label>
             <div className="relative">
               <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 value={seniorName}
                 onChange={(e) => setSeniorName(e.target.value)}
-                placeholder="e.g. Ramesh Sharma"
+                disabled={isLinking}
+                placeholder={labels.namePlaceholder}
                 className="h-12 pl-10 text-base font-bold rounded-2xl"
               />
             </div>
@@ -559,37 +606,46 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
           {/* Pairing Options */}
           <div className="p-4 rounded-2xl bg-secondary/40 border border-border space-y-4">
             <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-center">
-              Connect to Caregiver's Account
+              {labels.connectHeader}
             </div>
 
             {/* Option 1: Scan QR Code */}
             <Button
               type="button"
+              disabled={isLinking}
               onClick={() => setIsScannerOpen(true)}
-              className="w-full h-14 rounded-2xl font-black text-base bg-primary hover:bg-primary/90 text-white shadow-md gap-2.5 cursor-pointer"
+              className="w-full h-14 rounded-2xl font-black text-base bg-primary hover:bg-primary/90 text-white shadow-md gap-2.5 cursor-pointer disabled:opacity-50"
             >
               <Camera className="h-5 w-5" />
-              Scan Caregiver's QR Code
+              {labels.scanQrBtn}
             </Button>
 
             {/* Option 2: Manual 6-Digit Code */}
             <div className="space-y-2 pt-1">
               <Label className="text-xs font-bold text-muted-foreground">
-                Or Type Caregiver Connection Code:
+                {labels.orManual}
               </Label>
               <div className="flex gap-2">
                 <Input
                   value={connectionCode}
                   onChange={(e) => setConnectionCode(e.target.value.toUpperCase())}
+                  disabled={isLinking}
                   placeholder="MB-CG-781042"
                   className="h-12 font-mono font-black tracking-wider uppercase text-base rounded-2xl"
                 />
                 <Button
                   onClick={() => handleVerifyAndLinkSenior(connectionCode)}
-                  disabled={isLinking}
-                  className="h-12 px-5 rounded-2xl font-bold bg-primary text-white cursor-pointer"
+                  disabled={isLinking || !connectionCode.trim()}
+                  className="h-12 px-5 rounded-2xl font-bold bg-primary text-white cursor-pointer disabled:opacity-50 min-w-[5rem]"
                 >
-                  {isLinking ? <Loader2 className="h-4 w-4 animate-spin" /> : "Link"}
+                  {isLinking ? (
+                    <span className="flex items-center gap-1.5 text-xs">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {labels.linkingBtn}
+                    </span>
+                  ) : (
+                    labels.linkBtn
+                  )}
                 </Button>
               </div>
             </div>
@@ -597,26 +653,27 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
             {/* Demo Quick Code */}
             <button
               type="button"
+              disabled={isLinking}
               onClick={() => {
                 setConnectionCode("MB-CG-781042");
                 handleVerifyAndLinkSenior("MB-CG-781042");
               }}
-              className="w-full text-center text-xs text-primary hover:underline font-bold pt-1 cursor-pointer"
+              className="w-full text-center text-xs text-primary hover:underline font-bold pt-1 cursor-pointer disabled:opacity-50"
             >
-              Use Demo Code: MB-CG-781042
+              {labels.useDemo}
             </button>
           </div>
 
           {/* Feedback alerts */}
           {linkingError && (
-            <div className="p-3.5 rounded-2xl bg-destructive/15 border border-destructive/40 flex items-start gap-2.5 text-xs text-destructive">
+            <div className="p-3.5 rounded-2xl bg-destructive/15 border border-destructive/40 flex items-start gap-2.5 text-xs text-destructive animate-in fade-in duration-200">
               <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
               <span className="font-semibold leading-relaxed">{linkingError}</span>
             </div>
           )}
 
           {linkingSuccess && (
-            <div className="p-3.5 rounded-2xl bg-success/15 border border-success/40 flex items-start gap-2.5 text-xs text-success">
+            <div className="p-3.5 rounded-2xl bg-success/15 border border-success/40 flex items-start gap-2.5 text-xs text-success animate-in fade-in duration-200">
               <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
               <span className="font-semibold leading-relaxed">{linkingSuccess}</span>
             </div>
@@ -626,10 +683,11 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
           <div className="pt-2 border-t border-border">
             <Button
               variant="outline"
+              disabled={isLinking}
               onClick={handleDirectSeniorContinue}
-              className="w-full h-12 rounded-2xl text-xs font-bold cursor-pointer"
+              className="w-full h-12 rounded-2xl text-xs font-bold cursor-pointer disabled:opacity-50"
             >
-              Continue Directly as Senior
+              {labels.continueDirect}
             </Button>
           </div>
         </div>
@@ -644,6 +702,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
             handleVerifyAndLinkSenior(scanned);
           }}
           expectedCodeHint={localStorage.getItem("mb_caregiver_unique_code") || "MB-CG-781042"}
+          alreadyLinkedCode={localStorage.getItem("mb_linked_caregiver_code") || undefined}
         />
       </div>
     );

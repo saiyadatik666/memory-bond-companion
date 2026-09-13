@@ -2193,6 +2193,81 @@ export function useMemoryBondStore() {
       };
       setCaregiverLinks((prev) => [...prev, newLink]);
     }, []),
+    linkCaregiver: useCallback(
+      (code: string, caregiverName: string = "Family Caregiver", caregiverPhone: string = "+91 98765 43210") => {
+        const cleanCode = code.trim().toUpperCase();
+        const newLink: CaregiverLink = {
+          id: `cg-${Date.now()}`,
+          caregiver_name: caregiverName,
+          relationship: "Primary Caregiver",
+          phone: caregiverPhone,
+          status: "approved",
+          linked_at: new Date().toISOString().slice(0, 10),
+          permissions: {
+            medicines: true,
+            appointments: true,
+            games: true,
+            sos: true,
+            journal: true,
+          },
+        };
+
+        setCaregiverLinks((prev) => {
+          const filtered = prev.filter((c) => c.caregiver_name !== caregiverName);
+          return [newLink, ...filtered];
+        });
+
+        // Ensure this senior is tracked in assignedSeniors for caregiver view
+        setAssignedSeniors((prev) => {
+          const currentId = profile.id || "senior-ramesh";
+          const sName = profile.full_name || "Ramesh Sharma";
+          const existingIndex = prev.findIndex(
+            (s) => s.id === currentId || s.name.toLowerCase() === sName.toLowerCase()
+          );
+          const seniorData: AssignedSenior = {
+            id: currentId,
+            name: sName,
+            age: parseInt(profile.age_range || "68", 10) || 68,
+            region: profile.selected_state || profile.selected_ner_state || "Assam",
+            language: profile.language || "English",
+            status: "stable",
+            statusLabel: "Activity Status: Normal",
+            medicineTaken: 2,
+            medicineTotal: 2,
+            hydrationGlasses: hydrationGlasses || 4,
+            hydrationTarget: hydrationTarget || 6,
+            routinesDone: 5,
+            routinesTotal: 6,
+            gamesCompleted: 2,
+            lastActive: "Just now",
+            lastSync: "Just now",
+            alertsCount: 0,
+            cesScore: 78,
+            trend: "improving",
+          };
+
+          if (existingIndex >= 0) {
+            const updated = [...prev];
+            updated[existingIndex] = { ...updated[existingIndex], ...seniorData };
+            return updated;
+          }
+          return [seniorData, ...prev];
+        });
+
+        try {
+          localStorage.setItem("mb_linked_caregiver_code", cleanCode);
+          localStorage.setItem(getKey("linked_caregiver_code"), cleanCode);
+          const registered = JSON.parse(localStorage.getItem("mb_registered_caregiver_codes") || "[]");
+          if (!registered.includes(cleanCode)) {
+            registered.push(cleanCode);
+            localStorage.setItem("mb_registered_caregiver_codes", JSON.stringify(registered));
+          }
+        } catch (e) {
+          console.warn("Could not save linked caregiver code to localStorage", e);
+        }
+      },
+      [profile, hydrationGlasses, hydrationTarget]
+    ),
 
     // Daily Routine Call
     routineCalls,

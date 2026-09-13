@@ -14,6 +14,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { playNotificationChime } from "@/lib/notificationService";
 
+import {
+  extractAndNormalizeCaregiverCode,
+  validateCaregiverCodeFormat,
+} from "@/lib/caregiverConnectionService";
+
 interface QRScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -41,40 +46,15 @@ export function QRScannerModal({
   const streamRef = useRef<MediaStream | null>(null);
   const scanIntervalRef = useRef<number | null>(null);
 
-  // Extract Caregiver pairing code from scanned payload
-  const parseCaregiverCode = useCallback((raw: string): string | null => {
-    if (!raw) return null;
-    const trimmed = raw.trim();
-
-    // 1. Direct code: MB-CG-XXXXXX
-    const directMatch = trimmed.match(/MB-CG-[A-Z0-9]{6}/i);
-    if (directMatch) return directMatch[0].toUpperCase();
-
-    // 2. JSON format: {"code":"MB-CG-XXXXXX", ...}
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (parsed?.code && typeof parsed.code === "string") {
-        const jsonMatch = parsed.code.match(/MB-CG-[A-Z0-9]{6}/i);
-        if (jsonMatch) return jsonMatch[0].toUpperCase();
-      }
-    } catch {}
-
-    // 3. URL query parameter or hash: ?link=MB-CG-XXXXXX or #link=MB-CG-XXXXXX
-    const urlMatch = trimmed.match(/[?&#]link=(MB-CG-[A-Z0-9]{6})/i);
-    if (urlMatch) return urlMatch[1].toUpperCase();
-
-    return null;
-  }, []);
-
   const handleProcessCode = useCallback(
     (rawText: string) => {
       setErrorMessage(null);
-      const code = parseCaregiverCode(rawText);
+      const { code, expires } = extractAndNormalizeCaregiverCode(rawText);
 
       // 1. Invalid Format Check
-      if (!code) {
+      if (!code || !validateCaregiverCodeFormat(code)) {
         setScanStatus("error");
-        setErrorMessage("Invalid QR code. Please scan a valid Memory Bond Caregiver QR code.");
+        setErrorMessage("Invalid QR code. Please scan a valid Memory Bond Caregiver QR code (e.g. MB-CG-781042).");
         return;
       }
 
@@ -85,16 +65,11 @@ export function QRScannerModal({
         return;
       }
 
-      // 3. Expired QR check (if payload contains timestamp > 24h old)
-      if (rawText.includes('"expires":') || rawText.includes('"ts":')) {
-        try {
-          const parsed = JSON.parse(rawText);
-          if (parsed.expires && Date.now() > Number(parsed.expires)) {
-            setScanStatus("error");
-            setErrorMessage("This QR code has expired. Please ask your caregiver to refresh their QR code.");
-            return;
-          }
-        } catch {}
+      // 3. Expired QR check
+      if (expires && Date.now() > expires) {
+        setScanStatus("error");
+        setErrorMessage("This QR code has expired. Please ask your caregiver to refresh their QR code.");
+        return;
       }
 
       // 4. Successful Scan!
@@ -113,9 +88,9 @@ export function QRScannerModal({
       setTimeout(() => {
         stopCamera();
         onScan(code);
-      }, 900);
+      }, 750);
     },
-    [alreadyLinkedCode, onScan, parseCaregiverCode]
+    [alreadyLinkedCode, onScan]
   );
 
   const startCamera = async () => {
