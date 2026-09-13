@@ -1,10 +1,42 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 import { MemoryBondApp } from "../components/memory-bond/MemoryBondApp";
+import { AppLoadingScreen } from "../components/memory-bond/AppLoadingScreen";
+import { SafeRouteErrorBoundary } from "../components/memory-bond/SafeRouteErrorBoundary";
 
 export const Route = createFileRoute("/")({
   component: RouteComponent,
 });
 
 function RouteComponent() {
-  return <MemoryBondApp />;
+  const [isClientReady, setIsClientReady] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      // Transition from loading screen as soon as client mounts & hydrates
+      setIsClientReady(true);
+    } catch (err: any) {
+      setInitError(err?.message || "Failed to initialize companion view");
+    }
+  }, []);
+
+  if (!isClientReady) {
+    return (
+      <AppLoadingScreen
+        error={initError}
+        onRetry={() => {
+          if (typeof window !== "undefined") window.location.reload();
+        }}
+        onSkip={() => setIsClientReady(true)}
+      />
+    );
+  }
+
+  return (
+    <SafeRouteErrorBoundary>
+      <MemoryBondApp />
+    </SafeRouteErrorBoundary>
+  );
 }
+

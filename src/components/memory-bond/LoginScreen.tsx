@@ -26,6 +26,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { QRScannerModal } from "./QRScannerModal";
+import { RegionalLanguageSection } from "./RegionalLanguageSection";
 import { LANGUAGES, useI18n } from "@/lib/i18n";
 import { speakText } from "@/lib/voiceParser";
 import { connectSeniorToCaregiver } from "@/lib/caregiverConnectionService";
@@ -353,7 +354,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
             onClick={() => setStage("language")}
             className="w-full h-14 rounded-2xl text-lg font-black bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 gap-3 cursor-pointer transition-transform hover:scale-[1.01] active:scale-98"
           >
-            <span>Get Started / শুরু কৰক</span>
+            <span>{lang === "en" ? "Get Started" : (t("getStarted") || "Get Started")}</span>
             <ArrowRight className="h-5 w-5" />
           </Button>
         </div>
@@ -367,57 +368,36 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
   if (stage === "language") {
     return (
       <div className="min-h-screen bg-ambient flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
-        <div className="w-full max-w-xl rounded-3xl bg-white border border-sky-100 shadow-xl p-6 sm:p-9 space-y-6">
+        <div className="w-full max-w-xl rounded-3xl bg-white border border-sky-100 shadow-xl p-5 sm:p-8 space-y-5">
           <div className="text-center space-y-2">
             <div className="inline-flex items-center gap-2 text-primary bg-primary/10 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider">
-              <Languages className="h-3.5 w-3.5" /> Language / ভাষা
+              <Languages className="h-3.5 w-3.5" /> {lang === "en" ? "Language" : (t("language") || "Language")}
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-foreground font-display">
-              Choose Your Language
+              {lang === "en" ? "Choose Your Language" : (t("selectLanguage") || "Choose Your Language")}
             </h2>
             <p className="text-sm text-muted-foreground font-medium">
-              Select the language you feel most comfortable speaking and reading
+              {lang === "en"
+                ? "Select the language you feel most comfortable speaking and reading"
+                : (t("chooseLanguageSubtitle") || "Select the language you feel most comfortable speaking and reading")}
             </p>
           </div>
 
-          {/* 12 Verified Indian Languages */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto p-1 custom-scrollbar">
-            {LANGUAGES.map((l) => {
-              const isSelected = lang === l.code;
-              return (
-                <button
-                  key={l.code}
-                  type="button"
-                  onClick={() => {
-                    setLang(l.code);
-                    store.updateProfile({ language: l.code });
-                    try {
-                      speakText(l.native, l.code);
-                    } catch {}
-                  }}
-                  className={`p-3.5 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 select-none ${
-                    isSelected
-                      ? "bg-primary text-white border-primary shadow-md font-black scale-102"
-                      : "bg-secondary/40 hover:bg-secondary border-border/80 text-foreground"
-                  }`}
-                >
-                  <div className="text-lg font-black">{l.native}</div>
-                  <div className={`text-xs font-semibold ${isSelected ? "text-white/80" : "text-muted-foreground"}`}>
-                    {l.label}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+          {/* Clean Expandable Regional Languages Panel */}
+          <RegionalLanguageSection
+            store={store}
+            defaultExpanded={true}
+            className="border-primary/25"
+          />
 
           {/* Navigation Controls */}
-          <div className="flex items-center justify-between gap-3 pt-4 border-t border-border">
+          <div className="flex items-center justify-between gap-3 pt-3 border-t border-border">
             <Button
               variant="outline"
               onClick={() => setStage("welcome")}
               className="h-11 px-5 rounded-xl font-bold cursor-pointer gap-2"
             >
-              <ArrowLeft className="h-4 w-4" /> Back
+              <ArrowLeft className="h-4 w-4" /> {lang === "en" ? "Back" : (t("back") || "Back")}
             </Button>
 
             <Button
@@ -425,7 +405,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
               onClick={() => setStage("role")}
               className="flex-1 h-12 rounded-2xl font-black text-base bg-primary hover:bg-primary/90 text-white shadow-md gap-2 cursor-pointer"
             >
-              <span>Continue / आगे बढ़ें</span>
+              <span>{lang === "en" ? "Continue" : (t("continue") || "Continue")}</span>
               <ArrowRight className="h-5 w-5" />
             </Button>
           </div>

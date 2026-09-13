@@ -26,6 +26,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { useI18n, LANGUAGES, NER_STATES, getLanguagesByState, type LangCode } from "@/lib/i18n";
+import { RegionalLanguageSection } from "./RegionalLanguageSection";
 import { speakText, stopSpeaking } from "@/lib/voiceParser";
 import { voiceManager } from "@/lib/voiceProvider";
 import { INDIAN_STATES } from "@/lib/panIndiaCulturalRepository";
@@ -156,7 +157,7 @@ export function SettingsView({ store }: { store: MemoryBondStore }) {
             </div>
             <div>
               <h3 className="text-xl font-black text-foreground">
-                Senior Easy Mode (सरल मोड / সৰল মোড)
+                Senior Easy Mode
               </h3>
               <p className="text-sm text-muted-foreground mt-0.5">
                 Replaces standard dashboard with ultra-large 2-column tiles, massive fonts, high contrast,
@@ -172,68 +173,8 @@ export function SettingsView({ store }: { store: MemoryBondStore }) {
         </div>
       </div>
 
-      {/* 2. Multilingual Support (Pan-India & All 8 NER States) */}
-      <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-xs space-y-4">
-        <div className="flex items-center gap-3">
-          <Languages className="h-6 w-6 text-primary" />
-          <div>
-            <h3 className="text-xl font-bold text-foreground">
-              Regional Language ({LANGUAGES.length} Indian & NER Indigenous Languages)
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              Select your native language or indigenous North East dialect. Changing language updates all UI screens, Voice AI, STT, and TTS.
-            </p>
-          </div>
-        </div>
-
-        {/* State / Region Tab Selector */}
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-          {["Pan-India", ...NER_STATES].map((region) => (
-            <button
-              key={region}
-              type="button"
-              onClick={() => setSelectedRegionTab(region)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
-                selectedRegionTab === region
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "bg-secondary/60 hover:bg-secondary text-muted-foreground hover:text-foreground border border-border/70"
-              }`}
-            >
-              {region}
-            </button>
-          ))}
-        </div>
-
-        {/* Language Cards Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-2">
-          {displayedLanguages.map((l) => {
-            const isSelected = lang === l.code;
-            return (
-              <button
-                key={l.code}
-                type="button"
-                onClick={() => {
-                  voiceManager.stopSpeaking();
-                  setLang(l.code);
-                  store.updateProfile({
-                    language: l.code,
-                    selected_ner_state: l.state || store.profile.selected_ner_state,
-                    selected_state: l.state || store.profile.selected_state,
-                  });
-                }}
-                className={`p-4 rounded-2xl border-2 text-left transition-all flex flex-col justify-between h-24 cursor-pointer ${
-                  isSelected
-                    ? "bg-primary text-primary-foreground border-primary shadow-md scale-105 ring-2 ring-primary/30"
-                    : "bg-secondary/40 hover:bg-secondary/70 border-border text-foreground"
-                }`}
-              >
-                <span className="text-lg font-bold">{l.native}</span>
-                <span className="text-xs font-semibold opacity-80">{l.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      {/* 2. Regional & Indian Languages Section (Clean, Expandable, Elder-Friendly) */}
+      <RegionalLanguageSection store={store} />
 
       {/* 2B. Spoken Voice Selection (Voice A / B / C) */}
       <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-xs space-y-4">

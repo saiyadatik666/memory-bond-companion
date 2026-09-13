@@ -20,6 +20,7 @@ import {
 import { LANGUAGES, useI18n, type LangCode } from "@/lib/i18n";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { SosHoldControl } from "./SosHoldControl";
+import { RegionalLanguageSection } from "./RegionalLanguageSection";
 
 interface FooterProps {
   store: MemoryBondStore;
@@ -370,35 +371,9 @@ export function Footer({
           </div>
         </div>
 
-        {/* Multilingual Selector Strip */}
+        {/* Regional & Indian Languages Expandable Section */}
         <div className="mt-8 pt-6 border-t border-border/70">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <span>🌐</span> Regional & Indian Languages (NER Focus)
-            </span>
-            <span className="text-[11px] text-muted-foreground font-medium">
-              Click any language to change voice & interface instantly
-            </span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2">
-            {LANGUAGES.map((l) => {
-              const isSelected = lang === l.code;
-              return (
-                <button
-                  key={l.code}
-                  onClick={() => handleLanguageChange(l.code)}
-                  className={`flex flex-col items-center justify-center p-2 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                    isSelected
-                      ? "bg-primary text-primary-foreground border-primary shadow-md scale-[1.02]"
-                      : "bg-background/80 hover:bg-muted text-foreground border-border hover:border-primary/40"
-                  }`}
-                >
-                  <span className="text-sm font-black">{l.native}</span>
-                  <span className="text-[10px] opacity-75 font-normal">{l.label}</span>
-                </button>
-              );
-            })}
-          </div>
+          <RegionalLanguageSection store={store} compact />
         </div>
 
         {/* Regulatory Medical Disclaimer Box */}

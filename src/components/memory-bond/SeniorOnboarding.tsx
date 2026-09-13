@@ -121,7 +121,7 @@ export function SeniorOnboarding({
           <div className="space-y-5">
             <div className="text-center space-y-1.5">
               <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-primary bg-primary/10 px-3 py-1 rounded-full">
-                <MapPin className="h-3.5 w-3.5" /> Region / राज्य
+                <MapPin className="h-3.5 w-3.5" /> {lang === "en" ? "Region" : (t("region") || "Region")}
               </div>
               <h2 className="text-2xl sm:text-3xl font-black text-foreground">
                 Which State are you from?
@@ -247,7 +247,7 @@ export function SeniorOnboarding({
           <div className="space-y-5">
             <div className="text-center space-y-1.5">
               <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-primary bg-primary/10 px-3 py-1 rounded-full">
-                <Smile className="h-3.5 w-3.5" /> What do you like? / रुचियां
+                <Smile className="h-3.5 w-3.5" /> {lang === "en" ? "Interests" : (t("interestsPrompt") || "Interests")}
               </div>
               <h2 className="text-2xl sm:text-3xl font-black text-foreground">
                 What do you enjoy?

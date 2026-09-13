@@ -477,7 +477,14 @@ export function ObjectRecall({
               onClick={triggerVeil}
               className="rounded-2xl px-8 py-6 text-base font-black bg-primary text-primary-foreground shadow-md hover:bg-primary/90 gap-2"
             >
-              <CheckCircle2 className="w-5 h-5" /> मैंने देख लिया, आगे बढ़ें (I'm Ready)
+              <CheckCircle2 className="w-5 h-5" />{" "}
+              {lang === "hi"
+                ? "मैंने देख लिया, आगे बढ़ें"
+                : lang === "gu"
+                ? "મેં જોઈ લીધું, આગળ વધો"
+                : lang === "as"
+                ? "মই দেখি ললোঁ, আগবাঢ়ক"
+                : "I'm Ready, Continue"}
             </Button>
           </div>
         </div>

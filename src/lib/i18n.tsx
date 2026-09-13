@@ -135,7 +135,7 @@ const en: Dict = {
   sosSent: "SOS is active. Your family is being informed.",
   appName: "Memory Bond",
   tagline: "A calm companion for memory, medicines and family",
-  getStarted: "Get started",
+  getStarted: "Get Started",
   signIn: "Sign in",
   signUp: "Create account",
   signOut: "Sign out",
@@ -2322,10 +2322,8 @@ const STORAGE_KEY = "mb.lang";
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<LangCode>(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem(STORAGE_KEY) as LangCode | null;
+      const saved = (localStorage.getItem(STORAGE_KEY) || localStorage.getItem("mb_lang")) as LangCode | null;
       if (saved && LANGUAGES.some((l) => l.code === saved)) return saved;
-      const activeCode = languageEngine.activeLocale.split("-")[0] as LangCode;
-      if (activeCode && LANGUAGES.some((l) => l.code === activeCode)) return activeCode;
     }
     return "en";
   });

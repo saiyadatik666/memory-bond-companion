@@ -295,7 +295,7 @@ export function VoiceMemoryView({ store }: { store: MemoryBondStore }) {
           <div className="space-y-2">
             <Label className="text-sm font-bold flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-primary" />
-              {t("gujaratiSummary") || "Gujarati summary (ગુજરાતી સારાંશ)"}
+              {t("gujaratiSummary") || "Gujarati Summary"}
             </Label>
             <Textarea
               value={summaryGu}

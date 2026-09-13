@@ -75,7 +75,7 @@ export function SosModal({
   onClose: () => void;
   store: MemoryBondStore;
 }) {
-  const { t, speechLocale } = useI18n();
+  const { lang, t, speechLocale } = useI18n();
 
   // Session State Machine & In-Flight Refs
   const [sessionState, setSessionState] = useState<SosSessionState>("IDLE");
@@ -639,7 +639,15 @@ export function SosModal({
               className="w-full h-20 sm:h-22 rounded-3xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xl sm:text-2xl tracking-wider shadow-2xl flex items-center justify-center gap-3 transition-transform active:scale-95 cursor-pointer border-2 border-emerald-400"
             >
               <CheckCircle2 className="h-9 w-9 shrink-0" />
-              <span>CANCEL / I'M SAFE (रद्द करें / सुरक्षित हूँ)</span>
+              <span>
+                {lang === "hi"
+                  ? "रद्द करें / मैं सुरक्षित हूँ"
+                  : lang === "gu"
+                  ? "રદ કરો / હું સુરક્ષિત છું"
+                  : lang === "as"
+                  ? "বাতিল কৰক / মই সুৰক্ষিত"
+                  : "CANCEL / I'M SAFE"}
+              </span>
             </button>
 
             <div className="space-y-2">
