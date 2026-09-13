@@ -424,14 +424,24 @@ export function MedicineManagerView({ store }: { store: MemoryBondStore }) {
                             : "bg-warning/15 text-warning"
                         }`}
                       >
+                        {log.status}
+                      </span>
+                      <div className="text-xs text-muted-foreground mt-0.5 font-mono">
+                        {new Date(log.taken_at).toLocaleString([], {
+                          dateStyle: "short",
+                          timeStyle: "short",
+                        })}
+                      </div>
                       {log.photo_url && (
-                        <button
-                          type="button"
-                          onClick={() => setViewingProofUrl(log.photo_url!)}
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline mt-1 bg-primary/10 px-2 py-0.5 rounded-md cursor-pointer"
-                        >
-                          <Camera className="h-3 w-3" /> View Taken Photo
-                        </button>
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => setViewingProofUrl(log.photo_url!)}
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline mt-1 bg-primary/10 px-2 py-0.5 rounded-md cursor-pointer"
+                          >
+                            <Camera className="h-3 w-3" /> View Taken Photo
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -561,7 +571,7 @@ export function MedicineManagerView({ store }: { store: MemoryBondStore }) {
                   />
                 </div>
                 <div>
-                  <Label>Refill Threshold (Warn when remaining $\le$)</Label>
+                  <Label>Refill Threshold (Warn when remaining &le;)</Label>
                   <Input
                     type="number"
                     value={refillThreshold}
