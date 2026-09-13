@@ -608,3 +608,5 @@ export function ObjectRecall({
     </div>
   );
 }
+
+export default ObjectRecall;

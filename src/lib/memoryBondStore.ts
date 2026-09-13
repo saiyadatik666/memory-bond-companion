@@ -2125,6 +2125,7 @@ export function useMemoryBondStore() {
 
     // Journal
     journal,
+    memoryJournal: journal,
     addJournalEntry,
     deleteJournalEntry,
 
@@ -2158,6 +2159,7 @@ export function useMemoryBondStore() {
 
     // Social Feed (Family Engagement)
     socialFeed,
+    socialPosts: socialFeed,
     addSocialPost,
     addSocialReaction,
     addSocialVoiceReply,

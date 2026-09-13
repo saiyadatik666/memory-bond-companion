@@ -943,34 +943,34 @@ export function SeniorHome({
           </div>
         </div>
 
-        {/* 6. Cognitive Engagement Score (CES) */}
+        {/* 6. Daily Mind Activity (Senior privacy: non-clinical status, no raw test scores) */}
         <div
           onClick={() => onNavigate("games")}
           className="rounded-3xl border-2 border-border bg-card p-4 sm:p-5 shadow-xs space-y-1.5 cursor-pointer hover:border-primary/50 transition-all flex flex-col justify-between"
         >
           <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Mind CES</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider">Mind Care</span>
             <Sparkles className="h-4 w-4 text-primary" />
           </div>
           <div>
             <div className="text-lg font-black text-foreground">
-              {store.cognitiveScore.overall} / 100
+              Mind Active
             </div>
             <div className="text-xs font-bold text-success">
-              Active Engagement
+              Daily Practice Ready
             </div>
           </div>
         </div>
       </div>
 
-      {/* DYNAMIC COGNITIVE PROFILE RIBBON (Requirement 1 & 2) */}
-      {store.dynamicCognitiveProfile && (
+      {/* DYNAMIC COGNITIVE PROFILE RIBBON (Restricted: Visible ONLY to authorized Caregivers / Healthcare Workers) */}
+      {store.profile.role !== "senior" && store.dynamicCognitiveProfile && (
         <div className="rounded-3xl border-2 border-border bg-card p-5 sm:p-6 shadow-xs space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
               <h3 className="text-base sm:text-lg font-black text-foreground">
-                Your Dynamic Cognitive Wellness Profile
+                Authorized Caregiver Cognitive Wellness Indicators
               </h3>
             </div>
             <span className="text-xs font-semibold text-muted-foreground italic">
@@ -996,7 +996,7 @@ export function SeniorHome({
             ))}
           </div>
 
-          {/* AI Activity Recommendation Card (Requirement 3) */}
+          {/* Activity Recommendation Card */}
           {store.activityRecommendation && (
             <div
               onClick={() => onNavigate("games")}
@@ -1008,7 +1008,7 @@ export function SeniorHome({
                 </div>
                 <div>
                   <div className="text-xs font-black uppercase tracking-wider text-primary">
-                    AI Recommended For You
+                    Caregiver Recommendation
                   </div>
                   <h4 className="text-sm sm:text-base font-black text-foreground">
                     {store.activityRecommendation.headline}
@@ -1019,10 +1019,38 @@ export function SeniorHome({
                 </div>
               </div>
               <Button size="sm" className="rounded-xl font-black text-xs gap-1">
-                Play Now ➔
+                Open Activity ➔
               </Button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Senior-Friendly Uplifting Daily Activity Card (Encouraging, strictly non-clinical) */}
+      {store.profile.role === "senior" && (
+        <div
+          onClick={() => onNavigate("games")}
+          className="rounded-3xl border-2 border-primary/20 bg-linear-to-r from-primary/10 via-amber-500/10 to-rose-500/10 p-5 sm:p-6 shadow-xs flex flex-wrap items-center justify-between gap-4 cursor-pointer hover:border-primary/40 transition-all"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center text-2xl shadow-xs shrink-0">
+              🌸
+            </div>
+            <div>
+              <span className="text-xs font-black uppercase tracking-wider text-primary">
+                Daily Mind Care & Joy
+              </span>
+              <h3 className="text-base sm:text-lg font-black text-foreground">
+                Today's Peaceful Memory Exercises
+              </h3>
+              <p className="text-xs text-muted-foreground font-semibold">
+                Enjoy relaxing visual matching, nostalgic keepsakes, and cheerful brain stimulation at your own calm pace.
+              </p>
+            </div>
+          </div>
+          <Button size="sm" className="rounded-2xl font-black text-xs px-5 py-5 shadow-xs">
+            Start Today's Exercises ➔
+          </Button>
         </div>
       )}
 

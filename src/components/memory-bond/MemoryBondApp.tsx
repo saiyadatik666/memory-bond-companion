@@ -362,14 +362,16 @@ export function MemoryBondApp() {
         onOpenMemoryStory={() => setIsMemoryStoryOpen(true)}
       />
 
-      {/* Attractive & Accessible Footer */}
-      <Footer
-        store={store}
-        onNavigate={handleNavigate}
-        onOpenSos={handleOpenSos}
-        onOpenVoice={() => setIsVoiceOpen(true)}
-        onOpenAuth={() => setIsAuthOpen(true)}
-      />
+      {/* Accessible Footer — Rendered on Home dashboard only, eliminating repeated bottom sections on game and inner activity pages (Requirement 27) */}
+      {currentTab === "home" && (
+        <Footer
+          store={store}
+          onNavigate={handleNavigate}
+          onOpenSos={handleOpenSos}
+          onOpenVoice={() => setIsVoiceOpen(true)}
+          onOpenAuth={() => setIsAuthOpen(true)}
+        />
+      )}
 
       {/* Floating Accessibility Companion Bubble (Android Overlay Simulator) */}
       {store.profile.floating_bubble !== false && (

@@ -32,11 +32,28 @@ export function FamilyTreeView({ store, initialTab = "tree" }: FamilyTreeViewPro
   const [searchQuery, setSearchQuery] = useState("");
   const [speakingId, setSpeakingId] = useState<string | null>(null);
 
-  // Filter contacts
-  const contacts = store.contacts.filter((contact) =>
-    contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    contact.relationship.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Defensive collections with safe fallbacks
+  const contactsList = Array.isArray(store?.contacts) ? store.contacts : [];
+  const socialFeedList = Array.isArray(store?.socialFeed)
+    ? store.socialFeed
+    : Array.isArray((store as any)?.socialPosts)
+    ? (store as any).socialPosts
+    : [];
+  const cuesList = Array.isArray(store?.memoryCues) ? store.memoryCues : [];
+  const journalList = Array.isArray(store?.journal)
+    ? store.journal
+    : Array.isArray((store as any)?.memoryJournal)
+    ? (store as any).memoryJournal
+    : [];
+
+  // Filter contacts safely
+  const contacts = contactsList.filter((contact) => {
+    if (!contact) return false;
+    const name = (contact.name || "").toLowerCase();
+    const relationship = (contact.relationship || "").toLowerCase();
+    const query = (searchQuery || "").toLowerCase();
+    return name.includes(query) || relationship.includes(query);
+  });
 
   const handleSpeakMember = (id: string, name: string, relationship: string, voiceMemory?: string) => {
     stopSpeaking();
@@ -88,7 +105,7 @@ export function FamilyTreeView({ store, initialTab = "tree" }: FamilyTreeViewPro
             <Users className="h-4 w-4" />
             <span>Family Members</span>
             <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-black/20 text-white font-bold">
-              {store.contacts.length}
+              {contactsList.length}
             </span>
           </button>
 
@@ -103,7 +120,7 @@ export function FamilyTreeView({ store, initialTab = "tree" }: FamilyTreeViewPro
             <MessageCircle className="h-4 w-4" />
             <span>Family Greetings</span>
             <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-black/20 text-white font-bold">
-              {store.socialPosts.length}
+              {socialFeedList.length}
             </span>
           </button>
 
@@ -118,7 +135,7 @@ export function FamilyTreeView({ store, initialTab = "tree" }: FamilyTreeViewPro
             <HelpCircle className="h-4 w-4" />
             <span>Memory Cues</span>
             <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-black/20 text-white font-bold">
-              {store.memoryCues.length}
+              {cuesList.length}
             </span>
           </button>
 
@@ -133,7 +150,7 @@ export function FamilyTreeView({ store, initialTab = "tree" }: FamilyTreeViewPro
             <BookOpen className="h-4 w-4" />
             <span>Cherished Notes</span>
             <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-black/20 text-white font-bold">
-              {store.memoryJournal.length}
+              {journalList.length}
             </span>
           </button>
         </div>
