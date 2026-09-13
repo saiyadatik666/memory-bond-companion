@@ -73,7 +73,6 @@ export function intentSpeech(intent: VoiceIntent): string {
   return intent.confirmationMessage;
 }
 
-export { cleanAIResponse } from "./voiceProvider";
 import { languageEngine } from "./languageEngine";
 
 // ---------------------------------------------------------------------------
