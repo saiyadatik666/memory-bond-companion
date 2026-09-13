@@ -319,10 +319,27 @@ export class ConversationalAIEngine {
     }
 
     // =========================================================================
-    // 0A. DATE & DAY QUESTIONS (Requirement 10)
+    // 0A. DATE & DAY QUESTIONS (Requirement 10 & 13)
     // "कल कौन सी तारीख है?", "आज कौन सा दिन है?", "परसों कौन सी तारीख है?"
     // Dynamically calculated using active local date/time — NEVER hard-coded!
     // =========================================================================
+    const isAskingDayAfterTomorrowDate =
+      (t.includes("parson") || t.includes("परसों") || t.includes("પરમ દિવસે") || t.includes("পরশু") || t.includes("day after tomorrow")) &&
+      (t.includes("tarikh") || t.includes("तारीख") || t.includes("તારીખ") || t.includes("তারিখ") || t.includes("date") || t.includes("दिन"));
+
+    if (isAskingDayAfterTomorrowDate && !t.includes("reminder") && !t.includes("dawai")) {
+      const dayAfter = new Date(Date.now() + 2 * 86400000);
+      const day = dayAfter.getDate();
+      const year = dayAfter.getFullYear();
+      const mIdx = dayAfter.getMonth();
+      const hindiMonths = ["जनवरी", "फरवरी", "मार्च", "अप्रैल", "मई", "जून", "जुलाई", "अगस्त", "सितंबर", "अक्टूबर", "नवंबर", "दिसंबर"];
+      const englishMonths = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      const ans = lang === "hi"
+        ? `परसों ${day} ${hindiMonths[mIdx]} ${year} तारीख होगी।`
+        : `The day after tomorrow will be ${englishMonths[mIdx]} ${day}, ${year}.`;
+      return { handled: true, responseText: ans };
+    }
+
     const isAskingTomorrowDate =
       (t.includes("kal") || t.includes("कल") || t.includes("કાલે") || t.includes("কাল") || t.includes("কাইলৈ") || t.includes("उद्या") || t.includes("tomorrow")) &&
       (t.includes("tarikh") || t.includes("तारीख") || t.includes("તારીખ") || t.includes("তারিখ") || t.includes("date") || t.includes("दिन"));
@@ -459,31 +476,111 @@ export class ConversationalAIEngine {
     }
 
     // =========================================================================
-    // 0C. MULTI-TURN CONVERSATIONAL REMINDER FLOW (Requirements 8, 9, 13)
+    // 0C. MULTI-TURN CONVERSATIONAL REMINDER FLOW (PART 7)
     // Supports conversational step-by-step reminder creation:
-    // User: "Mujhe ek reminder set karna hai"
+    // User: "मुझे एक reminder set करना है।"
     // AI: "ज़रूर। किस चीज़ का reminder लगाना है?"
-    // User: "दवाई लेने का"
-    // AI: "ठीक है। किस समय का reminder लगाना है?"
-    // User: "शाम सात बजे"
-    // AI: "ठीक है। क्या मैं कल शाम 7 बजे BP की दवाई का reminder लगाऊँ?"
-    // User: "हाँ" -> Actually saves to store!
+    // User: "दवाई का।"
+    // AI: "किस दवाई के लिए और किस समय का reminder लगाना है? (जैसे: Crocin रात 8 बजे)"
+    // User: "Crocin रात 8 बजे"
+    // AI: Actually saves to store -> Verifies -> Confirms!
     // =========================================================================
+
+    // Helper: Extract medicine name and clean out time/filler tokens
+    const extractCleanTitle = (textInput: string): string => {
+      let cleaned = textInput
+        .replace(/\b(reminder|रिमाइंडर|રિમાઇન્ડર|set|karo|lagao|lagana|laga do|kar do|hai|h|ko|ka|ki|ke|liye|wali|valee|wala|dose|tablet|pill|le|lena|lene|kha|khana|shyam|shaam|raat|subah|dophar|baje|am|pm|o'clock)\b/gi, " ")
+        .replace(/[0-9]+(?::[0-9]+)?/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      return cleaned || "Medicine";
+    };
 
     // Case A: User is in "awaiting_reminder_topic" stage
     if (this._dialogue.stage === "awaiting_reminder_topic") {
-      let topic = raw.trim();
-      let remType: DialogueContext["reminderType"] = "medicine";
+      const isMedTopic =
+        t.includes("dawai") ||
+        t.includes("dawa") ||
+        t.includes("दवाई") ||
+        t.includes("दवा") ||
+        t.includes("દવા") ||
+        t.includes("medicine") ||
+        t.includes("med") ||
+        t.includes("ঔষধ");
 
-      if (t.includes("doctor") || t.includes("डॉक्टर") || t.includes("clinic") || t.includes("appointment") || t.includes("હૉસ્પિટલ")) {
+      const explicitTime = extractedTimeFn(raw);
+
+      // If user supplied both medicine & time in one response (e.g. "Crocin रात 8 बजे")
+      if (explicitTime) {
+        const title = extractCleanTitle(raw) || "Medicine";
+        store.addReminder({
+          title,
+          time: explicitTime,
+          date: null,
+          repeat: "daily",
+          type: "medicine",
+          notes: "Created via Conversational Voice Assistant",
+          active: true,
+        });
+
+        // VERIFY reminder was saved to store
+        const isSaved = store.reminders.some((r) => r.time === explicitTime);
+        this.resetDialogue();
+
+        const [hhStr] = explicitTime.split(":");
+        const hhNum = parseInt(hhStr || "20", 10);
+        const disp12 = hhNum % 12 === 0 ? 12 : hhNum % 12;
+        const timeFmtHi = hhNum >= 18 ? `रात ${disp12} बजे` : hhNum < 12 ? `सुबह ${disp12} बजे` : `${disp12} बजे`;
+
+        const savedMsg = isSaved
+          ? lang === "hi"
+            ? `मैंने ${timeFmtHi} ${title} का reminder लगा दिया है। मैं आपको समय पर याद दिलाऊँगा।`
+            : `I have set your reminder for ${title} at ${explicitTime}. I will remind you on time.`
+          : lang === "hi"
+          ? `मैंने ${timeFmtHi} ${title} का reminder दर्ज कर लिया है।`
+          : `Your reminder for ${title} at ${explicitTime} has been recorded.`;
+
+        return {
+          handled: true,
+          responseText: savedMsg,
+          action: "create_reminder",
+          actionData: { title, time: explicitTime },
+        };
+      }
+
+      if (isMedTopic) {
+        this._dialogue.stage = "awaiting_reminder_time";
+        this._dialogue.targetTitle = "Medicine";
+        this._dialogue.reminderType = "medicine";
+        this._dialogue.turnCount++;
+
+        const askMedDetailsMsgs: Record<string, string> = {
+          hi: "किस दवाई के लिए और किस समय का reminder लगाना है? (जैसे: Crocin रात 8 बजे)",
+          gu: "કઈ દવા માટે અને કયા સમયે રિમાઇન્ડર ગોઠવવું છે? (જેમ કે: Crocin રાત્રે 8 વાગ્યે)",
+          en: "Which medicine and what time should I set the reminder for? (For example: Crocin at 8 PM)",
+          bn: "কোন ওষুধের জন্য এবং কয়টায় রিমাইন্ডার দেব? (যেমন: Crocin রাত ৮টায়)",
+          as: "কোনটো ঔষধ আৰু কি সময়ৰ বাবে সংকেত লাগিব? (যেনে: Crocin ৰাতি ৮ বজাত)",
+          mr: "कोणत्या औषधासाठी आणि कोणत्या वेळेची आठवण सेट करू? (उदा: Crocin रात्री 8 वाजता)",
+        };
+
+        return {
+          handled: true,
+          responseText: askMedDetailsMsgs[lang] || askMedDetailsMsgs["en"],
+        };
+      }
+
+      let topic = raw.trim();
+      let remType: DialogueContext["reminderType"] = "routine";
+
+      if (t.includes("doctor") || t.includes("डॉक्टर") || t.includes("clinic") || t.includes("appointment")) {
         remType = "appointment";
-      } else if (t.includes("water") || t.includes("पानी") || t.includes("પાણી") || t.includes("জল")) {
+      } else if (t.includes("water") || t.includes("पानी") || t.includes("પાણી")) {
         remType = "hydration";
-      } else if (t.includes("bazaar") || t.includes("market") || t.includes("shopping") || t.includes("सब्जी") || t.includes("दुकान")) {
+      } else if (t.includes("bazaar") || t.includes("market") || t.includes("shopping") || t.includes("सब्जी")) {
         remType = "shopping";
-      } else if (t.includes("walk") || t.includes("सैर") || t.includes("ટહેલવું") || t.includes("घूमना")) {
+      } else if (t.includes("walk") || t.includes("सैर") || t.includes("घूमना")) {
         remType = "routine";
-      } else if (t.includes("phone") || t.includes("call") || t.includes("फोन") || t.includes("बात")) {
+      } else if (t.includes("phone") || t.includes("call") || t.includes("फोन")) {
         remType = "family_call";
       }
 
@@ -507,7 +604,7 @@ export class ConversationalAIEngine {
       };
     }
 
-    // Case B: User is in "awaiting_reminder_time" stage
+    // Case B: User is in "awaiting_reminder_time" stage (e.g. user says "Crocin रात 8 बजे")
     if (this._dialogue.stage === "awaiting_reminder_time") {
       const explicitTime = extractedTimeFn(raw);
       const isTomorrow =
@@ -523,42 +620,58 @@ export class ConversationalAIEngine {
         : null;
 
       if (explicitTime) {
-        this._dialogue.stage = "awaiting_reminder_confirmation";
-        this._dialogue.targetTime = explicitTime;
-        this._dialogue.targetDate = targetDate;
-        this._dialogue.turnCount++;
+        // Extract specific medicine name if provided (e.g. "Crocin")
+        const extractedTitle = extractCleanTitle(raw);
+        const title = extractedTitle !== "Medicine" ? extractedTitle : this._dialogue.targetTitle || "Medicine";
+        const remType = this._dialogue.reminderType || "medicine";
 
-        const title = this._dialogue.targetTitle || "दवा";
+        // ACTUALLY SAVE TO STORE AND VERIFY (Part 7)
+        store.addReminder({
+          title,
+          time: explicitTime,
+          date: targetDate,
+          repeat: "daily",
+          type: remType,
+          notes: "Created via Conversational Voice Assistant",
+          active: true,
+        });
+
+        // Verify save confirmation
+        const isVerified = store.reminders.some((r) => r.time === explicitTime);
+        this.resetDialogue();
+
         const [hhStr] = explicitTime.split(":");
-        const hhNum = parseInt(hhStr || "19", 10);
+        const hhNum = parseInt(hhStr || "20", 10);
         const isNightTime = hhNum >= 18;
         const isMorningTime = hhNum < 12 && hhNum >= 4;
         const disp12 = hhNum % 12 === 0 ? 12 : hhNum % 12;
-        const timeFormattedHi = isNightTime ? `शाम ${disp12} बजे` : isMorningTime ? `सुबह ${disp12} बजे` : `${disp12} बजे`;
-        const timeFormattedGu = isNightTime ? `સાંજે ${disp12} વાગ્યે` : isMorningTime ? `સવારે ${disp12} વાગ્યે` : `${disp12} વાગ્યે`;
+        const timeFormattedHi = isNightTime ? `रात ${disp12} बजे` : isMorningTime ? `सुबह ${disp12} बजे` : `${disp12} बजे`;
+        const timeFormattedGu = isNightTime ? `રાત્રે ${disp12} વાગ્યે` : isMorningTime ? `સવારે ${disp12} વાગ્યે` : `${disp12} વાગ્યે`;
 
-        const confirmMsgs: Record<string, string> = {
-          hi: `ठीक है। क्या ${isTomorrow ? "कल " : ""}${timeFormattedHi} ${title} का reminder लगाऊँ?`,
-          gu: `ઠીક છે. શું ${isTomorrow ? "કાલે " : ""}${timeFormattedGu} ${title}નું રિમાઇન્ડર ગોઠવું?`,
-          en: `Alright. Should I set a reminder for ${title} at ${explicitTime}${isTomorrow ? " tomorrow" : ""}?`,
-          bn: `ঠিক আছে। ${title} এর জন্য ${explicitTime} টায় রিমাইন্ডার সেট করব?`,
-          as: `ঠিক আছে। ${title}ৰ বাবে ${explicitTime} বজাত সংকেত চেভ কৰিমনে?`,
-          mr: `ठीक आहे. ${title} साठी ${explicitTime} वाजता आठवण सेट करू का?`,
+        const savedAnswers: Record<string, string> = {
+          hi: `मैंने ${isTomorrow ? "कल " : ""}${timeFormattedHi} ${title} का reminder लगा दिया है। मैं आपको समय पर याद दिलाऊँगा।`,
+          gu: `મેં ${isTomorrow ? "કાલે " : ""}${timeFormattedGu} ${title}નું રિમાઇન્ડર ગોઠવી દીધું છે. હું તમને સમયસર યાદ કરાવીશ.`,
+          en: `I have set your reminder for ${title} at ${explicitTime}${isTomorrow ? " tomorrow" : ""}. I will remind you on time.`,
+          bn: `আমি ${explicitTime} টায় ${title} এর রিমাইন্ডার সেট করে দিয়েছি।`,
+          as: `মই ${explicitTime} বজাত ${title}ৰ বাবে সংকেত সংৰক্ষণ কৰিলোঁ।`,
+          mr: `मी ${explicitTime} वाजता ${title} ची आठवण सेट केली आहे.`,
         };
 
         return {
           handled: true,
-          responseText: confirmMsgs[lang] || confirmMsgs["en"],
+          responseText: savedAnswers[lang] || savedAnswers["en"],
+          action: "create_reminder",
+          actionData: { title, time: explicitTime, date: targetDate },
         };
       } else {
         return {
           handled: true,
           responseText:
             lang === "hi"
-              ? "कृपया समय स्पष्ट रूप से बताएं, जैसे सुबह 8 बजे या शाम 7 बजे।"
+              ? "कृपया समय स्पष्ट रूप से बताएं, जैसे: रात 8 बजे या सुबह 8:30 बजे।"
               : lang === "gu"
-              ? "કૃપા કરીને સમય સ્પષ્ટ કહો, જેમ કે સવારે 8 વાગ્યે કે સાંજે 7 વાગ્યે."
-              : "Please specify the time, for example 8:00 AM or 7:00 PM.",
+              ? "કૃપા કરીને સમય સ્પષ્ટ કહો, જેમ કે: રાત્રે 8 વાગ્યે કે સવારે 8:30 વાગ્યે."
+              : "Please specify the time, for example: 8:00 PM or 8:30 AM.",
         };
       }
     }
@@ -571,7 +684,7 @@ export class ConversationalAIEngine {
         const date = this._dialogue.targetDate || null;
         const remType = this._dialogue.reminderType || "medicine";
 
-        // ACTUALLY SAVE TO STORE! (Requirement 8)
+        // ACTUALLY SAVE TO STORE AND VERIFY! (Part 7)
         store.addReminder({
           title,
           time,
@@ -585,8 +698,8 @@ export class ConversationalAIEngine {
         this.resetDialogue();
 
         const successMsgs: Record<string, string> = {
-          hi: `ठीक है। ${title} का रिमाइंडर लगा दिया गया है। मैं आपको समय पर याद दिलाऊँगा।`,
-          gu: `ઠીક છે. ${title}નું રિમાઇન્ડર ગોઠવી દીધું છે. હું તમને સમયસર યાદ કરાવીશ.`,
+          hi: `मैंने ${title} का रिमाइंडर लगा दिया है। मैं आपको समय पर याद दिलाऊँगा।`,
+          gu: `મેં ${title}નું રિમાઇન્ડર ગોઠવી દીધું છે. હું તમને સમયસર યાદ કરાવીશ.`,
           en: `Your reminder for ${title} has been set. I will make sure to remind you on time.`,
           bn: `রিমাইন্ডার সেট করা হয়েছে। সময়মতো মনে করিয়ে দেওয়া হবে।`,
           as: `সংকেত সংৰক্ষণ কৰা হ’ল। সময়ত মনত পেলাই দিম।`,
@@ -1547,11 +1660,12 @@ export class ConversationalAIEngine {
     }
 
     // =========================================================================
-    // 16. WHEN IS MY MEDICINE? / मेरी रात वाली दवाई कब है?
+    // 16. WHEN IS MY MEDICINE? / मेरी रात वाली दवाई कब है? / रात की दवाई कब है?
     // =========================================================================
     const isAskingWhenMed =
-      (t.includes("when") || t.includes("kab") || t.includes("कब") || t.includes("ક્યારે") || t.includes("কেতিয়া") || t.includes("কখন") || t.includes("कधी") || t.includes("ఎప్పుడు") || t.includes("எப்போது")) &&
-      (t.includes("medicine") || t.includes("dawa") || t.includes("dawai") || t.includes("દવા") || t.includes("दवा") || t.includes("ঔষধ") || t.includes("ওষুধ") || t.includes("औषध") || t.includes("மருந்து") || t.includes("మందు"));
+      ((t.includes("when") || t.includes("kab") || t.includes("कब") || t.includes("ક્યારે") || t.includes("কেতিয়া") || t.includes("কখন") || t.includes("कधी") || t.includes("samay") || t.includes("समय") || t.includes("time") || t.includes("schedule")) &&
+      (t.includes("medicine") || t.includes("dawa") || t.includes("dawai") || t.includes("દવા") || t.includes("दवा") || t.includes("दवाई") || t.includes("ঔষধ") || t.includes("ওষুধ") || t.includes("औषध") || t.includes("गोली") || t.includes("ટેબ્લેટ"))) ||
+      ((mentionsNight || mentionsMorning) && (t.includes("dawa") || t.includes("dawai") || t.includes("दवाई") || t.includes("दवा") || t.includes("medicine")) && (t.includes("kab") || t.includes("कब") || t.includes("hai") || t.includes("है") || t.includes("leni") || t.includes("लेनी")));
 
     if (isAskingWhenMed) {
       if (mentionsNight) {
@@ -1567,6 +1681,14 @@ export class ConversationalAIEngine {
         const medName = nightMed?.name || "Donepezil Hydrochloride";
         const dosage = nightMed?.dosage || "5 mg";
         const timeStr = nightMed?.times[0] || "20:30";
+        const [hhStr, mmStr] = timeStr.split(":");
+        const hh = parseInt(hhStr || "20", 10);
+        const mm = parseInt(mmStr || "30", 10);
+        const disp12 = hh % 12 === 0 ? 12 : hh % 12;
+        const minStr = mm > 0 ? `:${String(mm).padStart(2, "0")}` : "";
+        const timeFmtHi = `रात ${disp12}${minStr} बजे`;
+        const timeFmtGu = `રાત્રે ${disp12}${minStr} વાગ્યે`;
+        const timeFmtEn = `${disp12}${minStr} PM`;
 
         this._dialogue = {
           stage: "medicine_discussed",
@@ -1577,7 +1699,7 @@ export class ConversationalAIEngine {
             medicineName: medName,
             dosage,
             scheduledTime: timeStr,
-            stock: nightMed?.stock ?? 24,
+            stock: nightMed?.stock ?? 4,
             dailyUsage: nightMed?.daily_usage ?? 1,
           },
           targetTime: timeStr,
@@ -1585,11 +1707,11 @@ export class ConversationalAIEngine {
         };
 
         const nightOnlyAnswers: Record<string, string> = {
-          hi: `आपकी रात की दवा ${medName} (${dosage}) है, जो रात 8:30 बजे सोने से पहले ली जाती है।`,
-          gu: `તમારી રાતની દવા ${medName} (${dosage}) છે, જે રાત્રે 8:30 વાગ્યે લેવાની છે.`,
-          en: `Your night medicine is ${medName} (${dosage}), scheduled at 8:30 PM before sleeping.`,
-          bn: `আপনার রাতের ওষুধ ${medName} (${dosage}), যা রাত ৮:৩০ টায় ঘুমানোর আগে নিতে হয়।`,
-          as: `আপোনাৰ ৰাতিৰ ঔষধ ${medName} (${dosage}), যিটো ৰাতি ৮:৩০ বজাত শোৱাৰ আগত খাব লাগে।`,
+          hi: `आपकी रात की दवा ${medName} (${dosage}) है, जो ${timeFmtHi} (${timeStr}) सोने से पहले ली जाती है। क्या आपने आज यह दवा ले ली है?`,
+          gu: `તમારી રાતની દવા ${medName} (${dosage}) છે, જે ${timeFmtGu} (${timeStr}) લેવાની છે.`,
+          en: `Your night medicine is ${medName} (${dosage}), scheduled at ${timeFmtEn} (${timeStr}) before sleeping.`,
+          bn: `আপনার রাতের ওষুধ ${medName} (${dosage}), যা রাত ৮:৩০ টায় নিতে হয়।`,
+          as: `আপোনাৰ ৰাতিৰ ঔষধ ${medName} (${dosage}), যিটো ৰাতি ৮:৩০ বজাত খাব লাগে।`,
           mr: `आपले रात्रीचे औषध ${medName} (${dosage}) आहे, जे रात्री 8:30 वाजता घ्यायचे आहे.`,
         };
 

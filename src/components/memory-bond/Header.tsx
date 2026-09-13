@@ -16,9 +16,11 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
-import { LANGUAGES, useI18n } from "@/lib/i18n";
+import { LANGUAGES, useI18n, NER_STATES, getLanguagesByState } from "@/lib/i18n";
+import { voiceManager } from "@/lib/voiceProvider";
 
 export function Header({
   store,
@@ -68,7 +70,7 @@ export function Header({
 
         {/* Right Tools & Navigation */}
         <div className="flex items-center gap-1.5 sm:gap-2.5">
-          {/* Language Selector Dropdown (Preserving all native scripts) */}
+          {/* Language Selector Dropdown (Preserving all native scripts & NER states) */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -82,14 +84,15 @@ export function Header({
                 <ChevronDown className="h-3 w-3 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52 rounded-2xl p-2 bg-card border-border shadow-lg">
-              <div className="px-2 py-1 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                Select Language
+            <DropdownMenuContent align="end" className="w-64 max-h-[75vh] overflow-y-auto rounded-2xl p-2 bg-card border-border shadow-xl">
+              <div className="px-2 py-1 text-[11px] font-extrabold text-primary uppercase tracking-wider">
+                Pan-India Languages
               </div>
-              {LANGUAGES.map((l) => (
+              {LANGUAGES.filter((l) => !l.state).map((l) => (
                 <DropdownMenuItem
                   key={l.code}
                   onClick={() => {
+                    voiceManager.stopSpeaking();
                     setLang(l.code);
                     store.updateProfile({ language: l.code });
                   }}
@@ -102,6 +105,33 @@ export function Header({
                     {l.label}
                   </span>
                 </DropdownMenuItem>
+              ))}
+
+              {NER_STATES.map((stateName) => (
+                <div key={stateName} className="mt-2">
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-1 text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider">
+                    {stateName} (NER)
+                  </div>
+                  {getLanguagesByState(stateName).map((l) => (
+                    <DropdownMenuItem
+                      key={l.code}
+                      onClick={() => {
+                        voiceManager.stopSpeaking();
+                        setLang(l.code);
+                        store.updateProfile({ language: l.code, selected_ner_state: stateName, selected_state: stateName });
+                      }}
+                      className={`rounded-xl cursor-pointer flex items-center justify-between font-bold py-1.5 px-3 text-xs transition-colors ${
+                        lang === l.code ? "bg-primary text-primary-foreground font-black" : "hover:bg-secondary text-foreground"
+                      }`}
+                    >
+                      <span>{l.native}</span>
+                      <span className={`text-[10px] font-normal ${lang === l.code ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                        {l.label}
+                      </span>
+                    </DropdownMenuItem>
+                  ))}
+                </div>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>

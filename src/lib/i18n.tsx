@@ -9,22 +9,125 @@ import {
 } from "react";
 import { languageEngine, getGameStrings, type GameLocalizationStrings } from "./languageEngine";
 
+export interface LanguageItem {
+  code: string;
+  label: string;
+  native: string;
+  speech: string;
+  state?: string;
+  parentFallback?: string;
+}
+
 export const LANGUAGES = [
-  { code: "en", label: "English", native: "English", speech: "en-IN" },
-  { code: "hi", label: "Hindi", native: "हिन्दी", speech: "hi-IN" },
-  { code: "gu", label: "Gujarati", native: "ગુજરાતી", speech: "gu-IN" },
-  { code: "as", label: "Assamese", native: "অসমীয়া", speech: "as-IN" },
-  { code: "bn", label: "Bengali", native: "বাংলা", speech: "bn-IN" },
-  { code: "mr", label: "Marathi", native: "मराठी", speech: "mr-IN" },
-  { code: "pa", label: "Punjabi", native: "ਪੰਜਾਬੀ", speech: "pa-IN" },
-  { code: "or", label: "Odia", native: "ଓଡ଼ିଆ", speech: "or-IN" },
-  { code: "ta", label: "Tamil", native: "தமிழ்", speech: "ta-IN" },
-  { code: "te", label: "Telugu", native: "తెలుగు", speech: "te-IN" },
-  { code: "kn", label: "Kannada", native: "ಕನ್ನಡ", speech: "kn-IN" },
-  { code: "ml", label: "Malayalam", native: "മലയാളം", speech: "ml-IN" },
+  // --- Pan-India Languages ---
+  { code: "en", label: "English", native: "English", speech: "en-IN", state: "Pan-India", parentFallback: "en" },
+  { code: "hi", label: "Hindi", native: "हिन्दी", speech: "hi-IN", state: "Pan-India", parentFallback: "hi" },
+  { code: "gu", label: "Gujarati", native: "ગુજરાતી", speech: "gu-IN", state: "Pan-India", parentFallback: "gu" },
+  { code: "mr", label: "Marathi", native: "मराठी", speech: "mr-IN", state: "Pan-India", parentFallback: "mr" },
+  { code: "pa", label: "Punjabi", native: "ਪੰਜਾਬੀ", speech: "pa-IN", state: "Pan-India", parentFallback: "pa" },
+  { code: "or", label: "Odia", native: "ଓଡ଼ିଆ", speech: "or-IN", state: "Pan-India", parentFallback: "or" },
+  { code: "ta", label: "Tamil", native: "தமிழ்", speech: "ta-IN", state: "Pan-India", parentFallback: "ta" },
+  { code: "te", label: "Telugu", native: "తెలుగు", speech: "te-IN", state: "Pan-India", parentFallback: "te" },
+  { code: "kn", label: "Kannada", native: "ಕನ್ನಡ", speech: "kn-IN", state: "Pan-India", parentFallback: "kn" },
+  { code: "ml", label: "Malayalam", native: "മലയാളം", speech: "ml-IN", state: "Pan-India", parentFallback: "ml" },
+
+  // --- ASSAM ---
+  { code: "as", label: "Assamese", native: "অসমীয়া", speech: "as-IN", state: "Assam", parentFallback: "as" },
+  { code: "brx", label: "Bodo", native: "बड़ो / बर'", speech: "brx-IN", state: "Assam", parentFallback: "as" },
+  { code: "bn", label: "Bengali", native: "বাংলা", speech: "bn-IN", state: "Assam / Tripura", parentFallback: "bn" },
+  { code: "mjw", label: "Karbi", native: "Karbi / কার্বি", speech: "as-IN", state: "Assam", parentFallback: "as" },
+  { code: "dis", label: "Dimasa", native: "Dimasa / দিমাছা", speech: "as-IN", state: "Assam", parentFallback: "as" },
+  { code: "mrg", label: "Mishing", native: "Mishing / মিচিং", speech: "as-IN", state: "Assam", parentFallback: "as" },
+  { code: "rah", label: "Rabha", native: "Rabha / ৰাভা", speech: "as-IN", state: "Assam", parentFallback: "as" },
+  { code: "lax", label: "Tiwa", native: "Tiwa / তিৱা", speech: "as-IN", state: "Assam", parentFallback: "as" },
+  { code: "der", label: "Deori", native: "Deori / দেউৰী", speech: "as-IN", state: "Assam", parentFallback: "as" },
+
+  // --- ARUNACHAL PRADESH ---
+  { code: "njz", label: "Nyishi", native: "Nyishi", speech: "en-IN", state: "Arunachal Pradesh", parentFallback: "hi" },
+  { code: "adi", label: "Adi", native: "Adi", speech: "en-IN", state: "Arunachal Pradesh", parentFallback: "hi" },
+  { code: "apt", label: "Apatani", native: "Apatani / Tanw", speech: "en-IN", state: "Arunachal Pradesh", parentFallback: "hi" },
+  { code: "mon", label: "Monpa", native: "Monpa / མོན་པ", speech: "en-IN", state: "Arunachal Pradesh", parentFallback: "hi" },
+  { code: "mhu", label: "Mishmi", native: "Mishmi", speech: "en-IN", state: "Arunachal Pradesh", parentFallback: "hi" },
+  { code: "nnp", label: "Wancho", native: "Wancho", speech: "en-IN", state: "Arunachal Pradesh", parentFallback: "hi" },
+  { code: "njb", label: "Nocte", native: "Nocte", speech: "en-IN", state: "Arunachal Pradesh", parentFallback: "hi" },
+  { code: "nst", label: "Tangsa", native: "Tangsa", speech: "en-IN", state: "Arunachal Pradesh", parentFallback: "hi" },
+  { code: "adl", label: "Galo", native: "Galo", speech: "en-IN", state: "Arunachal Pradesh", parentFallback: "hi" },
+  { code: "tgj", label: "Tagin", native: "Tagin", speech: "en-IN", state: "Arunachal Pradesh", parentFallback: "hi" },
+  { code: "clk", label: "Idu Mishmi", native: "Idu Mishmi", speech: "en-IN", state: "Arunachal Pradesh", parentFallback: "hi" },
+
+  // --- MANIPUR ---
+  { code: "mni", label: "Meitei (Manipuri)", native: "মৈতৈ / ꯃꯩꯇꯩꯂꯣꯟ", speech: "mni-IN", state: "Manipur", parentFallback: "bn" },
+  { code: "nmf", label: "Tangkhul", native: "Tangkhul", speech: "en-IN", state: "Manipur", parentFallback: "en" },
+  { code: "tcz", label: "Thadou", native: "Thadou / Kuki", speech: "en-IN", state: "Manipur", parentFallback: "en" },
+  { code: "hmr", label: "Hmar", native: "Hmar", speech: "en-IN", state: "Manipur / Mizoram", parentFallback: "en" },
+  { code: "nkf", label: "Kabui", native: "Kabui / Rongmei", speech: "en-IN", state: "Manipur", parentFallback: "en" },
+  { code: "pck", label: "Paite", native: "Paite", speech: "en-IN", state: "Manipur / Mizoram", parentFallback: "en" },
+  { code: "vap", label: "Vaiphei", native: "Vaiphei", speech: "en-IN", state: "Manipur", parentFallback: "en" },
+  { code: "smt", label: "Simte", native: "Simte", speech: "en-IN", state: "Manipur", parentFallback: "en" },
+  { code: "zom", label: "Zou", native: "Zou", speech: "en-IN", state: "Manipur", parentFallback: "en" },
+
+  // --- MEGHALAYA ---
+  { code: "kha", label: "Khasi", native: "Ka Ktien Khasi", speech: "en-IN", state: "Meghalaya", parentFallback: "en" },
+  { code: "grt", label: "Garo", native: "A·chik / Garo", speech: "en-IN", state: "Meghalaya", parentFallback: "en" },
+  { code: "pbv", label: "Pnar", native: "Pnar / Jaintia", speech: "en-IN", state: "Meghalaya", parentFallback: "en" },
+
+  // --- MIZORAM ---
+  { code: "lus", label: "Mizo", native: "Mizo ṭawng", speech: "en-IN", state: "Mizoram", parentFallback: "en" },
+  { code: "mrh", label: "Mara", native: "Mara", speech: "en-IN", state: "Mizoram", parentFallback: "en" },
+  { code: "cnh", label: "Lai", native: "Lai / Hakha", speech: "en-IN", state: "Mizoram", parentFallback: "en" },
+
+  // --- NAGALAND ---
+  { code: "njo", label: "Ao", native: "Ao Chungli", speech: "en-IN", state: "Nagaland", parentFallback: "en" },
+  { code: "njm", label: "Angami", native: "Tenyidie / Angami", speech: "en-IN", state: "Nagaland", parentFallback: "en" },
+  { code: "nsm", label: "Sumi", native: "Sümi", speech: "en-IN", state: "Nagaland", parentFallback: "en" },
+  { code: "njh", label: "Lotha", native: "Lotha", speech: "en-IN", state: "Nagaland", parentFallback: "en" },
+  { code: "nbe", label: "Konyak", native: "Konyak", speech: "en-IN", state: "Nagaland", parentFallback: "en" },
+  { code: "csk", label: "Chakhesang", native: "Chakhesang / Chokri", speech: "en-IN", state: "Nagaland", parentFallback: "en" },
+  { code: "nsa", label: "Sangtam", native: "Sangtam", speech: "en-IN", state: "Nagaland", parentFallback: "en" },
+  { code: "nph", label: "Phom", native: "Phom", speech: "en-IN", state: "Nagaland", parentFallback: "en" },
+  { code: "nbc", label: "Chang", native: "Chang", speech: "en-IN", state: "Nagaland", parentFallback: "en" },
+  { code: "yim", label: "Yimkhiung", native: "Yimkhiung", speech: "en-IN", state: "Nagaland", parentFallback: "en" },
+  { code: "nnl", label: "Rengma", native: "Rengma", speech: "en-IN", state: "Nagaland", parentFallback: "en" },
+  { code: "nag", label: "Nagamese", native: "Nagamese", speech: "as-IN", state: "Nagaland", parentFallback: "as" },
+
+  // --- TRIPURA ---
+  { code: "trp", label: "Kokborok", native: "Kokborok", speech: "bn-IN", state: "Tripura", parentFallback: "bn" },
+  { code: "ccp", label: "Chakma", native: "Chakma / 𑄌𑄋𑄴𑄟𑄳𑄦", speech: "bn-IN", state: "Tripura", parentFallback: "bn" },
+  { code: "mgh", label: "Mogh", native: "Mogh / Marma", speech: "bn-IN", state: "Tripura", parentFallback: "bn" },
+  { code: "bru", label: "Reang", native: "Bru / Kau Bru", speech: "bn-IN", state: "Tripura", parentFallback: "bn" },
+
+  // --- SIKKIM ---
+  { code: "ne", label: "Nepali", native: "नेपाली", speech: "ne-IN", state: "Sikkim", parentFallback: "hi" },
+  { code: "sip", label: "Sikkimese (Bhutia)", native: "Denzongke / འབྲས་ལྗོངས་སྐད", speech: "ne-IN", state: "Sikkim", parentFallback: "ne" },
+  { code: "lep", label: "Lepcha", native: "Róng / ᰛᰩᰵᰛᰧᰵᰶ", speech: "ne-IN", state: "Sikkim", parentFallback: "ne" },
+  { code: "lif", label: "Limbu", native: "Yakthung / ᤕᤠᤰᤌᤢᤱ", speech: "ne-IN", state: "Sikkim", parentFallback: "ne" },
+  { code: "rjs", label: "Rai", native: "Rai", speech: "ne-IN", state: "Sikkim", parentFallback: "ne" },
+  { code: "gvr", label: "Gurung", native: "Tamu Kyui / गुरुङ", speech: "ne-IN", state: "Sikkim", parentFallback: "ne" },
+  { code: "mgp", label: "Magar", native: "Magar Dhut / मगर", speech: "ne-IN", state: "Sikkim", parentFallback: "ne" },
+  { code: "taj", label: "Tamang", native: "Tamang / ཏ་མང", speech: "ne-IN", state: "Sikkim", parentFallback: "ne" },
+  { code: "xsr", label: "Sherpa", native: "Sherpa / ཤར་པ", speech: "ne-IN", state: "Sikkim", parentFallback: "ne" },
 ] as const;
 
 export type LangCode = (typeof LANGUAGES)[number]["code"];
+
+export const NER_STATES = [
+  "All North East",
+  "Assam",
+  "Arunachal Pradesh",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Tripura",
+  "Sikkim",
+] as const;
+
+export function getLanguagesByState(stateName: string): typeof LANGUAGES[number][] {
+  if (!stateName || stateName === "All North East" || stateName === "all") {
+    return LANGUAGES.filter((l) => l.state !== "Pan-India");
+  }
+  return LANGUAGES.filter((l) => l.state && l.state.toLowerCase().includes(stateName.toLowerCase()));
+}
 
 type Dict = Record<string, string>;
 
@@ -1935,7 +2038,173 @@ const or: Dict = {
   bargeInHint: "କହିବା ପାଇଁ ମାଇକ୍ ଦବାନ୍ତୁ",
 };
 
-const DICTS: Record<LangCode, Dict> = { en, hi, gu, as, bn, mr, pa, or, ta, te, kn, ml };
+const ne: Dict = {
+  ...hi,
+  appName: "Memory Bond",
+  home: "गृह पृष्ठ",
+  today: "आज",
+  medicines: "औषधिहरू",
+  reminders: "मेरो रिमाइन्डर",
+  games: "स्मृति खेलहरू",
+  cues: "स्मृति संकेत",
+  journal: "स्मृति डायरी",
+  voiceNote: "आवाज नोट",
+  family: "परिवार",
+  sos: "आपतकालीन SOS",
+  routine: "दैनिक तालिका",
+  appointments: "भेटघाट",
+  notifications: "सूचनाहरू",
+  settings: "सेटिङहरू",
+  checkin: "स्मृति जाँच",
+  caregiverDashboard: "हेरचाहकर्ता ड्यासबोर्ड",
+  nextMedicine: "अर्को औषधि",
+  nextReminder: "अर्को रिमाइन्डर",
+  todaysAppointments: "आजको भेटघाट",
+  pendingTasks: "बाँकी कामहरू",
+  lowStock: "औषधि सकिन लागेको",
+  progressToday: "आजको प्रगति",
+  add: "थप्नुहोस्",
+  save: "बचत गर्नुहोस्",
+  cancel: "रद्द गर्नुहोस्",
+  edit: "सम्पादन",
+  delete: "मेटाउनुहोस्",
+  back: "पछाडि",
+  yes: "हो",
+  none: "अहिलेसम्म केही छैन",
+  done: "सम्पन्न",
+  taken: "मैले खाएँ",
+  play: "खेल्नुहोस्",
+  start: "सुरु",
+  again: "फेरि खेल्नुहोस्",
+  score: "अंक",
+  greatEffort: "उत्कृष्ट प्रयास!",
+  wellDone: "धेरै राम्रो!",
+  tryAnother: "अर्को प्रयास गरौं।",
+  speak: "थिच्नुहोस् र बोल्नुहोस्",
+  listening: "सुन्दैछ…",
+  language: "भाषा",
+  fontSize: "अक्षरको आकार",
+  normalText: "सामान्य",
+  largeText: "ठूलो",
+  xlargeText: "धेरै ठूलो",
+  highContrast: "उच्च कन्ट्रास्ट",
+  holdSos: "५ सेकेन्ड थिचिराख्नुहोस्",
+  keepHolding: "थिचिराख्नुहोस्…",
+  sosConfirm: "के तपाईं आपतकालीन सूचना पठाउन चाहनुहुन्छ?",
+  sendSos: "SOS पठाउनुहोस्",
+  loadDemo: "डेमो डाटा लोड गर्नुहोस्",
+  welcomeBack: "फेरि स्वागत छ",
+  medicineLow: "तपाईंको औषधि सकिन लागेको छ।",
+  refill: "रिफिल थप्नुहोस्",
+  stock: "बाँकी",
+  addFamily: "परिवार सदस्य थप्नुहोस्",
+  relationship: "सम्बन्ध",
+  phone: "फोन",
+  priority: "प्राथमिकता",
+  emergencyContact: "आपतकालीन सम्पर्क",
+  markRead: "पढियो",
+  skipForNow: "अहिलेलाई छाड्नुहोस्",
+  finish: "समाप्त",
+  voiceMemory: "आवाज स्मृति",
+  recordMemory: "स्मृति रेकर्ड गर्नुहोस्",
+  searchMemories: "स्मृति खोज्नुहोस्…",
+  easyMode: "सरल ज्येष्ठ नागरिक मोड",
+  easyModeDesc: "ठूला बटनहरू, स्पष्ट अक्षरहरू र सजिलो आवाज निर्देशन।",
+  stopSpeech: "रोक्नुहोस्",
+  bargeInHint: "बोल्नको लागि माइक थिच्नुहोस्",
+};
+
+const brx: Dict = {
+  ...as,
+  appName: "Memory Bond",
+  home: "गाहाय बिलाइ",
+  today: "दिनै",
+  medicines: "मुली",
+  reminders: "गोसोखांथि",
+  games: "गोसो गेलेलाइ",
+  family: "नखर",
+  sos: "मदद SOS",
+  routine: "सानफ्रोमबोनि हाबा",
+  appointments: "लोगो हमनाय",
+  settings: "सेटिं",
+  speak: "थुननानै बुं",
+  listening: "खोनासं गासिनो…",
+  stopSpeech: "थादों",
+  bargeInHint: "बुंनो माइक थु",
+};
+
+const kha: Dict = {
+  ...en,
+  appName: "Memory Bond",
+  home: "Ing",
+  today: "Mynta",
+  medicines: "Ki Dawai",
+  reminders: "Ki jingpynkynmaw",
+  games: "Ki Jingialehkai Jingkynmaw",
+  family: "Ka Iing ka Sem",
+  sos: "Jingiarap SOS",
+  routine: "Ka Riti Barabor",
+  appointments: "Ki Jingiatreilang",
+  settings: "Ki Jingpynbeit",
+  speak: "Khyndiat kren",
+  listening: "Sngap mynta…",
+  stopSpeech: "Sangeh",
+};
+
+const lus: Dict = {
+  ...en,
+  appName: "Memory Bond",
+  home: "Inpui",
+  today: "Vawiin",
+  medicines: "Damdawi",
+  reminders: "Hriattirna",
+  games: "Hriatna Infiamna",
+  family: "Chhungkua",
+  sos: "Taimakna SOS",
+  routine: "Nitin Dan",
+  appointments: "Inhmuhna",
+  settings: "Siamthatna",
+  speak: "Hmet la sawi rawh",
+  listening: "Ngaihthlak mek…",
+  stopSpeech: "Chawl rawh",
+};
+
+const mni: Dict = {
+  ...bn,
+  appName: "Memory Bond",
+  home: "হোম",
+  today: "ঙসি",
+  medicines: "হিদাক",
+  reminders: "নিংশিংহনবা",
+  games: "নিংশিং শান্নবা",
+  family: "ইমুং",
+  sos: "মতেন্গ SOS",
+  routine: "নোমিৎ খুদিংগী",
+  settings: "শেমজিনবা",
+  speak: "থুমদুনা হায়য়ু",
+  listening: "তারী…",
+  stopSpeech: "লেপ্পু",
+};
+
+const DICTS: Record<string, Dict> = {
+  en,
+  hi,
+  gu,
+  as,
+  bn,
+  mr,
+  pa,
+  or,
+  ta,
+  te,
+  kn,
+  ml,
+  ne,
+  brx,
+  kha,
+  lus,
+  mni,
+};
 
 export function getMotivationalFeedback(
   lang: string,
@@ -2053,15 +2322,17 @@ const STORAGE_KEY = "mb.lang";
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<LangCode>(() => {
     if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(STORAGE_KEY) as LangCode | null;
+      if (saved && LANGUAGES.some((l) => l.code === saved)) return saved;
       const activeCode = languageEngine.activeLocale.split("-")[0] as LangCode;
-      if (activeCode && activeCode in DICTS) return activeCode;
+      if (activeCode && LANGUAGES.some((l) => l.code === activeCode)) return activeCode;
     }
     return "en";
   });
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY) as LangCode | null;
-    if (saved && saved in DICTS) {
+    if (saved && LANGUAGES.some((l) => l.code === saved)) {
       setLangState(saved);
       const match = LANGUAGES.find((l) => l.code === saved);
       if (match) languageEngine.setActiveLocale(match.speech);
@@ -2069,7 +2340,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
     const unsubscribe = languageEngine.subscribe((locale) => {
       const code = locale.split("-")[0] as LangCode;
-      if (code && code in DICTS) {
+      if (code && LANGUAGES.some((l) => l.code === code)) {
         setLangState((prev) => (prev !== code ? code : prev));
       }
     });
@@ -2085,7 +2356,19 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const t = useCallback((key: string) => DICTS[lang]?.[key] ?? en[key] ?? key, [lang]);
+  const t = useCallback(
+    (key: string) => {
+      // 1. Direct language dictionary
+      if (DICTS[lang]?.[key]) return DICTS[lang][key];
+      // 2. Regional Parent Fallback
+      const langObj = LANGUAGES.find((l) => l.code === lang);
+      const parent = langObj?.parentFallback;
+      if (parent && DICTS[parent]?.[key]) return DICTS[parent][key];
+      // 3. English Fallback
+      return en[key] ?? key;
+    },
+    [lang]
+  );
 
   const value = useMemo<I18nValue>(
     () => ({

@@ -10,6 +10,7 @@ export interface VoiceProviderConfig {
   bhashiniApiKey?: string;
   bhashiniUserId?: string;
   speechPace?: number; // default 0.88 for elderly calm speech
+  selectedVoiceUri?: string | null;
 }
 
 export interface VoiceProvider {
@@ -20,7 +21,8 @@ export interface VoiceProvider {
     locale: string,
     onStart?: () => void,
     onEnd?: () => void,
-    onError?: (err: any) => void
+    onError?: (err: any) => void,
+    voiceUri?: string | null
   ): void;
   startTranscription(
     locale: string,
@@ -35,8 +37,55 @@ export interface VoiceProvider {
 }
 
 // ---------------------------------------------------------------------------
-// Universal Indian Regional Voice Matcher (Strictly prevents English for Indic)
+// Universal Voice Enumeration & Locale Voice Resolver
 // ---------------------------------------------------------------------------
+export function getAvailableVoices(): SpeechSynthesisVoice[] {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return [];
+  return window.speechSynthesis.getVoices() || [];
+}
+
+export function getVoicesForLocale(locale: string): SpeechSynthesisVoice[] {
+  const voices = getAvailableVoices();
+  if (!voices.length) return [];
+  const lower = locale.toLowerCase().replace("_", "-");
+  const prefix = lower.split("-")[0] || "en";
+
+  // 1. Direct or prefix match
+  const exact = voices.filter((v) => {
+    const vLang = v.lang.toLowerCase().replace("_", "-");
+    return vLang.startsWith(prefix) || vLang === lower;
+  });
+  if (exact.length > 0) return exact;
+
+  // 2. Indic sibling voices for Indic languages
+  if (prefix !== "en") {
+    const indic = voices.filter((v) => /^(hi|bn|gu|mr|ta|te|kn|ml|pa|as|ne)/i.test(v.lang));
+    if (indic.length > 0) return indic;
+  }
+
+  return voices;
+}
+
+export function resolveVoice(locale: string, voiceUri?: string | null): SpeechSynthesisVoice | null {
+  const voices = getAvailableVoices();
+  if (!voices || voices.length === 0) return null;
+
+  const lower = locale.toLowerCase().replace("_", "-");
+  const prefix = lower.split("-")[0] || "en";
+
+  if (voiceUri) {
+    const matched = voices.find((v) => v.voiceURI === voiceUri || v.name === voiceUri);
+    if (matched) {
+      const vLang = matched.lang.toLowerCase().replace("_", "-");
+      // If voice supports the requested language family
+      if (prefix === "en" ? vLang.startsWith("en") : !vLang.startsWith("en") || vLang.startsWith(prefix)) {
+        return matched;
+      }
+    }
+  }
+
+  return getBestMatchingVoice(locale);
+}
 export function getBestMatchingVoice(locale: string): SpeechSynthesisVoice | null {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
   const voices = window.speechSynthesis.getVoices();
@@ -402,7 +451,8 @@ export class WebSpeechVoiceProvider implements VoiceProvider {
     locale = "en-IN",
     onStart?: () => void,
     onEnd?: () => void,
-    onError?: (err: any) => void
+    onError?: (err: any) => void,
+    voiceUri?: string | null
   ) {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
       if (onEnd) onEnd();
@@ -430,7 +480,7 @@ export class WebSpeechVoiceProvider implements VoiceProvider {
 
     // Requirement 11: Internal logging
     console.log(
-      `[TTS_START] language=${locale} character_count=${cleanText.length} chunk_count=${chunks.length}`
+      `[TTS_START] language=${locale} character_count=${cleanText.length} chunk_count=${chunks.length} voice=${voiceUri || "auto"}`
     );
 
     this._startHeartbeat();
@@ -460,8 +510,8 @@ export class WebSpeechVoiceProvider implements VoiceProvider {
       utterance.pitch = 1.0;
       utterance.lang = locale;
 
-      // Best matching voice without forcing English on Indic text
-      const voice = this.getBestMatchingVoice(locale);
+      // Best matching voice without forcing English on Indic text, respecting selected voice
+      const voice = resolveVoice(locale, voiceUri);
       if (voice) {
         utterance.voice = voice;
       }
@@ -672,18 +722,19 @@ export class BhashiniVoiceProvider implements VoiceProvider {
     locale = "hi-IN",
     onStart?: () => void,
     onEnd?: () => void,
-    onError?: (err: any) => void
+    onError?: (err: any) => void,
+    voiceUri?: string | null
   ) {
     // If BHASHINI API key is provided and online, use BHASHINI TTS endpoint;
     // Otherwise fallback seamlessly to WebSpeech without breaking user experience
     if (!this._apiKey) {
-      this._fallbackProvider.synthesizeSpeech(text, locale, onStart, onEnd, onError);
+      this._fallbackProvider.synthesizeSpeech(text, locale, onStart, onEnd, onError, voiceUri);
       return;
     }
 
     // BHASHINI REST pipeline call architecture
     // When API key configured, request ULCA TTS endpoint audio content
-    this._fallbackProvider.synthesizeSpeech(text, locale, onStart, onEnd, onError);
+    this._fallbackProvider.synthesizeSpeech(text, locale, onStart, onEnd, onError, voiceUri);
   }
 
   public startTranscription(
@@ -702,13 +753,14 @@ export class BhashiniVoiceProvider implements VoiceProvider {
 
 // ---------------------------------------------------------------------------
 // 3. Central Voice Manager Singleton
-// Coordinates active engine, echo guard, and barge-in
+// Coordinates active engine, echo guard, voice selection, and barge-in
 // ---------------------------------------------------------------------------
 class VoiceManagerService {
   private _provider: VoiceProvider = new WebSpeechVoiceProvider();
   private _activeConfig: VoiceProviderConfig = {
     engine: "webspeech",
     speechPace: 0.88,
+    selectedVoiceUri: null,
   };
   private _lastSpokenText = "";
   private _lastSpokenTime = 0;
@@ -716,9 +768,13 @@ class VoiceManagerService {
   constructor() {
     if (typeof window !== "undefined") {
       const savedConfig = localStorage.getItem("mb_voice_config");
+      const savedVoice = localStorage.getItem("mb_selected_voice");
       if (savedConfig) {
         try {
           this._activeConfig = JSON.parse(savedConfig);
+          if (savedVoice) {
+            this._activeConfig.selectedVoiceUri = savedVoice;
+          }
           if (this._activeConfig.engine === "bhashini") {
             this._provider = new BhashiniVoiceProvider(
               this._activeConfig.bhashiniApiKey,
@@ -728,6 +784,8 @@ class VoiceManagerService {
             this._provider = new WebSpeechVoiceProvider(this._activeConfig.speechPace || 0.88);
           }
         } catch {}
+      } else if (savedVoice) {
+        this._activeConfig.selectedVoiceUri = savedVoice;
       }
     }
   }
@@ -740,6 +798,9 @@ class VoiceManagerService {
     this._activeConfig = { ...this._activeConfig, ...newConfig };
     if (typeof window !== "undefined") {
       localStorage.setItem("mb_voice_config", JSON.stringify(this._activeConfig));
+      if (newConfig.selectedVoiceUri !== undefined) {
+        localStorage.setItem("mb_selected_voice", newConfig.selectedVoiceUri || "");
+      }
     }
 
     if (this._activeConfig.engine === "bhashini") {
@@ -752,11 +813,32 @@ class VoiceManagerService {
     }
   }
 
+  public setSelectedVoice(voiceUri: string | null) {
+    this.stopSpeaking();
+    this.updateConfig({ selectedVoiceUri: voiceUri });
+  }
+
+  public getSelectedVoice(): string | null {
+    return this._activeConfig.selectedVoiceUri || null;
+  }
+
+  public getAvailableVoices(): SpeechSynthesisVoice[] {
+    return getAvailableVoices();
+  }
+
+  public getVoicesForLocale(locale: string): SpeechSynthesisVoice[] {
+    return getVoicesForLocale(locale);
+  }
+
   public getProvider(): VoiceProvider {
     return this._provider;
   }
 
   public isSpeaking(): boolean {
+    return this._provider.isSpeaking();
+  }
+
+  public isAssistantSpeaking(): boolean {
     return this._provider.isSpeaking();
   }
 
@@ -770,8 +852,8 @@ class VoiceManagerService {
   public isEcho(transcript: string): boolean {
     if (this._provider.isSpeaking()) return true;
     const now = Date.now();
-    // Reverberation window of 450ms after TTS completes
-    if (now - this._lastSpokenTime < 450) {
+    // Reverberation window of 600ms after TTS completes
+    if (now - this._lastSpokenTime < 600) {
       const clean = transcript.trim().toLowerCase();
       const last = this._lastSpokenText.trim().toLowerCase();
       if (!clean) return true;
@@ -780,19 +862,22 @@ class VoiceManagerService {
     return false;
   }
 
-  // Safe speak with echo guard
+  // Safe speak with echo guard and true voice selection
   public speak(
     text: string,
     locale = "en-IN",
     onStart?: () => void,
     onEnd?: () => void,
-    onError?: (err: any) => void
+    onError?: (err: any) => void,
+    voiceUri?: string | null
   ) {
     this._lastSpokenText = text;
     this._lastSpokenTime = Date.now();
 
     // 1. Interrupt any active mic listening to avoid picking up TTS
     this._provider.stopTranscription();
+
+    const voiceToUse = voiceUri !== undefined ? voiceUri : this._activeConfig.selectedVoiceUri;
 
     // 2. Speak with audio state synchronization
     this._provider.synthesizeSpeech(
@@ -809,7 +894,8 @@ class VoiceManagerService {
       (err) => {
         this._lastSpokenTime = Date.now();
         if (onError) onError(err);
-      }
+      },
+      voiceToUse
     );
   }
 

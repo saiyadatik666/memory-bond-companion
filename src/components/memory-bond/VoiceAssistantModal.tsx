@@ -44,7 +44,7 @@ import {
 import { conversationalAI } from "@/lib/conversationalAI";
 import { resolveWorldKnowledge } from "@/lib/worldKnowledgeEngine";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
-import { useI18n, LANGUAGES } from "@/lib/i18n";
+import { useI18n, LANGUAGES, NER_STATES, getLanguagesByState } from "@/lib/i18n";
 
 import { languageEngine, SUPPORTED_LANGUAGES } from "@/lib/languageEngine";
 
@@ -53,6 +53,8 @@ export type AssistantVoiceState =
   | "listening"   // 🔴 Listening...
   | "processing"  // 🧠 Thinking...
   | "speaking"    // 🔊 Speaking...
+  | "interrupted" // ✋ Barge-in triggered
+  | "stopping"    // ⏹️ Stopping...
   | "finished"    // ✅ Finished speaking
   | "error";
 
@@ -85,6 +87,8 @@ export function VoiceAssistantModal({
   const [detectedLangName, setDetectedLangName] = useState<string>("Auto-Detect");
   const [transcript, setTranscript] = useState<string>("");
   const [inputDraft, setInputDraft] = useState<string>("");
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoiceUri, setSelectedVoiceUri] = useState<string | null>(voiceManager.getSelectedVoice());
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     try {
       const saved = sessionStorage.getItem("mb_voice_chat_history");
@@ -111,6 +115,8 @@ export function VoiceAssistantModal({
   const listenTimeoutRef = useRef<any>(null);
   const recognitionRef = useRef<any>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
+  const speechDebounceTimerRef = useRef<any>(null);
+  const speechAccumulatorRef = useRef<string>("");
 
   useEffect(() => {
     isOpenRef.current = isOpen;
@@ -118,6 +124,23 @@ export function VoiceAssistantModal({
 
   useEffect(() => {
     currentLocaleRef.current = currentLocale;
+  }, [currentLocale]);
+
+  // Load and refresh available TTS voices for current locale
+  useEffect(() => {
+    const updateVoices = () => {
+      const v = voiceManager.getVoicesForLocale(currentLocale);
+      setAvailableVoices(v);
+    };
+    updateVoices();
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.onvoiceschanged = updateVoices;
+    }
+    return () => {
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        window.speechSynthesis.onvoiceschanged = null;
+      }
+    };
   }, [currentLocale]);
 
   // Keep messagesRef in lockstep with messages state & persist to sessionStorage
@@ -190,16 +213,24 @@ export function VoiceAssistantModal({
 
   // -------------------------------------------------------------------------
   // Interruption / Barge-in: immediately cancel audio if speaking and listen
-  // (Requirement 5)
+  // (Requirement 5 & 11)
   // -------------------------------------------------------------------------
   const handleBargeIn = () => {
+    if (speechDebounceTimerRef.current) {
+      clearTimeout(speechDebounceTimerRef.current);
+      speechDebounceTimerRef.current = null;
+    }
+    speechAccumulatorRef.current = "";
     voiceManager.stopSpeaking();
     isSpeakingRef.current = false;
     if (listenTimeoutRef.current) {
       clearTimeout(listenTimeoutRef.current);
       listenTimeoutRef.current = null;
     }
-    setVoiceState("listening");
+    setVoiceState("interrupted");
+    setTimeout(() => {
+      setVoiceState("listening");
+    }, 120);
   };
 
   // -------------------------------------------------------------------------
@@ -208,6 +239,11 @@ export function VoiceAssistantModal({
   // -------------------------------------------------------------------------
   const handleStop = () => {
     isActiveSessionRef.current = false;
+    if (speechDebounceTimerRef.current) {
+      clearTimeout(speechDebounceTimerRef.current);
+      speechDebounceTimerRef.current = null;
+    }
+    speechAccumulatorRef.current = "";
     if (listenTimeoutRef.current) {
       clearTimeout(listenTimeoutRef.current);
       listenTimeoutRef.current = null;
@@ -220,7 +256,67 @@ export function VoiceAssistantModal({
     isThinkingRef.current = false;
     isSpeakingRef.current = false;
     voiceManager.stopSpeaking();
+    setVoiceState("stopping");
+    setTimeout(() => {
+      setVoiceState("idle");
+    }, 150);
+  };
+
+  // -------------------------------------------------------------------------
+  // Voice & Language Switch Handlers with Audio Cancellation
+  // (Requirements 20, 21, 22, 23)
+  // -------------------------------------------------------------------------
+  const handleVoiceChange = (voiceUri: string | null) => {
+    voiceManager.stopSpeaking();
+    isSpeakingRef.current = false;
+    if (listenTimeoutRef.current) {
+      clearTimeout(listenTimeoutRef.current);
+      listenTimeoutRef.current = null;
+    }
+    setSelectedVoiceUri(voiceUri);
+    voiceManager.setSelectedVoice(voiceUri);
     setVoiceState("idle");
+  };
+
+  const handleLanguageChange = (newLocale: string) => {
+    voiceManager.stopSpeaking();
+    isSpeakingRef.current = false;
+    if (speechDebounceTimerRef.current) {
+      clearTimeout(speechDebounceTimerRef.current);
+      speechDebounceTimerRef.current = null;
+    }
+    speechAccumulatorRef.current = "";
+    if (listenTimeoutRef.current) {
+      clearTimeout(listenTimeoutRef.current);
+      listenTimeoutRef.current = null;
+    }
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch {}
+    }
+
+    setCurrentLocale(newLocale);
+    currentLocaleRef.current = newLocale;
+    const matched = LANGUAGES.find((l) => l.speech === newLocale);
+    if (matched) {
+      setDetectedLangName(matched.name);
+      setLang(matched.code);
+    }
+
+    setSelectedVoiceUri(null);
+    voiceManager.setSelectedVoice(null);
+
+    const v = voiceManager.getVoicesForLocale(newLocale);
+    setAvailableVoices(v);
+
+    if (isActiveSessionRef.current) {
+      setTimeout(() => {
+        startListening(true);
+      }, 250);
+    } else {
+      setVoiceState("idle");
+    }
   };
 
   // -------------------------------------------------------------------------
@@ -229,6 +325,11 @@ export function VoiceAssistantModal({
   const handleExit = () => {
     // 1. Immediately halt session & any continuous turn loops
     isActiveSessionRef.current = false;
+    if (speechDebounceTimerRef.current) {
+      clearTimeout(speechDebounceTimerRef.current);
+      speechDebounceTimerRef.current = null;
+    }
+    speechAccumulatorRef.current = "";
     if (listenTimeoutRef.current) {
       clearTimeout(listenTimeoutRef.current);
       listenTimeoutRef.current = null;
@@ -268,19 +369,18 @@ export function VoiceAssistantModal({
   };
 
   // -------------------------------------------------------------------------
-  // Start Listening (🔴 Listening...) with Barge-In Support
-  // (Requirements 4 & 5)
+  // Start Listening (🔴 Listening...) with Barge-In Support & Accumulator
+  // (Requirements 4, 5, 10, 11)
   // -------------------------------------------------------------------------
   const startListening = (force = false) => {
     if (!isOpenRef.current) return;
 
-    if (!force && (isSpeakingRef.current || voiceState === "speaking")) {
-      console.log("Speech is currently active. Ignoring startListening call until speech ends.");
+    if (!force && (isSpeakingRef.current || voiceManager.isAssistantSpeaking() || voiceState === "speaking")) {
       return;
     }
 
     // If force (user tapped mic during speech), halt TTS immediately
-    if (isSpeakingRef.current || voiceState === "speaking") {
+    if (isSpeakingRef.current || voiceManager.isAssistantSpeaking() || voiceState === "speaking") {
       voiceManager.stopSpeaking();
       isSpeakingRef.current = false;
     }
@@ -289,6 +389,12 @@ export function VoiceAssistantModal({
       clearTimeout(listenTimeoutRef.current);
       listenTimeoutRef.current = null;
     }
+
+    if (speechDebounceTimerRef.current) {
+      clearTimeout(speechDebounceTimerRef.current);
+      speechDebounceTimerRef.current = null;
+    }
+    speechAccumulatorRef.current = "";
 
     setRecognitionError(null);
     isThinkingRef.current = false;
@@ -317,8 +423,7 @@ export function VoiceAssistantModal({
       recognition.maxAlternatives = 1;
 
       recognition.onstart = () => {
-        // If speaking started while mic was initializing, abort mic immediately
-        if (isSpeakingRef.current) {
+        if (isSpeakingRef.current || voiceManager.isAssistantSpeaking()) {
           try {
             recognition.abort();
           } catch {}
@@ -328,51 +433,75 @@ export function VoiceAssistantModal({
       };
 
       recognition.onresult = (event: any) => {
-        // Echo & premature interruption prevention: ignore mic if speaking
-        if (isSpeakingRef.current) {
+        if (isSpeakingRef.current || voiceManager.isAssistantSpeaking()) {
           return;
         }
 
         let interimText = "";
-        let finalText = "";
+        let finalChunk = "";
 
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           const item = event.results[i];
           if (item.isFinal) {
-            finalText += item[0].transcript;
+            finalChunk += " " + item[0].transcript;
           } else {
             interimText += item[0].transcript;
           }
         }
 
-        const liveText = (finalText || interimText).trim();
+        if (finalChunk.trim()) {
+          speechAccumulatorRef.current = (speechAccumulatorRef.current + " " + finalChunk).trim();
+        }
+
+        const liveText = (speechAccumulatorRef.current + " " + interimText).trim();
         if (liveText) {
           setTranscript(liveText);
         }
 
-        if (finalText.trim()) {
-          const clean = finalText.trim();
+        // Cancel previous silence debounce timer whenever user keeps speaking
+        if (speechDebounceTimerRef.current) {
+          clearTimeout(speechDebounceTimerRef.current);
+          speechDebounceTimerRef.current = null;
+        }
 
-          // Echo rejection: Discard if acoustic echo of assistant's own TTS output
-          if (voiceManager.isEcho(clean)) {
-            return;
-          }
+        // Wait 1200ms of quiet before submitting accumulated speech so elderly users speaking slowly are never cut off
+        if (speechAccumulatorRef.current.trim()) {
+          speechDebounceTimerRef.current = setTimeout(() => {
+            const clean = speechAccumulatorRef.current.trim();
+            speechAccumulatorRef.current = "";
 
-          // Process the recognized query
-          processQuery(clean);
+            if (!clean) return;
+
+            if (voiceManager.isEcho(clean)) {
+              return;
+            }
+
+            processQuery(clean);
+          }, 1200);
         }
       };
 
       recognition.onerror = (event: any) => {
         const errType = event?.error;
         if (errType === "no-speech") {
-          // Senior paused or room is quiet: continue listening gracefully in continuous mode
+          // If speech was accumulated before silence, process it now!
+          if (speechAccumulatorRef.current.trim()) {
+            if (speechDebounceTimerRef.current) clearTimeout(speechDebounceTimerRef.current);
+            const clean = speechAccumulatorRef.current.trim();
+            speechAccumulatorRef.current = "";
+            if (clean && !voiceManager.isEcho(clean)) {
+              processQuery(clean);
+              return;
+            }
+          }
+
           if (
             conversationMode &&
             isOpenRef.current &&
             isActiveSessionRef.current &&
             !isThinkingRef.current &&
-            !isSpeakingRef.current
+            !isSpeakingRef.current &&
+            !voiceManager.isAssistantSpeaking()
           ) {
             if (listenTimeoutRef.current) clearTimeout(listenTimeoutRef.current);
             listenTimeoutRef.current = setTimeout(() => {
@@ -380,7 +509,8 @@ export function VoiceAssistantModal({
                 isOpenRef.current &&
                 isActiveSessionRef.current &&
                 !isThinkingRef.current &&
-                !isSpeakingRef.current
+                !isSpeakingRef.current &&
+                !voiceManager.isAssistantSpeaking()
               ) {
                 startListening();
               }
@@ -393,16 +523,27 @@ export function VoiceAssistantModal({
           return;
         }
 
-        // Only show error if not actively speaking
-        if (!isSpeakingRef.current) {
+        if (errType === "not-allowed") {
           setVoiceState("error");
-          setRecognitionError("Sorry, I couldn't understand that. Please try again.");
+          setRecognitionError(
+            "Microphone permission is blocked. Please enable microphone permission in your browser or type your question below."
+          );
+          return;
+        }
+
+        if (!isSpeakingRef.current && !voiceManager.isAssistantSpeaking()) {
+          setVoiceState("error");
+          setRecognitionError("Sorry, I couldn't hear clearly. Please tap the microphone to retry.");
         }
       };
 
       recognition.onend = () => {
-        // If assistant is thinking or speaking, DO NOT restart mic
-        if (isThinkingRef.current || isSpeakingRef.current) {
+        if (isThinkingRef.current || isSpeakingRef.current || voiceManager.isAssistantSpeaking()) {
+          return;
+        }
+
+        // If debounce timer is waiting to process accumulated speech, do not revert to idle
+        if (speechDebounceTimerRef.current && speechAccumulatorRef.current.trim()) {
           return;
         }
 
@@ -411,7 +552,8 @@ export function VoiceAssistantModal({
           isOpenRef.current &&
           isActiveSessionRef.current &&
           !isThinkingRef.current &&
-          !isSpeakingRef.current
+          !isSpeakingRef.current &&
+          !voiceManager.isAssistantSpeaking()
         ) {
           if (listenTimeoutRef.current) clearTimeout(listenTimeoutRef.current);
           listenTimeoutRef.current = setTimeout(() => {
@@ -419,19 +561,20 @@ export function VoiceAssistantModal({
               isOpenRef.current &&
               isActiveSessionRef.current &&
               !isThinkingRef.current &&
-              !isSpeakingRef.current
+              !isSpeakingRef.current &&
+              !voiceManager.isAssistantSpeaking()
             ) {
               startListening();
             }
           }, 350);
-        } else if (!isThinkingRef.current && !isSpeakingRef.current) {
+        } else if (!isThinkingRef.current && !isSpeakingRef.current && !voiceManager.isAssistantSpeaking()) {
           setVoiceState("idle");
         }
       };
 
       recognition.start();
     } catch {
-      if (!isSpeakingRef.current) {
+      if (!isSpeakingRef.current && !voiceManager.isAssistantSpeaking()) {
         setVoiceState("error");
         setRecognitionError(pick(ERROR_HEARING_MSG, currentLocaleRef.current));
       }
@@ -912,28 +1055,53 @@ export function VoiceAssistantModal({
               </Button>
             )}
 
-            {/* Optional Manual Language Override */}
+            {/* State-Grouped Manual Language Selector (Pan-India & All 8 NER States) */}
             <select
               value={currentLocale}
-              onChange={(e) => {
-                const newLocale = e.target.value;
-                setCurrentLocale(newLocale);
-                currentLocaleRef.current = newLocale;
-                const matched = LANGUAGES.find((l) => l.speech === newLocale);
-                if (matched) {
-                  setDetectedLangName(matched.name);
-                  setLang(matched.code);
-                }
-              }}
-              className="bg-secondary text-foreground text-xs font-bold rounded-full px-2.5 py-1 border border-border cursor-pointer focus:outline-none max-w-[135px] sm:max-w-none text-ellipsis overflow-hidden"
-              title="Manual language override (Auto-detection is default)"
+              onChange={(e) => handleLanguageChange(e.target.value)}
+              className="bg-secondary text-foreground text-xs font-bold rounded-full px-2.5 py-1 border border-border cursor-pointer focus:outline-none max-w-[140px] sm:max-w-none text-ellipsis overflow-hidden"
+              title="Select Language (Pan-India & All 8 North East States)"
             >
               <option value="auto">🌐 Auto-Detect</option>
-              {LANGUAGES.map((l) => (
-                <option key={l.code} value={l.speech}>
-                  {l.native} ({l.label})
-                </option>
+              <optgroup label="Pan-India National Languages">
+                {LANGUAGES.filter((l) => !l.state).map((l) => (
+                  <option key={l.code} value={l.speech}>
+                    {l.native} ({l.label})
+                  </option>
+                ))}
+              </optgroup>
+              {NER_STATES.map((stateName) => (
+                <optgroup key={stateName} label={`${stateName} (NER)`}>
+                  {getLanguagesByState(stateName).map((l) => (
+                    <option key={l.code} value={l.speech}>
+                      {l.native} ({l.label})
+                    </option>
+                  ))}
+                </optgroup>
               ))}
+            </select>
+
+            {/* TTS Spoken Voice Selector (Voice A / B / C / System Voices) */}
+            <select
+              value={selectedVoiceUri || "auto"}
+              onChange={(e) => handleVoiceChange(e.target.value === "auto" ? null : e.target.value)}
+              className="bg-secondary text-foreground text-xs font-bold rounded-full px-2.5 py-1 border border-border cursor-pointer focus:outline-none max-w-[125px] sm:max-w-none text-ellipsis overflow-hidden"
+              title="Select spoken voice (Voice A / Voice B / Voice C)"
+            >
+              <option value="auto">🎙️ Voice (Auto)</option>
+              {availableVoices.length > 0 ? (
+                availableVoices.map((v) => (
+                  <option key={v.voiceURI} value={v.voiceURI}>
+                    {v.name}
+                  </option>
+                ))
+              ) : (
+                <>
+                  <option value="voice-a">Voice A (Warm Elder)</option>
+                  <option value="voice-b">Voice B (Gentle Female)</option>
+                  <option value="voice-c">Voice C (Clear Male)</option>
+                </>
+              )}
             </select>
 
             {/* Clearly Visible Exit Button (Accessible, Mobile-Friendly, Top-Right Corner) */}
@@ -951,7 +1119,7 @@ export function VoiceAssistantModal({
           </div>
         </div>
 
-        {/* 4 Distinct Voice UI States: 🎙️ Tap to speak | 🔴 Listening... | 🧠 Thinking... | 🔊 Speaking... */}
+        {/* Robust Voice State Machine Visualizer */}
         <div className="text-center space-y-3 shrink-0">
           {/* Large Central Microphone Control Button */}
           <div className="flex flex-col items-center justify-center gap-3">
@@ -977,6 +1145,10 @@ export function VoiceAssistantModal({
                   ? "bg-amber-500 text-white border-amber-400 scale-105 shadow-amber-500/25 animate-pulse ring-8 ring-amber-500/15"
                   : voiceState === "speaking"
                   ? "bg-primary text-white border-primary/60 scale-105 shadow-primary/30 animate-pulse ring-8 ring-primary/15"
+                  : voiceState === "interrupted"
+                  ? "bg-amber-600 text-white border-amber-400 animate-pulse"
+                  : voiceState === "stopping"
+                  ? "bg-slate-600 text-white border-slate-400"
                   : voiceState === "finished"
                   ? "bg-emerald-600 text-white border-emerald-400 scale-105 shadow-emerald-500/25 ring-8 ring-emerald-500/15"
                   : voiceState === "error"
@@ -997,6 +1169,10 @@ export function VoiceAssistantModal({
                 <Sparkles className="h-12 w-12 sm:h-14 sm:w-14 animate-spin" />
               ) : voiceState === "speaking" ? (
                 <Volume2 className="h-12 w-12 sm:h-14 sm:w-14 animate-pulse" />
+              ) : voiceState === "interrupted" ? (
+                <VolumeX className="h-12 w-12 sm:h-14 sm:w-14" />
+              ) : voiceState === "stopping" ? (
+                <StopCircle className="h-12 w-12 sm:h-14 sm:w-14 animate-spin" />
               ) : voiceState === "finished" ? (
                 <Check className="h-12 w-12 sm:h-14 sm:w-14 animate-pulse" />
               ) : voiceState === "error" ? (
@@ -1029,6 +1205,10 @@ export function VoiceAssistantModal({
                   ? "bg-amber-500 animate-pulse"
                   : voiceState === "speaking"
                   ? "bg-primary animate-pulse"
+                  : voiceState === "interrupted"
+                  ? "bg-amber-600 animate-pulse"
+                  : voiceState === "stopping"
+                  ? "bg-slate-500"
                   : voiceState === "finished"
                   ? "bg-emerald-500 animate-pulse"
                   : voiceState === "error"
@@ -1043,6 +1223,10 @@ export function VoiceAssistantModal({
                 ? "🧠 PROCESSING (Understanding your question)"
                 : voiceState === "speaking"
                 ? "🔊 SPEAKING (Tap mic to interrupt)"
+                : voiceState === "interrupted"
+                ? "✋ INTERRUPTED (Switching to listening)"
+                : voiceState === "stopping"
+                ? "⏹️ STOPPING (Resetting state)"
                 : voiceState === "finished"
                 ? "✅ FINISHED (Preparing next turn)"
                 : voiceState === "error"

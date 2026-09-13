@@ -78,7 +78,7 @@ export function SeniorHome({
       );
     };
     updateTime();
-    const timer = setInterval(updateTime, 1000);
+    const timer = setInterval(updateTime, 30000);
     return () => clearInterval(timer);
   }, []);
 

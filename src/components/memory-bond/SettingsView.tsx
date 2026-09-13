@@ -25,13 +25,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
-import { useI18n, LANGUAGES, type LangCode } from "@/lib/i18n";
+import { useI18n, LANGUAGES, NER_STATES, getLanguagesByState, type LangCode } from "@/lib/i18n";
 import { speakText, stopSpeaking } from "@/lib/voiceParser";
+import { voiceManager } from "@/lib/voiceProvider";
 import { INDIAN_STATES } from "@/lib/panIndiaCulturalRepository";
 
 export function SettingsView({ store }: { store: MemoryBondStore }) {
   const { lang, setLang, t, speechLocale } = useI18n();
   const [testSpeechStatus, setTestSpeechStatus] = useState<string>("");
+  const [selectedRegionTab, setSelectedRegionTab] = useState<string>(
+    store.profile.selected_ner_state || "Pan-India"
+  );
+  const [selectedVoice, setSelectedVoice] = useState<string>(
+    voiceManager.getSelectedVoice() || "voice-a"
+  );
 
   const handleFontSizeChange = (size: "normal" | "large" | "xlarge") => {
     store.updateProfile({ font_size: size });
@@ -64,25 +71,64 @@ export function SettingsView({ store }: { store: MemoryBondStore }) {
     }
   };
 
+  const handleVoiceSelection = (vKey: string) => {
+    voiceManager.stopSpeaking();
+    setSelectedVoice(vKey);
+    voiceManager.setSelectedVoice(vKey);
+    setTestSpeechStatus(`Applied ${vKey.toUpperCase()}. Playing sample...`);
+    const sample =
+      lang === "hi"
+        ? "नमस्ते! यह आपकी नई चुनी हुई आवाज़ है।"
+        : lang === "as"
+        ? "নমস্কাৰ! এইটো আপোনাৰ নতুন কণ্ঠস্বৰ।"
+        : lang === "bn"
+        ? "নমস্কার! এটি আপনার নতুন কণ্ঠস্বর।"
+        : "Hello! This is your newly selected companion voice.";
+    voiceManager.speak(
+      sample,
+      speechLocale || "en-IN",
+      () => {},
+      () => {
+        setTestSpeechStatus("");
+      },
+      () => {
+        setTestSpeechStatus("");
+      }
+    );
+  };
+
   const testVoiceSample = () => {
-    stopSpeaking();
+    voiceManager.stopSpeaking();
     setTestSpeechStatus("Playing voice sample...");
     const sampleText =
       lang === "hi"
-        ? "नमस्ते! मैं आपका Memory Bond साथी हूँ।"
+        ? "नमस्ते! मैं आपका Memory Bond साथी हूँ। मैं आपकी सहायता के लिए सदैव यहाँ हूँ।"
         : lang === "as"
-        ? "নমস্কাৰ! মই আপোনাৰ Memory Bond সংগী।"
+        ? "নমস্কাৰ! মই আপোনাৰ Memory Bond সংগী। মই আপোনাক সহায় কৰিবলৈ সদায় প্ৰস্তুত।"
         : lang === "bn"
-        ? "নমস্কার! আমি আপনার Memory Bond সঙ্গী।"
+        ? "নমস্কার! আমি আপনার Memory Bond সঙ্গী। আমি আপনাকে সাহায্য করতে সবসময় প্রস্তুত।"
         : "Namaste! I am your Memory Bond companion, here to assist your peaceful day.";
 
-    speakText(sampleText, speechLocale || "en-IN", () => {
-      setTestSpeechStatus("Voice test completed successfully.");
-      setTimeout(() => setTestSpeechStatus(""), 3000);
-    });
+    voiceManager.speak(
+      sampleText,
+      speechLocale || "en-IN",
+      () => {},
+      () => {
+        setTestSpeechStatus("Voice test completed successfully.");
+        setTimeout(() => setTestSpeechStatus(""), 3000);
+      },
+      () => {
+        setTestSpeechStatus("");
+      }
+    );
   };
 
   const currentProvider = store.profile.voice_provider || "web_speech";
+
+  const displayedLanguages =
+    selectedRegionTab === "Pan-India"
+      ? LANGUAGES.filter((l) => !l.state)
+      : getLanguagesByState(selectedRegionTab);
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -126,31 +172,56 @@ export function SettingsView({ store }: { store: MemoryBondStore }) {
         </div>
       </div>
 
-      {/* 2. Multilingual Support (12 Indian Languages) */}
+      {/* 2. Multilingual Support (Pan-India & All 8 NER States) */}
       <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-xs space-y-4">
         <div className="flex items-center gap-3">
           <Languages className="h-6 w-6 text-primary" />
           <div>
             <h3 className="text-xl font-bold text-foreground">
-              Regional Language (12 Indian Languages & Scripts)
+              Regional Language ({LANGUAGES.length} Indian & NER Indigenous Languages)
             </h3>
             <p className="text-sm text-muted-foreground">
-              Select your native Indian language for navigation, screen text, and voice audio feedback.
+              Select your native language or indigenous North East dialect. Changing language updates all UI screens, Voice AI, STT, and TTS.
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-          {LANGUAGES.map((l) => {
+        {/* State / Region Tab Selector */}
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+          {["Pan-India", ...NER_STATES].map((region) => (
+            <button
+              key={region}
+              type="button"
+              onClick={() => setSelectedRegionTab(region)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+                selectedRegionTab === region
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "bg-secondary/60 hover:bg-secondary text-muted-foreground hover:text-foreground border border-border/70"
+              }`}
+            >
+              {region}
+            </button>
+          ))}
+        </div>
+
+        {/* Language Cards Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-2">
+          {displayedLanguages.map((l) => {
             const isSelected = lang === l.code;
             return (
               <button
                 key={l.code}
+                type="button"
                 onClick={() => {
+                  voiceManager.stopSpeaking();
                   setLang(l.code);
-                  store.updateProfile({ language: l.code });
+                  store.updateProfile({
+                    language: l.code,
+                    selected_ner_state: l.state || store.profile.selected_ner_state,
+                    selected_state: l.state || store.profile.selected_state,
+                  });
                 }}
-                className={`p-4 rounded-2xl border-2 text-left transition-all flex flex-col justify-between h-24 ${
+                className={`p-4 rounded-2xl border-2 text-left transition-all flex flex-col justify-between h-24 cursor-pointer ${
                   isSelected
                     ? "bg-primary text-primary-foreground border-primary shadow-md scale-105 ring-2 ring-primary/30"
                     : "bg-secondary/40 hover:bg-secondary/70 border-border text-foreground"
@@ -158,6 +229,69 @@ export function SettingsView({ store }: { store: MemoryBondStore }) {
               >
                 <span className="text-lg font-bold">{l.native}</span>
                 <span className="text-xs font-semibold opacity-80">{l.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 2B. Spoken Voice Selection (Voice A / B / C) */}
+      <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-xs space-y-4">
+        <div className="flex items-center gap-3">
+          <Volume2 className="h-6 w-6 text-primary" />
+          <div>
+            <h3 className="text-xl font-bold text-foreground">
+              TTS Voice Character (Voice A / B / C)
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Choose the tone and character of your AI companion. The selected voice is applied immediately to all spoken responses.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+          {[
+            {
+              id: "voice-a",
+              title: "Voice A",
+              label: "Warm Elder Companion",
+              desc: "Gentle, reassuring cadence with elder warmth and slow pacing.",
+            },
+            {
+              id: "voice-b",
+              title: "Voice B",
+              label: "Gentle & Calm Female",
+              desc: "Clear, soothing female pronunciation ideal for daily reminders.",
+            },
+            {
+              id: "voice-c",
+              title: "Voice C",
+              label: "Clear & Confident Male",
+              desc: "Deep, articulate voice with clear consonants for easy listening.",
+            },
+          ].map((v) => {
+            const isSelected = selectedVoice === v.id;
+            return (
+              <button
+                key={v.id}
+                type="button"
+                onClick={() => handleVoiceSelection(v.id)}
+                className={`p-4 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-2 cursor-pointer ${
+                  isSelected
+                    ? "bg-primary/10 border-primary shadow-sm ring-2 ring-primary/20"
+                    : "bg-secondary/30 hover:bg-secondary/60 border-border text-foreground"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-base font-bold text-foreground">{v.title}</span>
+                  {isSelected && (
+                    <span className="text-xs font-black px-2 py-0.5 rounded-full bg-primary text-primary-foreground">
+                      Active
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs font-bold text-primary block">{v.label}</span>
+                <p className="text-xs text-muted-foreground">{v.desc}</p>
               </button>
             );
           })}
@@ -247,7 +381,7 @@ export function SettingsView({ store }: { store: MemoryBondStore }) {
             variant="outline"
             size="sm"
             onClick={testVoiceSample}
-            className="rounded-xl font-bold gap-2"
+            className="rounded-xl font-bold gap-2 cursor-pointer"
           >
             <Volume2 className="h-4 w-4 text-primary" /> Test Voice Readout
           </Button>
