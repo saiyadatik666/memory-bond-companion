@@ -256,26 +256,9 @@
   background-attachment: fixed;
 }
 
-@utility pastel-card {
-  background-color: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-2xl);
-  box-shadow: var(--shadow-card);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@utility pastel-card-hover {
-  background-color: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-2xl);
-  box-shadow: var(--shadow-card);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-
-  &:hover {
-    box-shadow: var(--shadow-lift);
-    border-color: oklch(0.80 0.06 250);
-    transform: translateY(-2px);
-  }
+@utility bg-ambient {
+  background: var(--bg-ambient);
+  background-attachment: fixed;
 }
 
 @utility soft-shadow {
@@ -290,3 +273,4 @@
   min-height: 48px;
   min-width: 48px;
 }
+

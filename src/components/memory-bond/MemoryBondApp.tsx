@@ -36,6 +36,7 @@ import { Footer } from "./Footer";
 import { FloatingAssistantBubble } from "./FloatingAssistantBubble";
 import { SIHDemoTourModal } from "./SIHDemoTourModal";
 import { MemoryStoryModal } from "./MemoryStoryModal";
+import { SafeRouteErrorBoundary } from "./SafeRouteErrorBoundary";
 
 export function MemoryBondApp() {
   const store = useMemoryBondStore();
@@ -222,11 +223,12 @@ export function MemoryBondApp() {
       : "text-scale-normal";
 
   return (
-    <div
-      className={`min-h-screen overflow-x-hidden bg-background text-foreground flex flex-col justify-between pb-24 ${fontClass} ${
-        store.profile.high_contrast ? "high-contrast contrast-boost" : ""
-      } ${store.profile.reduced_motion ? "reduced-motion" : ""}`}
-    >
+    <SafeRouteErrorBoundary>
+      <div
+        className={`min-h-screen overflow-x-hidden bg-background text-foreground flex flex-col justify-between pb-24 ${fontClass} ${
+          store.profile.high_contrast ? "high-contrast contrast-boost" : ""
+        } ${store.profile.reduced_motion ? "reduced-motion" : ""}`}
+      >
       {/* Top Demo Bar for Evaluators & Judges */}
       <DemoControlBar
         store={store}
@@ -402,5 +404,6 @@ export function MemoryBondApp() {
         />
       )}
     </div>
+    </SafeRouteErrorBoundary>
   );
 }

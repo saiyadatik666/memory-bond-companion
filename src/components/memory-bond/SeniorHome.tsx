@@ -776,7 +776,7 @@ export function SeniorHome({
                   return (
                     <div
                       key={rt.id}
-                      onClick={() => store.toggleRoutine(rt.id)}
+                      onClick={() => store.toggleRoutineDone(rt.id)}
                       className="flex items-center justify-between p-2.5 rounded-xl bg-secondary/50 border border-border/70 hover:bg-secondary cursor-pointer transition-colors"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
@@ -786,7 +786,7 @@ export function SeniorHome({
                           {isDone && <Check className="h-3.5 w-3.5 stroke-[3]" />}
                         </div>
                         <span className={`text-xs font-bold truncate ${isDone ? "line-through text-muted-foreground" : "text-foreground"}`}>
-                          {rt.title}
+                          {rt.activity}
                         </span>
                       </div>
                       <span className="text-[10px] font-bold text-muted-foreground shrink-0">{rt.time}</span>
