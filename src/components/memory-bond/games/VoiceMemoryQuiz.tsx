@@ -11,6 +11,72 @@ interface VoiceQuizItem {
   correct: number;
 }
 
+const GUJARATI_VOICE_QUIZ_ITEMS: VoiceQuizItem[] = [
+  {
+    promptAudioText: "દાદાજી, સવારના નાસ્તા પછી આદુવાળી ચા અને બીપીની દવા લેવાનું ભૂલતા નહીં!",
+    question: "વોઈસ નોટમાં સવારની કઈ બે વસ્તુઓ યાદ કરાવી હતી?",
+    options: ["આદુવાળી ચા અને બીપીની દવા", "ઠંડુ દૂધ અને બિસ્કિટ", "ફળનો રસ અને વિટામિન", "કોફી અને આઈસ્ક્રીમ"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "કાલે સાંજે નવરાત્રીનો ગરબા કાર્યક્રમ સોસાયટીના ગ્રાઉન્ડમાં સાત વાગ્યે શરૂ થશે.",
+    question: "નવરાત્રી ગરબા કાર્યક્રમ કયા સમયે શરૂ થશે?",
+    options: ["સાંજે સાત વાગ્યે", "બપોરે બે વાગ્યે", "સવારે નવ વાગ્યે", "રાત્રે અગિયાર વાગ્યે"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "સુનીતાએ યાદ કરાવ્યું છે કે બપોરે ગરમ ખમણ અને છાશ સાથે શાંતિથી ભોજન કરજો.",
+    question: "બપોરના ભોજનમાં સુનીતાએ કઈ વાનગી લેવા કહ્યું?",
+    options: ["ગરમ ખમણ અને છાશ", "સમોસા અને પકોડા", "ચીઝ પીત્ઝા", "મીઠાઈ અને કેક"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "ડૉક્ટર પંડ્યા સાથે તમારી તપાસ ગુરુવારે સવારે દસ વાગ્યે નક્કી થઈ છે.",
+    question: "ડૉક્ટર પંડ્યા સાથે તપાસ ક્યારે છે?",
+    options: ["ગુરુવારે સવારે ૧૦ વાગ્યે", "સોમવારે બપોરે ૨ વાગ્યે", "શનિવારે સાંજે", "રવિવારે સવારે"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "બાલકનીમાં તુલસી ક્યારે સવારની કુમળી ધૂપ આવે તે પહેલાં પાણી સીંચવાનું યાદ રાખજો.",
+    question: "બાલકનીમાં કયા છોડને પાણી આપવાનું કહ્યું છે?",
+    options: ["પવિત્ર તુલસીનો છોડ", "ગુલાબનો છોડ", "મની પ્લાન્ટ", "પીપળાનું ઝાડ"],
+    correct: 0,
+  },
+];
+
+const HINDI_VOICE_QUIZ_ITEMS: VoiceQuizItem[] = [
+  {
+    promptAudioText: "बाउजी, नाश्ते के बाद गर्म अदरक की चाय और अपनी बीपी की गोली लेना न भूलें!",
+    question: "वॉइस नोट में सुबह की कौन सी दो चीज़ें याद दिलाई गई थीं?",
+    options: ["अदरक की चाय और बीपी की गोली", "ठंडा दूध और बिस्कुट", "सेब का रस और विटामिन", "कॉफी और आइसक्रीम"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "दादाजी, आपकी बेटी सुनीता ने कहा है कि वह रविवार को आपके लिए ताज़ा खीर और मिठाई ला रही है!",
+    question: "सुनीता रविवार को क्या ला रही है?",
+    options: ["ताज़ा खीर और मिठाई", "बाज़ार से नए कपड़े", "लाइब्रेरी से किताबें", "बगीचे के औज़ार"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "बालकनी में पवित्र तुलसी के पौधे में सुबह की धूप से पहले पानी डालना याद रखें।",
+    question: "बालकनी में किस पौधे को पानी देने की याद दिलाई गई?",
+    options: ["पवित्र तुलसी का पौधा", "गुलाब की झाड़ी", "मनी प्लांट", "रबर प्लांट"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "डॉ. बरुआ के साथ आपका रूटीन चेकअप गुरुवार सुबह 10 बजे है।",
+    question: "डॉक्टर के साथ चेकअप किस समय है?",
+    options: ["गुरुवार सुबह 10 बजे", "सोमवार दोपहर 2 बजे", "शनिवार शाम", "शुक्रवार सुबह"],
+    correct: 0,
+  },
+  {
+    promptAudioText: "आरव शाम 5 बजे आपके साथ कैरम खेलने आ रहा है।",
+    question: "पोता आरव शाम 5 बजे क्या करने आ रहा है?",
+    options: ["कैरम खेलने", "क्रिकेट खेलने", "गृहकार्य करने", "वीडियो गेम खेलने"],
+    correct: 0,
+  },
+];
+
 const ALL_VOICE_QUIZ_ITEMS: VoiceQuizItem[] = [
   {
     promptAudioText: "Baba, don't forget to take your warm ginger tea and your blood pressure tablet after breakfast!",
@@ -256,7 +322,13 @@ export function VoiceMemoryQuiz({
       correct: 0,
     }));
 
-  const allItemsPool = [...personalQuizItems, ...ALL_VOICE_QUIZ_ITEMS];
+  const basePool =
+    lang === "gu"
+      ? GUJARATI_VOICE_QUIZ_ITEMS
+      : lang === "hi"
+      ? HINDI_VOICE_QUIZ_ITEMS
+      : ALL_VOICE_QUIZ_ITEMS;
+  const allItemsPool = [...personalQuizItems, ...basePool];
 
   // Pick 2 tailored items per level, permuted by 8-Day Cycle
   const activeItems = useMemo(() => {

@@ -37,6 +37,8 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
   const [activeForCalls, setActiveForCalls] = useState<boolean>(true);
   const [photoUrl, setPhotoUrl] = useState<string>("https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80");
   const [voiceMemory, setVoiceMemory] = useState<string>("यह राहुल हैं, आपके बेटे।");
+  const [birthday, setBirthday] = useState<string>("1995-09-14");
+  const [notes, setNotes] = useState<string>("");
 
   const PHOTO_PRESETS = [
     { label: "Son / Man", url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80" },
@@ -65,6 +67,8 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
       active_for_calls: activeForCalls,
       photo_url: photoUrl || undefined,
       voice_memory: voiceMemory.trim() || undefined,
+      birthday: birthday.trim() || undefined,
+      notes: notes.trim() || undefined,
     };
     const trimmedEmail = email.trim();
     store.addContact(trimmedEmail ? { ...contact, email: trimmedEmail } : contact);
@@ -74,6 +78,8 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
     setPhone("");
     setEmail("");
     setVoiceMemory("");
+    setBirthday("");
+    setNotes("");
   };
 
   const toggleEmergencyStatus = (id: string, currentStatus: boolean) => {
@@ -382,6 +388,17 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
                     <span>{contact.email}</span>
                   </div>
                 )}
+                {contact.birthday && (
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-lg w-fit">
+                    <span>🎂 Birthday:</span>
+                    <span>{contact.birthday}</span>
+                  </div>
+                )}
+                {contact.notes && (
+                  <div className="text-xs text-muted-foreground italic">
+                    Note: {contact.notes}
+                  </div>
+                )}
               </div>
 
               {/* Alert & Calling Toggles */}
@@ -470,9 +487,51 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
                 />
               </div>
 
+              {/* Birthday Input (Requirement 24 & 25) */}
+              <div>
+                <Label>Birthday (जन्मदिन) *</Label>
+                <Input
+                  type="date"
+                  value={birthday}
+                  onChange={(e) => setBirthday(e.target.value)}
+                  className="rounded-xl mt-1 font-mono"
+                />
+                <span className="text-[11px] text-muted-foreground">
+                  Automated reminders will notify senior 1-day before and on their birthday!
+                </span>
+              </div>
+
+              <div>
+                <Label>Optional Notes</Label>
+                <Input
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="e.g. Loves cricket, calls every Sunday at 5 PM"
+                  className="rounded-xl mt-1"
+                />
+              </div>
+
               {/* Photo Selector */}
               <div className="space-y-1.5">
-                <Label>Photo / Avatar</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Photo / Avatar</Label>
+                  <label className="text-xs text-primary font-bold hover:underline cursor-pointer">
+                    Upload Custom Photo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = () => setPhotoUrl(reader.result as string);
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
                 <div className="flex gap-2 items-center flex-wrap">
                   {PHOTO_PRESETS.map((preset) => (
                     <button

@@ -31,15 +31,7 @@ export function BottomNavigation({
 
   let tabs: { id: string; label: string; icon: any; isSos?: boolean }[] = [];
 
-  if (role === "admin_healthcare_worker" || role === "healthcare_worker" || role === "admin") {
-    tabs = [
-      { id: "healthcare", label: "Triage & Admin", icon: Stethoscope },
-      { id: "medicines", label: t("medicines") || "Meds", icon: Pill },
-      { id: "appointments", label: "Clinics", icon: Calendar },
-      { id: "checkin", label: "CES", icon: Activity },
-      { id: "settings", label: "Settings", icon: Settings },
-    ];
-  } else if (role === "caregiver") {
+  if (role === "caregiver") {
     tabs = [
       { id: "caregiver", label: "Dashboard", icon: Home },
       { id: "medicines", label: t("medicines") || "Medicines", icon: Pill },

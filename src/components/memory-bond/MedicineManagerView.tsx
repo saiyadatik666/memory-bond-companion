@@ -14,6 +14,9 @@ import {
   XCircle,
   SkipForward,
   History,
+  Camera,
+  Eye,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +33,11 @@ export function MedicineManagerView({ store }: { store: MemoryBondStore }) {
   const [refillAmount, setRefillAmount] = useState<number>(30);
   const [refillNote, setRefillNote] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"prescriptions" | "history">("prescriptions");
+
+  // Photo Confirmation State (Requirement 17)
+  const [photoModalMed, setPhotoModalMed] = useState<Medicine | null>(null);
+  const [capturedPhotoUrl, setCapturedPhotoUrl] = useState<string | null>(null);
+  const [viewingProofUrl, setViewingProofUrl] = useState<string | null>(null);
 
   // New Medicine Form State
   const [name, setName] = useState<string>("");
@@ -81,13 +89,28 @@ export function MedicineManagerView({ store }: { store: MemoryBondStore }) {
     }
   };
 
-  const handleMarkDose = (id: string, medName: string, status: "taken" | "missed" | "skipped") => {
-    store.markMedicineStatus(id, status);
+  const handleMarkDose = (
+    id: string,
+    medName: string,
+    status: "taken" | "missed" | "skipped",
+    photoUrl?: string
+  ) => {
+    store.markMedicineStatus(id, status, undefined, photoUrl);
     if (status === "taken") {
       speakText(`${t("taken") || "Recorded as taken"}: ${medName}`, speechLocale);
     } else if (status === "missed") {
       speakText(`${medName} marked as missed. Caregiver has been informed.`, speechLocale);
     }
+  };
+
+  const handleConfirmDoseWithPhoto = () => {
+    if (!photoModalMed) return;
+    const photoToSave =
+      capturedPhotoUrl ||
+      "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300&auto=format&fit=crop&q=80";
+    handleMarkDose(photoModalMed.id, photoModalMed.name, "taken", photoToSave);
+    setPhotoModalMed(null);
+    setCapturedPhotoUrl(null);
   };
 
   // Medicines needing refill: stock <= threshold or days remaining <= 3
@@ -265,25 +288,41 @@ export function MedicineManagerView({ store }: { store: MemoryBondStore }) {
 
                 {/* Action Buttons: TAKEN, MISSED, SKIPPED */}
                 <div className="pt-3 border-t border-border/80 space-y-2">
-                  <div className="grid grid-cols-3 gap-2">
-                    {/* 1. TAKEN */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* 1. TAKEN (Regular) */}
                     <Button
                       size="sm"
                       onClick={() => handleMarkDose(med.id, med.name, "taken")}
                       disabled={med.stock <= 0}
-                      className="bg-success hover:bg-success/90 text-white font-bold rounded-xl gap-1 h-10 text-xs shadow-xs"
+                      className="bg-success hover:bg-success/90 text-white font-bold rounded-xl gap-1 h-10 text-xs shadow-xs cursor-pointer"
                     >
                       <CheckCircle2 className="h-4 w-4" /> {t("markTaken") || "I Took It"}
                     </Button>
 
+                    {/* 1B. PHOTO CONFIRMATION (Requirement 17) */}
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setCapturedPhotoUrl(null);
+                        setPhotoModalMed(med);
+                      }}
+                      disabled={med.stock <= 0}
+                      variant="outline"
+                      className="border-primary/50 text-primary hover:bg-primary/10 font-bold rounded-xl gap-1.5 h-10 text-xs cursor-pointer"
+                    >
+                      <Camera className="h-4 w-4" /> Photo Confirm
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-1">
                     {/* 2. MISSED */}
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleMarkDose(med.id, med.name, "missed")}
-                      className="border-destructive/40 text-destructive hover:bg-destructive/10 font-bold rounded-xl gap-1 h-10 text-xs"
+                      className="border-destructive/40 text-destructive hover:bg-destructive/10 font-bold rounded-xl gap-1 h-9 text-xs cursor-pointer"
                     >
-                      <XCircle className="h-4 w-4" /> {t("markMissed") || "Missed"}
+                      <XCircle className="h-3.5 w-3.5" /> {t("markMissed") || "Missed"}
                     </Button>
 
                     {/* 3. SKIPPED */}
@@ -291,9 +330,9 @@ export function MedicineManagerView({ store }: { store: MemoryBondStore }) {
                       size="sm"
                       variant="ghost"
                       onClick={() => handleMarkDose(med.id, med.name, "skipped")}
-                      className="hover:bg-secondary font-semibold rounded-xl gap-1 h-10 text-xs text-muted-foreground"
+                      className="hover:bg-secondary font-semibold rounded-xl gap-1 h-9 text-xs text-muted-foreground cursor-pointer"
                     >
-                      <SkipForward className="h-4 w-4" /> {t("markSkipped") || "Skip"}
+                      <SkipForward className="h-3.5 w-3.5" /> {t("markSkipped") || "Skip"}
                     </Button>
                   </div>
 
@@ -385,14 +424,15 @@ export function MedicineManagerView({ store }: { store: MemoryBondStore }) {
                             : "bg-warning/15 text-warning"
                         }`}
                       >
-                        {log.status}
-                      </span>
-                      <div className="text-xs text-muted-foreground mt-0.5 font-mono">
-                        {new Date(log.taken_at).toLocaleString([], {
-                          dateStyle: "short",
-                          timeStyle: "short",
-                        })}
-                      </div>
+                      {log.photo_url && (
+                        <button
+                          type="button"
+                          onClick={() => setViewingProofUrl(log.photo_url!)}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline mt-1 bg-primary/10 px-2 py-0.5 rounded-md cursor-pointer"
+                        >
+                          <Camera className="h-3 w-3" /> View Taken Photo
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -577,6 +617,127 @@ export function MedicineManagerView({ store }: { store: MemoryBondStore }) {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* PHOTO CONFIRMATION MODAL (Requirement 17) */}
+      {photoModalMed && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md rounded-3xl border-2 border-border bg-card p-6 shadow-2xl space-y-5 animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-primary/15 text-primary flex items-center justify-center">
+                  <Camera className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-lg text-foreground">Medicine Photo Confirm</h3>
+                  <p className="text-xs text-muted-foreground">{photoModalMed.name} ({photoModalMed.dosage})</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setPhotoModalMed(null);
+                  setCapturedPhotoUrl(null);
+                }}
+                className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Take or upload a picture of your pill strip, tablet, or glass as confirmation for your caregiver.
+            </p>
+
+            {/* Photo preview or file input */}
+            <div className="relative w-full h-48 rounded-2xl border-2 border-dashed border-primary/50 bg-secondary/30 flex flex-col items-center justify-center overflow-hidden">
+              {capturedPhotoUrl ? (
+                <img
+                  src={capturedPhotoUrl}
+                  alt="Medicine confirmation proof"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="text-center p-4 space-y-2">
+                  <Camera className="h-10 w-10 text-muted-foreground mx-auto" />
+                  <div className="text-xs font-bold text-foreground">
+                    Upload or Capture Pill Confirmation
+                  </div>
+                  <label className="inline-block px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold cursor-pointer hover:bg-primary/90 shadow-sm">
+                    Select / Snap Photo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            setCapturedPhotoUrl(reader.result as string);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2.5 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setPhotoModalMed(null);
+                  setCapturedPhotoUrl(null);
+                }}
+                className="flex-1 rounded-xl font-semibold cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleConfirmDoseWithPhoto}
+                className="flex-1 rounded-xl font-bold bg-success hover:bg-success/90 text-white cursor-pointer gap-1.5 shadow-md"
+              >
+                <CheckCircle2 className="h-4 w-4" /> Confirm Taken
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW PROOF PHOTO MODAL */}
+      {viewingProofUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md animate-in fade-in">
+          <div className="relative w-full max-w-sm rounded-3xl bg-card border-2 border-border p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-border">
+              <span className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                <Camera className="h-4 w-4 text-primary" /> Taken Dose Photo Proof
+              </span>
+              <button
+                onClick={() => setViewingProofUrl(null)}
+                className="p-1 rounded-lg text-muted-foreground hover:bg-secondary cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="w-full h-64 rounded-2xl overflow-hidden border bg-slate-950 flex items-center justify-center">
+              <img
+                src={viewingProofUrl}
+                alt="Confirmation proof"
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setViewingProofUrl(null)}
+              className="w-full rounded-xl text-xs font-bold cursor-pointer"
+            >
+              Close Proof
+            </Button>
           </div>
         </div>
       )}

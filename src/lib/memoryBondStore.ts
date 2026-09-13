@@ -37,6 +37,7 @@ export interface Profile {
   voice_provider?: "web_speech" | "bhashini" | "google_cloud";
   selected_ner_state?: string;
   selected_state?: string;
+  interests?: string[];
   floating_bubble?: boolean;
   baseline_assessment?: {
     completed_at: string;
@@ -114,6 +115,7 @@ export interface MedicineLog {
   scheduled_time: string | null;
   status: "taken" | "missed" | "skipped";
   taken_at: string;
+  photo_url?: string;
 }
 
 export interface MedicineRefill {
@@ -202,6 +204,8 @@ export interface EmergencyContact {
   photo_url?: string;
   voice_memory?: string;
   active_for_calls?: boolean;
+  birthday?: string;
+  notes?: string;
 }
 
 export interface SosEvent {
@@ -1451,12 +1455,12 @@ export function useMemoryBondStore() {
     [offlineModeForced, isOnline]
   );
 
-  // Smart Medicine Dose status (taken, missed, skipped)
+  // Smart Medicine Dose status (taken, missed, skipped) with optional photo confirmation
   const markMedicineStatus = useCallback(
-    (id: string, status: "taken" | "missed" | "skipped", note?: string) => {
+    (id: string, status: "taken" | "missed" | "skipped", note?: string, photoUrl?: string) => {
       const scheduledTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-      enqueueOfflineAction("MARK_MEDICINE_STATUS", { id, status, note, scheduledTime });
+      enqueueOfflineAction("MARK_MEDICINE_STATUS", { id, status, note, scheduledTime, photoUrl });
 
       if (status === "taken") {
         setMedicines((prev) =>
@@ -1498,6 +1502,7 @@ export function useMemoryBondStore() {
         scheduled_time: scheduledTime,
         status,
         taken_at: new Date().toISOString(),
+        photo_url: photoUrl,
       };
       setMedicineLogs((logs) => [log, ...logs]);
     },
@@ -1624,10 +1629,31 @@ export function useMemoryBondStore() {
     setJournal((prev) => prev.filter((j) => j.id !== id));
   }, []);
 
-  // Emergency Contacts
+  // Emergency Contacts & Automated Birthday Reminder scheduling
   const addContact = useCallback((contact: Omit<EmergencyContact, "id">) => {
     const newContact: EmergencyContact = { ...contact, id: `em-${Date.now()}` };
     setContacts((prev) => [...prev, newContact]);
+
+    // Automatically schedule birthday reminder if birthday is provided
+    if (contact.birthday) {
+      const bdayParts = contact.birthday.split("-");
+      const month = bdayParts.length >= 2 ? bdayParts[bdayParts.length - 2] : "01";
+      const day = bdayParts[bdayParts.length - 1];
+      const year = new Date().getFullYear();
+      const thisYearBday = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+
+      const bdayReminder: Reminder = {
+        id: `rem-bday-${Date.now()}`,
+        title: `🎂 ${contact.name}'s Birthday (${contact.relationship})`,
+        type: "family_call",
+        time: "09:00",
+        date: thisYearBday,
+        repeat: "daily",
+        notes: `Call and wish ${contact.name} (${contact.relationship}) a wonderful birthday!`,
+        active: true,
+      };
+      setReminders((prev) => [bdayReminder, ...prev]);
+    }
   }, []);
 
   const updateContact = useCallback((id: string, patch: Partial<EmergencyContact>) => {

@@ -25,6 +25,7 @@ import { SettingsView } from "./SettingsView";
 import { SeniorOnboarding } from "./SeniorOnboarding";
 import { LoginScreen } from "./LoginScreen";
 import { supabase } from "@/integrations/supabase/client";
+import { checkScheduledReminders, requestNotificationPermission } from "@/lib/notificationService";
 
 // Modals
 import { SosModal } from "./SosModal";
@@ -130,21 +131,24 @@ export function MemoryBondApp() {
     setIsSosOpen(false);
   }, []);
 
-  // Sync tab if user switches role (Senior, Caregiver, Admin / Healthcare Worker)
+  // Scheduled device notifications & reminders watcher (Requirement 14 & 25)
+  useEffect(() => {
+    requestNotificationPermission();
+    checkScheduledReminders(store);
+    const interval = window.setInterval(() => {
+      checkScheduledReminders(store);
+    }, 20000);
+    return () => window.clearInterval(interval);
+  }, [store]);
+
+  // Sync tab if user switches role (Senior vs Caregiver)
   useEffect(() => {
     if (store.profile.role === "caregiver" && currentTab === "home") {
       setCurrentTab("caregiver");
-    } else if (store.profile.role === "senior" && (currentTab === "caregiver" || currentTab === "healthcare")) {
+    } else if (store.profile.role === "senior" && currentTab === "caregiver") {
       setCurrentTab("home");
-    } else if (
-      (store.profile.role === "admin_healthcare_worker" ||
-        store.profile.role === "healthcare_worker" ||
-        store.profile.role === "admin") &&
-      (currentTab === "home" || currentTab === "caregiver")
-    ) {
-      setCurrentTab("healthcare");
     }
-  }, [store.profile.role]);
+  }, [store.profile.role, currentTab]);
 
   // Read URL query params if present e.g. ?tab=medicines
   useEffect(() => {
@@ -255,15 +259,7 @@ export function MemoryBondApp() {
           )}
 
           {currentTab === "healthcare" && (
-            store.profile.role === "healthcare_worker" || store.profile.role === "admin_healthcare_worker" || store.profile.role === "admin" ? (
-              <HealthcareWorkerDashboard store={store} onNavigate={handleNavigate} />
-            ) : (
-              <SeniorHome
-                store={store}
-                onNavigate={handleNavigate}
-                onOpenVoiceAssistant={() => setIsVoiceOpen(true)}
-              />
-            )
+            <CaregiverDashboard store={store} onNavigate={handleNavigate} />
           )}
 
           {currentTab === "cultural" && (

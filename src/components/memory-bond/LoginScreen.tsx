@@ -8,6 +8,7 @@ import {
   Lock,
   User,
   ArrowRight,
+  ArrowLeft,
   Sparkles,
   Camera,
   CheckCircle2,
@@ -16,6 +17,8 @@ import {
   Users,
   Eye,
   EyeOff,
+  Languages,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +26,8 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { QRScannerModal } from "./QRScannerModal";
+import { LANGUAGES, useI18n, type LangCode } from "@/lib/i18n";
+import { speakText } from "@/lib/voiceParser";
 
 interface LoginScreenProps {
   store: MemoryBondStore;
@@ -30,7 +35,16 @@ interface LoginScreenProps {
 }
 
 export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
-  const [activeTab, setActiveTab] = useState<"caregiver" | "senior">("caregiver");
+  const { lang, setLang, t } = useI18n();
+
+  // Onboarding Stage: 'welcome' -> 'language' -> 'role' -> 'caregiver_auth' | 'senior_auth'
+  const [stage, setStage] = useState<"welcome" | "language" | "role" | "caregiver_auth" | "senior_auth">(() => {
+    if (typeof window !== "undefined" && localStorage.getItem("mb_welcome_completed")) {
+      return "role";
+    }
+    return "welcome";
+  });
+
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
 
   // Caregiver form state
@@ -44,13 +58,13 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
 
   // Senior linking state
   const [connectionCode, setConnectionCode] = useState("");
-  const [seniorName, setSeniorName] = useState("Ramesh Sharma");
+  const [seniorName, setSeniorName] = useState(store.profile.full_name || "Ramesh Sharma");
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [linkingError, setLinkingError] = useState<string | null>(null);
   const [linkingSuccess, setLinkingSuccess] = useState<string | null>(null);
   const [isLinking, setIsLinking] = useState(false);
 
-  // Generate or retrieve caregiver unique code
+  // Helper to retrieve or create caregiver unique pairing code
   const getOrCreateCaregiverCode = (caregiverId: string) => {
     let existing = localStorage.getItem(`mb_cg_code_${caregiverId}`);
     if (!existing) {
@@ -59,7 +73,6 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
       localStorage.setItem(`mb_cg_code_${caregiverId}`, existing);
       localStorage.setItem("mb_caregiver_unique_code", existing);
 
-      // Register code in known codes list
       const registered = JSON.parse(localStorage.getItem("mb_registered_caregiver_codes") || "[]");
       if (!registered.includes(existing)) {
         registered.push(existing);
@@ -111,6 +124,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
             caregiverCode,
           })
         );
+        localStorage.setItem("mb_welcome_completed", "true");
 
         store.updateProfile({
           full_name: fullName.trim() || "Caregiver",
@@ -118,10 +132,10 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
         });
         store.setRole("caregiver");
 
-        setSuccessMessage("Caregiver account created successfully! Opening Caregiver Dashboard...");
+        setSuccessMessage("Caregiver account created! Opening Caregiver Dashboard...");
         setTimeout(() => {
           onAuthenticated("caregiver");
-        }, 800);
+        }, 700);
       } else {
         // Sign in
         if (!email.trim() || !password.trim()) {
@@ -133,10 +147,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
           password,
         });
 
-        if (error) {
-          // If Supabase credentials don't match, show clear message
-          throw error;
-        }
+        if (error) throw error;
 
         const user = data.user;
         const userId = user?.id || `cg_${Date.now()}`;
@@ -153,6 +164,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
             caregiverCode,
           })
         );
+        localStorage.setItem("mb_welcome_completed", "true");
 
         store.updateProfile({
           full_name: name,
@@ -160,48 +172,13 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
         });
         store.setRole("caregiver");
 
-        setSuccessMessage("Caregiver signed in successfully! Opening Caregiver Dashboard...");
+        setSuccessMessage("Caregiver signed in! Opening Caregiver Dashboard...");
         setTimeout(() => {
           onAuthenticated("caregiver");
-        }, 800);
+        }, 700);
       }
     } catch (err: any) {
-      setErrorMessage(err.message || "Authentication failed. Please verify your credentials.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // GOOGLE LOGIN HANDLER
-  const handleGoogleLogin = async () => {
-    setIsLoading(true);
-    setErrorMessage(null);
-    try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: window.location.origin,
-        },
-      });
-
-      if (error) throw error;
-      if (data?.url) {
-        window.location.href = data.url;
-      }
-    } catch (err: any) {
-      console.warn("Google Sign In notice:", err);
-      const isConfigError =
-        err?.message?.toLowerCase().includes("provider") ||
-        err?.message?.toLowerCase().includes("disabled") ||
-        err?.message?.toLowerCase().includes("unsupported");
-
-      if (isConfigError) {
-        setErrorMessage(
-          "Google OAuth provider is not yet enabled in the cloud Supabase project. You can sign in instantly using email & password or the One-Click Demo Caregiver login below."
-        );
-      } else {
-        setErrorMessage(err.message || "Google Sign-In could not connect. Please try again or use email login.");
-      }
+      setErrorMessage(err.message || "Authentication failed. Please check credentials or use Demo Access below.");
     } finally {
       setIsLoading(false);
     }
@@ -222,6 +199,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
         caregiverCode,
       })
     );
+    localStorage.setItem("mb_welcome_completed", "true");
 
     store.updateProfile({
       full_name: "Sunita Sharma (Caregiver)",
@@ -229,7 +207,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
     });
     store.setRole("caregiver");
 
-    setSuccessMessage("Signed in as Caregiver! Opening Caregiver Dashboard...");
+    setSuccessMessage("Opening Caregiver Dashboard with demo data...");
     setTimeout(() => {
       onAuthenticated("caregiver");
     }, 600);
@@ -248,33 +226,14 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
       return;
     }
 
-    // Check valid format (e.g. MB-CG-XXXXXX or default demo code MB-CAREGIVER-2026)
-    const validCodes = [
-      "MB-CAREGIVER-2026",
-      "MB-CG-781042",
-      localStorage.getItem("mb_caregiver_unique_code"),
-      ...(JSON.parse(localStorage.getItem("mb_registered_caregiver_codes") || "[]")),
-    ].filter(Boolean);
-
-    // Also accept any valid MB-CG- pattern to allow flexible live testing
     const isValidFormat = cleanCode.startsWith("MB-CG-") || cleanCode === "MB-CAREGIVER-2026";
-
     if (!isValidFormat) {
-      setLinkingError("Invalid code format. Codes must start with 'MB-CG-' (e.g., MB-CG-781042).");
+      setLinkingError("Invalid code format. Codes must start with 'MB-CG-' (e.g. MB-CG-781042).");
       setIsLinking(false);
       return;
     }
 
-    // Check if code matches an actual caregiver
-    const matchesKnownCaregiver = validCodes.some((c) => c?.toUpperCase() === cleanCode);
-
-    if (!matchesKnownCaregiver && !cleanCode.startsWith("MB-CG-")) {
-      setLinkingError("Caregiver connection code not found or expired. Please check the code in Caregiver Dashboard.");
-      setIsLinking(false);
-      return;
-    }
-
-    // Perform secure pairing
+    // Perform pairing
     store.linkCaregiver(cleanCode, "Caregiver Linked");
     localStorage.setItem("mb_linked_caregiver_code", cleanCode);
     localStorage.setItem(
@@ -282,351 +241,557 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
       JSON.stringify({
         userId: `senior_${Date.now()}`,
         role: "senior",
-        fullName: seniorName || "Ramesh Sharma",
+        fullName: seniorName.trim() || "Ramesh Sharma",
         linkedCaregiverCode: cleanCode,
       })
     );
+    localStorage.setItem("mb_welcome_completed", "true");
 
     store.updateProfile({
-      full_name: seniorName || "Ramesh Sharma",
+      full_name: seniorName.trim() || "Ramesh Sharma",
       role: "senior",
     });
     store.setRole("senior");
 
-    setLinkingSuccess(`Account linked securely to Caregiver (${cleanCode})! Loading your Senior Companion...`);
-
+    setLinkingSuccess(`Successfully linked to Caregiver (${cleanCode})! Opening Senior Companion...`);
     setTimeout(() => {
       onAuthenticated("senior");
-    }, 900);
+    }, 800);
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-card to-background flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 animate-in fade-in duration-300">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center space-y-3">
-        <div className="mx-auto w-16 h-16 rounded-3xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/25">
-          <Heart className="h-9 w-9 fill-white/20" />
-        </div>
-        <h2 className="text-3xl font-black tracking-tight text-foreground">
-          MEMORY BOND
-        </h2>
-        <p className="text-xs uppercase tracking-widest font-black text-primary">
-          Intelligent Cognitive Care Platform
-        </p>
-        <p className="text-sm text-muted-foreground">
-          Please authenticate or link your account to continue
-        </p>
-      </div>
+  // DIRECT SENIOR ENTRY (Without caregiver link upfront)
+  const handleDirectSeniorContinue = () => {
+    localStorage.setItem(
+      "mb_active_session",
+      JSON.stringify({
+        userId: `senior_${Date.now()}`,
+        role: "senior",
+        fullName: seniorName.trim() || "Ramesh Sharma",
+      })
+    );
+    localStorage.setItem("mb_welcome_completed", "true");
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-card py-8 px-6 shadow-2xl rounded-3xl border-2 border-border space-y-6">
-          {/* Role Mode Switcher Tabs */}
-          <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-secondary/60 border border-border">
-            <button
-              onClick={() => setActiveTab("caregiver")}
-              className={`py-2.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                activeTab === "caregiver"
-                  ? "bg-primary text-white shadow-md"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+    store.updateProfile({
+      full_name: seniorName.trim() || "Ramesh Sharma",
+      role: "senior",
+    });
+    store.setRole("senior");
+    onAuthenticated("senior");
+  };
+
+  // ==========================================================================
+  // SCREEN 1: WELCOME SCREEN (Requirement 4)
+  // ==========================================================================
+  if (stage === "welcome") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-amber-500/10 via-background to-primary/10 flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
+        <div className="w-full max-w-lg rounded-3xl bg-card border-2 border-border/80 shadow-2xl p-8 sm:p-10 text-center space-y-8">
+          {/* Logo & Glow */}
+          <div className="relative mx-auto w-24 h-24 flex items-center justify-center">
+            <div className="absolute inset-0 rounded-3xl bg-primary/20 blur-xl animate-pulse" />
+            <div className="relative w-20 h-20 rounded-3xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-white shadow-xl shadow-primary/30">
+              <Heart className="h-11 w-11 fill-white/20 text-white" />
+            </div>
+          </div>
+
+          {/* Title & Tagline */}
+          <div className="space-y-3">
+            <span className="text-xs uppercase tracking-widest font-black text-primary bg-primary/10 px-4 py-1.5 rounded-full">
+              AI Senior Companion
+            </span>
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-foreground">
+              MEMORY BOND
+            </h1>
+            <p className="text-lg sm:text-xl font-bold text-muted-foreground max-w-sm mx-auto leading-relaxed">
+              Helping you remember what matters.
+            </p>
+          </div>
+
+          {/* Key Feature Highlights */}
+          <div className="grid grid-cols-2 gap-3 text-left pt-2">
+            <div className="p-3.5 rounded-2xl bg-secondary/60 border border-border space-y-1">
+              <div className="text-base font-black text-foreground flex items-center gap-1.5">
+                <span>💊</span> Medicine
+              </div>
+              <p className="text-xs text-muted-foreground font-semibold">
+                Timely alarms & photo confirmations
+              </p>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-secondary/60 border border-border space-y-1">
+              <div className="text-base font-black text-foreground flex items-center gap-1.5">
+                <span>🎙️</span> AI Voice
+              </div>
+              <p className="text-xs text-muted-foreground font-semibold">
+                Natural talks in your language
+              </p>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-secondary/60 border border-border space-y-1">
+              <div className="text-base font-black text-foreground flex items-center gap-1.5">
+                <span>👨‍👩‍👧</span> Family Link
+              </div>
+              <p className="text-xs text-muted-foreground font-semibold">
+                Caregivers paired in one scan
+              </p>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-secondary/60 border border-border space-y-1">
+              <div className="text-base font-black text-foreground flex items-center gap-1.5">
+                <span>🧠</span> Memory Games
+              </div>
+              <p className="text-xs text-muted-foreground font-semibold">
+                Family photos & brain exercises
+              </p>
+            </div>
+          </div>
+
+          {/* Get Started Button */}
+          <Button
+            size="lg"
+            onClick={() => setStage("language")}
+            className="w-full h-16 rounded-2xl text-xl font-black bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/25 gap-3 cursor-pointer transition-all hover:scale-[1.01]"
+          >
+            <span>Get Started</span>
+            <ArrowRight className="h-6 w-6" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================================================
+  // SCREEN 2: LANGUAGE SELECTION (Requirement 5)
+  // ==========================================================================
+  if (stage === "language") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-card to-background flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
+        <div className="w-full max-w-xl rounded-3xl bg-card border-2 border-border shadow-2xl p-6 sm:p-10 space-y-6">
+          <div className="text-center space-y-2">
+            <div className="inline-flex items-center gap-2 text-primary bg-primary/10 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider">
+              <Languages className="h-3.5 w-3.5" /> Language / भाषा
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black text-foreground">
+              Choose Your Language
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Select the language you feel most comfortable speaking and reading
+            </p>
+          </div>
+
+          {/* 12 Verified Indian Languages */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto p-1">
+            {LANGUAGES.map((l) => {
+              const isSelected = lang === l.code;
+              return (
+                <button
+                  key={l.code}
+                  type="button"
+                  onClick={() => {
+                    setLang(l.code);
+                    store.updateProfile({ language: l.code });
+                    try {
+                      speakText(l.native, l.code);
+                    } catch {}
+                  }}
+                  className={`p-3.5 rounded-2xl border-2 text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                    isSelected
+                      ? "bg-primary text-white border-primary shadow-lg scale-105"
+                      : "bg-secondary/50 hover:bg-secondary border-border text-foreground"
+                  }`}
+                >
+                  <div className="text-xl font-black">{l.native}</div>
+                  <div className={`text-xs font-semibold ${isSelected ? "text-white/90" : "text-muted-foreground"}`}>
+                    {l.label}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Navigation Controls */}
+          <div className="flex items-center justify-between gap-3 pt-4 border-t border-border">
+            <Button
+              variant="outline"
+              onClick={() => setStage("welcome")}
+              className="h-12 px-5 rounded-xl font-bold cursor-pointer gap-2"
             >
-              <ShieldCheck className="h-4 w-4" />
-              Caregiver Access
+              <ArrowLeft className="h-4 w-4" /> Back
+            </Button>
+
+            <Button
+              size="lg"
+              onClick={() => setStage("role")}
+              className="flex-1 h-14 rounded-2xl font-black text-lg bg-primary hover:bg-primary/90 text-white shadow-md gap-2 cursor-pointer"
+            >
+              <span>Continue / आगे बढ़ें</span>
+              <ArrowRight className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================================================
+  // SCREEN 3: SIMPLE 2-ROLE SELECTION (Requirement 3)
+  // ==========================================================================
+  if (stage === "role") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-card to-background flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
+        <div className="w-full max-w-xl rounded-3xl bg-card border-2 border-border shadow-2xl p-6 sm:p-10 space-y-8">
+          <div className="text-center space-y-2">
+            <div className="mx-auto w-14 h-14 rounded-2xl bg-primary/15 text-primary flex items-center justify-center shadow-xs">
+              <Heart className="h-7 w-7" />
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black text-foreground">
+              What is your role?
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Please choose how you will be using Memory Bond today
+            </p>
+          </div>
+
+          {/* Large Role Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Senior Card */}
+            <button
+              type="button"
+              onClick={() => setStage("senior_auth")}
+              className="group p-6 rounded-3xl border-3 border-border hover:border-primary bg-secondary/30 hover:bg-primary/5 text-left space-y-4 transition-all duration-200 cursor-pointer hover:shadow-xl hover:scale-[1.02]"
+            >
+              <div className="w-16 h-16 rounded-2xl bg-amber-500/15 border-2 border-amber-500/30 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
+                👴
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-2xl font-black text-foreground group-hover:text-primary">
+                  Senior
+                </h3>
+                <p className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider">
+                  Self / Elderly
+                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed pt-1">
+                  Gentle reminders, medicine alerts, voice conversations, and brain games.
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs font-black text-primary pt-2">
+                <span>Enter as Senior</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </div>
             </button>
+
+            {/* Caregiver / Family Card */}
             <button
-              onClick={() => setActiveTab("senior")}
-              className={`py-2.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                activeTab === "senior"
-                  ? "bg-primary text-white shadow-md"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              type="button"
+              onClick={() => setStage("caregiver_auth")}
+              className="group p-6 rounded-3xl border-3 border-border hover:border-primary bg-secondary/30 hover:bg-primary/5 text-left space-y-4 transition-all duration-200 cursor-pointer hover:shadow-xl hover:scale-[1.02]"
             >
-              <QrCode className="h-4 w-4" />
-              Senior Quick Link
+              <div className="w-16 h-16 rounded-2xl bg-primary/15 border-2 border-primary/30 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
+                👨‍👩‍👧
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-2xl font-black text-foreground group-hover:text-primary">
+                  Caregiver / Family
+                </h3>
+                <p className="text-xs font-bold text-primary uppercase tracking-wider">
+                  Son, Daughter, Guardian
+                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed pt-1">
+                  Manage medicines, schedule reminders, add family photos, and track wellness.
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs font-black text-primary pt-2">
+                <span>Enter as Caregiver</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </div>
             </button>
           </div>
 
-          {/* TAB 1: CAREGIVER LOGIN / SIGNUP */}
-          {activeTab === "caregiver" && (
-            <div className="space-y-5">
-              <div className="flex items-center justify-between border-b border-border pb-3">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setAuthMode("signin");
-                      setErrorMessage(null);
-                      setSuccessMessage(null);
-                    }}
-                    className={`text-sm font-black transition-colors cursor-pointer ${
-                      authMode === "signin" ? "text-primary border-b-2 border-primary pb-1" : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    Caregiver Sign In
-                  </button>
-                  <span className="text-muted-foreground">|</span>
-                  <button
-                    onClick={() => {
-                      setAuthMode("signup");
-                      setErrorMessage(null);
-                      setSuccessMessage(null);
-                    }}
-                    className={`text-sm font-black transition-colors cursor-pointer ${
-                      authMode === "signup" ? "text-primary border-b-2 border-primary pb-1" : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    Create Caregiver Account
-                  </button>
-                </div>
-              </div>
-
-              {/* Status alerts */}
-              {errorMessage && (
-                <div className="p-3.5 rounded-2xl bg-destructive/15 border border-destructive/30 text-destructive text-xs font-bold flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                  <span>{errorMessage}</span>
-                </div>
-              )}
-
-              {successMessage && (
-                <div className="p-3.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-start gap-2">
-                  <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
-                  <span>{successMessage}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleCaregiverAuth} className="space-y-4">
-                {authMode === "signup" && (
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-foreground">Caregiver Full Name</Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        type="text"
-                        placeholder="Sunita Sharma"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        className="pl-9 rounded-xl text-sm"
-                        required
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-foreground">Email Address</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="email"
-                      placeholder="caregiver@memorybond.org"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-9 rounded-xl text-sm"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-foreground">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type={showPassword ? "text" : "password"}
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-9 pr-10 rounded-xl text-sm"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full h-11 rounded-xl font-black bg-primary hover:bg-primary/90 text-white shadow-md cursor-pointer"
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : authMode === "signup" ? (
-                    "Create Account & Open Dashboard"
-                  ) : (
-                    "Sign In to Caregiver Dashboard"
-                  )}
-                </Button>
-              </form>
-
-              {/* Google Sign-in */}
-              <div className="space-y-3 pt-2">
-                <div className="relative flex items-center justify-center">
-                  <div className="border-t border-border w-full" />
-                  <span className="bg-card px-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider absolute">
-                    or continue with
-                  </span>
-                </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleGoogleLogin}
-                  disabled={isLoading}
-                  className="w-full h-11 rounded-xl font-bold text-xs gap-2 border-border hover:bg-secondary cursor-pointer"
-                >
-                  <svg className="h-4 w-4" viewBox="0 0 24 24">
-                    <path
-                      fill="#4285F4"
-                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                    />
-                    <path
-                      fill="#EA4335"
-                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                    />
-                  </svg>
-                  Sign in with Google
-                </Button>
-
-                {/* Instant Evaluator Access */}
-                <Button
-                  type="button"
-                  onClick={handleDemoCaregiverLogin}
-                  className="w-full h-10 rounded-xl text-xs font-black bg-secondary hover:bg-secondary/80 text-foreground border border-border cursor-pointer gap-1.5"
-                >
-                  <Sparkles className="h-3.5 w-3.5 text-primary" />
-                  Quick Caregiver Demo Access (1-Click)
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: SENIOR ACCOUNT LINKING */}
-          {activeTab === "senior" && (
-            <div className="space-y-5">
-              <div className="text-center space-y-1">
-                <h3 className="text-base font-black text-foreground">
-                  Senior Account Connection
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Connect securely using your Caregiver's unique QR code or connection ID.
-                </p>
-              </div>
-
-              {linkingError && (
-                <div className="p-3.5 rounded-2xl bg-destructive/15 border border-destructive/30 text-destructive text-xs font-bold flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                  <span>{linkingError}</span>
-                </div>
-              )}
-
-              {linkingSuccess && (
-                <div className="p-3.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-start gap-2">
-                  <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
-                  <span>{linkingSuccess}</span>
-                </div>
-              )}
-
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-foreground">Senior Name</Label>
-                  <Input
-                    type="text"
-                    value={seniorName}
-                    onChange={(e) => setSeniorName(e.target.value)}
-                    placeholder="Senior Name (e.g. Ramesh Sharma)"
-                    className="rounded-xl text-sm"
-                  />
-                </div>
-
-                {/* Option 1: SCAN QR CODE */}
-                <Button
-                  type="button"
-                  onClick={() => setIsScannerOpen(true)}
-                  className="w-full h-12 rounded-2xl font-black text-sm bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white gap-2 shadow-md cursor-pointer"
-                >
-                  <Camera className="h-5 w-5" />
-                  SCAN QR CODE
-                </Button>
-
-                <div className="relative flex items-center justify-center my-2">
-                  <div className="border-t border-border w-full" />
-                  <span className="bg-card px-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider absolute">
-                    or enter manually
-                  </span>
-                </div>
-
-                {/* Option 2: ENTER CODE */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-foreground">Caregiver Connection Code</Label>
-                  <div className="relative">
-                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="text"
-                      placeholder="MB-CG-781042"
-                      value={connectionCode}
-                      onChange={(e) => setConnectionCode(e.target.value.toUpperCase())}
-                      className="pl-9 uppercase font-mono font-bold tracking-wider rounded-xl text-sm"
-                    />
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    Available in the Caregiver's Dashboard under "Caregiver QR & Pairing Identity".
-                  </p>
-                </div>
-
-                <Button
-                  type="button"
-                  onClick={() => handleVerifyAndLinkSenior(connectionCode)}
-                  disabled={isLinking || !connectionCode.trim()}
-                  className="w-full h-11 rounded-xl font-black bg-primary hover:bg-primary/90 text-white shadow-md cursor-pointer"
-                >
-                  {isLinking ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    "Verify Code & Enter Senior Companion"
-                  )}
-                </Button>
-
-                {/* Quick Test Demo Code Pill */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setConnectionCode("MB-CG-781042");
-                    handleVerifyAndLinkSenior("MB-CG-781042");
-                  }}
-                  className="w-full text-center text-xs text-primary hover:underline font-bold pt-1 cursor-pointer"
-                >
-                  Use Demo Connection Code: MB-CG-781042
-                </button>
-              </div>
-            </div>
-          )}
+          <div className="flex justify-between items-center pt-2">
+            <Button
+              variant="ghost"
+              onClick={() => setStage("language")}
+              className="text-xs font-bold text-muted-foreground cursor-pointer gap-1.5"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> Change Language
+            </Button>
+            <span className="text-xs text-muted-foreground font-semibold">
+              Step 2 of 2
+            </span>
+          </div>
         </div>
       </div>
+    );
+  }
 
-      {/* QR Scanner Modal */}
-      <QRScannerModal
-        isOpen={isScannerOpen}
-        onClose={() => setIsScannerOpen(false)}
-        onScan={(scannedCode) => {
-          setIsScannerOpen(false);
-          setConnectionCode(scannedCode);
-          handleVerifyAndLinkSenior(scannedCode);
-        }}
-        expectedCodeHint={localStorage.getItem("mb_caregiver_unique_code") || "MB-CG-781042"}
-      />
+  // ==========================================================================
+  // SCREEN 4A: SENIOR LINKING & ACCESS (Requirement 26 & 27)
+  // ==========================================================================
+  if (stage === "senior_auth") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-card to-background flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
+        <div className="w-full max-w-md rounded-3xl bg-card border-2 border-border shadow-2xl p-6 sm:p-8 space-y-6">
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <button
+              onClick={() => setStage("role")}
+              className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <div className="text-center">
+              <h2 className="text-xl font-black text-foreground">Senior Access</h2>
+              <p className="text-xs text-muted-foreground">Quick link with your caregiver</p>
+            </div>
+            <div className="w-8" />
+          </div>
+
+          {/* Senior Name */}
+          <div className="space-y-1.5">
+            <Label className="text-sm font-bold">What is your name?</Label>
+            <div className="relative">
+              <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={seniorName}
+                onChange={(e) => setSeniorName(e.target.value)}
+                placeholder="e.g. Ramesh Sharma"
+                className="h-12 pl-10 text-base font-bold rounded-2xl"
+              />
+            </div>
+          </div>
+
+          {/* Pairing Options */}
+          <div className="p-4 rounded-2xl bg-secondary/40 border border-border space-y-4">
+            <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-center">
+              Connect to Caregiver's Account
+            </div>
+
+            {/* Option 1: Scan QR Code */}
+            <Button
+              type="button"
+              onClick={() => setIsScannerOpen(true)}
+              className="w-full h-14 rounded-2xl font-black text-base bg-primary hover:bg-primary/90 text-white shadow-md gap-2.5 cursor-pointer"
+            >
+              <Camera className="h-5 w-5" />
+              Scan Caregiver's QR Code
+            </Button>
+
+            {/* Option 2: Manual 6-Digit Code */}
+            <div className="space-y-2 pt-1">
+              <Label className="text-xs font-bold text-muted-foreground">
+                Or Type Caregiver Connection Code:
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  value={connectionCode}
+                  onChange={(e) => setConnectionCode(e.target.value.toUpperCase())}
+                  placeholder="MB-CG-781042"
+                  className="h-12 font-mono font-black tracking-wider uppercase text-base rounded-2xl"
+                />
+                <Button
+                  onClick={() => handleVerifyAndLinkSenior(connectionCode)}
+                  disabled={isLinking}
+                  className="h-12 px-5 rounded-2xl font-bold bg-primary text-white cursor-pointer"
+                >
+                  {isLinking ? <Loader2 className="h-4 w-4 animate-spin" /> : "Link"}
+                </Button>
+              </div>
+            </div>
+
+            {/* Demo Quick Code */}
+            <button
+              type="button"
+              onClick={() => {
+                setConnectionCode("MB-CG-781042");
+                handleVerifyAndLinkSenior("MB-CG-781042");
+              }}
+              className="w-full text-center text-xs text-primary hover:underline font-bold pt-1 cursor-pointer"
+            >
+              Use Demo Code: MB-CG-781042
+            </button>
+          </div>
+
+          {/* Feedback alerts */}
+          {linkingError && (
+            <div className="p-3.5 rounded-2xl bg-destructive/15 border border-destructive/40 flex items-start gap-2.5 text-xs text-destructive">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span className="font-semibold leading-relaxed">{linkingError}</span>
+            </div>
+          )}
+
+          {linkingSuccess && (
+            <div className="p-3.5 rounded-2xl bg-success/15 border border-success/40 flex items-start gap-2.5 text-xs text-success">
+              <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+              <span className="font-semibold leading-relaxed">{linkingSuccess}</span>
+            </div>
+          )}
+
+          {/* Continue without link */}
+          <div className="pt-2 border-t border-border">
+            <Button
+              variant="outline"
+              onClick={handleDirectSeniorContinue}
+              className="w-full h-12 rounded-2xl text-xs font-bold cursor-pointer"
+            >
+              Continue Directly as Senior
+            </Button>
+          </div>
+        </div>
+
+        {/* QR Scanner Modal */}
+        <QRScannerModal
+          isOpen={isScannerOpen}
+          onClose={() => setIsScannerOpen(false)}
+          onScan={(scanned) => {
+            setIsScannerOpen(false);
+            setConnectionCode(scanned);
+            handleVerifyAndLinkSenior(scanned);
+          }}
+          expectedCodeHint={localStorage.getItem("mb_caregiver_unique_code") || "MB-CG-781042"}
+        />
+      </div>
+    );
+  }
+
+  // ==========================================================================
+  // SCREEN 4B: CAREGIVER / FAMILY SIGN IN (Requirement 3 & 26)
+  // ==========================================================================
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background via-card to-background flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
+      <div className="w-full max-w-md rounded-3xl bg-card border-2 border-border shadow-2xl p-6 sm:p-8 space-y-6">
+        <div className="flex items-center justify-between border-b border-border pb-3">
+          <button
+            onClick={() => setStage("role")}
+            className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div className="text-center">
+            <h2 className="text-xl font-black text-foreground">Caregiver & Family</h2>
+            <p className="text-xs text-muted-foreground">Sign in to manage and assist your senior</p>
+          </div>
+          <div className="w-8" />
+        </div>
+
+        {/* Mode switcher: Sign In vs Sign Up */}
+        <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-secondary/60 border border-border text-xs font-bold">
+          <button
+            type="button"
+            onClick={() => setAuthMode("signin")}
+            className={`py-2 rounded-xl transition-all cursor-pointer ${
+              authMode === "signin"
+                ? "bg-primary text-white shadow-sm font-black"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Sign In
+          </button>
+          <button
+            type="button"
+            onClick={() => setAuthMode("signup")}
+            className={`py-2 rounded-xl transition-all cursor-pointer ${
+              authMode === "signup"
+                ? "bg-primary text-white shadow-sm font-black"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Create Account
+          </button>
+        </div>
+
+        {/* Caregiver Form */}
+        <form onSubmit={handleCaregiverAuth} className="space-y-4">
+          {authMode === "signup" && (
+            <div className="space-y-1">
+              <Label className="text-xs font-bold">Full Name</Label>
+              <div className="relative">
+                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Sunita Sharma"
+                  className="h-12 pl-10 rounded-2xl text-sm font-semibold"
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <Label className="text-xs font-bold">Email Address</Label>
+            <div className="relative">
+              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="caregiver@family.org"
+                className="h-12 pl-10 rounded-2xl text-sm font-semibold"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs font-bold">Password</Label>
+            <div className="relative">
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="h-12 pl-10 pr-10 rounded-2xl text-sm font-semibold"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Feedback alerts */}
+          {errorMessage && (
+            <div className="p-3.5 rounded-2xl bg-destructive/15 border border-destructive/40 flex items-start gap-2.5 text-xs text-destructive">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span className="font-semibold leading-relaxed">{errorMessage}</span>
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="p-3.5 rounded-2xl bg-success/15 border border-success/40 flex items-start gap-2.5 text-xs text-success">
+              <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+              <span className="font-semibold leading-relaxed">{successMessage}</span>
+            </div>
+          )}
+
+          <Button
+            type="submit"
+            disabled={isLoading}
+            className="w-full h-13 rounded-2xl font-black text-base bg-primary hover:bg-primary/90 text-white shadow-md cursor-pointer"
+          >
+            {isLoading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : authMode === "signup" ? (
+              "Create Caregiver Account"
+            ) : (
+              "Sign In to Caregiver Portal"
+            )}
+          </Button>
+        </form>
+
+        {/* One-Click Instant Caregiver Demo Access */}
+        <div className="pt-2 border-t border-border space-y-2">
+          <Button
+            type="button"
+            onClick={handleDemoCaregiverLogin}
+            variant="secondary"
+            className="w-full h-12 rounded-2xl font-black text-xs gap-2 border border-primary/30 text-foreground cursor-pointer hover:bg-primary/10"
+          >
+            <Sparkles className="h-4 w-4 text-primary" />
+            1-Click Demo Caregiver Portal Access
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

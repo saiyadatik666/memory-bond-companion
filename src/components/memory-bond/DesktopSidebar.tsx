@@ -45,16 +45,7 @@ export function DesktopSidebar({
   // Define navigational tabs based on role
   let navItems: { id: string; label: string; icon: React.ComponentType<{ className?: string }> }[] = [];
 
-  if (role === "admin_healthcare_worker" || role === "healthcare_worker" || role === "admin") {
-    navItems = [
-      { id: "healthcare", label: "Triage & Admin", icon: Stethoscope },
-      { id: "medicines", label: t("medicines") || "Medicines", icon: Pill },
-      { id: "appointments", label: "Clinics & Visits", icon: Calendar },
-      { id: "checkin", label: "Cognitive Check-In", icon: Activity },
-      { id: "family", label: t("family") || "Family Links", icon: Users },
-      { id: "settings", label: t("settings") || "Settings", icon: Settings },
-    ];
-  } else if (role === "caregiver") {
+  if (role === "caregiver") {
     navItems = [
       { id: "caregiver", label: "Caregiver Overview", icon: ShieldCheck },
       { id: "family", label: "Connect Caregiver & Family", icon: Users },

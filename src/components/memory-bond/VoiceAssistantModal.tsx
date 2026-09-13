@@ -649,7 +649,11 @@ export function VoiceAssistantModal({
       }));
 
       try {
-        const aiResponse = await askAIServerFn({
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("AI_TIMEOUT")), 5000)
+        );
+
+        const aiPromise = askAIServerFn({
           data: {
             query: text,
             history: previousTurns,
@@ -667,6 +671,8 @@ export function VoiceAssistantModal({
             preferredLocale: detectedLocale,
           },
         });
+
+        const aiResponse: any = await Promise.race([aiPromise, timeoutPromise]);
 
         if (aiResponse?.reply) {
           finalCleanText = cleanAIResponse(aiResponse.reply);

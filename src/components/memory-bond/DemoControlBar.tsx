@@ -62,14 +62,14 @@ export function DemoControlBar({
             </Button>
           )}
 
-          {/* 4-Role Switcher (Section 16 & 21) */}
+          {/* 2 Roles (Requirement 3: Senior & Caregiver/Family) */}
           <div className="flex items-center bg-secondary/80 rounded-xl p-1 font-bold">
             <button
               onClick={() => {
                 store.setRole("senior");
                 onNavigate?.("home");
               }}
-              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
                 store.profile.role === "senior"
                   ? "bg-card text-primary shadow-xs font-black"
                   : "text-muted-foreground hover:text-foreground"
@@ -82,29 +82,13 @@ export function DemoControlBar({
                 store.setRole("caregiver");
                 onNavigate?.("caregiver");
               }}
-              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
                 store.profile.role === "caregiver"
                   ? "bg-card text-primary shadow-xs font-black"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              👩‍⚕️ Caregiver
-            </button>
-            <button
-              onClick={() => {
-                store.setRole("admin_healthcare_worker");
-                onNavigate?.("healthcare");
-              }}
-              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                store.profile.role === "admin_healthcare_worker" ||
-                store.profile.role === "healthcare_worker" ||
-                store.profile.role === "admin"
-                  ? "bg-card text-primary shadow-xs font-black"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              title="Combined Admin & Healthcare Worker role"
-            >
-              🩺 Admin / Healthcare Worker
+              👨‍👩‍👧 Caregiver / Family
             </button>
           </div>
 

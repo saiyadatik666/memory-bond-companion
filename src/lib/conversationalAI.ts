@@ -17,8 +17,10 @@ export interface DialogueContext {
     | "idle"
     | "medicine_help_requested"
     | "medicine_discussed"
-    | "awaiting_reminder_consent"
+    | "awaiting_reminder_topic"
     | "awaiting_reminder_time"
+    | "awaiting_reminder_confirmation"
+    | "awaiting_reminder_consent"
     | "game_intent"
     | "activities_summary";
   topic?: string;
@@ -41,6 +43,7 @@ export interface DialogueContext {
     | "custom";
   targetDate?: string | null;
   targetTime?: string;
+  targetTitle?: string;
   lastQuestionAsked?: string;
   turnCount: number;
 }
@@ -312,6 +315,328 @@ export class ConversationalAIEngine {
       return {
         handled: true,
         responseText: bank.talk,
+      };
+    }
+
+    // =========================================================================
+    // 0A. DATE & DAY QUESTIONS (Requirement 10)
+    // "कल कौन सी तारीख है?", "आज कौन सा दिन है?", "परसों कौन सी तारीख है?"
+    // Dynamically calculated using active local date/time — NEVER hard-coded!
+    // =========================================================================
+    const isAskingTomorrowDate =
+      (t.includes("kal") || t.includes("कल") || t.includes("કાલે") || t.includes("কাল") || t.includes("কাইলৈ") || t.includes("उद्या") || t.includes("tomorrow")) &&
+      (t.includes("tarikh") || t.includes("तारीख") || t.includes("તારીખ") || t.includes("তারিখ") || t.includes("date") || t.includes("दिन"));
+
+    if (isAskingTomorrowDate && !t.includes("reminder") && !t.includes("dawai") && !t.includes("दवाई") && !t.includes("યાદ")) {
+      const tomorrow = new Date(Date.now() + 86400000);
+      const day = tomorrow.getDate();
+      const year = tomorrow.getFullYear();
+      const mIdx = tomorrow.getMonth();
+
+      const hindiMonths = ["जनवरी", "फरवरी", "मार्च", "अप्रैल", "मई", "जून", "जुलाई", "अगस्त", "सितंबर", "अक्टूबर", "नवंबर", "दिसंबर"];
+      const gujaratiMonths = ["જાન્યુઆરી", "ફેબ્રુઆરી", "માર્ચ", "એપ્રિલ", "મે", "જૂન", "જુલાઈ", "ઓગસ્ટ", "સપ્ટેમ્બર", "ઓક્ટોબર", "નવેમ્બર", "ડિસેમ્બર"];
+      const englishMonths = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      const marathiMonths = ["जानेवारी", "फेब्रुवारी", "मार्च", "एप्रिल", "मे", "जून", "जुलै", "ऑगस्ट", "सप्टेंबर", "ऑक्टोबर", "नोव्हेंबर", "डिसेंबर"];
+      const bengaliMonths = ["জানুয়ারি", "ফেব্রুয়ারি", "মার্চ", "এপ্রিল", "মে", "জুন", "জুলাই", "আগস্ট", "সেপ্টেম্বর", "অক্টোবর", "নভেম্বর", "ডিসেম্বর"];
+
+      let ans = `Tomorrow is ${englishMonths[mIdx]} ${day}, ${year}.`;
+      if (lang === "hi") ans = `कल ${day} ${hindiMonths[mIdx]} ${year} है।`;
+      else if (lang === "gu") ans = `કાલે ${day} ${gujaratiMonths[mIdx]} ${year} છે.`;
+      else if (lang === "bn" || lang === "as") ans = `কাল ${day} ${bengaliMonths[mIdx]} ${year}।`;
+      else if (lang === "mr") ans = `उद्या ${day} ${marathiMonths[mIdx]} ${year} आहे।`;
+
+      return {
+        handled: true,
+        responseText: ans,
+      };
+    }
+
+    const isAskingTodayDayOrDate =
+      (t.includes("aaj") || t.includes("आज") || t.includes("આજે") || t.includes("আজ") || t.includes("today")) &&
+      (t.includes("din") || t.includes("दिन") || t.includes("વાર") || t.includes("વાર છે") || t.includes("বার") || t.includes("day") || t.includes("tarikh") || t.includes("तारीख") || t.includes("તારીખ") || t.includes("তারিখ") || t.includes("date")) &&
+      !t.includes("kaisa") && !t.includes("कैसा") && !t.includes("કેવો") && !t.includes("केमन") && !t.includes("reminder") && !t.includes("karna");
+
+    if (isAskingTodayDayOrDate) {
+      const today = new Date();
+      const day = today.getDate();
+      const year = today.getFullYear();
+      const mIdx = today.getMonth();
+      const dIdx = today.getDay();
+
+      const hindiDays = ["रविवार", "सोमवार", "मंगलवार", "बुधवार", "गुरुवार", "शुक्रवार", "शनिवार"];
+      const gujaratiDays = ["રવિવાર", "સોમવાર", "મંગળવાર", "બુધવાર", "ગુરુવાર", "શુક્રવાર", "શનિવાર"];
+      const englishDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      const hindiMonths = ["जनवरी", "फरवरी", "मार्च", "अप्रैल", "मई", "जून", "जुलाई", "अगस्त", "सितंबर", "अक्टूबर", "नवंबर", "दिसंबर"];
+      const gujaratiMonths = ["જાન્યુઆરી", "ફેબ્રુઆરી", "માર્ચ", "એપ્રિલ", "મે", "જૂન", "જુલાઈ", "ઓગસ્ટ", "સપ્ટેમ્બર", "ઓક્ટોબર", "નવેમ્બર", "ડિસેમ્બર"];
+      const englishMonths = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+      let ans = `Today is ${englishDays[dIdx]}, ${englishMonths[mIdx]} ${day}, ${year}.`;
+      if (lang === "hi") ans = `आज ${hindiDays[dIdx]}, ${day} ${hindiMonths[mIdx]} ${year} है।`;
+      else if (lang === "gu") ans = `આજે ${gujaratiDays[dIdx]}, ${day} ${gujaratiMonths[mIdx]} ${year} છે.`;
+      else if (lang === "bn" || lang === "as") ans = `আজ ${day} তারিখ।`;
+      else if (lang === "mr") ans = `आज ${day} तारीख आहे.`;
+
+      return {
+        handled: true,
+        responseText: ans,
+      };
+    }
+
+    // =========================================================================
+    // 0B. NEXT MEDICINE QUERY (Requirement 12)
+    // "मेरी अगली दवाई कब है?", "मेरी अगली दवा कब लेनी है?", "મારી આગળની દવા ક્યારે છે?"
+    // =========================================================================
+    const isAskingNextMedicine =
+      (t.includes("agli") || t.includes("अगली") || t.includes("आगामी") || t.includes("next") || t.includes("આગળની") || t.includes("પછીની") || t.includes("পরের")) &&
+      (t.includes("medicine") || t.includes("dawa") || t.includes("dawai") || t.includes("दवा") || t.includes("दवाई") || t.includes("દવા") || t.includes("ঔষধ")) &&
+      (t.includes("kab") || t.includes("कब") || t.includes("ક્યારે") || t.includes("when") || t.includes("কখন"));
+
+    if (isAskingNextMedicine) {
+      if (!store.medicines || store.medicines.length === 0) {
+        return {
+          handled: true,
+          responseText:
+            lang === "hi"
+              ? "आपकी कोई निर्धारित दवा तालिका में नहीं है।"
+              : lang === "gu"
+              ? "તમારી કોઈ દવા નોંધાયેલી નથી."
+              : "You have no scheduled medicines recorded.",
+        };
+      }
+
+      const now = new Date();
+      const curMins = now.getHours() * 60 + now.getMinutes();
+
+      let nextM = null;
+      let nextTime = "";
+      let minDiff = Infinity;
+
+      for (const m of store.medicines) {
+        for (const tm of m.times) {
+          const [h, min] = tm.split(":").map(Number);
+          const tmMin = (h || 0) * 60 + (min || 0);
+          const diff = tmMin - curMins;
+          if (diff > 0 && diff < minDiff) {
+            minDiff = diff;
+            nextM = m;
+            nextTime = tm;
+          }
+        }
+      }
+
+      if (!nextM) {
+        nextM = store.medicines[0];
+        nextTime = nextM.times[0] || "08:30";
+        const allDoneAnswers: Record<string, string> = {
+          hi: `आज की सभी दवाइयों का समय पूरा हो चुका है। आपकी अगली खुराक कल सुबह ${nextTime} बजे ${nextM.name} (${nextM.dosage}) है।`,
+          gu: `આજની બધી દવાઓનો સમય પૂરો થઈ ગયો છે. તમારી આગલી દવા કાલે સવારે ${nextTime} વાગ્યે ${nextM.name} (${nextM.dosage}) છે.`,
+          en: `All of today's scheduled medicine times have passed. Your next dose is tomorrow at ${nextTime}, which is ${nextM.name} (${nextM.dosage}).`,
+        };
+        return {
+          handled: true,
+          responseText: allDoneAnswers[lang] || allDoneAnswers["en"],
+        };
+      }
+
+      const [hh, mm] = nextTime.split(":").map(Number);
+      const isPM = hh >= 12;
+      const h12 = hh % 12 === 0 ? 12 : hh % 12;
+      const ampmHi = isPM ? (hh >= 17 ? "शाम" : "दोपहर") : "सुबह";
+      const ampmGu = isPM ? (hh >= 17 ? "સાંજે" : "બપોરે") : "સવારે";
+      const timeFmtHi = `${ampmHi} ${h12}:${String(mm || 0).padStart(2, "0")} बजे`;
+      const timeFmtGu = `${ampmGu} ${h12}:${String(mm || 0).padStart(2, "0")} વાગ્યે`;
+
+      const nextMedAnswers: Record<string, string> = {
+        hi: `आपकी अगली दवा ${nextM.name} (${nextM.dosage}) है, जो ${timeFmtHi} लेनी है।`,
+        gu: `તમારી આગળની દવા ${nextM.name} (${nextM.dosage}) છે, જે ${timeFmtGu} લેવાની છે.`,
+        en: `Your next medicine is ${nextM.name} (${nextM.dosage}) at ${nextTime}.`,
+      };
+
+      return {
+        handled: true,
+        responseText: nextMedAnswers[lang] || nextMedAnswers["en"],
+      };
+    }
+
+    // =========================================================================
+    // 0C. MULTI-TURN CONVERSATIONAL REMINDER FLOW (Requirements 8, 9, 13)
+    // Supports conversational step-by-step reminder creation:
+    // User: "Mujhe ek reminder set karna hai"
+    // AI: "ज़रूर। किस चीज़ का reminder लगाना है?"
+    // User: "दवाई लेने का"
+    // AI: "ठीक है। किस समय का reminder लगाना है?"
+    // User: "शाम सात बजे"
+    // AI: "ठीक है। क्या मैं कल शाम 7 बजे BP की दवाई का reminder लगाऊँ?"
+    // User: "हाँ" -> Actually saves to store!
+    // =========================================================================
+
+    // Case A: User is in "awaiting_reminder_topic" stage
+    if (this._dialogue.stage === "awaiting_reminder_topic") {
+      let topic = raw.trim();
+      let remType: DialogueContext["reminderType"] = "medicine";
+
+      if (t.includes("doctor") || t.includes("डॉक्टर") || t.includes("clinic") || t.includes("appointment") || t.includes("હૉસ્પિટલ")) {
+        remType = "appointment";
+      } else if (t.includes("water") || t.includes("पानी") || t.includes("પાણી") || t.includes("জল")) {
+        remType = "hydration";
+      } else if (t.includes("bazaar") || t.includes("market") || t.includes("shopping") || t.includes("सब्जी") || t.includes("दुकान")) {
+        remType = "shopping";
+      } else if (t.includes("walk") || t.includes("सैर") || t.includes("ટહેલવું") || t.includes("घूमना")) {
+        remType = "routine";
+      } else if (t.includes("phone") || t.includes("call") || t.includes("फोन") || t.includes("बात")) {
+        remType = "family_call";
+      }
+
+      this._dialogue.stage = "awaiting_reminder_time";
+      this._dialogue.targetTitle = topic;
+      this._dialogue.reminderType = remType;
+      this._dialogue.turnCount++;
+
+      const askTimeMsgs: Record<string, string> = {
+        hi: `ठीक है, ${topic} के लिए। किस समय का reminder लगाऊँ?`,
+        gu: `ઠીક છે, ${topic} માટે. કયા સમયે રિમાઇન્ડર ગોઠવવું છે?`,
+        en: `Got it, for ${topic}. What time should I set the reminder for?`,
+        bn: `ঠিক আছে। কোন সময়ে রিমাইন্ডার দেব?`,
+        as: `ঠিক আছে। কি সময়ত সংকেত দিম?`,
+        mr: `ठीक आहे. कोणत्या वेळेची आठवण सेट करू?`,
+      };
+
+      return {
+        handled: true,
+        responseText: askTimeMsgs[lang] || askTimeMsgs["en"],
+      };
+    }
+
+    // Case B: User is in "awaiting_reminder_time" stage
+    if (this._dialogue.stage === "awaiting_reminder_time") {
+      const explicitTime = extractedTimeFn(raw);
+      const isTomorrow =
+        t.includes("tomorrow") ||
+        t.includes("kal") ||
+        t.includes("कल") ||
+        t.includes("કાલે") ||
+        t.includes("उद्या") ||
+        t.includes("কাল");
+
+      const targetDate = isTomorrow
+        ? new Date(Date.now() + 86400000).toISOString().slice(0, 10)
+        : null;
+
+      if (explicitTime) {
+        this._dialogue.stage = "awaiting_reminder_confirmation";
+        this._dialogue.targetTime = explicitTime;
+        this._dialogue.targetDate = targetDate;
+        this._dialogue.turnCount++;
+
+        const title = this._dialogue.targetTitle || "दवा";
+        const [hhStr] = explicitTime.split(":");
+        const hhNum = parseInt(hhStr || "19", 10);
+        const isNightTime = hhNum >= 18;
+        const isMorningTime = hhNum < 12 && hhNum >= 4;
+        const disp12 = hhNum % 12 === 0 ? 12 : hhNum % 12;
+        const timeFormattedHi = isNightTime ? `शाम ${disp12} बजे` : isMorningTime ? `सुबह ${disp12} बजे` : `${disp12} बजे`;
+        const timeFormattedGu = isNightTime ? `સાંજે ${disp12} વાગ્યે` : isMorningTime ? `સવારે ${disp12} વાગ્યે` : `${disp12} વાગ્યે`;
+
+        const confirmMsgs: Record<string, string> = {
+          hi: `ठीक है। क्या ${isTomorrow ? "कल " : ""}${timeFormattedHi} ${title} का reminder लगाऊँ?`,
+          gu: `ઠીક છે. શું ${isTomorrow ? "કાલે " : ""}${timeFormattedGu} ${title}નું રિમાઇન્ડર ગોઠવું?`,
+          en: `Alright. Should I set a reminder for ${title} at ${explicitTime}${isTomorrow ? " tomorrow" : ""}?`,
+          bn: `ঠিক আছে। ${title} এর জন্য ${explicitTime} টায় রিমাইন্ডার সেট করব?`,
+          as: `ঠিক আছে। ${title}ৰ বাবে ${explicitTime} বজাত সংকেত চেভ কৰিমনে?`,
+          mr: `ठीक आहे. ${title} साठी ${explicitTime} वाजता आठवण सेट करू का?`,
+        };
+
+        return {
+          handled: true,
+          responseText: confirmMsgs[lang] || confirmMsgs["en"],
+        };
+      } else {
+        return {
+          handled: true,
+          responseText:
+            lang === "hi"
+              ? "कृपया समय स्पष्ट रूप से बताएं, जैसे सुबह 8 बजे या शाम 7 बजे।"
+              : lang === "gu"
+              ? "કૃપા કરીને સમય સ્પષ્ટ કહો, જેમ કે સવારે 8 વાગ્યે કે સાંજે 7 વાગ્યે."
+              : "Please specify the time, for example 8:00 AM or 7:00 PM.",
+        };
+      }
+    }
+
+    // Case C: User is in "awaiting_reminder_confirmation" stage
+    if (this._dialogue.stage === "awaiting_reminder_confirmation") {
+      if (isYes || t.includes("lagao") || t.includes("laga do") || t.includes("set karo") || t.includes("gothvo") || t.includes("kor")) {
+        const title = this._dialogue.targetTitle || "Medicine Reminder";
+        const time = this._dialogue.targetTime || "19:00";
+        const date = this._dialogue.targetDate || null;
+        const remType = this._dialogue.reminderType || "medicine";
+
+        // ACTUALLY SAVE TO STORE! (Requirement 8)
+        store.addReminder({
+          title,
+          time,
+          date,
+          repeat: "daily",
+          type: remType,
+          notes: "Created via Conversational Voice Assistant",
+          active: true,
+        });
+
+        this.resetDialogue();
+
+        const successMsgs: Record<string, string> = {
+          hi: `ठीक है। ${title} का रिमाइंडर लगा दिया गया है। मैं आपको समय पर याद दिलाऊँगा।`,
+          gu: `ઠીક છે. ${title}નું રિમાઇન્ડર ગોઠવી દીધું છે. હું તમને સમયસર યાદ કરાવીશ.`,
+          en: `Your reminder for ${title} has been set. I will make sure to remind you on time.`,
+          bn: `রিমাইন্ডার সেট করা হয়েছে। সময়মতো মনে করিয়ে দেওয়া হবে।`,
+          as: `সংকেত সংৰক্ষণ কৰা হ’ল। সময়ত মনত পেলাই দিম।`,
+          mr: `आपली आठवण सेट झाली आहे. वेळेवर आठवण करून दिली जाईल.`,
+        };
+
+        return {
+          handled: true,
+          responseText: successMsgs[lang] || successMsgs["en"],
+          action: "create_reminder",
+          actionData: { title, time, date },
+        };
+      } else if (isNo) {
+        this.resetDialogue();
+        return {
+          handled: true,
+          responseText:
+            lang === "hi"
+              ? "ठीक है, रिमाइंडर रद्द कर दिया गया है। आप जब चाहें दोबारा बता सकते हैं।"
+              : lang === "gu"
+              ? "ઠીક છે, રિમાઇન્ડર રદ કર્યું છે. જરૂર હોય ત્યારે ફરીથી કહી શકો છો."
+              : "Alright, the reminder was not created. Let me know whenever you need one.",
+        };
+      }
+    }
+
+    // Case D: User initiates reminder creation without details
+    const isGenericReminderRequest =
+      (t.includes("reminder") || t.includes("रिमाइंडर") || t.includes("રિમાઇન્ડર") || t.includes("याद दिला") || t.includes("યાદ દેવડાવ")) &&
+      (t.includes("set") || t.includes("lagana") || t.includes("लगाना") || t.includes("लगा दो") || t.includes("karna") || t.includes("karna hai") || t.includes("karo") || t.includes("ગોઠવવું") || t.includes("rakh")) &&
+      !extractedTimeFn(raw);
+
+    if (isGenericReminderRequest && this._dialogue.stage === "idle") {
+      this._dialogue = {
+        stage: "awaiting_reminder_topic",
+        turnCount: 1,
+      };
+
+      const askTopicMsgs: Record<string, string> = {
+        hi: "ज़रूर। किस चीज़ का reminder लगाना है?",
+        gu: "ચોક્કસ. કઈ બાબતનું રિમાઇન્ડર ગોઠવવું છે?",
+        en: "Sure! What would you like me to remind you about?",
+        bn: "নিশ্চয়ই। কোন বিষয়ের জন্য রিমাইন্ডার লাগাতে চান?",
+        as: "নিশ্চয়। কি বস্তুৰ বাবে সংকেত লাগিব?",
+        mr: "नक्कीच. कशाची आठवण सेट करायची आहे?",
+      };
+
+      return {
+        handled: true,
+        responseText: askTopicMsgs[lang] || askTopicMsgs["en"],
       };
     }
 

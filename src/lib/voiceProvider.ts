@@ -469,6 +469,18 @@ export class WebSpeechVoiceProvider implements VoiceProvider {
       // GC Protection (Chromium Bug 339445 Workaround): keep reference in Set
       this._activeUtterancePool.add(utterance);
 
+      // Chunk Watchdog Timer: Protect against Chromium dropped onend events
+      const estimatedDurationMs = Math.max(3000, Math.ceil((chunk.length / 7) * 1000) + 2500);
+      let chunkHandled = false;
+      const chunkWatchdog = setTimeout(() => {
+        if (chunkHandled || currentSession !== this._activeSessionId) return;
+        chunkHandled = true;
+        console.warn(`[TTS_WATCHDOG] Chunk ${currentChunkIndex + 1} timed out after ${estimatedDurationMs}ms. Advancing safely.`);
+        this._activeUtterancePool.delete(utterance);
+        currentChunkIndex++;
+        playNextChunk(false);
+      }, estimatedDurationMs);
+
       utterance.onstart = () => {
         if (!startedTriggered) {
           startedTriggered = true;
@@ -477,6 +489,9 @@ export class WebSpeechVoiceProvider implements VoiceProvider {
       };
 
       utterance.onend = () => {
+        if (chunkHandled) return;
+        chunkHandled = true;
+        clearTimeout(chunkWatchdog);
         this._activeUtterancePool.delete(utterance);
         if (currentSession !== this._activeSessionId) return;
 
@@ -488,6 +503,9 @@ export class WebSpeechVoiceProvider implements VoiceProvider {
       };
 
       utterance.onerror = (e) => {
+        if (chunkHandled) return;
+        chunkHandled = true;
+        clearTimeout(chunkWatchdog);
         this._activeUtterancePool.delete(utterance);
         if (currentSession !== this._activeSessionId) return;
 
