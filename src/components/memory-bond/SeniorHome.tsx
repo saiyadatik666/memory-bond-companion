@@ -58,9 +58,9 @@ export function SeniorHome({
 
   // Daily Shopping & Quick Checklist State (Section 13)
   const [shoppingItems, setShoppingItems] = useState([
-    { id: "shop-1", name: "Fresh Milk & Curd (दूध और दही)", done: false },
-    { id: "shop-2", name: "Fresh Seasonal Vegetables (सब्ज़ियाँ)", done: true },
-    { id: "shop-3", name: "Herbal Green Tea & Honey (हर्बल चाय)", done: false },
+    { id: "shop-1", name: "Fresh Milk & Curd", done: false },
+    { id: "shop-2", name: "Fresh Seasonal Vegetables", done: true },
+    { id: "shop-3", name: "Herbal Green Tea & Honey", done: false },
   ]);
 
   const toggleShoppingItem = (id: string) => {
@@ -135,7 +135,7 @@ export function SeniorHome({
         <div className="flex items-center justify-between bg-sky-50 border-2 border-sky-200 p-4 rounded-3xl shadow-xs">
           <div className="flex items-center gap-2 text-sky-800 font-black text-sm">
             <Sparkles className="h-5 w-5 text-primary" />
-            <span>Senior Easy Mode Active (सरल मोड)</span>
+            <span>{t("easyModeActive", "Senior Easy Mode Active")}</span>
           </div>
           <Button
             variant="outline"
@@ -290,97 +290,97 @@ export function SeniorHome({
   // -------------------------------------------------------------------------
   // 2. STANDARD COMPREHENSIVE VIEW
   // -------------------------------------------------------------------------
-  // Single Source of Truth for Quick Access (Strictly 8 Items, 4x2 on all screens)
+  // Single Source of Truth for Quick Access (Strictly 8 Items, 4x2 on desktop, 2-col responsive on mobile)
   const quickAccessItems = [
     // ROW 1: 1. Play Games, 2. Medicines, 3. Appointments, 4. Voice AI
     {
       id: "qa-games",
-      title: "Play Games",
-      desc: "Brain puzzles & fun",
+      title: t("qaPlayGames", "Play Games"),
+      desc: t("qaPlayGamesDesc", "Brain puzzles & memory fun"),
       icon: Gamepad2,
       onClick: () => onNavigate("games"),
-      border: "border-indigo-100 hover:border-indigo-300",
-      bg: "bg-indigo-50/40 hover:bg-indigo-50",
+      border: "border-indigo-100 hover:border-indigo-300 dark:border-indigo-900/40",
+      bg: "bg-indigo-50/60 hover:bg-indigo-50/90 dark:bg-indigo-950/20",
       iconBg: "bg-indigo-500",
-      textHover: "group-hover:text-indigo-700",
+      textHover: "group-hover:text-indigo-700 dark:group-hover:text-indigo-300",
     },
     {
       id: "qa-medicines",
-      title: "Medicines",
-      desc: "Daily dosage & alarms",
+      title: t("qaMedicines", "Medicines"),
+      desc: t("qaMedicinesDesc", "Daily dosage & pill alerts"),
       icon: Pill,
       onClick: () => onNavigate("medicines"),
-      border: "border-emerald-100 hover:border-emerald-300",
-      bg: "bg-emerald-50/40 hover:bg-emerald-50",
+      border: "border-emerald-100 hover:border-emerald-300 dark:border-emerald-900/40",
+      bg: "bg-emerald-50/60 hover:bg-emerald-50/90 dark:bg-emerald-950/20",
       iconBg: "bg-emerald-600",
-      textHover: "group-hover:text-emerald-700",
+      textHover: "group-hover:text-emerald-700 dark:group-hover:text-emerald-300",
     },
     {
       id: "qa-appointments",
-      title: "Appointments",
-      desc: "Doctor & clinic visits",
+      title: t("qaAppointments", "Appointments"),
+      desc: t("qaAppointmentsDesc", "Doctor & clinic visits"),
       icon: Calendar,
       onClick: () => onNavigate("appointments"),
-      border: "border-sky-100 hover:border-sky-300",
-      bg: "bg-sky-50/40 hover:bg-sky-50",
+      border: "border-sky-100 hover:border-sky-300 dark:border-sky-900/40",
+      bg: "bg-sky-50/60 hover:bg-sky-50/90 dark:bg-sky-950/20",
       iconBg: "bg-sky-600",
-      textHover: "group-hover:text-sky-700",
+      textHover: "group-hover:text-sky-700 dark:group-hover:text-sky-300",
     },
     {
       id: "qa-voice",
-      title: "Voice AI",
-      desc: "Speak in regional",
+      title: t("qaVoiceAi", "Voice AI"),
+      desc: t("qaVoiceAiDesc", "Speak in regional language"),
       icon: Mic,
       onClick: onOpenVoiceAssistant,
-      border: "border-blue-100 hover:border-blue-300",
-      bg: "bg-blue-50/40 hover:bg-blue-50",
+      border: "border-blue-100 hover:border-blue-300 dark:border-blue-900/40",
+      bg: "bg-blue-50/60 hover:bg-blue-50/90 dark:bg-blue-950/20",
       iconBg: "bg-primary",
       textHover: "group-hover:text-primary",
     },
-    // ROW 2: 5. Family Tree, 6. Memories, 7. Memory Garden, 8. Cultural Hub
+    // ROW 2: 5. Family Tree, 6. Emergency SOS (replaces Memories), 7. Memory Garden, 8. Cultural Hub
     {
       id: "qa-family-tree",
-      title: "Family Tree",
-      desc: "Loved ones & ties",
+      title: t("qaFamilyTree", "Family Tree"),
+      desc: t("qaFamilyTreeDesc", "Loved ones & contacts"),
       icon: Users,
       onClick: () => onNavigate("family_tree"),
-      border: "border-rose-100 hover:border-rose-300",
-      bg: "bg-rose-50/40 hover:bg-rose-50",
-      iconBg: "bg-rose-500",
-      textHover: "group-hover:text-rose-700",
+      border: "border-amber-100 hover:border-amber-300 dark:border-amber-900/40",
+      bg: "bg-amber-50/60 hover:bg-amber-50/90 dark:bg-amber-950/20",
+      iconBg: "bg-amber-500",
+      textHover: "group-hover:text-amber-700 dark:group-hover:text-amber-300",
     },
     {
-      id: "qa-memories",
-      title: "Memories",
-      desc: "Photos & greetings",
-      icon: Heart,
-      onClick: () => onNavigate("social"),
-      border: "border-purple-100 hover:border-purple-300",
-      bg: "bg-purple-50/40 hover:bg-purple-50",
-      iconBg: "bg-purple-600",
-      textHover: "group-hover:text-purple-700",
+      id: "qa-sos",
+      title: t("qaEmergencySos", "Emergency SOS"),
+      desc: t("qaEmergencySosDesc", "Instant help & family alert"),
+      icon: AlertOctagon,
+      onClick: onOpenSos,
+      border: "border-rose-200 hover:border-rose-400 dark:border-rose-900/60 ring-1 ring-rose-300/40",
+      bg: "bg-rose-50/80 hover:bg-rose-100/90 dark:bg-rose-950/30",
+      iconBg: "bg-rose-600",
+      textHover: "group-hover:text-rose-700 dark:group-hover:text-rose-400",
     },
     {
       id: "qa-garden",
-      title: "Memory Garden",
-      desc: "Daily bloom tracker",
+      title: t("qaMemoryGarden", "Memory Garden"),
+      desc: t("qaMemoryGardenDesc", "Daily routine & bloom tracker"),
       icon: Leaf,
       onClick: () => onNavigate("routine"),
-      border: "border-teal-100 hover:border-teal-300",
-      bg: "bg-teal-50/40 hover:bg-teal-50",
+      border: "border-teal-100 hover:border-teal-300 dark:border-teal-900/40",
+      bg: "bg-teal-50/60 hover:bg-teal-50/90 dark:bg-teal-950/20",
       iconBg: "bg-teal-600",
-      textHover: "group-hover:text-teal-700",
+      textHover: "group-hover:text-teal-700 dark:group-hover:text-teal-300",
     },
     {
       id: "qa-cultural",
-      title: "Cultural Hub",
-      desc: "Festivals & heritage",
+      title: t("qaCulturalHub", "Cultural Hub"),
+      desc: t("qaCulturalHubDesc", "Festivals, folklore & songs"),
       icon: Compass,
       onClick: () => onNavigate("cultural"),
-      border: "border-cyan-100 hover:border-cyan-300",
-      bg: "bg-cyan-50/40 hover:bg-cyan-50",
+      border: "border-cyan-100 hover:border-cyan-300 dark:border-cyan-900/40",
+      bg: "bg-cyan-50/60 hover:bg-cyan-50/90 dark:bg-cyan-950/20",
       iconBg: "bg-cyan-700",
-      textHover: "group-hover:text-cyan-800",
+      textHover: "group-hover:text-cyan-800 dark:group-hover:text-cyan-300",
     },
   ];
 
@@ -395,7 +395,7 @@ export function SeniorHome({
             </div>
             <div>
               <div className="text-base font-black text-amber-900 flex items-center gap-2">
-                <span>Offline Mode (অফলাইন মোড)</span>
+                <span>{t("offlineMode", "Offline Mode")}</span>
               </div>
               <p className="text-xs font-semibold text-amber-800/80 mt-0.5 max-w-xl">
                 Memory Bond is safely working offline. Your medicines and games are stored on your device and will sync automatically.
@@ -511,10 +511,7 @@ export function SeniorHome({
       <section aria-label="Daily Summary">
         <div className="flex items-center justify-between mb-3.5">
           <h3 className="text-lg sm:text-xl font-black text-foreground font-display flex items-center gap-2">
-            <span>Today's Wellness Summary</span>
-            <span className="text-xs font-bold text-muted-foreground font-sans">
-              (আজিৰ স্বাস্থ্য তথ্য)
-            </span>
+            <span>{t("todaysWellnessSummary", "Today's Wellness Summary")}</span>
           </h3>
           <span className="text-xs font-bold text-muted-foreground">
             {new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" })}
@@ -671,24 +668,24 @@ export function SeniorHome({
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         {/* LEFT/CENTER 8 COLUMNS: Quick Access Features + Daily Routine */}
         <div className="xl:col-span-8 space-y-6">
-          {/* QUICK ACCESS: Exactly 8 Cards in strict 4x2 layout on EVERY device */}
-          <section aria-label="Quick Access Features" className="rounded-3xl border border-border bg-card p-3 sm:p-5 md:p-6 shadow-xs space-y-3 sm:space-y-4">
-            <div className="flex items-center justify-between">
+          {/* QUICK ACCESS: Exactly 8 Cards in 4x2 desktop layout and comfortable responsive mobile layout */}
+          <section aria-label="Quick Access Features" className="rounded-3xl border border-border bg-card p-4 sm:p-5 md:p-6 shadow-xs space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h3 className="text-base sm:text-lg md:text-xl font-black text-foreground font-display">
-                  Quick Access (সুবিধাসমূহ)
+                <h3 className="text-lg sm:text-xl md:text-2xl font-black text-foreground font-display tracking-tight">
+                  {t("quickAccess", "Quick Access")}
                 </h3>
-                <p className="text-[11px] sm:text-xs font-semibold text-muted-foreground">
-                  Tap any card to open your daily memory, family, and health companion tools
+                <p className="text-xs sm:text-sm font-semibold text-muted-foreground mt-0.5">
+                  {t("quickAccessSubtitle", "Tap any card to open your daily memory, family, and health companion tools")}
                 </p>
               </div>
-              <span className="text-[11px] sm:text-xs font-bold text-primary px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full bg-primary/10 shrink-0">
-                {quickAccessItems.length} Activities
+              <span className="text-xs sm:text-sm font-black text-primary px-3 py-1 rounded-full bg-primary/10 shrink-0">
+                {quickAccessItems.length} {t("activitiesCount", "Activities")}
               </span>
             </div>
 
-            {/* Exactly 4 columns across EVERY screen size: Mobile, Tablet, Laptop, Desktop */}
-            <div className="grid grid-cols-4 gap-1.5 sm:gap-2.5 md:gap-3 w-full">
+            {/* Responsive grid: exactly 4 columns x 2 rows on tablet/desktop, 2 columns x 4 rows on mobile */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-3.5 md:gap-4 w-full">
               {quickAccessItems.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -696,16 +693,20 @@ export function SeniorHome({
                     key={item.id}
                     type="button"
                     onClick={item.onClick}
-                    className={`group p-1.5 sm:p-2.5 md:p-3.5 rounded-xl sm:rounded-2xl border ${item.border} ${item.bg} text-left transition-all cursor-pointer flex flex-col justify-between min-h-[76px] sm:min-h-[100px] md:min-h-[120px] shadow-xs active:scale-95 select-none min-w-0 w-full overflow-hidden`}
+                    aria-label={`${item.title}: ${item.desc}`}
+                    className={`group p-3.5 sm:p-4 md:p-5 rounded-2xl sm:rounded-3xl border ${item.border} ${item.bg} text-left transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[110px] sm:min-h-[130px] md:min-h-[148px] shadow-xs hover:shadow-md hover:-translate-y-0.5 active:scale-97 select-none min-w-0 w-full overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`}
                   >
-                    <div className={`w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-lg sm:rounded-xl ${item.iconBg} text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform shrink-0`}>
-                      <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5" />
+                    <div className="flex items-center justify-between w-full">
+                      <div className={`w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl sm:rounded-2xl ${item.iconBg} text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform shrink-0`}>
+                        <Icon className="h-5 w-5 sm:h-6 sm:w-6 md:h-6.5 md:w-6.5" />
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-foreground/70 group-hover:translate-x-0.5 transition-all" />
                     </div>
-                    <div className="w-full min-w-0 mt-1 sm:mt-2">
-                      <div className={`text-[10px] sm:text-xs md:text-sm font-black text-foreground ${item.textHover} truncate leading-tight`}>
+                    <div className="w-full min-w-0 mt-2.5 sm:mt-3">
+                      <div className={`text-sm sm:text-base md:text-lg font-black text-foreground ${item.textHover} font-display leading-snug tracking-tight truncate`}>
                         {item.title}
                       </div>
-                      <p className="text-[8px] sm:text-[10px] md:text-[11px] text-muted-foreground font-medium truncate mt-0.5 leading-none">
+                      <p className="text-xs sm:text-xs md:text-sm text-muted-foreground font-semibold mt-0.5 sm:mt-1 leading-snug line-clamp-2">
                         {item.desc}
                       </p>
                     </div>
