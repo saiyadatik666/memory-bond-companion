@@ -55,35 +55,47 @@ export function MemoryBondApp() {
     return !!session;
   });
 
-  // Listen to Supabase auth events (OAuth redirect, sign in, sign out)
+  // Listen to Supabase auth events (OAuth redirect, sign in, sign out) with fail-safe error handling
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        const user = session.user;
-        const role = (user.user_metadata?.role as any) || "caregiver";
-        const fullName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Caregiver";
-        store.updateProfile({ full_name: fullName, role });
-        store.setRole(role);
-        localStorage.setItem(
-          "mb_active_session",
-          JSON.stringify({
-            userId: user.id,
-            role,
-            email: user.email,
-            fullName,
-          })
-        );
-        setIsAuthenticated(true);
-        if (role === "caregiver") {
-          setCurrentTab("caregiver");
-        } else {
-          setCurrentTab("home");
-        }
+    let subscription: { unsubscribe: () => void } | undefined;
+    try {
+      if (supabase && typeof supabase.auth?.onAuthStateChange === "function") {
+        const res = supabase.auth.onAuthStateChange((_event, session) => {
+          if (session?.user) {
+            const user = session.user;
+            const role = (user.user_metadata?.role as any) || "caregiver";
+            const fullName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Caregiver";
+            store.updateProfile({ full_name: fullName, role });
+            store.setRole(role);
+            try {
+              localStorage.setItem(
+                "mb_active_session",
+                JSON.stringify({
+                  userId: user.id,
+                  role,
+                  email: user.email,
+                  fullName,
+                })
+              );
+            } catch {}
+            setIsAuthenticated(true);
+            if (role === "caregiver") {
+              setCurrentTab("caregiver");
+            } else {
+              setCurrentTab("home");
+            }
+          }
+        });
+        subscription = res?.data?.subscription;
       }
-    });
+    } catch (err) {
+      console.warn("[MemoryBond App] Supabase auth state listener bypassed safely:", err);
+    }
 
     return () => {
-      subscription?.unsubscribe();
+      try {
+        subscription?.unsubscribe?.();
+      } catch {}
     };
   }, []);
 
@@ -131,14 +143,22 @@ export function MemoryBondApp() {
     setIsSosOpen(false);
   }, []);
 
-  // Scheduled device notifications & reminders watcher (Requirement 14 & 25)
+  // Scheduled device notifications & reminders watcher (Requirement 14 & 25) with fail-safe error handling
   useEffect(() => {
-    requestNotificationPermission();
-    checkScheduledReminders(store);
-    const interval = window.setInterval(() => {
+    try {
+      requestNotificationPermission();
       checkScheduledReminders(store);
-    }, 20000);
-    return () => window.clearInterval(interval);
+      const interval = window.setInterval(() => {
+        try {
+          checkScheduledReminders(store);
+        } catch (err) {
+          console.debug("[MemoryBond App] Scheduled reminder check tick:", err);
+        }
+      }, 20000);
+      return () => window.clearInterval(interval);
+    } catch (err) {
+      console.debug("[MemoryBond App] Notification watcher setup bypassed:", err);
+    }
   }, [store]);
 
   // Sync tab if user switches role (Senior vs Caregiver)

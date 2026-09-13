@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Component, type ReactNode, type ErrorInfo } from "react";
+import { useState, useEffect, Component, type ReactNode, type ErrorInfo } from "react";
 import { MemoryBondApp } from "../components/memory-bond/MemoryBondApp";
 import { Heart, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -65,7 +65,6 @@ class SafeRouteErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundary
 
 export const Route = createFileRoute("/")({
   component: RouteComponent,
-  pendingComponent: LoadingFallback,
   errorComponent: RouteErrorFallback,
 });
 
@@ -113,6 +112,17 @@ function RouteErrorFallback({ error, reset }: { error: Error; reset: () => void 
 }
 
 function RouteComponent() {
+  const [isClientReady, setIsClientReady] = useState(false);
+
+  useEffect(() => {
+    // Transition from loading screen as soon as client mounts & hydrates
+    setIsClientReady(true);
+  }, []);
+
+  if (!isClientReady) {
+    return <LoadingFallback />;
+  }
+
   return (
     <SafeRouteErrorBoundary>
       <MemoryBondApp />
