@@ -1,6 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Sparkles, RotateCcw, CheckCircle2, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n";
 
 interface RoutineQuestion {
   question: string;
@@ -207,9 +208,14 @@ export function RoutineRecall({
   nerState?: string;
   memoryCues?: any[];
 }) {
+  const { lang, gameStrings } = useI18n();
   const [currentIdx, setCurrentIdx] = useState<number>(0);
   const [selectedOpt, setSelectedOpt] = useState<number | null>(null);
   const [score, setScore] = useState<number>(0);
+  const [isFinished, setIsFinished] = useState<boolean>(false);
+  const [mistakes, setMistakes] = useState<number>(0);
+  const startTimeRef = useRef<number>(Date.now());
+  const isSubmittingRef = useRef<boolean>(false);
 
   // Each level selects 2 distinct questions (permuted by 8-Day Cycle)
   const activeQuestions = useMemo(() => {
@@ -220,19 +226,19 @@ export function RoutineRecall({
       ALL_ROUTINE_QUESTIONS[(base + 1) % ALL_ROUTINE_QUESTIONS.length],
     ];
   }, [level, cycleNumber]);
-  const [isFinished, setIsFinished] = useState<boolean>(false);
-  const [mistakes, setMistakes] = useState<number>(0);
-  const startTimeRef = useState<{ current: number }>({ current: Date.now() })[0];
 
   const currentQ = activeQuestions[currentIdx];
 
   if (!currentQ) return null;
 
   const handleSelect = (idx: number) => {
+    if (isSubmittingRef.current) return;
     setSelectedOpt(idx);
   };
 
   const handleNext = () => {
+    if (selectedOpt === null || isSubmittingRef.current) return;
+
     const isCorrect = selectedOpt === currentQ.correct;
     const nextScore = score + (isCorrect ? 1 : 0);
     if (isCorrect) {
@@ -241,9 +247,11 @@ export function RoutineRecall({
       setMistakes((m) => m + 1);
     }
     setSelectedOpt(null);
+
     if (currentIdx + 1 < activeQuestions.length) {
       setCurrentIdx((i) => i + 1);
     } else {
+      isSubmittingRef.current = true;
       const elapsedMs = Math.max(1200, Date.now() - startTimeRef.current);
       const calculatedAcc = Math.round((nextScore / activeQuestions.length) * 100);
       setIsFinished(true);
@@ -257,37 +265,67 @@ export function RoutineRecall({
     }
   };
 
+  const titleText =
+    lang === "gu" ? "રમત ૫: રોજિંદી ટેવોનું સ્મરણ" :
+    lang === "hi" ? "खेल 5: दैनिक दिनचर्या स्मरण" :
+    lang === "bn" ? "খেলা ৫: দৈনন্দিন রুটিন স্মরণ" :
+    lang === "mr" ? "खेळ ५: दैनिक दिनचर्या आठवणे" :
+    lang === "as" ? "খেল ৫: দৈনিক নিয়মীয়া অভ্যাস" :
+    "Game 5: Daily Routine Recall";
+
+  const subtitleText =
+    lang === "gu" ? "શાંત અને સ્વસ્થ દિનચર્યાને યાદ રાખવા માટેના પ્રશ્નો." :
+    lang === "hi" ? "शांत और स्वस्थ दिनचर्या को याद रखने के लिए सरल प्रश्न।" :
+    lang === "bn" ? "শান্ত ও সুস্থ দৈনন্দিন অভ্যাস মনে রাখার সহজ প্রশ্ন।" :
+    lang === "mr" ? "शांत आणि निरोगी दिनचर्या लक्षात ठेवण्यासाठी सोपे प्रश्न." :
+    lang === "as" ? "শান্ত আৰু স্বাস্থ্যকৰ নিয়মীয়া অভ্যাস মনত ৰখাৰ বাবে প্ৰশ্ন।" :
+    "Calm questions to reinforce peaceful, healthy daily habits.";
+
+  const nextBtnText =
+    currentIdx + 1 === activeQuestions.length
+      ? (lang === "gu" ? "પ્રવૃત્તિ પૂર્ણ કરો" : lang === "hi" ? "गतिविधि समाप्त करें" : lang === "bn" ? "সম্পূর্ণ করুন" : "Finish Activity")
+      : (lang === "gu" ? "આગળનો પ્રશ્ન" : lang === "hi" ? "अगला प्रश्न" : lang === "bn" ? "পরবর্তী প্রশ্ন" : "Next Question");
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-secondary/40 p-4">
         <div>
-          <h3 className="text-xl font-bold text-foreground">Game 5: Daily Routine Recall</h3>
-          <p className="text-sm text-muted-foreground">Calm questions to reinforce peaceful, healthy daily habits.</p>
+          <h3 className="text-xl font-bold text-foreground">{titleText}</h3>
+          <p className="text-sm text-muted-foreground">{subtitleText}</p>
         </div>
         <span className="rounded-xl bg-card px-4 py-2 font-bold shadow-xs">
-          Question {currentIdx + 1} / {activeQuestions.length}
+          {lang === "gu" ? "પ્રશ્ન" : lang === "hi" ? "प्रश्न" : lang === "bn" ? "প্রশ্ন" : "Question"} {currentIdx + 1} / {activeQuestions.length}
         </span>
       </div>
 
       {isFinished ? (
         <div className="rounded-3xl border border-success/30 bg-success/10 p-8 text-center space-y-4">
           <Heart className="mx-auto h-16 w-16 text-success fill-success/20" />
-          <h4 className="text-3xl font-extrabold text-foreground">Heartwarming effort!</h4>
+          <h4 className="text-3xl font-extrabold text-foreground">
+            {lang === "gu" ? "ખૂબ જ સરસ પ્રયાસ!" : lang === "hi" ? "हृदयस्पर्शी प्रयास!" : lang === "bn" ? "চমৎকার প্রচেষ্টা!" : "Heartwarming effort!"}
+          </h4>
           <p className="text-lg text-muted-foreground">
-            You completed the routine reflection with {score} / {activeQuestions.length} thoughtful answers.
+            {lang === "gu"
+              ? `તમે ${score} / ${activeQuestions.length} સાચા જવાબો સાથે દિનચર્યા પૂર્ણ કરી.`
+              : lang === "hi"
+              ? `आपने ${score} / ${activeQuestions.length} विचारशील उत्तरों के साथ दिनचर्या पूर्ण की।`
+              : lang === "bn"
+              ? `আপনি ${score} / ${activeQuestions.length} সঠিক উত্তরের সাথে রুটিন সম্পন্ন করেছেন।`
+              : `You completed the routine reflection with ${score} / ${activeQuestions.length} thoughtful answers.`}
           </p>
           <Button
             size="lg"
             onClick={() => {
+              isSubmittingRef.current = false;
               setCurrentIdx(0);
               setSelectedOpt(null);
               setScore(0);
               setIsFinished(false);
+              startTimeRef.current = Date.now();
             }}
             className="gap-2 font-bold px-8"
           >
-            <RotateCcw className="h-5 w-5" /> Review Again
+            <RotateCcw className="h-5 w-5" /> {lang === "gu" ? "ફરીથી જુઓ" : lang === "hi" ? "पुनः देखें" : lang === "bn" ? "আবার দেখুন" : "Review Again"}
           </Button>
         </div>
       ) : (
@@ -324,7 +362,7 @@ export function RoutineRecall({
               onClick={handleNext}
               className="px-8 font-bold"
             >
-              {currentIdx + 1 === activeQuestions.length ? "Finish Activity" : "Next Question"}
+              {nextBtnText}
             </Button>
           </div>
         </div>

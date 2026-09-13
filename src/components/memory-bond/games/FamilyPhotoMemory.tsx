@@ -1,6 +1,7 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Sparkles, RotateCcw, CheckCircle2, Users, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n";
 import type { MemoryCue, EmergencyContact } from "@/lib/memoryBondStore";
 
 interface FamilyProfile {
@@ -336,12 +337,23 @@ export function FamilyPhotoMemory({
   adaptiveDifficulty?: string;
   nerState?: string;
 }) {
+  const { lang, speechLocale } = useI18n();
   const [currentIdx, setCurrentIdx] = useState<number>(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [score, setScore] = useState<number>(0);
   const [isFinished, setIsFinished] = useState<boolean>(false);
   const [isPlayingVoice, setIsPlayingVoice] = useState<boolean>(false);
   const startTimeRef = useRef<number>(Date.now());
+  const isSubmittingRef = useRef<boolean>(false);
+
+  // Audio cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
 
   // Prioritize real caregiver-provided family members and scale memory load gradually across 30 levels
   const activeProfiles = useMemo(() => {
@@ -383,11 +395,6 @@ export function FamilyPhotoMemory({
 
     const pool = [...caregiverProfiles, ...customProfiles, ...DEFAULT_FAMILY_PROFILES];
 
-    // Gradual memory load scaling across 30 levels:
-    // Level 1-5: 2 memories (easy)
-    // Level 6-12: 3 memories
-    // Level 13-20: 4 memories
-    // Level 21-30: 5 memories
     const count = level <= 5 ? 2 : level <= 12 ? 3 : level <= 20 ? 4 : 5;
     const cycleOffset = (cycleNumber - 1) * 3;
     const startIndex = ((level - 1) * 2 + cycleOffset) % pool.length;
@@ -407,6 +414,8 @@ export function FamilyPhotoMemory({
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(current.voiceMessage);
+      utterance.lang = speechLocale || "hi-IN";
+      utterance.rate = 0.88;
       utterance.onend = () => setIsPlayingVoice(false);
       utterance.onerror = () => setIsPlayingVoice(false);
       window.speechSynthesis.speak(utterance);
@@ -416,6 +425,8 @@ export function FamilyPhotoMemory({
   };
 
   const handleNext = () => {
+    if (isSubmittingRef.current || !selected) return;
+
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     setIsPlayingVoice(false);
 
@@ -427,6 +438,7 @@ export function FamilyPhotoMemory({
     if (currentIdx + 1 < activeProfiles.length) {
       setCurrentIdx((i) => i + 1);
     } else {
+      isSubmittingRef.current = true;
       setIsFinished(true);
       const elapsedMs = Math.max(2000, Date.now() - startTimeRef.current);
       const accuracy = Math.round((nextScore / activeProfiles.length) * 100);
@@ -442,28 +454,58 @@ export function FamilyPhotoMemory({
 
   if (!current) return null;
 
+  const titleText =
+    lang === "gu" ? `રમત ૬: પારિવારિક તસવીરો અને યાદો (સ્તર ${level})` :
+    lang === "hi" ? `खेल 6: पारिवारिक चित्र व स्मृति (स्तर ${level})` :
+    lang === "bn" ? `খেলা ৬: পারিবারিক ছবি ও স্মৃতি স্মরণ (স্তর ${level})` :
+    lang === "mr" ? `खेळ ६: कौटुंबिक फोटो व आठवणी (पातळी ${level})` :
+    lang === "as" ? `খেল ৬: পৰিয়ালৰ ফটো আৰু স্মৃতি (স্তৰ ${level})` :
+    `Game 6: Family Photo & Memory Recall (Level ${level})`;
+
+  const subtitleText =
+    lang === "gu" ? "પરિવારના સભ્યો, પૌત્રો અને વહાલા સ્મરણોને યાદ કરો." :
+    lang === "hi" ? "परिवार के सदस्यों, पोते-पोतियों और प्रियजनों की यादें ताज़ा करें।" :
+    lang === "bn" ? "পরিবারের সদস্য ও প্রিয় স্মৃতিগুলোকে পুনরায় অনুভব করুন।" :
+    lang === "mr" ? "कुटुंबातील सदस्य आणि प्रिय आठवणींना पुन्हा उजाळा द्या." :
+    lang === "as" ? "পৰিয়ালৰ সদস্য আৰু আপোন স্মৃতিসমূহ সুঁৱৰি চাওক।" :
+    "Reconnect with familiar faces, personal places, and loved ones.";
+
+  const nextBtnText =
+    currentIdx + 1 === activeProfiles.length
+      ? (lang === "gu" ? "પ્રવૃત્તિ પૂર્ણ કરો" : lang === "hi" ? "स्मरण पूरा करें" : lang === "bn" ? "স্মরণ সম্পূর্ণ করুন" : "Finish Recall")
+      : (lang === "gu" ? "આગળનો ચહેરો" : lang === "hi" ? "अगला चेहरा" : lang === "bn" ? "পরবর্তী মুখ" : "Next Face");
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-secondary/40 p-4">
         <div>
-          <h3 className="text-xl font-bold text-foreground">Game 6: Family Photo & Memory Recall (Level {level})</h3>
-          <p className="text-sm text-muted-foreground">Reconnect with familiar faces, personal places, and loved ones.</p>
+          <h3 className="text-xl font-bold text-foreground">{titleText}</h3>
+          <p className="text-sm text-muted-foreground">{subtitleText}</p>
         </div>
         <span className="rounded-xl bg-card px-4 py-2 font-bold shadow-xs">
-          Card {currentIdx + 1} / {activeProfiles.length}
+          {lang === "gu" ? "કાર્ડ" : lang === "hi" ? "कार्ड" : lang === "bn" ? "কার্ড" : "Card"} {currentIdx + 1} / {activeProfiles.length}
         </span>
       </div>
 
       {isFinished ? (
         <div className="rounded-3xl border border-success/30 bg-success/10 p-8 text-center space-y-4">
           <Users className="mx-auto h-16 w-16 text-success" />
-          <h4 className="text-3xl font-extrabold text-foreground">Beautiful memories!</h4>
+          <h4 className="text-3xl font-extrabold text-foreground">
+            {lang === "gu" ? "સુંદર સ્મરણો!" : lang === "hi" ? "सुंदर यादें!" : lang === "bn" ? "সুন্দর স্মৃতি!" : "Beautiful memories!"}
+          </h4>
           <p className="text-lg text-muted-foreground">
-            You recognized {score} of {activeProfiles.length} family profiles and personal memories with warmth.
+            {lang === "gu"
+              ? `તમે ${activeProfiles.length} માંથી ${score} પારિવારિક યાદોને સફળતાપૂર્વક ઓળખી લીધી.`
+              : lang === "hi"
+              ? `आपने ${activeProfiles.length} में से ${score} पारिवारिक यादों को सफलता और स्नेह से पहचाना।`
+              : lang === "bn"
+              ? `আপনি ${activeProfiles.length}টির মধ্যে ${score}টি পারিবারিক স্মৃতি সুন্দরভাবে স্মরণ করেছেন।`
+              : `You recognized ${score} of ${activeProfiles.length} family profiles and personal memories with warmth.`}
           </p>
           <Button
             size="lg"
             onClick={() => {
+              isSubmittingRef.current = false;
               setCurrentIdx(0);
               setSelected(null);
               setScore(0);
@@ -472,7 +514,7 @@ export function FamilyPhotoMemory({
             }}
             className="gap-2 font-bold px-8 cursor-pointer"
           >
-            <RotateCcw className="h-5 w-5" /> Play Again
+            <RotateCcw className="h-5 w-5" /> {lang === "gu" ? "ફરી રમો" : lang === "hi" ? "फिर खेलें" : lang === "bn" ? "আবার খেলুন" : "Play Again"}
           </Button>
         </div>
       ) : (
@@ -505,7 +547,9 @@ export function FamilyPhotoMemory({
                   }`}
                 >
                   <Volume2 className="h-4 w-4" />
-                  {isPlayingVoice ? "Playing Voice Message..." : "Hear Voice Message 🔊"}
+                  {isPlayingVoice
+                    ? (lang === "gu" ? "સંદેશ વાગી રહ્યો છે..." : lang === "hi" ? "संदेश बज रहा है..." : lang === "bn" ? "বার্তা বাজছে..." : "Playing Voice Message...")
+                    : (lang === "gu" ? "પારિવારિક અવાજ સાંભળો 🔊" : lang === "hi" ? "पारिवारिक संदेश सुनें 🔊" : lang === "bn" ? "পারিবারিক বার্তা শুনুন 🔊" : "Hear Voice Message 🔊")}
                 </Button>
               </div>
             )}
@@ -532,7 +576,7 @@ export function FamilyPhotoMemory({
 
           <div className="flex justify-end">
             <Button size="lg" disabled={!selected} onClick={handleNext} className="px-8 font-bold cursor-pointer">
-              {currentIdx + 1 === activeProfiles.length ? "Finish Recall" : "Next Face"}
+              {nextBtnText}
             </Button>
           </div>
         </div>

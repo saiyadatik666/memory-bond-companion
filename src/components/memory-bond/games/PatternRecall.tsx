@@ -82,7 +82,7 @@ export function PatternRecall({
   cycleSeed = 0,
   adaptiveDifficulty = "medium",
 }: PatternRecallProps) {
-  const { lang, speechLocale } = useI18n();
+  const { lang, speechLocale, gameStrings } = useI18n();
 
   // Tier classification across 30 Levels
   // 1-5: Simple Visual Shapes
@@ -158,12 +158,13 @@ export function PatternRecall({
     } else {
       // Level 30 Grand Master Challenge
       return {
-        tierName: "Level 30: Grand Master Pattern Challenge",
-        mode: "sequence" as const,
-        pool: [...SHAPES, ...CULTURAL_ITEMS, ...DIRECTIONS],
+        tierName: "Tier 7: Grand Master Synthesis",
+        mode: "grid_positions" as const,
+        pool: [...CULTURAL_ITEMS, ...NATURE_SYMBOLS, ...SHAPES],
+        gridSize: 9,
         count: 6,
-        obsTimeSec: Math.round(8 * obsModifier),
-        description: "The ultimate memory celebration! Recall a diverse 6-item visual sequence.",
+        obsTimeSec: Math.round(9 * obsModifier),
+        description: "The ultimate memory celebration: recall all six keepsakes on the 3x3 matrix.",
       };
     }
   }, [level, adaptiveDifficulty]);
@@ -180,9 +181,11 @@ export function PatternRecall({
   const [targetSequence, setTargetSequence] = useState<any[]>([]);
   const [targetGridPositions, setTargetGridPositions] = useState<{ index: number; item: any }[]>([]);
   const startTimeRef = useRef<number>(Date.now());
+  const isSubmittingRef = useRef<boolean>(false);
 
   // Generate distinct pattern for this level (incorporating 8-Day Cycle seed)
   const generatePattern = () => {
+    isSubmittingRef.current = false;
     setUserSelection([]);
     setSelectedPaletteItem(null);
     setMistakes(0);
@@ -306,6 +309,8 @@ export function PatternRecall({
 
   // Evaluate answer and advance to feedback
   const handleCheckAnswer = () => {
+    if (isSubmittingRef.current || phase !== "recall") return;
+    isSubmittingRef.current = true;
     let score = 0;
     let total = 1;
 

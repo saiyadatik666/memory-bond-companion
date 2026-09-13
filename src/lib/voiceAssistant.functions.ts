@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { cleanAIResponse } from "./voiceProvider";
+import { languageEngine, SUPPORTED_LANGUAGES } from "./languageEngine";
 
 const GATEWAY = "https://ai.gateway.lovable.dev/v1";
 
@@ -55,10 +56,14 @@ export const askVoiceAssistant = createServerFn({ method: "POST" })
     const key = process.env["LOVABLE_API_KEY"];
     const { query, history = [], context = {}, preferredLocale = "en-IN" } = data;
 
+    const detectedLocale = languageEngine.detectLanguage(query, preferredLocale);
+    const targetLang = SUPPORTED_LANGUAGES.find((l) => l.locale === detectedLocale) || SUPPORTED_LANGUAGES[0]!;
+
     // Fallback if API key is not present or offline
     if (!key) {
-      return getLocalOfflineFallback(query, history, preferredLocale, context);
+      return getLocalOfflineFallback(query, history, detectedLocale, context);
     }
+
 
     const systemPrompt = `You are "Memory Bond", an empathetic, intelligent, and warm AI voice companion designed for elderly users and dementia patients in India.
 
@@ -244,6 +249,10 @@ export function getLocalOfflineFallback(
   // 1. DYNAMIC LANGUAGE SWITCH OF PREVIOUS TOPIC (CRITICAL REQUIREMENT 5)
   // e.g. "Ab Hindi mein samjhao", "હવે ગુજરાતીમાં કહો", "In English please"
   // =========================================================================
+  // =========================================================================
+  // 1. DYNAMIC LANGUAGE SWITCH OF PREVIOUS TOPIC (CRITICAL REQUIREMENT 5)
+  // e.g. "Ab Hindi mein samjhao", "હવે ગુજરાતીમાં કહો", "In English please", "বাংলায় বলো"
+  // =========================================================================
   const isSwitchToHindi =
     /\b(ab hindi|hindi mein|hindi me|हिंदी में|हिन्दी में|हिंदी में समझाओ|हिन्दी में समझाओ)\b/i.test(q) ||
     q === "hindi" ||
@@ -321,7 +330,8 @@ export function getLocalOfflineFallback(
   }
 
   const isSwitchToEnglish =
-    /\b(in english|speak in english|switch to english|english please|tell in english)\b/i.test(q);
+    /\b(in english|speak in english|switch to english|english please|tell in english)\b/i.test(q) ||
+    q === "english";
 
   if (isSwitchToEnglish) {
     if (wasAI) {
@@ -340,6 +350,14 @@ export function getLocalOfflineFallback(
         suggestedAction: "take_medicine",
       };
     }
+    if (wasRoutine) {
+      return {
+        reply: "In English: Your daily routine includes morning medicine at 8:30 AM, drinking 4 glasses of water, a memory game at 10 AM, and a doctor visit at 4 PM.",
+        detectedLocale: "en-IN",
+        languageName: "English",
+        suggestedAction: "view_routine",
+      };
+    }
     return {
       reply: "Sure! I will now converse with you in English. How can I assist you today?",
       detectedLocale: "en-IN",
@@ -348,9 +366,68 @@ export function getLocalOfflineFallback(
     };
   }
 
+  const isSwitchToBengali =
+    /\b(in bengali|bangla te|banglay|বাংলায় বলো|বাংলায় বলুন|বাংলায়)\b/i.test(q) ||
+    q === "bengali" ||
+    q === "bangla";
+
+  if (isSwitchToBengali) {
+    return {
+      reply: "নিশ্চয়ই! এখন থেকে আমি আপনার সাথে বাংলায় কথা বলব। আপনার ঔষধ, রুটিন বা যেকোনো প্রশ্ন আমাকে জানাতে পারেন।",
+      detectedLocale: "bn-IN",
+      languageName: "Bengali",
+      suggestedAction: "none",
+    };
+  }
+
+  const isSwitchToAssamese =
+    /\b(in assamese|axomiya|অসমীয়াত কোৱা|অসমীয়াত)\b/i.test(q) ||
+    q === "assamese";
+
+  if (isSwitchToAssamese) {
+    return {
+      reply: "নিশ্চয়! এতিয়াৰ পৰা মই আপোনাৰ লগত অসমীয়াত কথা পাতিম। আপোনাক কি সহায় লাগে জনাওক।",
+      detectedLocale: "as-IN",
+      languageName: "Assamese",
+      suggestedAction: "none",
+    };
+  }
+
+  const isSwitchToMarathi =
+    /\b(in marathi|marathit|मराठीत सांगा|मराठीत)\b/i.test(q) ||
+    q === "marathi";
+
+  if (isSwitchToMarathi) {
+    return {
+      reply: "नक्कीच! आतापासून मी आपल्याशी मराठीत बोलेन. आपल्याला आज कशी मदत हवी आहे?",
+      detectedLocale: "mr-IN",
+      languageName: "Marathi",
+      suggestedAction: "none",
+    };
+  }
+
+  const isSwitchToTamil =
+    /\b(in tamil|tamilil|தமிழில் பேசுங்கள்|தமிழில்)\b/i.test(q) ||
+    q === "tamil";
+
+  if (isSwitchToTamil) {
+    return {
+      reply: "நிச்சயமாக! இனி நான் உங்களுடன் தமிழில் உரையாடுவேன். உங்களுக்கு நான் எவ்வாறு உதவ வேண்டும்?",
+      detectedLocale: "ta-IN",
+      languageName: "Tamil",
+      suggestedAction: "none",
+    };
+  }
+
   // =========================================================================
-  // 2. CONTEXTUAL FOLLOW-UP & SIMPLIFICATION ("Explain it simply")
-  // (CRITICAL REQUIREMENT 1: User: "What is AI?" -> User: "Explain it simply.")
+  // 2. DETECT LANGUAGE OF CURRENT TURN
+  // =========================================================================
+  const detectedLocale = languageEngine.detectLanguage(query, preferredLocale);
+  const langConfig = SUPPORTED_LANGUAGES.find((l) => l.locale === detectedLocale) || SUPPORTED_LANGUAGES[0]!;
+  const langCode = langConfig.code;
+
+  // =========================================================================
+  // 3. CONTEXTUAL FOLLOW-UP & SIMPLIFICATION ("Explain it simply")
   // =========================================================================
   const isExplainSimply =
     q.includes("explain it simply") ||
@@ -362,11 +439,12 @@ export function getLocalOfflineFallback(
     q.includes("સરળ રીતે") ||
     q.includes("સરળ શબ્દો") ||
     q.includes("सरल भाषा") ||
-    q.includes("सरल शब्दों");
+    q.includes("सरल शब्दों") ||
+    q.includes("সহজ ভাষায়") ||
+    q.includes("সহজ কথায়");
 
   if (isExplainSimply) {
-    // If in Gujarati context or query
-    if (/[\u0A80-\u0AFF]/.test(query) || q.includes("સરળ") || preferredLocale.startsWith("gu")) {
+    if (langCode === "gu") {
       if (wasMedicine) {
         return {
           reply: "સરળ શબ્દોમાં: સવારે નાસ્તા પછી હુંફાળા પાણી સાથે એક ગોળી લઈ લો જેથી તમારું બ્લડ પ્રેશર હંમેશાં નિયંત્રણમાં રહે.",
@@ -382,9 +460,7 @@ export function getLocalOfflineFallback(
         suggestedAction: "none",
       };
     }
-
-    // If in Hindi context or query
-    if (/[\u0900-\u097F]/.test(query) || q.includes("सरल") || preferredLocale.startsWith("hi")) {
+    if (langCode === "hi") {
       if (wasMedicine) {
         return {
           reply: "सरल शब्दों में: सुबह नाश्ते के बाद एक गोली गुनगुने पानी से ले लें ताकि आपका ब्लड प्रेशर हमेशा सामान्य और स्वस्थ रहे।",
@@ -400,7 +476,22 @@ export function getLocalOfflineFallback(
         suggestedAction: "none",
       };
     }
-
+    if (langCode === "bn") {
+      return {
+        reply: "সহজ কথায়: AI হলো একটি বন্ধুত্বপূর্ণ ডিজিটাল সাহায্যকারী যা আপনার কথা শোনে, ঔষধের সময় মনে করিয়ে দেয় এবং আপনাকে সুস্থ রাখতে সাহায্য করে।",
+        detectedLocale: "bn-IN",
+        languageName: "Bengali",
+        suggestedAction: "none",
+      };
+    }
+    if (langCode === "as") {
+      return {
+        reply: "সহজ কথাত: AI এটা মৰমিয়াল সহায়কৰ দৰে যিয়ে আপোনাৰ কথা শুনে আৰু সময়মতে ঔষধ বা কামবোৰ মনত পেলাই দিয়ে।",
+        detectedLocale: "as-IN",
+        languageName: "Assamese",
+        suggestedAction: "none",
+      };
+    }
     // Default English simplification
     if (wasMedicine) {
       return {
@@ -410,8 +501,6 @@ export function getLocalOfflineFallback(
         suggestedAction: "take_medicine",
       };
     }
-
-    // AI Simplification (User's primary canonical test case!)
     return {
       reply: "In simple words: AI is like a helpful digital assistant that listens to your voice, remembers what you need, and helps you with daily tasks like medicine reminders and fun memory games.",
       detectedLocale: "en-IN",
@@ -420,273 +509,237 @@ export function getLocalOfflineFallback(
     };
   }
 
-  // Follow-up: "Tell me more" / "What else can it do?" / "Aur batao"
-  const isTellMore =
-    q.includes("tell me more") ||
-    q.includes("what else") ||
-    q.includes("aur batao") ||
-    q.includes("વધુ કહો") ||
-    q.includes("और बताओ");
-
-  if (isTellMore) {
-    if (wasAI) {
-      return {
-        reply: "AI can also recognize voices, translate between Indian languages like Hindi and Gujarati in real time, and alert your family members if you ever need support.",
-        detectedLocale: preferredLocale || "en-IN",
-        languageName: preferredLocale.startsWith("gu") ? "Gujarati" : preferredLocale.startsWith("hi") ? "Hindi" : "English",
-        suggestedAction: "none",
-      };
-    }
-    if (wasMedicine) {
-      return {
-        reply: "Along with Amlodipine for blood pressure, remember to stay hydrated with at least 6 glasses of water and take a gentle 15-minute morning walk.",
-        detectedLocale: preferredLocale || "en-IN",
-        languageName: "English",
-        suggestedAction: "none",
-      };
-    }
-  }
-
   // =========================================================================
-  // 3. GUJARATI (Native Script & Romanized: "kem cho", "mare medicine kyare levani che")
+  // 4. ROUTINE QUERIES: "What should I do today?", "આજે મારે શું કરવાનું છે?"
   // =========================================================================
-  if (
-    /[\u0A80-\u0AFF]/.test(query) ||
-    /\b(kem cho|su karo|kaho|tamaru|savare|dawa|dava|aaje|ghare|pan|chhe|bapore|saanje|levani|kyare|ketla|jamvanu|majama)\b/i.test(q)
-  ) {
-    if (q.includes("kem cho")) {
-      return {
-        reply: "હું ખૂબ મજામાં છું! તમે કેમ છો? તમારો આજનો દિવસ કેવો રહ્યો?",
-        detectedLocale: "gu-IN",
-        languageName: "Gujarati",
-        suggestedAction: "none",
-      };
-    }
-    if (q.includes("medicine") || q.includes("dawa") || q.includes("dava") || q.includes("દવા")) {
-      return {
-        reply: "તમારી બ્લડ પ્રેશરની દવા સવારે 8:30 વાગ્યે લેવાની છે. શું તમે હુંફાળા પાણી સાથે દવા લઈ લીધી છે?",
-        detectedLocale: "gu-IN",
-        languageName: "Gujarati",
-        suggestedAction: "take_medicine",
-      };
-    }
-    if (q.includes("aaj") || q.includes("routine") || q.includes("દિનચર્યા")) {
-      return {
-        reply: "આજે સવારે તમારી દવા, 10 વાગ્યે મેમરી ગેમ, પૂરતું પાણી પીવું અને સાંજે ડૉક્ટરની મુલાકાત છે.",
-        detectedLocale: "gu-IN",
-        languageName: "Gujarati",
-        suggestedAction: "view_routine",
-      };
-    }
-    if (q.includes("વાર્તા") || q.includes("story")) {
-      return {
-        reply: "એક સુંદર બોધકથા: એક નાનકડા પક્ષીએ દરરોજ થોડું થોડું પાણી લાવીને સુકાઈ ગયેલા ઝાડને ફરીથી હર્યુંભર્યું બનાવી દીધું. સતત પ્રયાસ હંમેશાં મીઠાં ફળ આપે છે.",
-        detectedLocale: "gu-IN",
-        languageName: "Gujarati",
-        suggestedAction: "none",
-      };
-    }
-    return {
-      reply: "હું તમારી વાત સમજી શક્યો છું. હું તમને દવા, દિનચર્યા, સામાન્ય જ્ઞાન અને મેમરી રમતોમાં મદદ કરી શકું છું.",
-      detectedLocale: "gu-IN",
-      languageName: "Gujarati",
-      suggestedAction: "none",
+  const isRoutineQuery =
+    q.includes("routine") ||
+    q.includes("aaj kya karna hai") ||
+    q.includes("aaje su karvanu") ||
+    q.includes("aajke ki korbo") ||
+    q.includes("aaji ki kaam") ||
+    q.includes("aaj kay karayche") ||
+    q.includes("iniku enna seiyanum") ||
+    q.includes("e roju em cheyali") ||
+    q.includes("ivathu en madabeku") ||
+    q.includes("innu enthanu cheyyendath") ||
+    q.includes("ajj ki karna hai") ||
+    q.includes("aaji kana kariba") ||
+    q.includes("આજે મારે શું") ||
+    q.includes("આજે શું કરવાનું") ||
+    q.includes("आज मुझे क्या") ||
+    q.includes("आज क्या करना") ||
+    q.includes("আজ আমার কী") ||
+    q.includes("আজকে কী") ||
+    q.includes("আজি মই কি") ||
+    q.includes("दિનચર્યા") ||
+    q.includes("दिनचर्या") ||
+    q.includes("রুটিন") ||
+    q.includes("schedule") ||
+    q.includes("today's plan") ||
+    q.includes("what should i do today") ||
+    q.includes("what do i have today");
+
+  if (isRoutineQuery) {
+    const routineReplies: Record<string, string> = {
+      gu: "આજે સવારે 8:30 વાગ્યે તમારી દવા, 10 વાગ્યે મેમરી ગેમ, પૂરતું પાણી પીવું અને સાંજે 4 વાગ્યે ડૉક્ટરની મુલાકાત છે.",
+      hi: "आज सुबह 8:30 बजे आपकी दवा, 4 गिलास गुनगुना पानी पीना, 10 बजे मेमोरी गतिविधि और शाम 4 बजे डॉक्टर से मिलना है।",
+      en: "Today's routine: Morning medicine at 8:30 AM, drinking 4 glasses of water, memory exercise at 10 AM, and doctor appointment at 4 PM.",
+      bn: "আজ আপনার রুটিন: সকাল ৮:৩০ টায় ঔষধ, ৪ গ্লাস জল পান, সকাল ১০ টায় স্মৃতি খেলা এবং বিকেল ৪ টায় ডাক্তারের সাক্ষাৎ।",
+      as: "আজি আপোনাৰ দিনচৰ্যা: পুৱা ৮:৩০ বজাত ঔষধ, পানী খোৱা, ১০ বজাত স্মৃতিৰ খেল আৰু আবেলি ৪ বজাত চিকিৎসকৰ সাক্ষাত।",
+      mr: "आजची दिनचर्या: सकाळी 8:30 वाजता औषध, पाणी पिणे, 10 वाजता मेमरी खेळ आणि संध्याकाळी 4 वाजता डॉक्टरांची भेट.",
+      ta: "இன்றைய அட்டவணை: காலை 8:30 மணிக்கு மருந்து, தண்ணீர் குடித்தல், 10 மணிக்கு நினைவக விளையாட்டு மற்றும் மாலை 4 மணிக்கு மருத்துவ சந்திப்பு.",
+      te: "ఈ రోజు దినచర్య: ఉదయం 8:30 గంటలకు మందులు, నీరు త్రాగడం, 10 గంటలకు మెమరీ గేమ్ మరియు సాయంత్రం 4 గంటలకు డాక్టర్ అపాయింట్‌మెంట్.",
+      kn: "ಇಂದಿನ ದಿನಚರಿ: ಬೆಳಿಗ್ಗೆ 8:30 ಕ್ಕೆ ಔಷಧಿ, ನೀರು ಕುಡಿಯುವುದು, 10 ಗಂಟೆಗೆ ಮೆಮೊರಿ ಆಟ ಮತ್ತು ಸಂಜೆ 4 ಗಂಟೆಗೆ ವೈದ್ಯರ ಭೇಟಿ.",
+      ml: "ഇന്നത്തെ ദിനചര്യ: രാവിലെ 8:30-ന് മരുന്ന്, വെള്ളം കുടിക്കൽ, 10 മണിക്ക് മെമ്മറി ഗെയിം, വൈകുന്നേരം 4 മണിക്ക് ഡോക്ടറെ കാണൽ.",
+      pa: "ਅੱਜ ਦੀ ਰੁਟੀਨ: ਸਵੇਰੇ 8:30 ਵਜੇ ਦਵਾਈ, ਪਾਣੀ ਪੀਣਾ, 10 ਵਜੇ ਮੈਮੋਰੀ ਗੇਮ ਅਤੇ ਸ਼ਾਮ 4 ਵਜੇ ਡਾਕਟਰ ਦੀ ਮੁਲਾਕਾਤ।",
+      or: "ଆଜିର ଦିନଚର୍ଯ୍ୟା: ସକାଳ ୮:୩୦ ରେ ଔଷଧ, ପାଣି ପିଇବା, ୧୦ ଟାରେ ମେମୋରୀ ଖେଳ ଏବଂ ସନ୍ଧ୍ୟା ୪ ଟାରେ ଡାକ୍ତରଙ୍କ ସାକ୍ଷାତ।",
     };
-  }
-
-  // =========================================================================
-  // 4. MIXED HINGLISH (e.g. "Can you tell me aaj ka routine?")
-  // =========================================================================
-  if (
-    /\b(can you tell me|tell me|what is)\s+(aaj ka|meri dawa|aaj ki)\b/i.test(q) ||
-    (q.includes("routine") && q.includes("aaj"))
-  ) {
     return {
-      reply: "हाँ बिल्कुल! आज सुबह 8:30 बजे आपकी ब्लड प्रेशर की दवा है, 10 बजे मेमोरी गतिविधि, और शाम 4 बजे डॉक्टर से मिलना है।",
-      detectedLocale: "hi-IN",
-      languageName: "Hinglish / Hindi",
+      reply: routineReplies[langCode] || routineReplies["en"]!,
+      detectedLocale,
+      languageName: langConfig.name,
       suggestedAction: "view_routine",
     };
   }
 
   // =========================================================================
-  // 5. HINDI (Native Devanagari & Romanized: "kaise ho", "aaj kya karna hai")
+  // 5. MEDICINE QUERIES: "When is my medicine?", "દવા ક્યારે લેવાની છે?"
   // =========================================================================
-  if (
-    /[\u0900-\u097F]/.test(query) ||
-    /\b(namaste|kaise ho|kya haal|dawa|aaj kya|karna hai|batao|samjhao|paani|theek hai|subah|shaam|kripya|kahani)\b/i.test(q)
-  ) {
-    if (q.includes("kaise ho") || q.includes("kya haal")) {
-      return {
-        reply: "नमस्ते! मैं बिल्कुल ठीक हूँ और आपकी सहायता के लिए तैयार हूँ। आप कैसे महसूस कर रहे हैं?",
-        detectedLocale: "hi-IN",
-        languageName: "Hindi",
-        suggestedAction: "none",
-      };
-    }
-    if (q.includes("aaj kya karna hai") || (q.includes("aaj") && q.includes("routine"))) {
-      return {
-        reply: "आज आपकी सुबह 8:30 बजे दवा, 4 गिलास गुनगुना पानी पीना, 10 बजे पैटर्न रिकॉल मेमोरी गेम और शाम 4 बजे डॉक्टर से अपॉइंटमेंट है।",
-        detectedLocale: "hi-IN",
-        languageName: "Hindi",
-        suggestedAction: "view_routine",
-      };
-    }
-    if (q.includes("dawa") || q.includes("medicine")) {
-      return {
-        reply: "आपकी सुबह 8:30 बजे की रक्तचाप की दवा निर्धारित है। क्या आपने इसे समय पर ले लिया है?",
-        detectedLocale: "hi-IN",
-        languageName: "Hindi",
-        suggestedAction: "take_medicine",
-      };
-    }
-    if (q.includes("kahani") || q.includes("कहानी") || q.includes("story")) {
-      return {
-        reply: "एक छोटी प्रेरक कहानी: एक बार एक किसान ने धैर्य से एक बंजर ज़मीन पर पौधे रोपे और हर दिन पानी दिया। कुछ ही वर्षों में वह पूरा बगीचा बन गया। धैर्य और नियमितता से सब संभव है।",
-        detectedLocale: "hi-IN",
-        languageName: "Hindi",
-        suggestedAction: "none",
-      };
-    }
+  const isMedQuery =
+    q.includes("medicine") ||
+    q.includes("dawa") ||
+    q.includes("dawai") ||
+    q.includes("dava") ||
+    q.includes("pill") ||
+    q.includes("tablet") ||
+    q.includes("દવા") ||
+    q.includes("दवा") ||
+    q.includes("दवाई") ||
+    q.includes("ঔষধ") ||
+    q.includes("ওষুধ") ||
+    q.includes("औषध") ||
+    q.includes("மருந்து") ||
+    q.includes("మందు") ||
+    q.includes("ಮಾತ್ರೆ") ||
+    q.includes("മരുന്ന്") ||
+    q.includes("ਦਵਾਈ") ||
+    q.includes("ଔଷଧ");
+
+  if (isMedQuery) {
+    const medReplies: Record<string, string> = {
+      gu: "તમારી બ્લડ પ્રેશરની દવા સવારે 8:30 વાગ્યે લેવાની છે. નાસ્તા પછી હુંફાળા પાણી સાથે દવા લઈ લો.",
+      hi: "आपकी सुबह 8:30 बजे की ब्लड प्रेशर की दवा निर्धारित है। इसे नाश्ते के बाद गुनगुने पानी के साथ लें।",
+      en: "Your blood pressure medicine is scheduled at 8:30 AM. Please take it with lukewarm water after your meal.",
+      bn: "আপনার রক্তচাপের ওষুধ সকাল ৮:৩০ টায় নির্ধারিত। অনুগ্রহ করে প্রাতরাশের পর হালকা গরম জল দিয়ে ওষুধটি গ্রহণ করুন।",
+      as: "আপোনাৰ ৰক্তচাপৰ ঔষধ পুৱা ৮:৩০ বজাত খাব লাগে। পুৱাৰ আহাৰৰ পিছত কুহুমীয়া পানীৰে ঔষধ খাওক।",
+      mr: "आपले रक्तदाबाचे औषध सकाळी 8:30 वाजता घ्यायचे आहे. न्याहारीनंतर कोमट पाण्यासोबत औषध घ्या.",
+      ta: "உங்கள் ரத்த அழுத்த மருந்து காலை 8:30 மணிக்கு திட்டமிடப்பட்டுள்ளது. காலை உணவுக்குப் பிறகு வெதுவெதுப்பான நீருடன் எடுத்துக்கொள்ளுங்கள்.",
+      te: "మీ రక్తపోటు మందు ఉదయం 8:30 గంటలకు తీసుకోవాలి. అల్పాహారం తర్వాత గోరువెచ్చని నీటితో తీసుకోండి.",
+      kn: "ನಿಮ್ಮ ರಕ್ತದೊತ್ತಡದ ಔಷಧಿಯು ಬೆಳಿಗ್ಗೆ 8:30 ಕ್ಕೆ ನಿಗದಿಯಾಗಿದೆ. ಉಪಹಾರದ ನಂತರ ಬೆಚ್ಚಗಿನ ನೀರಿನೊಂದಿಗೆ ತೆಗೆದುಕೊಳ್ಳಿ.",
+      ml: "നിങ്ങളുടെ രക്തസമ്മർദ്ദത്തിനുള്ള മരുന്ന് രാവിലെ 8:30-നാണ്. പ്രഭാതഭക്ഷണത്തിന് ശേഷം ചെറുചൂടുവെള്ളത്തിൽ കഴിക്കുക.",
+      pa: "ਤੁਹਾਡੀ ਬਲੱਡ ਪ੍ਰੈਸ਼ਰ ਦੀ ਦਵਾਈ ਸਵੇਰੇ 8:30 ਵਜੇ ਨਿਰਧਾਰਤ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਨਾਸ਼ਤੇ ਤੋਂ ਬਾਅਦ ਗਰਮ ਪਾਣੀ ਨਾਲ ਲਵੋ।",
+      or: "ଆପଣଙ୍କ ରକ୍ତଚାପ ଔଷଧ ସକାଳ ୮:୩୦ ରେ ନେବାର ଅଛି। ଜଳଖିଆ ପରେ ଉଷୁମ ପାଣି ସହ ଏହାକୁ ନିଅନ୍ତୁ।",
+    };
     return {
-      reply: "मैं आपकी बात सुन रहा हूँ। मैं आपकी दवाइयों, दिनचर्या, विज्ञान, कहानियों या किसी भी प्रश्न में आपकी मदद कर सकता हूँ।",
-      detectedLocale: "hi-IN",
-      languageName: "Hindi",
+      reply: medReplies[langCode] || medReplies["en"]!,
+      detectedLocale,
+      languageName: langConfig.name,
+      suggestedAction: "take_medicine",
+    };
+  }
+
+  // =========================================================================
+  // 6. GREETINGS: "Kem cho?", "Kaise ho?", "Kemon acho?", "How are you?"
+  // =========================================================================
+  const isGreeting =
+    /^(hi|hello|hey|namaste|kem cho|kemcho|kaise ho|kemon|kene|vanakkam|namaskaram|sat sri akal)\b/i.test(q) ||
+    q.includes("તમે કેમ છો") ||
+    q.includes("કેમ છો") ||
+    q.includes("મજામાં") ||
+    q.includes("आप कैसे हैं") ||
+    q.includes("कैसे हो") ||
+    q.includes("আপনি কেমন আছেন") ||
+    q.includes("কেমন আছ") ||
+    q.includes("আপুনি কেনে") ||
+    q.includes("तुम्ही कसे आहात") ||
+    q.includes("நீங்கள் எப்படி") ||
+    q.includes("మీరు ఎలా") ||
+    q.includes("how are you") ||
+    q.includes("good morning") ||
+    q.includes("good evening");
+
+  if (isGreeting) {
+    const greetingReplies: Record<string, string> = {
+      gu: "હું ખૂબ મજામાં છું! તમે કેમ છો? તમારો આજનો દિવસ કેવો રહ્યો?",
+      hi: "नमस्ते! मैं बिल्कुल ठीक हूँ और आपकी सहायता के लिए तैयार हूँ। आप कैसे महसूस कर रहे हैं?",
+      en: "Hello! I am doing wonderfully and am always here with you. How are you feeling today?",
+      bn: "নমস্কার! আমি খুব ভালো আছি। আপনি কেমন আছেন? আজকের দিনটি কেমন কাটছে?",
+      as: "নমস্কাৰ! মই বৰ ভালে আছোঁ। আপুনি কেনে আছে? আজি আপোনাৰ দিনটো কেনে গৈছে?",
+      mr: "नमस्कार! मी अगदी मजेत आहे. आपण कसे आहात? आजचा दिवस कसा चालू आहे?",
+      ta: "வணக்கம்! நான் மிகவும் நலமாக உள்ளேன். நீங்கள் எப்படி இருக்கிறீர்கள்?",
+      te: "నమస్కారం! నేను చాలా బాగున్నాను. మీరు ఎలా ఉన్నారు?",
+      kn: "ನಮಸ್ಕಾರ! ನಾನು ಆರಾಮವಾಗಿದ್ದೇನೆ. ನೀವು ಹೇಗಿದ್ದೀರಿ?",
+      ml: "നമസ്കാരം! ഞാൻ സുഖമായിരിക്കുന്നു. നിങ്ങൾക്ക് സുഖമാണോ?",
+      pa: "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ! ਮੈਂ ਬਿਲਕੁਲ ਠੀਕ ਹਾਂ। ਤੁਸੀਂ ਕਿਵੇਂ ਹੋ?",
+      or: "ନମସ୍କାର! ମୁଁ ବହୁତ ଭଲ ଅଛି। ଆପଣ କେମିତି ଅଛନ୍ତି?",
+    };
+    return {
+      reply: greetingReplies[langCode] || greetingReplies["en"]!,
+      detectedLocale,
+      languageName: langConfig.name,
       suggestedAction: "none",
     };
   }
 
   // =========================================================================
-  // 6. BENGALI / ASSAMESE
+  // 7. STORIES & TALES
   // =========================================================================
-  if (/[\u0980-\u09FF]/.test(query) || /\b(kemon|aajke|oshudh|kailoi|puwa|khalu|kene|ki khobor)\b/i.test(q)) {
-    const isAssamese = /[ৱৰ]/.test(query) || /\b(kailoi|puwa|khalu|kene|axomiya|ki khobor)\b/i.test(q);
-    if (isAssamese) {
-      return {
-        reply: "নমস্কাৰ! মই আপোনাক সহায় কৰিবলৈ সাজু আছোঁ। আজি আপোনাৰ দিনটো কেনে গৈছে?",
-        detectedLocale: "as-IN",
-        languageName: "Assamese",
-        suggestedAction: "none",
-      };
-    }
-    return {
-      reply: "নমস্কার! আমি আপনাকে সাহায্য করতে প্রস্তুত। আপনার আজকের দিনটি কেমন কাটছে? আমি ঔষধ বা রুটিনে সাহায্য করতে পারি।",
-      detectedLocale: "bn-IN",
-      languageName: "Bengali",
-      suggestedAction: "none",
-    };
-  }
+  const isStory =
+    q.includes("story") ||
+    q.includes("kahani") ||
+    q.includes("varta") ||
+    q.includes("golpo") ||
+    q.includes("sadhu kotha") ||
+    q.includes("gosht") ||
+    q.includes("kadhai") ||
+    q.includes("katha") ||
+    q.includes("વાર્તા") ||
+    q.includes("कहानी") ||
+    q.includes("গল্প") ||
+    q.includes("সাধুকথা") ||
+    q.includes("गोष्ट") ||
+    q.includes("கதை");
 
-  // =========================================================================
-  // 7. MARATHI
-  // =========================================================================
-  if (/\b(kasa ahes|sakali|aushadh|vajta|kuthe|kadhi|ahe|kay challay)\b/i.test(q)) {
-    return {
-      reply: "नमस्कार! मी अगदी मजेत आहे. आपण कसे आहात? आज आपल्याला औषध, दिनचर्या किंवा खेळ यात मदत हवी आहे का?",
-      detectedLocale: "mr-IN",
-      languageName: "Marathi",
-      suggestedAction: "none",
+  if (isStory) {
+    const storyReplies: Record<string, string> = {
+      gu: "એક સુંદર વાર્તા: એક નાનકડા પક્ષીએ દરરોજ થોડું થોડું પાણી લાવીને સુકાઈ ગયેલા ઝાડને ફરીથી હર્યુંભર્યું બનાવી દીધું. સતત પ્રયાસ હંમેશાં મીઠાં ફળ આપે છે.",
+      hi: "एक छोटी प्रेरक कहानी: एक बार एक किसान ने धैर्य से बंजर ज़मीन पर पौधे रोपे और हर दिन पानी दिया। कुछ ही वर्षों में वह पूरा बगीचा बन गया। धैर्य और नियमितता से सब संभव है।",
+      en: "Here is a gentle story: High in the rolling green hills, an elder gardener planted a tea bush each morning. Over the years, travelers stopped to rest in the lush shade, learning that patience and kindness bring lifelong warmth.",
+      bn: "একটি সুন্দর গল্প: এক কৃষক প্রতিদিন ধৈর্য ধরে একটি গাছে জল দিত। কালক্রমে সেই গাছটি এক বিরাট ছায়াদার মহীরুহে পরিণত হলো। ভালোবাসা ও যত্ন সবকিছুকে সুন্দর করে তোলে।",
+      as: "এটা সুন্দৰ সাধু: এটা চৰায়ে প্ৰতিদিনে অলপ অলপ পানী কঢ়িয়াই এটা শুকান গছক পুনৰ সেউজীয়া কৰি তুলিলে। নিষ্ঠা আৰু ধৈৰ্য্যৰ ফল সদায় মিঠা হয়।",
+      mr: "एक सुंदर गोष्ट: एका शेतकऱ्याने रोज नेटाने एका झाडाला पाणी घातले. पुढे ते झाड सर्वांना सावली देणारा मोठा वृक्ष झाले. सातत्य आणि संयम यामुळे जीवनात यश मिळते.",
+      ta: "ஒரு சிறுகதை: ஒரு முதியவர் தினமும் ஒரு மரக்கன்றுக்கு நீர் ஊற்றினார். நாளடைவில் அது பெரும் நிழல்தரும் மரமாக வளர்ந்தது. அன்பும் பொறுமையும் என்றும் பெருமை தரும்.",
+      te: "ఒక చిన్న కథ: ఒక రైతు ప్రతిరోజూ ఓపికతో మొక్కలకు నీరు పోసేవాడు. కొంత కాలానికి అది అందరికీ నీడనిచ్చే పెద్ద చెట్టుగా మారింది. ఓపికకు ఎప్పుడూ మంచి ఫలితం ఉంటుంది.",
+      kn: "ಒಂದು ಸಣ್ಣ ಕಥೆ: ಒಬ್ಬ ಹಿರಿಯ ತೋಟಗಾರ ಪ್ರತಿದಿನ ಗಿಡಗಳಿಗೆ ನೀರುಣಿಸಿದನು. ಕಾಲಕ್ರಮೇಣ ಅದು ದೊಡ್ಡ ಮರವಾಗಿ ಎಲ್ಲರಿಗೂ ನೆರಳು ನೀಡಿತು. ತಾಳ್ಮೆ ಮತ್ತು ಪ್ರೀತಿಗೆ ಯಾವಾಗಲೂ ಒಳ್ಳೆಯ ಫಲ ಸಿಗುತ್ತದೆ.",
+      ml: "ഒരു കൊച്ചു കഥ: ഒരു തോട്ടക്കാരൻ ദിവസവും സ്നേഹത്തോടെ ചെടികൾ നനച്ചു. കാലക്രമേണ അതൊരു വലിയ തണൽമരമായി മാറി. സ്നേഹവും ക്ഷമയും എപ്പോഴും നല്ല ഫലം നൽകും.",
+      pa: "ਇੱਕ ਨਿੱਕੀ ਕਹਾਣੀ: ਇੱਕ ਕਿਸਾਨ ਨੇ ਰੋਜ਼ ਮਿਹਨਤ ਨਾਲ ਬੂਟਿਆਂ ਨੂੰ ਪਾਣੀ ਦਿੱਤਾ। ਹੌਲੀ-ਹੌਲੀ ਉਹ ਵੱਡੇ ਰੁੱਖ ਬਣ ਗਏ। ਧੀਰਜ ਅਤੇ ਮਿਹਨਤ ਹਮੇਸ਼ਾ ਰੰਗ ਲਿਆਉਂਦੀ ਹੈ।",
+      or: "ଗୋଟିଏ ସୁନ୍ଦର କାହାଣୀ: ଜଣେ କୃଷକ ପ୍ରତିଦିନ ଧୈର୍ଯ୍ୟର ସହ ଏକ ଗଛରେ ପାଣି ଦେଉଥିଲେ। ସମୟକ୍ରମେ ତାହା ଏକ ବିରାଟ ବୃକ୍ଷରେ ପରିଣତ ହେଲା। ଧୈର୍ଯ୍ୟ ସର୍ବଦା ମିଠା ଫଳ ଦିଏ।",
     };
-  }
-
-  // =========================================================================
-  // 8. OTHER REGIONAL LANGUAGES (Tamil, Telugu, Kannada, Malayalam, Punjabi, Odia)
-  // =========================================================================
-  if (/[\u0B80-\u0BFF]/.test(query) || /\b(vanakkam|eppadi|marunthu|iniku)\b/i.test(q)) {
     return {
-      reply: "வணக்கம்! நான் நலமாக உள்ளேன். உங்களுக்கு மருந்து அல்லது இன்றைய அட்டவணையில் எவ்வாறு உதவ முடியும்?",
-      detectedLocale: "ta-IN",
-      languageName: "Tamil",
-      suggestedAction: "none",
-    };
-  }
-  if (/[\u0C00-\u0C7F]/.test(query) || /\b(namaskaram|ela unnaru|mandhu|e roju)\b/i.test(q)) {
-    return {
-      reply: "నమస్కారం! నేను బాగున్నాను. మీకు మందులు లేదా దినచర్యలో ఎలా సహాయపడగలను?",
-      detectedLocale: "te-IN",
-      languageName: "Telugu",
-      suggestedAction: "none",
-    };
-  }
-  if (/[\u0C80-\u0CFF]/.test(query) || /\b(hegiddira|oushadha|ivathu)\b/i.test(q)) {
-    return {
-      reply: "ನಮಸ್ಕಾರ! ನಾನು ಆರಾಮವಾಗಿದ್ದೇನೆ. ಇಂದು ನಾನು ನಿಮಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು?",
-      detectedLocale: "kn-IN",
-      languageName: "Kannada",
-      suggestedAction: "none",
-    };
-  }
-  if (/[\u0D00-\u0D7F]/.test(query) || /\b(sukhamano|marunnu|innu)\b/i.test(q)) {
-    return {
-      reply: "നമസ്കാരം! ഞാൻ സുഖമായിരിക്കുന്നു. ഇന്ന് ഞാൻ നിങ്ങളെ എങ്ങനെ സഹായിക്കണം?",
-      detectedLocale: "ml-IN",
-      languageName: "Malayalam",
-      suggestedAction: "none",
-    };
-  }
-  if (/[\u0A00-\u0A7F]/.test(query) || /\b(sat sri akal|kiddan|dawai|ajj)\b/i.test(q)) {
-    return {
-      reply: "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ! ਮੈਂ ਬਿਲਕੁਲ ਠੀਕ ਹਾਂ। ਅੱਜ ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਮਦਦ ਕਰ ਸਕਦਾ ਹਾਂ?",
-      detectedLocale: "pa-IN",
-      languageName: "Punjabi",
+      reply: storyReplies[langCode] || storyReplies["en"]!,
+      detectedLocale,
+      languageName: langConfig.name,
       suggestedAction: "none",
     };
   }
 
   // =========================================================================
-  // 9. GENERAL ENGLISH CONVERSATIONAL AI & TEST BENCHMARKS
+  // 8. AI QUERIES ("What is AI?", "AI શું છે?", "AI क्या है?")
   // =========================================================================
-  // Short response benchmark: "Hi" / "Hello" (Requirement 19)
-  if (/^(hi|hello|hey|greetings|namaste)\b/i.test(q) || q === "hi" || q === "hello") {
+  const isAIQuery =
+    q.includes("what is ai") ||
+    q.includes("artificial intelligence") ||
+    q.includes("ai su che") ||
+    q.includes("ai kya hai") ||
+    q.includes("ai ki") ||
+    q.includes("ai kay ahe") ||
+    q.includes("ai enna") ||
+    q.includes("ai ante emiti") ||
+    q.includes("એઆઈ શું છે") ||
+    q.includes("AI શું છે") ||
+    q.includes("एआई क्या है") ||
+    q.includes("AI क्या है") ||
+    q.includes("AI কি") ||
+    q.includes("AI ಎಂದರೇನು");
+
+  if (isAIQuery) {
+    const aiReplies: Record<string, string> = {
+      gu: "આર્ટિફિશિયલ ઇન્ટેલિજન્સ (AI) એટલે એવી કમ્પ્યુટર ટેક્નોલોજી જે માણસની જેમ શીખી અને સમજી શકે છે. આ તમને રોજિંદા કામો, દવાની યાદ અને રમતોમાં એક પ્રેમાળ સાથીની જેમ મદદ કરે છે.",
+      hi: "आर्टिफिशियल इंटेलिजेंस (AI) एक ऐसी कंप्यूटर तकनीक है जो इंसानों की तरह सोच और सीख सकती है। यह आपके रोज़मर्रा के कामों और दवाइयों को याद रखने में मदद करती है।",
+      en: "Artificial Intelligence, or AI, is computer technology designed to learn, reason, and assist people naturally, just like a friendly digital companion.",
+      bn: "আর্টিফিশিয়াল ইন্টেলিজেন্স (AI) হলো এমন প্রযুক্তি যা মানুষের মতো চিন্তা করতে ও শিখতে পারে। এটি আপনার প্রতিদিনের রুটিন ও ওষুধ মনে রাখতে সাহায্য করে।",
+      as: "আৰ্টিফিচিয়েল ইনটেলিজেন্স (AI) হ'ল এনে এক কম্পিউটাৰ প্ৰযুক্তি যিয়ে মানুহৰ দৰে বুজিব আৰু শিকিব পাৰে।",
+      mr: "आर्टिफिशियल इंटेलिजन्स (AI) म्हणजे अशी कॉम्प्युटर प्रणाली जी माणसासारखा विचार करू शकते आणि आपल्याला दैनंदिन कामात मदत करते.",
+      ta: "செயற்கை நுண்ணறிவு (AI) என்பது மனிதர்களைப் போல சிந்தித்து கற்றுக்கொள்ளும் கணினி தொழில்நுட்பமாகும். இது உங்கள் அன்றாட பணிகளில் உதவுகிறது.",
+      te: "ఆర్టిఫిషియల్ ఇంటెలిజెన్స్ (AI) అంటే మానవుల మాదిరిగానే ఆలోచించి నేర్చుకోగల కంప్యూటర్ సాంకేతికత.",
+      kn: "ಕೃತಕ ಬುದ್ಧಿಮತ್ತೆ (AI) ಎಂದರೆ ಮಾನವರಂತೆ ಕಲಿಯುವ ಮತ್ತು ಯೋਚಿಸುವ ಕಂಪ್ಯೂಟರ್ ತಂತ್ರಜ್ಞಾನವಾಗಿದೆ.",
+      ml: "ആർട്ടിഫിഷ്യൽ ഇന്റലിജൻസ് (AI) എന്നാൽ മനുഷ്യരെപ്പോലെ ചിന്തിക്കാനും സഹായിക്കാനും കഴിയുന്ന കമ്പ്യൂട്ടർ സാങ്കേതികവിദ്യയാണ്.",
+      pa: "ਆਰਟੀਫੀਸ਼ੀਅਲ ਇੰਟੈਲੀਜੈਂਸ (AI) ਇੱਕ ਕੰਪਿਊਟਰ ਤਕਨੀਕ ਹੈ ਜੋ ਇਨਸਾਨਾਂ ਵਾਂਗ ਸੋਚ ਸਕਦੀ ਹੈ ਅਤੇ ਤੁਹਾਡੀ ਮਦਦ ਕਰਦੀ ਹੈ।",
+      or: "କୃତ୍ରିମ ବୁଦ୍ଧିମତ୍ତା (AI) ଏକ କମ୍ପ୍ୟୁଟର ପ୍ରଯୁକ୍ତି ଯାହା ମଣିଷ ପରି ଚିନ୍ତା କରି ସାହାଯ୍ୟ କରିପାରେ।",
+    };
     return {
-      reply: "Hello! It is wonderful to hear from you. How can I assist you with your health, routine, or questions today?",
-      detectedLocale: "en-IN",
-      languageName: "English",
+      reply: aiReplies[langCode] || aiReplies["en"]!,
+      detectedLocale,
+      languageName: langConfig.name,
       suggestedAction: "none",
     };
   }
 
-  // Long response benchmark: "Explain artificial intelligence in detail" (Requirement 12 & 19 - 500+ chars)
-  if (
-    (q.includes("detail") || q.includes("in depth") || q.includes("deeply") || q.includes("vistar") || q.includes("vistrit")) &&
-    (q.includes("ai") || q.includes("artificial intelligence"))
-  ) {
-    return {
-      reply: "Artificial intelligence, or AI, represents a branch of computer science where systems learn to reason, recognize patterns, and solve problems like humans. In everyday life, AI helps people understand spoken speech across languages, organizes daily medication schedules, and identifies important health cues. For seniors, an AI companion like Memory Bond provides a patient, gentle voice that listens without rushing, reminding you of appointments and sharing heartwarming stories. Every day, it continues to learn how to support your comfort, independence, and well-being with respect.",
-      detectedLocale: "en-IN",
-      languageName: "English",
-      suggestedAction: "none",
-    };
-  }
-
-  if (q.includes("what is ai") || q.includes("artificial intelligence")) {
-    return {
-      reply: "Artificial Intelligence, or AI, is computer technology designed to learn, reason, and assist people naturally, just like a friendly digital companion.",
-      detectedLocale: "en-IN",
-      languageName: "English",
-      suggestedAction: "none",
-    };
-  }
-
-  if (q.includes("story") || q.includes("bedtime story")) {
-    return {
-      reply: "Here is a gentle story: High in the rolling green hills, an elder gardener planted a tea bush each morning. Over the years, travelers from far and wide stopped to rest in the lush shade, learning that patience and kindness bring lifelong warmth.",
-      detectedLocale: "en-IN",
-      languageName: "English",
-      suggestedAction: "none",
-    };
-  }
-
-  if (q.includes("science") || q.includes("sky") || q.includes("blue")) {
-    return {
-      reply: "The sky looks blue because sunlight reaches Earth's atmosphere and is scattered in all directions by gases and particles. Blue light travels in smaller, shorter waves and scatters more than other colors.",
-      detectedLocale: "en-IN",
-      languageName: "English",
-      suggestedAction: "none",
-    };
-  }
-
-  if (q.includes("math") || /\b\d+\s*[\+\-\*\/]\s*\d+\b/.test(q)) {
+  // =========================================================================
+  // 9. MATH QUESTIONS (e.g. 5 + 3, 10 * 2)
+  // =========================================================================
+  if (/\b\d+\s*[\+\-\*\/]\s*\d+\b/.test(q)) {
     try {
       const match = q.match(/(\d+)\s*([\+\-\*\/])\s*(\d+)/);
       if (match) {
@@ -698,20 +751,54 @@ export function getLocalOfflineFallback(
         if (op === "-") res = a - b;
         if (op === "*") res = a * b;
         if (op === "/" && b !== 0) res = Math.round((a / b) * 100) / 100;
+
+        const mathReplies: Record<string, string> = {
+          gu: `${a} ${op} ${b} નો જવાબ ${res} છે.`,
+          hi: `${a} ${op} ${b} का उत्तर ${res} है।`,
+          en: `The answer to ${a} ${op} ${b} is ${res}.`,
+          bn: `${a} ${op} ${b} এর উত্তর হলো ${res}।`,
+          as: `${a} ${op} ${b} ৰ উত্তৰ হ'ল ${res}।`,
+          mr: `${a} ${op} ${b} चे उत्तर ${res} आहे.`,
+          ta: `${a} ${op} ${b} இன் விடை ${res} ஆகும்.`,
+          te: `${a} ${op} ${b} సమాధానం ${res}.`,
+          kn: `${a} ${op} ${b} ಉತ್ತರ ${res}.`,
+          ml: `${a} ${op} ${b} ന്റെ ഉത്തരം ${res} ആണ്.`,
+          pa: `${a} ${op} ${b} ਦਾ ਜਵਾਬ ${res} ਹੈ।`,
+          or: `${a} ${op} ${b} ର ଉତ୍ତର ହେଉଛି ${res}।`,
+        };
+
         return {
-          reply: `The answer to ${a} ${op} ${b} is ${res}.`,
-          detectedLocale: "en-IN",
-          languageName: "English",
+          reply: mathReplies[langCode] || mathReplies["en"]!,
+          detectedLocale,
+          languageName: langConfig.name,
           suggestedAction: "none",
         };
       }
     } catch {}
   }
 
+  // =========================================================================
+  // 10. UNIVERSAL SAME-LANGUAGE FALLBACK (Guarantees no language leak)
+  // =========================================================================
+  const generalFallbacks: Record<string, string> = {
+    gu: "હું તમારી વાત સાંભળી રહ્યો છું. તમે મને તમારા સ્વાસ્થ્ય, દિનચર્યા, દવાઓ અથવા કોઈપણ પ્રશ્ન પૂછી શકો છો. હું હંમેશાં તમારી સાથે છું.",
+    hi: "मैं आपकी बात सुन रहा हूँ। आप मुझसे अपनी सेहत, दिनचर्या, दवाओं या किसी भी विषय पर बात कर सकते हैं। मैं सदैव आपकी सहायता के लिए तैयार हूँ।",
+    en: "I am listening to you. You can ask me anything about your health, daily routine, medicines, general knowledge, or simply enjoy a friendly conversation.",
+    bn: "আমি আপনার কথা শুনছি। আপনি আমাকে আপনার স্বাস্থ্য, রুটিন বা ঔষধ সম্পর্কে যেকোনো প্রশ্ন করতে পারেন। আমি সবসময় আপনার সাথে আছি।",
+    as: "মই আপোনাৰ কথা শুনি আছোঁ। আপুনি মোক স্বাস্থ্য, দিনচৰ্যা বা ঔষধৰ বিষয়ে সুধিব পাৰে। মই আপোনাক সহায় কৰিম।",
+    mr: "मी आपले बोलणे ऐकत आहे. आपण मला आरोग्य, दिनचर्या, औषधे किंवा कोणत्याही विषयावर विचारू शकता. मी आपल्या सेवेत सदैव हजर आहे.",
+    ta: "நான் உங்கள் பேச்சைக் கவனித்துக் கொண்டிருக்கிறேன். உங்கள் உடல்நலம், மருந்துகள் அல்லது தினசரி பணிகள் குறித்து என்னிடம் கேட்கலாம்.",
+    te: "నేను మీ మాటలు వింటున్నాను. మీ ఆరోగ్యం, మందులు లేదా దినచర్య గురించి నన్ను ఏదైనా అడగవచ్చు.",
+    kn: "ನಾನು ನಿಮ್ಮ ಮಾತನ್ನು ಕೇಳುತ್ತಿದ್ದೇನೆ. ನಿಮ್ಮ ಆರೋಗ್ಯ, ಔಷಧಿಗಳು ಅಥವಾ ದಿನಚರಿಯ ಬಗ್ಗೆ ನೀವು ನನ್ನನ್ನು ಕೇಳಬಹುದು.",
+    ml: "ഞാൻ നിങ്ങളുടെ പറയുന്നത് ശ്രദ്ധിക്കുന്നു. നിങ്ങളുടെ ആരോഗ്യം, മരുന്നുകൾ എന്നിവയെക്കുറിച്ച് നിങ്ങൾക്ക് എന്നോട് ചോദിക്കാം.",
+    pa: "ਮੈਂ ਤੁਹਾਡੀ ਗੱਲ ਸੁਣ ਰਿਹਾ ਹਾਂ। ਤੁਸੀਂ ਮੈਨੂੰ ਆਪਣੀ ਸਿਹਤ, ਦਵਾਈਆਂ ਜਾਂ ਰੋਜ਼ਾਨਾ ਦੇ ਕੰਮਾਂ ਬਾਰੇ ਕੁਝ ਵੀ ਪੁੱਛ ਸਕਦੇ ਹੋ।",
+    or: "ମୁଁ ଆପଣଙ୍କ କଥା ଶୁଣୁଛି। ଆପଣ ମୋତେ ନିଜ ସ୍ୱାସ୍ଥ୍ୟ, ଔଷଧ ବା ଦୈନନ୍ଦିନ କାର୍ଯ୍ୟ ବିଷୟରେ ପଚାରିପାରିବେ।",
+  };
+
   return {
-    reply: "I am listening to you. You can ask me anything about your health, daily routine, medicines, general knowledge, or simply enjoy a friendly conversation in any language.",
-    detectedLocale: preferredLocale || "en-IN",
-    languageName: "English",
+    reply: generalFallbacks[langCode] || generalFallbacks["en"]!,
+    detectedLocale,
+    languageName: langConfig.name,
     suggestedAction: "none",
   };
 }

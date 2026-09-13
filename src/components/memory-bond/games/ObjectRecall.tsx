@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Sparkles, RotateCcw, CheckCircle2, Clock, Volume2, Eye, EyeOff, Trophy, Award, ArrowRight, ShieldCheck, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n";
 
 // ============================================================================
 // The Keepsake Memory Tray (स्मृति थाली) — Genuinely Redesigned Cognitive Mechanic
@@ -137,12 +138,7 @@ export function ObjectRecall({
   level = 1,
   cycleNumber = 1,
   adaptiveDifficulty = "medium",
-}: ObjectRecallProps) {
-  // Phase state machine:
-  // "observe" -> User examines tray
-  // "veiled" -> Silk veil covers tray (1.5s gentle animation)
-  // "recall" -> Tray reveals with change, user identifies it
-  // "answered" -> Shows feedback before auto-completing
+  const { lang, speechLocale, gameStrings } = useI18n();
   const [phase, setPhase] = useState<"observe" | "veiled" | "recall" | "answered">("observe");
   const [initialTray, setInitialTray] = useState<KeepsakeItem[]>([]);
   const [modifiedTray, setModifiedTray] = useState<KeepsakeItem[]>([]);
@@ -156,6 +152,13 @@ export function ObjectRecall({
 
   const startTimeRef = useRef<number>(Date.now());
   const recallStartTimeRef = useRef<number>(Date.now());
+  const timeoutsRef = useRef<any[]>([]);
+  const isSubmittedRef = useRef<boolean>(false);
+
+  const clearTimeouts = () => {
+    timeoutsRef.current.forEach((t) => clearTimeout(t));
+    timeoutsRef.current = [];
+  };
 
   // Determine game mode & difficulty parameters across 30 levels:
   // L1-10: Missing Keepsake (क्या गायब हुआ?)
@@ -247,6 +250,7 @@ export function ObjectRecall({
   useEffect(() => {
     startRound();
     return () => {
+      clearTimeouts();
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }
@@ -261,15 +265,17 @@ export function ObjectRecall({
       return;
     }
     const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    timeoutsRef.current.push(timer);
     return () => clearTimeout(timer);
   }, [countdown, phase]);
 
   const triggerVeil = () => {
     setPhase("veiled");
-    setTimeout(() => {
+    const t = setTimeout(() => {
       setPhase("recall");
       recallStartTimeRef.current = Date.now();
     }, 1500); // 1.5 second silk cloth animation
+    timeoutsRef.current.push(t);
   };
 
   // Senior Accessibility Voice Narration
@@ -277,11 +283,21 @@ export function ObjectRecall({
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
 
-    const names = items.map((i) => i.hindiName).join(", ");
-    const intro = phase === "observe" ? "थाली पर रखी वस्तुएं हैं: " : "अब थाली को ध्यान से देखें: ";
+    const isGu = lang === "gu";
+    const isHi = lang === "hi";
+    const isBn = lang === "bn";
+
+    const names = items.map((i) => (isGu || isHi ? i.hindiName : i.name)).join(", ");
+    let intro = "";
+    if (phase === "observe") {
+      intro = isGu ? "થાલી પર રાખેલી વસ્તુઓ છે: " : isHi ? "थाली पर रखी वस्तुएं हैं: " : isBn ? "থালায় রাখা বস্তুগুলো হলো: " : "The keepsakes on the tray are: ";
+    } else {
+      intro = isGu ? "હવે થાલીને ધ્યાનથી જુઓ: " : isHi ? "अब थाली को ध्यान से देखें: " : isBn ? "এবার থালাটি মনোযোগ দিয়ে দেখুন: " : "Now observe the tray carefully: ";
+    }
+
     const utterance = new SpeechSynthesisUtterance(`${intro}${names}।`);
-    utterance.rate = 0.88;
-    utterance.lang = "hi-IN";
+    utterance.rate = 0.85;
+    utterance.lang = speechLocale || (isGu ? "gu-IN" : isHi ? "hi-IN" : "en-IN");
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
     utterance.onerror = () => setIsSpeaking(false);
@@ -290,7 +306,8 @@ export function ObjectRecall({
 
   // Handle Senior's Selection
   const handleSelectOption = (item: KeepsakeItem) => {
-    if (phase !== "recall" || selectedOptionId) return;
+    if (phase !== "recall" || selectedOptionId || isSubmittedRef.current) return;
+    isSubmittedRef.current = true;
 
     const elapsedRecallMs = Date.now() - recallStartTimeRef.current;
     const correct = item.id === targetItem?.id;
@@ -307,7 +324,7 @@ export function ObjectRecall({
     // Real accuracy calculation
     const accuracy = correct ? 100 : 0;
 
-    setTimeout(() => {
+    const t = setTimeout(() => {
       onComplete(earnedScore, 125, {
         gameType: "recall",
         accuracy,
@@ -319,26 +336,53 @@ export function ObjectRecall({
         mode: gameMode,
       });
     }, 1800);
+    timeoutsRef.current.push(t);
   };
 
   const getQuestionTitle = () => {
-    if (gameMode === "missing") {
-      return "थाली में से कौन सी वस्तु गायब हो गई?";
+    if (lang === "gu") {
+      return gameMode === "missing"
+        ? "થાલીમાંથી કઈ વસ્તુ ગાયબ થઈ ગઈ?"
+        : gameMode === "added"
+        ? "થાલી પર કઈ નવી વસ્તુ આવી?"
+        : "થાલીમાં કઈ નવી વસ્તુ બદલાઈ ગઈ?";
     }
-    if (gameMode === "added") {
-      return "थाली पर कौन सी नई वस्तु आई है?";
+    if (lang === "hi") {
+      return gameMode === "missing"
+        ? "थाली में से कौन सी वस्तु गायब हो गई?"
+        : gameMode === "added"
+        ? "थाली पर कौन सी नई वस्तु आई है?"
+        : "थाली में कौन सी नई वस्तु बदली गई?";
     }
-    return "थाली में कौन सी नई वस्तु बदली गई?";
+    if (lang === "bn") {
+      return gameMode === "missing"
+        ? "থালা থেকে কোন বস্তুটি হারিয়ে গেছে?"
+        : gameMode === "added"
+        ? "থালায় কোন নতুন জিনিসটি এসেছে?"
+        : "থালায় কোন জিনিসটি পরিবর্তন হয়েছে?";
+    }
+    return gameMode === "missing"
+      ? "Which keepsake disappeared from the tray?"
+      : gameMode === "added"
+      ? "Which new keepsake was just placed on the tray?"
+      : "Which keepsake was replaced with a new item?";
   };
 
   const getQuestionSubtitle = () => {
-    if (gameMode === "missing") {
-      return "Which keepsake item disappeared from the tray?";
+    if (lang === "gu") {
+      return "તમારી સ્મૃતિ ચકાસવા માટે સાચો વિકલ્પ પસંદ કરો.";
     }
-    if (gameMode === "added") {
-      return "Which new keepsake was just placed on the tray?";
+    if (lang === "hi") {
+      return "अपनी स्मृति परखने के लिए सही विकल्प चुनें।";
     }
-    return "Which keepsake was replaced with a new item?";
+    if (lang === "bn") {
+      return "সঠিক উত্তরটি নির্বাচন করুন।";
+    }
+    return gameMode === "missing"
+      ? "Which keepsake item disappeared from the tray?"
+      : gameMode === "added"
+      ? "Which new keepsake was just placed on the tray?"
+      : "Which keepsake was replaced with a new item?";
   };
 
   return (

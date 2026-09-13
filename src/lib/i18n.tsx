@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { languageEngine, getGameStrings, type GameLocalizationStrings } from "./languageEngine";
 
 export const LANGUAGES = [
   { code: "en", label: "English", native: "English", speech: "en-IN" },
@@ -2041,6 +2042,8 @@ type I18nValue = {
   setLang: (l: LangCode) => void;
   t: (key: string) => string;
   speechLocale: string;
+  gameStrings: GameLocalizationStrings;
+  detectLanguage: (text: string) => string;
 };
 
 const I18nContext = createContext<I18nValue | null>(null);
@@ -2048,19 +2051,41 @@ const I18nContext = createContext<I18nValue | null>(null);
 const STORAGE_KEY = "mb.lang";
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<LangCode>("en");
+  const [lang, setLangState] = useState<LangCode>(() => {
+    if (typeof window !== "undefined") {
+      const activeCode = languageEngine.activeLocale.split("-")[0] as LangCode;
+      if (activeCode && activeCode in DICTS) return activeCode;
+    }
+    return "en";
+  });
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY) as LangCode | null;
-    if (saved && saved in DICTS) setLangState(saved);
+    if (saved && saved in DICTS) {
+      setLangState(saved);
+      const match = LANGUAGES.find((l) => l.code === saved);
+      if (match) languageEngine.setActiveLocale(match.speech);
+    }
+
+    const unsubscribe = languageEngine.subscribe((locale) => {
+      const code = locale.split("-")[0] as LangCode;
+      if (code && code in DICTS) {
+        setLangState((prev) => (prev !== code ? code : prev));
+      }
+    });
+    return unsubscribe;
   }, []);
 
   const setLang = useCallback((l: LangCode) => {
     setLangState(l);
     localStorage.setItem(STORAGE_KEY, l);
+    const match = LANGUAGES.find((item) => item.code === l);
+    if (match) {
+      languageEngine.setActiveLocale(match.speech);
+    }
   }, []);
 
-  const t = useCallback((key: string) => DICTS[lang][key] ?? en[key] ?? key, [lang]);
+  const t = useCallback((key: string) => DICTS[lang]?.[key] ?? en[key] ?? key, [lang]);
 
   const value = useMemo<I18nValue>(
     () => ({
@@ -2068,6 +2093,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       setLang,
       t,
       speechLocale: LANGUAGES.find((l) => l.code === lang)?.speech ?? "en-IN",
+      gameStrings: getGameStrings(lang),
+      detectLanguage: (text: string) => languageEngine.detectLanguage(text, LANGUAGES.find((l) => l.code === lang)?.speech),
     }),
     [lang, setLang, t],
   );
@@ -2080,3 +2107,4 @@ export function useI18n() {
   if (!ctx) throw new Error("useI18n must be used inside I18nProvider");
   return ctx;
 }
+

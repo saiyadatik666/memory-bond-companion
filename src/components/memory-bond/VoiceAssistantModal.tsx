@@ -46,11 +46,14 @@ import { resolveWorldKnowledge } from "@/lib/worldKnowledgeEngine";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { useI18n, LANGUAGES } from "@/lib/i18n";
 
+import { languageEngine, SUPPORTED_LANGUAGES } from "@/lib/languageEngine";
+
 export type AssistantVoiceState =
   | "idle"        // 🎙️ Tap to speak
   | "listening"   // 🔴 Listening...
   | "processing"  // 🧠 Thinking...
   | "speaking"    // 🔊 Speaking...
+  | "finished"    // ✅ Finished speaking
   | "error";
 
 interface ChatMessage {
@@ -479,8 +482,9 @@ export function VoiceAssistantModal({
         setVoiceState("speaking");
       },
       () => {
-        // Speech ended successfully after all chunks finish (Requirements 4, 5, 7)
+        // Speech ended successfully after all chunks finish (Requirements 4, 5, 7, 10)
         isSpeakingRef.current = false;
+        setVoiceState("finished");
         if (onFinish) onFinish();
 
         // Continuous natural conversation: only schedule next turn AFTER all speech has finished
@@ -495,9 +499,14 @@ export function VoiceAssistantModal({
             ) {
               startListening();
             }
-          }, 500);
+          }, 400);
         } else {
-          setVoiceState("idle");
+          if (listenTimeoutRef.current) clearTimeout(listenTimeoutRef.current);
+          listenTimeoutRef.current = setTimeout(() => {
+            if (isOpenRef.current && !isSpeakingRef.current && !isThinkingRef.current) {
+              setVoiceState("idle");
+            }
+          }, 600);
         }
       },
       (ttsErr) => {
@@ -551,9 +560,13 @@ export function VoiceAssistantModal({
     setRecognitionError(null);
 
     // 1. Detect language on client for immediate locale awareness
-    const detectedLocale = detectLanguage(text, currentLocaleRef.current) || currentLocaleRef.current;
+    const detectedLocale = languageEngine.detectLanguage(text, currentLocaleRef.current) || currentLocaleRef.current;
     setCurrentLocale(detectedLocale);
     currentLocaleRef.current = detectedLocale;
+    const detectedLangObj = SUPPORTED_LANGUAGES.find((l) => l.locale === detectedLocale);
+    if (detectedLangObj) {
+      setDetectedLangName(detectedLangObj.name);
+    }
 
     // 2. Append User Message to messagesRef and state synchronously
     const userMsg: ChatMessage = {
@@ -964,6 +977,8 @@ export function VoiceAssistantModal({
                   ? "bg-amber-500 text-white border-amber-400 scale-105 shadow-amber-500/25 animate-pulse ring-8 ring-amber-500/15"
                   : voiceState === "speaking"
                   ? "bg-primary text-white border-primary/60 scale-105 shadow-primary/30 animate-pulse ring-8 ring-primary/15"
+                  : voiceState === "finished"
+                  ? "bg-emerald-600 text-white border-emerald-400 scale-105 shadow-emerald-500/25 ring-8 ring-emerald-500/15"
                   : voiceState === "error"
                   ? "bg-destructive/10 text-destructive border-destructive ring-4 ring-destructive/10"
                   : "bg-primary hover:bg-primary/90 text-white border-primary/20 hover:scale-105 shadow-primary/25"
@@ -982,6 +997,8 @@ export function VoiceAssistantModal({
                 <Sparkles className="h-12 w-12 sm:h-14 sm:w-14 animate-spin" />
               ) : voiceState === "speaking" ? (
                 <Volume2 className="h-12 w-12 sm:h-14 sm:w-14 animate-pulse" />
+              ) : voiceState === "finished" ? (
+                <Check className="h-12 w-12 sm:h-14 sm:w-14 animate-pulse" />
               ) : voiceState === "error" ? (
                 <AlertCircle className="h-12 w-12 sm:h-14 sm:w-14" />
               ) : (
@@ -1012,6 +1029,8 @@ export function VoiceAssistantModal({
                   ? "bg-amber-500 animate-pulse"
                   : voiceState === "speaking"
                   ? "bg-primary animate-pulse"
+                  : voiceState === "finished"
+                  ? "bg-emerald-500 animate-pulse"
                   : voiceState === "error"
                   ? "bg-destructive"
                   : "bg-primary/40"
@@ -1024,6 +1043,8 @@ export function VoiceAssistantModal({
                 ? "🧠 PROCESSING (Understanding your question)"
                 : voiceState === "speaking"
                 ? "🔊 SPEAKING (Tap mic to interrupt)"
+                : voiceState === "finished"
+                ? "✅ FINISHED (Preparing next turn)"
                 : voiceState === "error"
                 ? "⚠️ Speech Error"
                 : "🎙️ READY (Tap microphone to speak)"}

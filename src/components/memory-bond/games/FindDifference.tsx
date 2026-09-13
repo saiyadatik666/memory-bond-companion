@@ -1,6 +1,7 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Sparkles, RotateCcw, CheckCircle2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n";
 
 interface PuzzlePair {
   commonIcon: string;
@@ -57,11 +58,13 @@ export function FindDifference({
   nerState?: string;
   memoryCues?: any[];
 }) {
+  const { lang } = useI18n();
   const [puzzleIdx, setPuzzleIdx] = useState<number>(0);
   const [found, setFound] = useState<boolean>(false);
   const [wrongTaps, setWrongTaps] = useState<number>(0);
   const [isFinished, setIsFinished] = useState<boolean>(false);
-  const startTimeRef = useState<{ current: number }>({ current: Date.now() })[0];
+  const startTimeRef = useRef<number>(Date.now());
+  const isSubmittingRef = useRef<boolean>(false);
 
   // Grid size scales with level (adaptive if user is in easy mode)
   const gridSize = useMemo(() => {
@@ -105,11 +108,12 @@ export function FindDifference({
     setFound(false);
     setWrongTaps(0);
     setIsFinished(false);
+    isSubmittingRef.current = false;
     startTimeRef.current = Date.now();
   }, [level]);
 
   const handleTileClick = (index: number) => {
-    if (found || isFinished) return;
+    if (found || isFinished || isSubmittingRef.current) return;
     if (index === current.oddIndex) {
       setFound(true);
     } else {
@@ -118,10 +122,12 @@ export function FindDifference({
   };
 
   const handleNextPuzzle = () => {
+    if (isSubmittingRef.current) return;
     setFound(false);
     if (puzzleIdx + 1 < activePuzzles.length) {
       setPuzzleIdx((p) => p + 1);
     } else {
+      isSubmittingRef.current = true;
       const elapsedMs = Math.max(1000, Date.now() - startTimeRef.current);
       const totalTaps = activePuzzles.length + wrongTaps;
       const calculatedAcc = Math.max(30, Math.round((activePuzzles.length / totalTaps) * 100));
@@ -137,36 +143,65 @@ export function FindDifference({
     }
   };
 
+  const titleText =
+    lang === "gu" ? "રમત ૮: દ્રશ્ય એકાગ્રતા - અલગ ચિત્ર શોધો" :
+    lang === "hi" ? "खेल 8: दृश्य एकाग्रता - अलग वस्तु पहचानें" :
+    lang === "bn" ? "খেলা ৮: দৃষ্টি একাগ্রতা - আলাদা বস্তুটি খুঁজুন" :
+    lang === "mr" ? "खेळ ८: दृश्य एकाग्रता - वेगळे चित्र शोधा" :
+    lang === "as" ? "খেল ৮: দৃষ্টি মনোযোগ - পৃথক বস্তুটো বাছক" :
+    "Game 8: Visual Attention - Find the Odd One";
+
+  const subtitleText =
+    lang === "gu" ? "શાંતિથી ખાનાઓમાં જુઓ અને જે વસ્તુ થોડી અલગ છે તેના પર ટેપ કરો." :
+    lang === "hi" ? "शांति से खानों में देखें और जो वस्तु थोड़ी अलग है उस पर टैप करें।" :
+    lang === "bn" ? "শান্তভাবে গ্রিডটি লক্ষ্য করুন এবং যেটি একটু আলাদা সেটিতে ট্যাপ করুন।" :
+    lang === "mr" ? "शांतपणे ग्रिड पहा आणि वेगळ्या घटकावर टॅप करा." :
+    lang === "as" ? "মনোযোগেৰে চাওক আৰু সামান্য পৃথক বস্তুটোত আঙুলিৰে চুই দিয়ক।" :
+    "Look across the peaceful grid and tap the one item that is slightly different.";
+
+  const nextBtnText =
+    puzzleIdx + 1 === activePuzzles.length
+      ? (lang === "gu" ? "સ્તર પૂર્ણ કરો" : lang === "hi" ? "स्तर पूरा करें" : lang === "bn" ? "স্তর সম্পূর্ণ করুন" : "Complete Level")
+      : (lang === "gu" ? "આગળનો કોયડો ➔" : lang === "hi" ? "अगली पहेली ➔" : lang === "bn" ? "পরবর্তী ধাঁধা ➔" : "Next Puzzle ➔");
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-secondary/40 p-4">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-black uppercase text-primary bg-primary/15 px-2.5 py-0.5 rounded-full">
-              Level {level} of 30
+              {lang === "gu" ? "સ્તર" : lang === "hi" ? "स्तर" : lang === "bn" ? "স্তর" : "Level"} {level} / 30
             </span>
             <span className="text-xs font-bold text-muted-foreground">
-              {gridSize} Tiles Grid
+              {gridSize} {lang === "gu" ? "ખાના" : lang === "hi" ? "खाने" : lang === "bn" ? "টাইলস" : "Tiles Grid"}
             </span>
           </div>
           <h3 className="text-xl font-bold text-foreground mt-1">
-            Game 8: Visual Attention - Find the Odd One
+            {titleText}
           </h3>
           <p className="text-sm text-muted-foreground">
-            Look across the peaceful grid and tap the one item that is slightly different.
+            {subtitleText}
           </p>
         </div>
         <span className="rounded-xl bg-card px-4 py-2 font-bold shadow-xs border border-border">
-          Puzzle {puzzleIdx + 1} / {activePuzzles.length}
+          {lang === "gu" ? "કોયડો" : lang === "hi" ? "पहेली" : lang === "bn" ? "ধাঁধা" : "Puzzle"} {puzzleIdx + 1} / {activePuzzles.length}
         </span>
       </div>
 
       {isFinished ? (
         <div className="rounded-3xl border border-success/30 bg-success/10 p-8 text-center space-y-4 animate-in zoom-in-95">
           <Eye className="mx-auto h-16 w-16 text-success" />
-          <h4 className="text-3xl font-extrabold text-foreground">Sharp visual attention!</h4>
+          <h4 className="text-3xl font-extrabold text-foreground">
+            {lang === "gu" ? "તીક્ષ્ણ દ્રષ્ટિ! ખૂબ સરસ!" : lang === "hi" ? "सटीक दृष्टि! शानदार!" : lang === "bn" ? "তীক্ষ্ণ দৃষ্টি! চমৎকার!" : "Sharp visual attention!"}
+          </h4>
           <p className="text-lg text-muted-foreground">
-            You spotted every different item across all puzzles on Level {level}!
+            {lang === "gu"
+              ? `તમે સ્તર ${level} ના બધા જ કોયડાઓમાં અલગ વસ્તુ સફળતાપૂર્વક શોધી લીધી!`
+              : lang === "hi"
+              ? `आपने स्तर ${level} की सभी पहेलियों में अलग वस्तु को सफलतापूर्वक खोज लिया!`
+              : lang === "bn"
+              ? `আপনি স্তর ${level}-এর সমস্ত ধাঁধায় ভিন্ন বস্তুটি সফলভাবে খুঁজে পেয়েছেন!`
+              : `You spotted every different item across all puzzles on Level ${level}!`}
           </p>
         </div>
       ) : (
@@ -175,15 +210,27 @@ export function FindDifference({
             <div className="rounded-2xl border border-success/30 bg-success/15 p-4 space-y-2 animate-in fade-in">
               <CheckCircle2 className="mx-auto h-8 w-8 text-success" />
               <p className="font-bold text-lg text-foreground">
-                Found it! You spotted the {current.labelOdd}!
+                {lang === "gu"
+                  ? `મળી ગયું! તમે ${current.labelOdd} શોધી લીધું!`
+                  : lang === "hi"
+                  ? `मिल गया! आपने ${current.labelOdd} खोज लिया!`
+                  : lang === "bn"
+                  ? `পাওয়া গেছে! আপনি ${current.labelOdd} খুঁজে পেয়েছেন!`
+                  : `Found it! You spotted the ${current.labelOdd}!`}
               </p>
               <Button size="lg" onClick={handleNextPuzzle} className="px-8 font-bold cursor-pointer">
-                {puzzleIdx + 1 === activePuzzles.length ? "Complete Level" : "Next Puzzle ➔"}
+                {nextBtnText}
               </Button>
             </div>
           ) : (
             <p className="text-sm font-semibold text-muted-foreground">
-              Can you spot the one that does not match?
+              {lang === "gu"
+                ? "જે વસ્તુ બાકીના કરતાં અલગ છે તે ઓળખો:"
+                : lang === "hi"
+                ? "क्या आप अलग दिखने वाली वस्तु को पहचान सकते हैं?"
+                : lang === "bn"
+                ? "যেটি মেলেনি সেটি কি খুঁজে বের করতে পারেন?"
+                : "Can you spot the one that does not match?"}
             </p>
           )}
 

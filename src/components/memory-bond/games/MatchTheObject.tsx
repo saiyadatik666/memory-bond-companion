@@ -1,6 +1,7 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Sparkles, RotateCcw, CheckCircle2, Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n";
 import { getCulturalPairsForMatching, type NERState } from "@/lib/nerCulturalRepository";
 
 interface MatchPair {
@@ -72,24 +73,37 @@ export function MatchTheObject({
     return rotated.slice(0, pairCount);
   }, [level, nerState, pairCount, cycleNumber]);
 
+  const { lang } = useI18n();
   const [selectedA, setSelectedA] = useState<string | null>(null);
   const [selectedB, setSelectedB] = useState<string | null>(null);
   const [matchedIds, setMatchedIds] = useState<string[]>([]);
   const [isFinished, setIsFinished] = useState<boolean>(false);
   const [attempts, setAttempts] = useState<number>(0);
   const [mistakes, setMistakes] = useState<number>(0);
+  const [isChecking, setIsChecking] = useState<boolean>(false);
   const startTimeRef = useRef<number>(Date.now());
+  const timeoutRef = useRef<any>(null);
+  const isSubmittingRef = useRef<boolean>(false);
 
   // Shuffled right-side items
   const [rightItems, setRightItems] = useState(() =>
     [...activePairs].sort(() => Math.random() - 0.5)
   );
 
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
   const resetGame = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setSelectedA(null);
     setSelectedB(null);
     setMatchedIds([]);
     setIsFinished(false);
+    setIsChecking(false);
+    isSubmittingRef.current = false;
     setAttempts(0);
     setMistakes(0);
     startTimeRef.current = Date.now();
@@ -105,8 +119,10 @@ export function MatchTheObject({
       setMatchedIds(nextMatched);
       setSelectedA(null);
       setSelectedB(null);
+      setIsChecking(false);
 
       if (nextMatched.length === activePairs.length) {
+        isSubmittingRef.current = true;
         setIsFinished(true);
         const elapsedMs = Math.max(1500, Date.now() - startTimeRef.current);
         const accuracy = Math.max(10, Math.min(100, Math.round((activePairs.length / nextAttempts) * 100)));
@@ -120,40 +136,57 @@ export function MatchTheObject({
       }
     } else {
       setMistakes((m) => m + 1);
-      setTimeout(() => {
+      setIsChecking(true);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
         setSelectedA(null);
         setSelectedB(null);
+        setIsChecking(false);
       }, 700);
     }
   };
 
   const handleSelectA = (pairId: string) => {
-    if (matchedIds.includes(pairId)) return;
+    if (isChecking || isFinished || isSubmittingRef.current || matchedIds.includes(pairId)) return;
     setSelectedA(pairId);
     if (selectedB) checkMatch(pairId, selectedB);
   };
 
   const handleSelectB = (pairId: string) => {
-    if (matchedIds.includes(pairId)) return;
+    if (isChecking || isFinished || isSubmittingRef.current || matchedIds.includes(pairId)) return;
     setSelectedB(pairId);
     if (selectedA) checkMatch(selectedA, pairId);
   };
+
+  const titleText =
+    lang === "gu" ? `રમત ૧૦: જોડાયેલ વસ્તુઓની જોડી (સ્તર ${level})` :
+    lang === "hi" ? `खेल 10: संबंधित वस्तुओं का मिलान (स्तर ${level})` :
+    lang === "bn" ? `খেলা ১০: সম্পর্কিত বস্তুর জোড়া মেলানো (স্তর ${level})` :
+    lang === "mr" ? `खेळ १०: संबंधित वस्तूंच्या जोड्या जुळवा (पातळी ${level})` :
+    lang === "as" ? `খেল ১০: সম্বন্ধিত বস্তুর মিলোৱা (স্তৰ ${level})` :
+    `Game 10: Match the Connected Object (Level ${level})`;
+
+  const subtitleText =
+    lang === "gu" ? `ડાબી બાજુની દરેક વસ્તુને જમણી બાજુના તેના યોગ્ય જોડીદાર સાથે મેળવો (${activePairs.length} જોડીઓ).` :
+    lang === "hi" ? `बाईं ओर की प्रत्येक वस्तु को दाईं ओर उसके प्राकृतिक साथी से मिलाएं (${activePairs.length} जोड़े)।` :
+    lang === "bn" ? `বাম পাশের প্রতিটি বস্তুকে ডান পাশের তার স্বাভাবিক সঙ্গীর সাথে মেলান (${activePairs.length}টি জোড়া)।` :
+    lang === "mr" ? `डाव्या बाजूची प्रत्येक वस्तू उजव्या बाजूच्या तिच्या जोडीदाराशी जुळवा (${activePairs.length} जोड्या).` :
+    lang === "as" ? `বাওঁফালৰ প্ৰতিটো বস্তু সোঁফালৰ প্ৰাকৃতিক সংগীৰ লগত মিলাওক (${activePairs.length}যোৰ)।` :
+    `Match each cultural item on the left with its functional companion on the right (${activePairs.length} pairs).`;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-secondary/40 p-4">
         <div>
-          <h3 className="text-xl font-bold text-foreground">Game 10: Match the Connected Object (Level {level})</h3>
-          <p className="text-sm text-muted-foreground">
-            Match each cultural item on the left with its functional companion on the right ({activePairs.length} pairs).
-          </p>
+          <h3 className="text-xl font-bold text-foreground">{titleText}</h3>
+          <p className="text-sm text-muted-foreground">{subtitleText}</p>
         </div>
         <div className="flex items-center gap-4">
           <span className="rounded-xl bg-card px-4 py-2 font-bold shadow-xs">
-            Matched: {matchedIds.length} / {activePairs.length}
+            {lang === "gu" ? "જોડાયેલ" : lang === "hi" ? "मिले" : lang === "bn" ? "মেলানো" : "Matched"}: {matchedIds.length} / {activePairs.length}
           </span>
-          <Button variant="outline" onClick={resetGame} className="gap-2">
-            <RotateCcw className="h-4 w-4" /> Reset
+          <Button variant="outline" onClick={resetGame} className="gap-2 cursor-pointer">
+            <RotateCcw className="h-4 w-4" /> {lang === "gu" ? "ફરી શરૂ" : lang === "hi" ? "रीसेट" : lang === "bn" ? "রিসেট" : "Reset"}
           </Button>
         </div>
       </div>
@@ -161,12 +194,20 @@ export function MatchTheObject({
       {isFinished ? (
         <div className="rounded-3xl border border-success/30 bg-success/10 p-8 text-center space-y-4">
           <LinkIcon className="mx-auto h-16 w-16 text-success" />
-          <h4 className="text-3xl font-extrabold text-foreground">All pairs connected!</h4>
+          <h4 className="text-3xl font-extrabold text-foreground">
+            {lang === "gu" ? "બધી જ જોડીઓ જોડાઈ ગઈ!" : lang === "hi" ? "सभी जोड़े जुड़ गए!" : lang === "bn" ? "সব জোড়া মিলে গেছে!" : "All pairs connected!"}
+          </h4>
           <p className="text-lg text-muted-foreground">
-            You associated all {activePairs.length} everyday items with their natural partners in {attempts} attempts.
+            {lang === "gu"
+              ? `તમે ${attempts} પ્રયાસોમાં તમામ ${activePairs.length} વસ્તુઓને તેમના યોગ્ય જોડીદાર સાથે જોડી દીધી.`
+              : lang === "hi"
+              ? `आपने ${attempts} प्रयासों में सभी ${activePairs.length} वस्तुओं को उनके प्राकृतिक साथियों से जोड़ दिया।`
+              : lang === "bn"
+              ? `আপনি ${attempts}টি প্রচেষ্টায় সমস্ত ${activePairs.length}টি বস্তুকে তাদের সঠিক সঙ্গীর সাথে মিলিয়েছেন।`
+              : `You associated all ${activePairs.length} everyday items with their natural partners in ${attempts} attempts.`}
           </p>
           <Button size="lg" onClick={resetGame} className="gap-2 font-bold px-8 cursor-pointer">
-            <RotateCcw className="h-5 w-5" /> Play Again
+            <RotateCcw className="h-5 w-5" /> {lang === "gu" ? "ફરી રમો" : lang === "hi" ? "फिर खेलें" : lang === "bn" ? "আবার খেলুন" : "Play Again"}
           </Button>
         </div>
       ) : (

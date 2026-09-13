@@ -73,123 +73,17 @@ export function intentSpeech(intent: VoiceIntent): string {
   return intent.confirmationMessage;
 }
 
+export { cleanAIResponse } from "./voiceProvider";
+import { languageEngine } from "./languageEngine";
+
 // ---------------------------------------------------------------------------
 // Universal Language Detection Engine (Unicode Scripts + Transliterations + Mixed)
+// Centralized via languageEngine
 // ---------------------------------------------------------------------------
 export function detectLanguage(text: string, currentSessionLocale?: string): string {
-  const raw = text.trim();
-  const t = raw.toLowerCase();
-  if (!t) return currentSessionLocale || "en-IN";
-
-  // 1. Explicit user language switch commands (e.g. "Ab Hindi mein samjhao", "હવે ગુજરાતીમાં કહો", "In English please")
-  if (/\b(switch to|speak in|change to)\s+gujarati\b/i.test(t) || /\b(gujarati ma|gujarati mein|ગુજરાતીમાં)\b/i.test(t) || /\bhave gujarati\b/i.test(t)) return "gu-IN";
-  if (/\b(switch to|speak in|change to)\s+hindi\b/i.test(t) || /\b(hindi me|hindi mein|हिन्दी में|हिंदी में)\b/i.test(t) || /\bab hindi\b/i.test(t)) return "hi-IN";
-  if (/\b(switch to|speak in|change to)\s+marathi\b/i.test(t) || /\b(marathit|मराठीत)\b/i.test(t)) return "mr-IN";
-  if (/\b(switch to|speak in|change to)\s+bengali\b/i.test(t) || /\b(bangla te|banglay|বাংলায়)\b/i.test(t)) return "bn-IN";
-  if (/\b(switch to|speak in|change to)\s+assamese\b/i.test(t) || /\b(axomiya|অসমীয়াত)\b/i.test(t)) return "as-IN";
-  if (/\b(switch to|speak in|change to)\s+tamil\b/i.test(t) || /\b(tamilil|தமிழில்)\b/i.test(t)) return "ta-IN";
-  if (/\b(switch to|speak in|change to)\s+telugu\b/i.test(t) || /\b(telugulo|తెలుగులో)\b/i.test(t)) return "te-IN";
-  if (/\b(switch to|speak in|change to)\s+kannada\b/i.test(t) || /\b(kannadadalli|ಕನ್ನಡದಲ್ಲಿ)\b/i.test(t)) return "kn-IN";
-  if (/\b(switch to|speak in|change to)\s+malayalam\b/i.test(t) || /\b(malayalathil|മലയാളത്തിൽ)\b/i.test(t)) return "ml-IN";
-  if (/\b(switch to|speak in|change to)\s+punjabi\b/i.test(t) || /\b(punjabi vich|ਪੰਜਾਬੀ ਵਿੱਚ)\b/i.test(t)) return "pa-IN";
-  if (/\b(switch to|speak in|change to)\s+odia\b/i.test(t) || /\b(odia re|ଓଡ଼ିଆରେ)\b/i.test(t)) return "or-IN";
-  if (/\b(switch to|speak in|change to)\s+english\b/i.test(t) || /\b(in english|english please)\b/i.test(t)) return "en-IN";
-
-  // 2. Native Unicode Script Detection (highest confidence)
-  if (/[\u0A80-\u0AFF]/.test(raw)) return "gu-IN"; // Gujarati Script
-  if (/[\u0900-\u097F]/.test(raw)) {
-    // Marathi specific words / inflectional markers in Devanagari
-    if (/\b(आहे|आहोत|नाही|कसे|कसा|केले|झाले|पाहिजे|वाजता|दुपारी|सकाळी|औषध|घेते|घेतले|करा|सांगा)\b/.test(raw)) {
-      return "mr-IN";
-    }
-    return "hi-IN"; // Hindi in Devanagari
-  }
-  if (/[\u0980-\u09FF]/.test(raw)) {
-    // Assamese specific characters (ৱ, ৰ) or common Assamese words
-    if (/[ৱৰ]/.test(raw) || /\b(কাইলৈ|পুৱা|খালোঁ|আছিল|কৰিম|হ’ল|হয়|বজাত|কেনে|আজি)\b/.test(raw)) {
-      return "as-IN";
-    }
-    return "bn-IN"; // Bengali
-  }
-  if (/[\u0B80-\u0BFF]/.test(raw)) return "ta-IN"; // Tamil
-  if (/[\u0C00-\u0C7F]/.test(raw)) return "te-IN"; // Telugu
-  if (/[\u0C80-\u0CFF]/.test(raw)) return "kn-IN"; // Kannada
-  if (/[\u0D00-\u0D7F]/.test(raw)) return "ml-IN"; // Malayalam
-  if (/[\u0A00-\u0A7F]/.test(raw)) return "pa-IN"; // Punjabi
-  if (/[\u0B00-\u0B7F]/.test(raw)) return "or-IN"; // Odia
-
-  // 3. Romanized / Transliterated Indian Language & Mixed Language Markers (PRIORITY BEFORE ENGLISH FALLBACK)
-  // Gujarati Transliteration (e.g. "kem cho", "mare medicine kyare levani che", "su kare che")
-  if (
-    /\b(kem cho|kaho|tamaru|tamari|tame|su karo|su chaley|su chhe|su che|mare|tamare|dawa levi|dava levi|levani che|kyare|savare|bapore|saanje|ketla|ketle|vagye|vage|aaje|pan|chhe|nathi|aapo|bhai|jamvanu|majama)\b/i.test(t)
-  ) {
-    return "gu-IN";
-  }
-
-  // Hindi & Hinglish Transliteration (e.g. "kaise ho", "aaj kya karna hai", "Can you tell me aaj ka routine", "meri dawa")
-  if (
-    /\b(kaise ho|kya haal|aaj kya|aaj ka|aaj ki|aaj ke|meri dawa|dawai|kab leni|batao|samjhao|kripya|namaste|theek hai|subah|shaam|baje|paani|pani|mujhe|mera|meri|karo|kholo|chalo|bahut|kaisa|kaisi|bolo|shuru|hai|hain|nahi|nahin|accha|acha|karna hai)\b/i.test(t)
-  ) {
-    return "hi-IN";
-  }
-
-  // Marathi Transliteration
-  if (/\b(kasa ahes|kashi ahes|kay challay|aushadh kadhi|sakali|sandhyakali|sanga|kuthe|ahe|nahi|ghyayche)\b/i.test(t)) {
-    return "mr-IN";
-  }
-
-  // Bengali Transliteration
-  if (/\b(kemon aachen|kemon acho|ki korbo|oshudh koto|shokal|bikel|khabo|kheyechi|aajke|aami)\b/i.test(t)) {
-    return "bn-IN";
-  }
-
-  // Assamese Transliteration
-  if (/\b(kene aasa|ki khobor|aaji ki kaam|kailoi|puwa|khalu|bozat|axomiya)\b/i.test(t)) {
-    return "as-IN";
-  }
-
-  // Tamil Transliteration
-  if (/\b(eppadi irukkeenga|vanakkam|marunthu eppo|iniku enna|naalai|neram|manikku)\b/i.test(t)) {
-    return "ta-IN";
-  }
-
-  // Telugu Transliteration
-  if (/\b(ela unnaru|namaskaram|mandhu eppudu|e roju emi|repu|gantalaku)\b/i.test(t)) {
-    return "te-IN";
-  }
-
-  // Kannada Transliteration
-  if (/\b(hegiddira|oushadha yavaga|ivathu enu|beligge|gantege)\b/i.test(t)) {
-    return "kn-IN";
-  }
-
-  // Malayalam Transliteration
-  if (/\b(sukhamano|marunnu eppozha|innu entha|ravile|manikku)\b/i.test(t)) {
-    return "ml-IN";
-  }
-
-  // Punjabi Transliteration
-  if (/\b(sat sri akal|kiddan|dawai kadon|ajj ki karna|savere|vaje)\b/i.test(t)) {
-    return "pa-IN";
-  }
-
-  // Odia Transliteration
-  if (/\b(kemiti achhanti|oushadha kete bele|aaji kana|sakale|tare)\b/i.test(t)) {
-    return "or-IN";
-  }
-
-  // 4. Short multi-turn answers (e.g. "yes", "no", "8:30", "confirm") preserve the active session language
-  const isShortContinuation =
-    raw.length <= 8 ||
-    /^(yes|no|ok|okay|sure|confirm|cancel|8|9|10|7|6|5|4|3|2|1|pm|am|\d{1,2}([:.]\d{2})?)$/i.test(t);
-
-  if (isShortContinuation && currentSessionLocale && currentSessionLocale !== "en-IN") {
-    return currentSessionLocale;
-  }
-
-  // 5. Default fallback to English for general queries ("What is AI?", "Explain it simply", "How does gravity work?")
-  return "en-IN";
+  return languageEngine.detectLanguage(text, currentSessionLocale);
 }
+
 
 /** Pick a localized value: exact locale, then fallback */
 export function pick<T>(map: Record<string, T>, locale: string): T {

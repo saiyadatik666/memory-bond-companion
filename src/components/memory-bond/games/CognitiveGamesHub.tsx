@@ -47,6 +47,41 @@ import { WordMemory } from "./WordMemory";
 import { MatchTheObject } from "./MatchTheObject";
 import { NERCulturalMemoryGame } from "./NERCulturalMemoryGame";
 
+import { Component, type ReactNode } from "react";
+
+interface ErrorBoundaryProps {
+  children: ReactNode;
+  fallback: ReactNode;
+  onCatch?: (err: any) => void;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+}
+
+class GameErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any) {
+    console.error("[COGNITIVE_GAME_ERROR]", error);
+    this.props.onCatch?.(error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
+
 interface LastGameResult {
   score: number;
   total: number;
@@ -66,7 +101,7 @@ export function CognitiveGamesHub({
   store: MemoryBondStore;
   onNavigate?: (tab: string) => void;
 }) {
-  const { t, speechLocale, lang } = useI18n();
+  const { t, speechLocale, lang, gameStrings } = useI18n();
   const [activeGame, setActiveGame] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "challenging">("easy");
 
@@ -75,7 +110,7 @@ export function CognitiveGamesHub({
   const [highestLevel, setHighestLevel] = useState<number>(1);
   const [bestScore, setBestScore] = useState<number>(0);
   const [selectedTier, setSelectedTier] = useState<1 | 2 | 3>(1);
-  const [gameStage, setGameStage] = useState<"playing" | "completed">("playing");
+  const [gameStage, setGameStage] = useState<"playing" | "completed" | "error">("playing");
   const [attemptCount, setAttemptCount] = useState<number>(0);
   const [lastResult, setLastResult] = useState<LastGameResult | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false);
@@ -493,20 +528,96 @@ export function CognitiveGamesHub({
             </div>
           )}
 
-          {/* GAME STAGE: PLAYING vs COMPLETED RESULT */}
-          {gameStage === "playing" ? (
+          {/* GAME STAGE: PLAYING vs COMPLETED RESULT vs ERROR */}
+          {gameStage === "error" ? (
+            <div className="rounded-3xl border-2 border-destructive/40 bg-card p-6 sm:p-10 shadow-lg space-y-6 text-center animate-in fade-in">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-destructive/15 text-destructive mx-auto">
+                <AlertCircle className="h-10 w-10" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-black text-foreground">
+                  {gameStrings?.somethingWentWrong || "Something went wrong. Please try again."}
+                </h3>
+                <p className="text-sm text-muted-foreground font-medium">
+                  {lang === "gu"
+                    ? "કંઈક સમસ્યા થઈ છે. ફરી પ્રયાસ કરો."
+                    : lang === "hi"
+                    ? "कुछ समस्या हुई है। कृपया फिर कोशिश करें।"
+                    : lang === "bn"
+                    ? "কিছু সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।"
+                    : "Please try again or return to the game menu."}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
+                <Button
+                  size="lg"
+                  onClick={() => {
+                    setGameStage("playing");
+                    setAttemptCount((c) => c + 1);
+                  }}
+                  className="rounded-2xl font-black px-6 py-6 bg-primary text-primary-foreground shadow-md cursor-pointer"
+                >
+                  <RotateCcw className="h-5 w-5 mr-1" />
+                  {gameStrings?.tryAgain || (lang === "gu" ? "ફરી પ્રયાસ કરો" : lang === "hi" ? "फिर कोशिश करें" : "TRY AGAIN")}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() => {
+                    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+                      window.speechSynthesis.cancel();
+                    }
+                    setActiveGame(null);
+                    setGameStage("playing");
+                    setLastResult(null);
+                  }}
+                  className="rounded-2xl font-bold px-6 py-6 border-border cursor-pointer"
+                >
+                  <ArrowLeft className="h-5 w-5 mr-1" />
+                  {gameStrings?.exitGame || (lang === "gu" ? "રમતમાંથી બહાર નીકળો" : lang === "hi" ? "गेम से बाहर निकलें" : "EXIT GAME")}
+                </Button>
+              </div>
+            </div>
+          ) : gameStage === "playing" ? (
             <div className="rounded-3xl border border-border bg-card p-4 sm:p-8 shadow-sm">
-              <selectedGameObj.component
-                key={`${activeGame}_lvl_${currentLevel}_${attemptCount}_${store.profile.selected_state || store.profile.selected_ner_state || "all"}_cycle_${store.cycleInfo.cycleNumber}`}
-                level={currentLevel}
-                onComplete={handleGameComplete}
-                nerState={store.profile.selected_state || store.profile.selected_ner_state || "all"}
-                memoryCues={store.memoryCues}
-                contacts={store.contacts}
-                cycleNumber={store.cycleInfo.cycleNumber}
-                cycleSeed={store.cycleInfo.cycleNumber * 7919}
-                adaptiveDifficulty={adaptiveRecommendation.recommended}
-              />
+              <GameErrorBoundary
+                onCatch={() => setGameStage("error")}
+                fallback={
+                  <div className="p-8 text-center space-y-4">
+                    <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
+                    <p className="text-base font-bold text-foreground">
+                      {gameStrings?.somethingWentWrong || "Something went wrong. Please try again."}
+                    </p>
+                    <div className="flex justify-center gap-3 pt-2">
+                      <Button onClick={() => setAttemptCount((c) => c + 1)} className="rounded-xl font-bold">
+                        {gameStrings?.tryAgain || "TRY AGAIN"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setActiveGame(null);
+                          setGameStage("playing");
+                        }}
+                        className="rounded-xl font-bold"
+                      >
+                        {gameStrings?.exitGame || "EXIT GAME"}
+                      </Button>
+                    </div>
+                  </div>
+                }
+              >
+                <selectedGameObj.component
+                  key={`${activeGame}_lvl_${currentLevel}_${attemptCount}_${store.profile.selected_state || store.profile.selected_ner_state || "all"}_cycle_${store.cycleInfo.cycleNumber}`}
+                  level={currentLevel}
+                  onComplete={handleGameComplete}
+                  nerState={store.profile.selected_state || store.profile.selected_ner_state || "all"}
+                  memoryCues={store.memoryCues}
+                  contacts={store.contacts}
+                  cycleNumber={store.cycleInfo.cycleNumber}
+                  cycleSeed={store.cycleInfo.cycleNumber * 7919}
+                  adaptiveDifficulty={adaptiveRecommendation.recommended}
+                />
+              </GameErrorBoundary>
             </div>
           ) : (
             /* COMPLETED RESULT SCREEN WITH PROMINENT "NEXT LEVEL" BUTTON */

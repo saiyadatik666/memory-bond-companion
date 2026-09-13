@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Sparkles, RotateCcw, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getCulturalCardsForMemoryMatch, type NERState } from "@/lib/nerCulturalRepository";
+import { useI18n } from "@/lib/i18n";
 
 interface Card {
   id: number;
@@ -112,6 +113,7 @@ export function MemoryCardMatch({
   cycleSeed?: number;
   adaptiveDifficulty?: string;
 }) {
+  const { lang, gameStrings } = useI18n();
   const [cards, setCards] = useState<Card[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [matches, setMatches] = useState<number>(0);
@@ -119,22 +121,24 @@ export function MemoryCardMatch({
   const [mismatches, setMismatches] = useState<number>(0);
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
   const startTimeRef = useRef<number>(Date.now());
+  const timeoutsRef = useRef<any[]>([]);
+  const isEvaluatingRef = useRef<boolean>(false);
+  const isSubmittedRef = useRef<boolean>(false);
 
-  // 30 Levels progression for elderly:
-  // L1-5: 3 pairs (6 cards)
-  // L6-10: 4 pairs (8 cards)
-  // L11-15: 5 pairs (10 cards)
-  // L16-20: 6 pairs (12 cards)
-  // L21-25: 7 pairs (14 cards)
-  // L26-30: 8 pairs (16 cards)
   const pairCount = level <= 5 ? 3 : level <= 10 ? 4 : level <= 15 ? 5 : level <= 20 ? 6 : level <= 25 ? 7 : 8;
-
-  // Rotate theme deck deterministically per 8-day cycle
   const themeIndex = (level - 1 + (cycleNumber - 1) * 2) % THEMED_DECKS.length;
   const currentTheme = THEMED_DECKS[themeIndex] || THEMED_DECKS[0]!;
 
+  const clearAllTimeouts = () => {
+    timeoutsRef.current.forEach((t) => clearTimeout(t));
+    timeoutsRef.current = [];
+  };
+
   const initGame = () => {
-    // Dynamic NER Cultural Content integration with 8-day cycle offset
+    clearAllTimeouts();
+    isEvaluatingRef.current = false;
+    isSubmittedRef.current = false;
+
     const cultural = getCulturalCardsForMemoryMatch((nerState as NERState) || "all", pairCount);
     const offset = ((level - 1) * 2 + (cycleNumber - 1) * 3) % Math.max(1, currentTheme.icons.length);
     const rotatedIcons = [...currentTheme.icons.slice(offset), ...currentTheme.icons.slice(0, offset)];
@@ -146,7 +150,6 @@ export function MemoryCardMatch({
       deck.push({ id: id++, icon: item.icon, name: item.name, flipped: false, matched: false });
       deck.push({ id: id++, icon: item.icon, name: item.name, flipped: false, matched: false });
     });
-    // Shuffle
     deck.sort(() => Math.random() - 0.5);
     setCards(deck);
     setSelected([]);
@@ -159,11 +162,13 @@ export function MemoryCardMatch({
 
   useEffect(() => {
     initGame();
+    return () => clearAllTimeouts();
   }, [level, nerState, cycleNumber]);
 
   const handleCardClick = (index: number) => {
+    if (isEvaluatingRef.current) return;
     const card = cards[index];
-    if (!card || card.flipped || card.matched || selected.length === 2) return;
+    if (!card || card.flipped || card.matched || selected.length >= 2) return;
 
     const newCards = [...cards];
     newCards[index] = { ...card, flipped: true };
@@ -173,17 +178,24 @@ export function MemoryCardMatch({
     setSelected(newSelected);
 
     if (newSelected.length === 2) {
+      isEvaluatingRef.current = true;
       const nextMoves = moves + 1;
       setMoves(nextMoves);
       const [firstIdx, secondIdx] = newSelected;
-      if (firstIdx === undefined || secondIdx === undefined) return;
+      if (firstIdx === undefined || secondIdx === undefined) {
+        isEvaluatingRef.current = false;
+        return;
+      }
       const firstCard = newCards[firstIdx];
       const secondCard = newCards[secondIdx];
-      if (!firstCard || !secondCard) return;
+      if (!firstCard || !secondCard) {
+        isEvaluatingRef.current = false;
+        return;
+      }
 
       if (firstCard.icon === secondCard.icon) {
         // Matched!
-        setTimeout(() => {
+        const matchTimer = setTimeout(() => {
           setCards((prev) => {
             return prev.map((item, itemIndex) =>
               itemIndex === firstIdx || itemIndex === secondIdx ? { ...item, matched: true } : item
@@ -191,10 +203,10 @@ export function MemoryCardMatch({
           });
           setMatches((prev) => {
             const nextMatches = prev + 1;
-            if (nextMatches === pairCount) {
+            if (nextMatches === pairCount && !isSubmittedRef.current) {
+              isSubmittedRef.current = true;
               setIsCompleted(true);
               const elapsedMs = Math.max(2000, Date.now() - startTimeRef.current);
-              // Calculate genuine accuracy: pairCount / totalMoves
               const accuracy = Math.max(10, Math.min(100, Math.round((pairCount / nextMoves) * 100)));
               onComplete(pairCount, pairCount, {
                 gameType: "memory",
@@ -207,18 +219,22 @@ export function MemoryCardMatch({
             return nextMatches;
           });
           setSelected([]);
+          isEvaluatingRef.current = false;
         }, 500);
+        timeoutsRef.current.push(matchTimer);
       } else {
         // Mismatch
         setMismatches((m) => m + 1);
-        setTimeout(() => {
+        const flipTimer = setTimeout(() => {
           setCards((prev) => {
             return prev.map((item, itemIndex) =>
               itemIndex === firstIdx || itemIndex === secondIdx ? { ...item, flipped: false } : item
             );
           });
           setSelected([]);
-        }, 1000);
+          isEvaluatingRef.current = false;
+        }, 800);
+        timeoutsRef.current.push(flipTimer);
       }
     }
   };
@@ -228,18 +244,18 @@ export function MemoryCardMatch({
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-secondary/40 p-4">
         <div>
           <h3 className="text-xl font-bold text-foreground">
-            Game 1: Memory Card Match (Level {level} of 30)
+            {lang === "gu" ? "ગેમ ૧: મેમરી કાર્ડ મેચ" : lang === "hi" ? "गेम 1: मेमोरी कार्ड मैच" : "Game 1: Memory Card Match"} ({gameStrings?.level || "Level"} {level} {gameStrings?.of || "of"} 30)
           </h3>
           <p className="text-sm text-muted-foreground">
-            Theme: <span className="font-semibold text-primary">{currentTheme.theme}</span> • Tap any two cards to find matching pairs ({pairCount} pairs to find).
+            {gameStrings?.instructions?.cardMatch || "Tap any two cards to find matching pairs."} ({pairCount} {gameStrings?.pairs || "pairs"}).
           </p>
         </div>
         <div className="flex items-center gap-4">
           <span className="rounded-xl bg-card px-4 py-2 font-bold shadow-xs">
-            Pairs: {matches} / {pairCount}
+            {gameStrings?.pairs || "Pairs"}: {matches} / {pairCount}
           </span>
           <Button variant="outline" onClick={initGame} className="gap-2">
-            <RotateCcw className="h-4 w-4" /> Reset
+            <RotateCcw className="h-4 w-4" /> {gameStrings?.reset || "Reset"}
           </Button>
         </div>
       </div>
@@ -247,12 +263,18 @@ export function MemoryCardMatch({
       {isCompleted ? (
         <div className="rounded-3xl border border-success/30 bg-success/10 p-8 text-center space-y-4 animate-in fade-in zoom-in-95">
           <Award className="mx-auto h-16 w-16 text-success" />
-          <h4 className="text-3xl font-extrabold text-foreground">Well done! Excellent effort!</h4>
+          <h4 className="text-3xl font-extrabold text-foreground">
+            {gameStrings?.wellDone || "Well done! Excellent effort!"}
+          </h4>
           <p className="text-lg text-muted-foreground">
-            You found all {pairCount} pairs in {moves} turns. Your memory engagement is wonderful!
+            {lang === "gu"
+              ? `તમે ${moves} વારમાં બધી ${pairCount} જોડીઓ શોધી લીધી.`
+              : lang === "hi"
+              ? `आपने ${moves} चालों में सभी ${pairCount} जोड़े ढूंढ लिए।`
+              : `You found all ${pairCount} pairs in ${moves} turns.`}
           </p>
           <Button size="lg" onClick={initGame} className="gap-2 font-bold px-8 py-6 text-lg">
-            <Sparkles className="h-5 w-5" /> Play Again
+            <Sparkles className="h-5 w-5" /> {gameStrings?.restart || "Play Again"}
           </Button>
         </div>
       ) : (

@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Sparkles, RotateCcw, CheckCircle2, Delete } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n";
 
 export function SequenceMemory({
   onComplete,
@@ -17,6 +18,8 @@ export function SequenceMemory({
   nerState?: string;
   memoryCues?: any[];
 }) {
+  const { lang, gameStrings } = useI18n();
+
   // 30 Levels progression:
   // L1-5: 3 digits
   // L6-10: 4 digits
@@ -30,9 +33,11 @@ export function SequenceMemory({
   const [userInput, setUserInput] = useState<string>("");
   const [phase, setPhase] = useState<"show" | "input" | "result">("show");
   const [countdown, setCountdown] = useState<number>(5);
+  const startTimeRef = useRef<number>(Date.now());
+  const isSubmittedRef = useRef<boolean>(false);
 
   const generateSequence = (length = digitLength) => {
-    // Generate distinct, engaging digit sequences (incorporating 8-day cycle seed)
+    isSubmittedRef.current = false;
     const seq: number[] = [];
     const cycleOffset = (cycleNumber - 1) * 7;
     let seedVal = level * 31 + cycleOffset;
@@ -40,7 +45,6 @@ export function SequenceMemory({
     while (seq.length < length) {
       seedVal = (seedVal * 1103515245 + 12345) & 0x7fffffff;
       const nextNum = (seedVal % 9) + 1;
-      // avoid 3 identical consecutive digits
       if (seq.length >= 2 && seq[seq.length - 1] === nextNum && seq[seq.length - 2] === nextNum) {
         continue;
       }
@@ -57,8 +61,6 @@ export function SequenceMemory({
   useEffect(() => {
     generateSequence(digitLength);
   }, [level, cycleNumber, adaptiveDifficulty]);
-
-  const startTimeRef = useState<{ current: number }>({ current: Date.now() })[0];
 
   useEffect(() => {
     if (phase !== "show") return;
@@ -82,6 +84,8 @@ export function SequenceMemory({
   };
 
   const handleCheck = () => {
+    if (isSubmittedRef.current || phase !== "input") return;
+    isSubmittedRef.current = true;
     setPhase("result");
     const targetStr = digits.join("");
     const isCorrect = userInput === targetStr;
@@ -109,20 +113,26 @@ export function SequenceMemory({
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-secondary/40 p-4">
         <div>
           <h3 className="text-xl font-bold text-foreground">
-            Game 4: Number Sequence Memory (Level {level} of 30)
+            {lang === "gu" ? "ગેમ ૪: નંબર સિક્વન્સ મેમરી" : lang === "hi" ? "गेम 4: नंबर सीक्वेंस मेमोरी" : "Game 4: Number Sequence Memory"} ({gameStrings?.level || "Level"} {level} {gameStrings?.of || "of"} 30)
           </h3>
           <p className="text-sm text-muted-foreground">
-            Remember the {digitLength} numbers shown, then enter them in the same order.
+            {gameStrings?.instructions?.sequenceMemory || "Remember the numbers shown, then enter them in the same order."}
           </p>
         </div>
         <Button variant="outline" onClick={() => generateSequence(digitLength)} className="gap-2">
-          <RotateCcw className="h-4 w-4" /> Restart
+          <RotateCcw className="h-4 w-4" /> {gameStrings?.reset || "Restart"}
         </Button>
       </div>
 
       {phase === "show" && (
         <div className="text-center py-8 space-y-6">
-          <p className="text-muted-foreground">Remember these numbers ({countdown}s left):</p>
+          <p className="text-muted-foreground font-medium">
+            {lang === "gu"
+              ? `આ આંકડા યાદ રાખો (${countdown} ${gameStrings?.secondsRemaining || "સેકન્ડ બાકી"}):`
+              : lang === "hi"
+              ? `इन अंकों को याद रखें (${countdown} ${gameStrings?.secondsRemaining || "सेकंड शेष"}):`
+              : `Remember these numbers (${countdown}s left):`}
+          </p>
           <div className="flex justify-center gap-4">
             {digits.map((d, i) => (
               <div
@@ -143,7 +153,7 @@ export function SequenceMemory({
               }}
               className="font-bold text-primary"
             >
-              I'm Ready to Enter Numbers
+              {lang === "gu" ? "હું આંકડા દાખલ કરવા તૈયાર છું" : lang === "hi" ? "मैं अंक दर्ज करने के लिए तैयार हूँ" : "I'm Ready to Enter Numbers"}
             </Button>
           </div>
         </div>
@@ -152,7 +162,7 @@ export function SequenceMemory({
       {phase === "input" && (
         <div className="max-w-sm mx-auto space-y-6 text-center">
           <div className="rounded-2xl border-2 border-border bg-card p-4 min-h-[4.5rem] flex items-center justify-center text-3xl font-mono tracking-widest text-foreground font-bold">
-            {userInput ? userInput : <span className="text-muted-foreground text-xl">Tap numbers below</span>}
+            {userInput ? userInput : <span className="text-muted-foreground text-xl">{lang === "gu" ? "નીચે આપેલા આંકડા પર ટેપ કરો" : lang === "hi" ? "नीचे दिए गए अंकों पर टैप करें" : "Tap numbers below"}</span>}
           </div>
 
           <div className="grid grid-cols-3 gap-3">
@@ -182,10 +192,10 @@ export function SequenceMemory({
             </Button>
             <Button
               onClick={handleCheck}
-              disabled={userInput.length === 0}
-              className="h-16 text-lg font-bold rounded-2xl col-span-1"
+              disabled={userInput.length === 0 || isSubmittedRef.current}
+              className="h-16 text-lg font-bold rounded-2xl col-span-1 cursor-pointer"
             >
-              Check
+              {gameStrings?.checkAnswer || "Check"}
             </Button>
           </div>
         </div>
@@ -195,13 +205,19 @@ export function SequenceMemory({
         <div className="rounded-3xl border border-primary/30 bg-primary/10 p-8 text-center space-y-4">
           <CheckCircle2 className="mx-auto h-16 w-16 text-primary" />
           <h4 className="text-3xl font-extrabold text-foreground">
-            {userInput === digits.join("") ? "Spot on! Excellent memory!" : "Good try! Great practice!"}
+            {userInput === digits.join("")
+              ? gameStrings?.spotOn || "Spot on! Excellent memory!"
+              : gameStrings?.goodTry || "Good try! Great practice!"}
           </h4>
           <p className="text-lg text-muted-foreground">
-            Target was: <strong>{digits.join(" ")}</strong> | You entered: <strong>{userInput || "(none)"}</strong>
+            {lang === "gu"
+              ? `સાચો ક્રમ હતો: ${digits.join(" ")} | તમે દાખલ કર્યો: ${userInput || "(કંઈ નહીં)"}`
+              : lang === "hi"
+              ? `सही क्रम था: ${digits.join(" ")} | आपने दर्ज किया: ${userInput || "(कुछ नहीं)"}`
+              : `Target was: ${digits.join(" ")} | You entered: ${userInput || "(none)"}`}
           </p>
-          <Button size="lg" onClick={() => generateSequence(digits.length)} className="gap-2 font-bold px-8">
-            <Sparkles className="h-5 w-5" /> Next Sequence
+          <Button size="lg" onClick={() => generateSequence(digits.length)} className="gap-2 font-bold px-8 cursor-pointer">
+            <Sparkles className="h-5 w-5" /> {gameStrings?.restart || "Next Sequence"}
           </Button>
         </div>
       )}

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Volume2, VolumeX, Sparkles, RotateCcw, CheckCircle2, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { speakText, stopSpeaking } from "@/lib/voiceParser";
@@ -297,7 +297,7 @@ export function VoiceMemoryQuiz({
   cycleNumber?: number;
   cycleSeed?: number;
 }) {
-  const { speechLocale } = useI18n();
+  const { lang, speechLocale } = useI18n();
   const [currentIdx, setCurrentIdx] = useState<number>(0);
   const [selectedOpt, setSelectedOpt] = useState<number | null>(null);
   const [score, setScore] = useState<number>(0);
@@ -305,7 +305,15 @@ export function VoiceMemoryQuiz({
   const [isFinished, setIsFinished] = useState<boolean>(false);
   const [hasPlayedAudio, setHasPlayedAudio] = useState<boolean>(false);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const startTimeRef = useState<{ current: number }>({ current: Date.now() })[0];
+  const startTimeRef = useRef<number>(Date.now());
+  const isSubmittingRef = useRef<boolean>(false);
+
+  // Stop audio on unmount
+  useEffect(() => {
+    return () => {
+      stopSpeaking();
+    };
+  }, []);
 
   // Synthesize personal memory bank quiz items if available
   const personalQuizItems: VoiceQuizItem[] = (memoryCues || [])
@@ -365,12 +373,17 @@ export function VoiceMemoryQuiz({
 
   const handlePlayVoice = () => {
     setIsPlaying(true);
+    setHasPlayedAudio(true);
     speakText(current.promptAudioText, speechLocale, () => {
       setIsPlaying(false);
     });
   };
 
   const handleNext = () => {
+    if (selectedOpt === null || isSubmittingRef.current) return;
+    stopSpeaking();
+    setIsPlaying(false);
+
     const isCorrect = selectedOpt === current.correct;
     const nextScore = score + (isCorrect ? 1 : 0);
     if (isCorrect) {
@@ -383,6 +396,7 @@ export function VoiceMemoryQuiz({
     if (currentIdx + 1 < activeItems.length) {
       setCurrentIdx((i) => i + 1);
     } else {
+      isSubmittingRef.current = true;
       const elapsedMs = Math.max(1500, Date.now() - startTimeRef.current);
       const calculatedAcc = Math.round((nextScore / activeItems.length) * 100);
       setIsFinished(true);
@@ -396,53 +410,88 @@ export function VoiceMemoryQuiz({
     }
   };
 
+  const titleText =
+    lang === "gu" ? "રમત ૭: અવાજ સ્મરણ ક્વિઝ" :
+    lang === "hi" ? "खेल 7: स्वर स्मरण प्रश्नोत्तरी" :
+    lang === "bn" ? "খেলা ৭: ভয়েস মেমরি কুইজ" :
+    lang === "mr" ? "खेळ ७: ध्वनी स्मरण क्विझ" :
+    lang === "as" ? "খেল ৭: কণ্ঠস্বৰ স্মৃতি কুইজ" :
+    "Game 7: Voice Memory Quiz";
+
+  const subtitleText =
+    lang === "gu" ? "ધ્યાનપૂર્વક અવાજ સાંભળો અને પછી સાચો જવાબ આપો." :
+    lang === "hi" ? "ध्यानपूर्वक आवाज़ सुनें और फिर प्रश्न का उत्तर दें।" :
+    lang === "bn" ? "মনোযোগ সহকারে ভয়েস শুনুন এবং প্রশ্নের উত্তর দিন।" :
+    lang === "mr" ? "काळजीपूर्वक आवाज ऐका आणि प्रश्नाचे उत्तर द्या." :
+    lang === "as" ? "মনোযোগেৰে কণ্ঠস্বৰ শুনক আৰু প্ৰশ্নৰ উত্তৰ দিয়ক।" :
+    "Listen carefully to the voice cue, then answer the question.";
+
+  const nextBtnText =
+    currentIdx + 1 === activeItems.length
+      ? (lang === "gu" ? "ક્વિઝ પૂર્ણ કરો" : lang === "hi" ? "क्विज़ समाप्त करें" : lang === "bn" ? "কুইজ শেষ করুন" : "Finish Quiz")
+      : (lang === "gu" ? "આગળનો સંકેત" : lang === "hi" ? "अगला संकेत" : lang === "bn" ? "পরবর্তী সংকেত" : "Next Voice Cue");
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-secondary/40 p-4">
         <div>
-          <h3 className="text-xl font-bold text-foreground">Game 7: Voice Memory Quiz</h3>
-          <p className="text-sm text-muted-foreground">Listen carefully to the voice cue, then answer the question.</p>
+          <h3 className="text-xl font-bold text-foreground">{titleText}</h3>
+          <p className="text-sm text-muted-foreground">{subtitleText}</p>
         </div>
         <span className="rounded-xl bg-card px-4 py-2 font-bold shadow-xs">
-          Quiz {currentIdx + 1} / {activeItems.length}
+          {lang === "gu" ? "ક્વિઝ" : lang === "hi" ? "प्रश्नोत्तरी" : lang === "bn" ? "কুইজ" : "Quiz"} {currentIdx + 1} / {activeItems.length}
         </span>
       </div>
 
       {isFinished ? (
         <div className="rounded-3xl border border-success/30 bg-success/10 p-8 text-center space-y-4">
           <Volume2 className="mx-auto h-16 w-16 text-success" />
-          <h4 className="text-3xl font-extrabold text-foreground">Active listening complete!</h4>
+          <h4 className="text-3xl font-extrabold text-foreground">
+            {lang === "gu" ? "શ્રવણ સ્મરણ પૂર્ણ!" : lang === "hi" ? "सक्रिय श्रवण पूर्ण!" : lang === "bn" ? "শ্রবণ স্মরণ সম্পন্ন!" : "Active listening complete!"}
+          </h4>
           <p className="text-lg text-muted-foreground">
-            You scored {score} of {activeItems.length} in audio recall.
+            {lang === "gu"
+              ? `તમે ${activeItems.length} માંથી ${score} સાચા જવાબો આપ્યા.`
+              : lang === "hi"
+              ? `आपने ${activeItems.length} में से ${score} सही उत्तर दिए।`
+              : lang === "bn"
+              ? `আপনি ${activeItems.length}টির মধ্যে ${score}টি সঠিক উত্তর দিয়েছেন।`
+              : `You scored ${score} of ${activeItems.length} in audio recall.`}
           </p>
           <Button
             size="lg"
             onClick={() => {
+              isSubmittingRef.current = false;
               setCurrentIdx(0);
               setSelectedOpt(null);
               setScore(0);
               setIsFinished(false);
+              startTimeRef.current = Date.now();
             }}
             className="gap-2 font-bold px-8"
           >
-            <RotateCcw className="h-5 w-5" /> Listen Again
+            <RotateCcw className="h-5 w-5" /> {lang === "gu" ? "ફરી સાંભળો" : lang === "hi" ? "पुनः सुनें" : lang === "bn" ? "আবার শুনুন" : "Listen Again"}
           </Button>
         </div>
       ) : (
         <div className="max-w-xl mx-auto space-y-6">
           <div className="rounded-3xl border border-border bg-card p-6 text-center space-y-6 shadow-sm">
             <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20 space-y-3">
-              <p className="text-sm font-semibold uppercase tracking-wider text-primary">Tap to hear voice note</p>
+              <p className="text-sm font-semibold uppercase tracking-wider text-primary">
+                {lang === "gu" ? "અવાજ સાંભળવા માટે ટેપ કરો" : lang === "hi" ? "आवाज़ सुनने के लिए टैप करें" : lang === "bn" ? "ভয়েস শুনতে ট্যাপ করুন" : "Tap to hear voice note"}
+              </p>
               <Button
                 size="lg"
                 onClick={handlePlayVoice}
-                className="gap-3 font-bold px-8 py-6 text-lg rounded-2xl"
+                className="gap-3 font-bold px-8 py-6 text-lg rounded-2xl cursor-pointer"
               >
                 {isPlaying ? <Sparkles className="h-6 w-6 animate-spin" /> : <Volume2 className="h-6 w-6" />}
-                {isPlaying ? "Speaking..." : "Play Voice Recording"}
+                {isPlaying
+                  ? (lang === "gu" ? "બોલાઈ રહ્યું છે..." : lang === "hi" ? "आवाज़ बज रही है..." : lang === "bn" ? "কথা বলছে..." : "Speaking...")
+                  : (lang === "gu" ? "અવાજ રેકોર્ડિંગ સાંભળો" : lang === "hi" ? "वॉइस रिकॉर्डिंग सुनें" : lang === "bn" ? "ভয়েস রেকর্ড শুনুন" : "Play Voice Recording")}
               </Button>
               <p className="text-xs text-muted-foreground italic">
-                (Simulated family voice message with speech audio)
+                {lang === "gu" ? "(સ્પષ્ટ અવાજમાં સંદેશ)" : lang === "hi" ? "(स्पष्ट स्वर में संदेश)" : lang === "bn" ? "(স্পষ্ট কণ্ঠে বার্তা)" : "(Clear family voice message audio)"}
               </p>
             </div>
 
@@ -455,7 +504,7 @@ export function VoiceMemoryQuiz({
                   <button
                     key={idx}
                     onClick={() => setSelectedOpt(idx)}
-                    className={`w-full text-left p-4 rounded-2xl border-2 font-medium transition-all text-base ${
+                    className={`w-full text-left p-4 rounded-2xl border-2 font-medium transition-all text-base cursor-pointer ${
                       isSelected
                         ? "bg-primary text-primary-foreground border-primary shadow-sm"
                         : "bg-secondary/30 hover:bg-secondary/60 border-border text-foreground"
@@ -469,8 +518,8 @@ export function VoiceMemoryQuiz({
           </div>
 
           <div className="flex justify-end">
-            <Button size="lg" disabled={selectedOpt === null} onClick={handleNext} className="px-8 font-bold">
-              {currentIdx + 1 === activeItems.length ? "Finish Quiz" : "Next Voice Cue"}
+            <Button size="lg" disabled={selectedOpt === null} onClick={handleNext} className="px-8 font-bold cursor-pointer">
+              {nextBtnText}
             </Button>
           </div>
         </div>
