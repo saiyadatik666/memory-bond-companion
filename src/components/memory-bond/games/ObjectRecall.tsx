@@ -131,6 +131,8 @@ export interface ObjectRecallProps {
   cycleNumber?: number;
   cycleSeed?: number;
   adaptiveDifficulty?: string;
+  memoryCues?: any[];
+  contacts?: any[];
 }
 
 export function ObjectRecall({
@@ -138,6 +140,9 @@ export function ObjectRecall({
   level = 1,
   cycleNumber = 1,
   adaptiveDifficulty = "medium",
+  nerState = "all",
+  cycleSeed = 0,
+}: ObjectRecallProps) {
   const { lang, speechLocale, gameStrings } = useI18n();
   const [phase, setPhase] = useState<"observe" | "veiled" | "recall" | "answered">("observe");
   const [initialTray, setInitialTray] = useState<KeepsakeItem[]>([]);
