@@ -70,7 +70,7 @@ export function Header({
           <button
             type="button"
             onClick={() => onNavigate(store.profile.role === "caregiver" ? "caregiver" : "home")}
-            className="flex items-center cursor-pointer focus-visible:outline-none"
+            className="flex items-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 rounded-xl p-0.5 transition-transform active:scale-98"
             aria-label="Memory Bond Home"
           >
             <MemoryBondLogo variant="responsive" size="default" />

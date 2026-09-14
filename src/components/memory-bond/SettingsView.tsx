@@ -30,6 +30,7 @@ import { RegionalLanguageSection } from "./RegionalLanguageSection";
 import { speakText, stopSpeaking } from "@/lib/voiceParser";
 import { voiceManager } from "@/lib/voiceProvider";
 import { INDIAN_STATES } from "@/lib/panIndiaCulturalRepository";
+import { MemoryBondLogo } from "./MemoryBondLogo";
 
 export function SettingsView({ store }: { store: MemoryBondStore }) {
   const { lang, setLang, t, speechLocale } = useI18n();
@@ -501,10 +502,10 @@ export function SettingsView({ store }: { store: MemoryBondStore }) {
       {/* 7. Senior Profile Details */}
       <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-xs space-y-4">
         <div className="flex items-center gap-3">
-          <User className="h-6 w-6 text-primary" />
+          <MemoryBondLogo variant="icon" size="sm" />
           <div>
             <h3 className="text-xl font-bold text-foreground">Senior Profile & Member ID</h3>
-            <p className="text-sm text-muted-foreground">Personal details and registration information.</p>
+            <p className="text-sm text-muted-foreground">Personal details and official companion registration.</p>
           </div>
         </div>
 

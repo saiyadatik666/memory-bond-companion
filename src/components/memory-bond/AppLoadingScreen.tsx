@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Heart, RotateCcw, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
+import { RotateCcw, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { MemoryBondLogo } from "./MemoryBondLogo";
 
 interface AppLoadingScreenProps {
   error?: string | null;
@@ -34,22 +35,19 @@ export function AppLoadingScreen({ error, onRetry, onSkip }: AppLoadingScreenPro
       className="min-h-screen bg-ambient flex flex-col items-center justify-center p-4 sm:p-6 select-none animate-in fade-in duration-300"
     >
       <div className="w-full max-w-md rounded-3xl bg-white/95 dark:bg-card/95 border border-sky-100 dark:border-border shadow-2xl p-8 sm:p-10 text-center space-y-6 backdrop-blur-md">
-        {/* Heart Logo with Soft Glow */}
-        <div className="relative mx-auto w-20 h-20 flex items-center justify-center">
-          <div className="absolute inset-0 rounded-3xl bg-primary/20 blur-xl animate-pulse" />
-          <div className="relative w-20 h-20 rounded-3xl bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white shadow-lg shadow-primary/25">
-            <Heart className="h-10 w-10 fill-white/25 text-white animate-pulse" />
+        {/* Official Memory Bond Logo with Generous Whitespace & Soft Ambient Glow */}
+        <div className="relative mx-auto flex flex-col items-center justify-center pt-2">
+          <div className="absolute inset-0 max-w-[240px] mx-auto rounded-full bg-primary/10 blur-2xl pointer-events-none" />
+          <div className="relative z-10 flex justify-center">
+            <MemoryBondLogo variant="stacked" size="lg" className="mx-auto" priority={true} />
           </div>
         </div>
 
-        {/* Title & Brand Tagline in Consistent Clean English */}
+        {/* Brand Tagline & Senior Care Badge */}
         <div className="space-y-2">
           <span className="text-[11px] uppercase tracking-widest font-black text-primary bg-primary/10 px-3.5 py-1 rounded-full border border-primary/20">
             AI Senior Companion
           </span>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground font-display">
-            MEMORY BOND
-          </h1>
           <p className="text-xs sm:text-sm font-semibold text-muted-foreground">
             Technology with a human heart
           </p>

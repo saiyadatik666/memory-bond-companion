@@ -1,6 +1,7 @@
 import { Component, type ReactNode, type ErrorInfo } from "react";
-import { Heart, RotateCcw } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { MemoryBondLogo } from "./MemoryBondLogo";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -30,10 +31,9 @@ export class SafeRouteErrorBoundary extends Component<ErrorBoundaryProps, ErrorB
       return (
         <div className="min-h-screen flex items-center justify-center bg-background p-6">
           <div className="w-full max-w-md rounded-3xl border-2 border-border bg-card p-8 text-center shadow-lg space-y-4">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/25 flex items-center justify-center text-primary mx-auto">
-              <Heart className="h-8 w-8 fill-primary/20 text-primary" />
+            <div className="flex justify-center pb-1">
+              <MemoryBondLogo variant="stacked" size="md" />
             </div>
-            <h2 className="text-2xl font-black text-foreground font-display">Welcome to Memory Bond</h2>
             <p className="text-sm text-muted-foreground font-medium">
               A temporary issue occurred while loading this view. Tap below to reload the companion.
             </p>

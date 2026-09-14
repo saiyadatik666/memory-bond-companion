@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  Heart,
   User,
   Phone,
   ArrowRight,
@@ -11,6 +10,7 @@ import {
   Smile,
   Check,
 } from "lucide-react";
+import { MemoryBondLogo } from "./MemoryBondLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -102,9 +102,7 @@ export function SeniorOnboarding({
         {/* Progress header */}
         <div className="flex items-center justify-between border-b border-border pb-4">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-primary/15 text-primary flex items-center justify-center">
-              <Heart className="h-4 w-4 fill-primary/20 text-primary" />
-            </div>
+            <MemoryBondLogo variant="icon" size="xs" />
             <span className="font-extrabold text-foreground text-base sm:text-lg">
               Memory Bond Setup
             </span>

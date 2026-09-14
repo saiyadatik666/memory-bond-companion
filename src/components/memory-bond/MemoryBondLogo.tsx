@@ -32,13 +32,15 @@ export function MemoryBondLogo({
       ? "h-6"
       : size === "sm"
       ? "h-8 sm:h-9"
-      : size === "default" || size === "md"
-      ? "h-9 sm:h-10"
+      : size === "default"
+      ? "h-10 sm:h-11 md:h-12"
+      : size === "md"
+      ? "h-11 sm:h-12 md:h-13"
       : size === "lg"
-      ? "h-12 sm:h-14"
+      ? "h-13 sm:h-16"
       : size === "xl"
-      ? "h-16 sm:h-20"
-      : "h-20 sm:h-24 md:h-28";
+      ? "h-18 sm:h-24"
+      : "h-24 sm:h-32 md:h-36";
 
   // Dimensions for icon-only (aspect ratio ~1:1)
   const iconDimensions =
@@ -46,13 +48,15 @@ export function MemoryBondLogo({
       ? "h-6 w-6"
       : size === "sm"
       ? "h-8 w-8"
-      : size === "default" || size === "md"
-      ? "h-10 w-10"
+      : size === "default"
+      ? "h-10 w-10 sm:h-11 sm:w-11"
+      : size === "md"
+      ? "h-11 w-11 sm:h-12 sm:w-12"
       : size === "lg"
-      ? "h-12 w-12 sm:h-14 sm:w-14"
+      ? "h-14 w-14 sm:h-16 sm:w-16"
       : size === "xl"
-      ? "h-16 w-16 sm:h-20 sm:w-20"
-      : "h-20 w-20 sm:h-24 sm:w-24";
+      ? "h-18 w-18 sm:h-24 sm:w-24"
+      : "h-24 w-24 sm:h-32 sm:w-32";
 
   // Dimensions for stacked logo (aspect ratio ~0.93:1)
   const stackedHeight =
@@ -60,13 +64,15 @@ export function MemoryBondLogo({
       ? "h-12"
       : size === "sm"
       ? "h-16"
-      : size === "default" || size === "md"
+      : size === "default"
       ? "h-20 sm:h-24"
-      : size === "lg"
+      : size === "md"
       ? "h-24 sm:h-28"
+      : size === "lg"
+      ? "h-28 sm:h-32"
       : size === "xl"
-      ? "h-32 sm:h-36"
-      : "h-40 sm:h-48";
+      ? "h-36 sm:h-44"
+      : "h-44 sm:h-52";
 
   // Variant 1: Responsive Logo (Icon on mobile < sm, Full Horizontal on sm+)
   if (variant === "responsive") {

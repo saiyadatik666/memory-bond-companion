@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  Heart,
   ShieldCheck,
   QrCode,
   KeyRound,
@@ -365,6 +364,9 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
       <div className="min-h-screen bg-ambient flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
         <div className="w-full max-w-xl rounded-3xl bg-white border border-sky-100 shadow-xl p-5 sm:p-8 space-y-5">
           <div className="text-center space-y-2">
+            <div className="flex justify-center pb-1">
+              <MemoryBondLogo variant="horizontal" size="sm" />
+            </div>
             <div className="inline-flex items-center gap-2 text-primary bg-primary/10 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider">
               <Languages className="h-3.5 w-3.5" /> {lang === "en" ? "Language" : (t("language") || "Language")}
             </div>
@@ -417,8 +419,8 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
       <div className="min-h-screen bg-ambient flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
         <div className="w-full max-w-xl rounded-3xl bg-white border border-sky-100 shadow-xl p-6 sm:p-10 space-y-7">
           <div className="text-center space-y-2">
-            <div className="mx-auto w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shadow-xs">
-              <Heart className="h-6 w-6" />
+            <div className="flex justify-center pb-1">
+              <MemoryBondLogo variant="icon" size="sm" />
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-foreground font-display">
               What is your role?

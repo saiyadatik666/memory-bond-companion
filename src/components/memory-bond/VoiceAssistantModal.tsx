@@ -47,6 +47,7 @@ import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { useI18n, LANGUAGES, NER_STATES, getLanguagesByState } from "@/lib/i18n";
 
 import { languageEngine, SUPPORTED_LANGUAGES } from "@/lib/languageEngine";
+import { MemoryBondLogo } from "./MemoryBondLogo";
 
 export type AssistantVoiceState =
   | "idle"        // 🎙️ Tap to speak
@@ -1023,6 +1024,7 @@ export function VoiceAssistantModal({
         {/* Top Header: STOP Button, Auto-Detected Language Pill, New Topic, Language Selector, Exit Button */}
         <div className="flex items-center justify-between pb-3 border-b border-border shrink-0 gap-2 flex-wrap sm:flex-nowrap">
           <div className="flex items-center gap-2">
+            <MemoryBondLogo variant="icon" size="xs" />
             {/* Immediate Stop Speaking / Cancel Button */}
             <Button
               size="sm"
