@@ -186,6 +186,7 @@ export function QRScannerModal({
   // ==========================================================================
   const stopCamera = useCallback(() => {
     if (scanIntervalRef.current) {
+      window.clearTimeout(scanIntervalRef.current);
       window.clearInterval(scanIntervalRef.current);
       scanIntervalRef.current = null;
     }
@@ -205,85 +206,6 @@ export function QRScannerModal({
       } catch {}
     }
   }, []);
-
-  // Dedicated scanner frame-pump loop
-  const startScanLoop = useCallback(() => {
-    if (scanIntervalRef.current) {
-      window.clearInterval(scanIntervalRef.current);
-    }
-
-    scanIntervalRef.current = window.setInterval(async () => {
-      if (isProcessingRef.current) return;
-      if (!videoRef.current || videoRef.current.readyState < 2 || !canvasRef.current) return;
-
-      try {
-        const result = await scanFrameForQr(videoRef.current, canvasRef.current);
-        if (result?.data && !isProcessingRef.current) {
-          handleQrDetected(result.data);
-        }
-      } catch (scanErr) {
-        console.debug("[Scanner] Frame analysis tick notice:", scanErr);
-      }
-    }, 220);
-  }, []);
-
-  // Initialize camera and start video stream
-  const startCamera = useCallback(async () => {
-    stopCamera();
-    isProcessingRef.current = false;
-    setCameraError(null);
-    setStage("STARTING_CAMERA");
-
-    try {
-      if (!navigator?.mediaDevices?.getUserMedia) {
-        setCameraError("Camera access is not supported by your browser on this device.");
-        setStage("CAMERA_ERROR");
-        return;
-      }
-
-      // Elder-friendly camera config: prefers environment (back camera) with sensible fallback
-      const constraints: MediaStreamConstraints = {
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      };
-
-      let stream: MediaStream;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-      } catch (envErr) {
-        // If ideal environment facing failed (e.g. desktop webcam), try general video
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      }
-
-      streamRef.current = stream;
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.setAttribute("playsinline", "true");
-        videoRef.current.setAttribute("muted", "true");
-        await videoRef.current.play();
-
-        setStage("SCANNING");
-        startScanLoop();
-      }
-    } catch (err: any) {
-      console.warn("[Scanner] Camera activation error:", err);
-      let readable = "Camera access is needed to scan the family QR code.";
-      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-        readable = "Camera access was denied. Please allow camera permission in your browser to scan the family QR code.";
-      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
-        readable = "No camera found on this device. You can also connect using the 6-digit code.";
-      } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
-        readable = "Camera is currently busy in another application. Please close other camera apps and try again.";
-      }
-      setCameraError(readable);
-      setStage("CAMERA_ERROR");
-    }
-  }, [stopCamera, startScanLoop]);
 
   // Handle incoming raw scanned string
   const handleQrDetected = useCallback(
@@ -324,6 +246,127 @@ export function QRScannerModal({
     },
     [stopCamera]
   );
+
+  const handleQrDetectedRef = useRef(handleQrDetected);
+  handleQrDetectedRef.current = handleQrDetected;
+
+  // Dedicated scanner frame-pump loop
+  const startScanLoop = useCallback(() => {
+    if (scanIntervalRef.current) {
+      window.clearTimeout(scanIntervalRef.current);
+      window.clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+
+    let isCancelled = false;
+
+    const pumpNextFrame = async () => {
+      if (isCancelled || isProcessingRef.current) return;
+
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+
+      if (video && canvas && video.readyState >= 2 && video.videoWidth > 0 && !video.paused) {
+        try {
+          const result = await scanFrameForQr(video, canvas);
+          if (result?.data && !isProcessingRef.current && !isCancelled) {
+            handleQrDetectedRef.current(result.data);
+            return;
+          }
+        } catch (scanErr) {
+          console.debug("[Scanner] Frame analysis tick notice:", scanErr);
+        }
+      }
+
+      if (!isCancelled && !isProcessingRef.current) {
+        scanIntervalRef.current = window.setTimeout(pumpNextFrame, 90);
+      }
+    };
+
+    scanIntervalRef.current = window.setTimeout(pumpNextFrame, 120);
+
+    return () => {
+      isCancelled = true;
+      if (scanIntervalRef.current) {
+        window.clearTimeout(scanIntervalRef.current);
+        window.clearInterval(scanIntervalRef.current);
+        scanIntervalRef.current = null;
+      }
+    };
+  }, []);
+
+  // Initialize camera and start video stream
+  const startCamera = useCallback(async () => {
+    stopCamera();
+    isProcessingRef.current = false;
+    setCameraError(null);
+    setStage("STARTING_CAMERA");
+
+    try {
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        setCameraError("Camera access is not supported by your browser on this device.");
+        setStage("CAMERA_ERROR");
+        return;
+      }
+
+      // Elder-friendly camera config: prefers environment (back camera) with sensible fallback
+      const constraints: MediaStreamConstraints = {
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1280, min: 640 },
+          height: { ideal: 720, min: 480 },
+        },
+        audio: false,
+      };
+
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (envErr) {
+        // If ideal environment facing failed (e.g. desktop webcam), try general video
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      }
+
+      // Enable continuous autofocus where hardware supports it
+      try {
+        const [track] = stream.getVideoTracks();
+        if (track) {
+          const capabilities = (track.getCapabilities && track.getCapabilities()) || {};
+          const advanced: any[] = [];
+          if ((capabilities as any).focusMode && (capabilities as any).focusMode.includes("continuous")) {
+            advanced.push({ focusMode: "continuous" });
+          }
+          if (advanced.length > 0) {
+            track.applyConstraints({ advanced }).catch(() => {});
+          }
+        }
+      } catch {}
+
+      streamRef.current = stream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.setAttribute("playsinline", "true");
+        videoRef.current.setAttribute("muted", "true");
+        await videoRef.current.play();
+
+        setStage("SCANNING");
+        startScanLoop();
+      }
+    } catch (err: any) {
+      console.warn("[Scanner] Camera activation error:", err);
+      let readable = "Camera access is needed to scan the family QR code.";
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        readable = "Camera access was denied. Please allow camera permission in your browser to scan the family QR code.";
+      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+        readable = "No camera found on this device. You can also connect using the 6-digit code.";
+      } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+        readable = "Camera is currently busy in another application. Please close other camera apps and try again.";
+      }
+      setCameraError(readable);
+      setStage("CAMERA_ERROR");
+    }
+  }, [stopCamera, startScanLoop]);
 
   // Senior taps "Confirm Connection"
   const handleConfirmConnection = async () => {

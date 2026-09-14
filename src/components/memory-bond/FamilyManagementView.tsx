@@ -24,6 +24,7 @@ import { Switch } from "@/components/ui/switch";
 import type { MemoryBondStore, EmergencyContact, CaregiverLink } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
 import { speakText } from "@/lib/voiceParser";
+import { QRCodeDisplay } from "./QRCodeDisplay";
 
 export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
   const { t } = useI18n();
@@ -121,45 +122,10 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
             </div>
           </div>
 
-          {/* Clean Visual QR Code SVG Representation */}
-          <div className="p-4 rounded-3xl bg-white border-2 border-border shadow-md flex flex-col items-center justify-center text-center">
-            <svg
-              className="w-36 h-36"
-              viewBox="0 0 100 100"
-              fill="currentColor"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              {/* Corner position squares */}
-              <rect x="10" y="10" width="24" height="24" rx="4" fill="#0f172a" />
-              <rect x="14" y="14" width="16" height="16" rx="2" fill="white" />
-              <rect x="18" y="18" width="8" height="8" fill="#0f172a" />
-
-              <rect x="66" y="10" width="24" height="24" rx="4" fill="#0f172a" />
-              <rect x="70" y="14" width="16" height="16" rx="2" fill="white" />
-              <rect x="74" y="18" width="8" height="8" fill="#0f172a" />
-
-              <rect x="10" y="66" width="24" height="24" rx="4" fill="#0f172a" />
-              <rect x="14" y="70" width="16" height="16" rx="2" fill="white" />
-              <rect x="18" y="74" width="8" height="8" fill="#0f172a" />
-
-              {/* Data matrix pattern */}
-              <rect x="40" y="12" width="6" height="6" fill="#0f172a" />
-              <rect x="50" y="12" width="6" height="6" fill="#0f172a" />
-              <rect x="44" y="24" width="8" height="8" fill="#0f172a" />
-              <rect x="40" y="40" width="8" height="8" fill="#0f172a" />
-              <rect x="52" y="40" width="8" height="8" fill="#0f172a" />
-              <rect x="20" y="44" width="6" height="6" fill="#0f172a" />
-              <rect x="70" y="44" width="8" height="8" fill="#0f172a" />
-              <rect x="82" y="44" width="6" height="6" fill="#0f172a" />
-              <rect x="40" y="52" width="8" height="8" fill="#0f172a" />
-              <rect x="52" y="52" width="8" height="8" fill="#0f172a" />
-              <rect x="40" y="68" width="6" height="6" fill="#0f172a" />
-              <rect x="50" y="68" width="6" height="6" fill="#0f172a" />
-              <rect x="44" y="80" width="8" height="8" fill="#0f172a" />
-              <rect x="68" y="68" width="8" height="8" fill="#0f172a" />
-              <rect x="80" y="80" width="8" height="8" fill="#0f172a" />
-            </svg>
-            <span className="text-[10px] font-bold text-slate-800 uppercase tracking-wider mt-1.5">
+          {/* Real Scannable QR Code */}
+          <div className="flex flex-col items-center justify-center text-center p-4 rounded-3xl bg-card border-2 border-border shadow-md shrink-0">
+            <QRCodeDisplay value={store.profile.member_id} size={140} />
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-1.5">
               Scan with Caregiver App
             </span>
           </div>
