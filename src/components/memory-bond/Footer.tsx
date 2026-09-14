@@ -113,28 +113,32 @@ export function Footer({
       </div>
 
       {/* Main Footer Body */}
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 pt-10 pb-8">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 pt-10 pb-20 lg:pb-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-10">
           
           {/* Column 1: Brand, Mission & Hackathon Badges (Span 4) */}
-          <div className="lg:col-span-4 space-y-4">
+          <div className="lg:col-span-4 space-y-3.5">
             <div className="flex items-center gap-3">
               <MemoryBondLogo size="lg" />
+            </div>
+
+            <div className="inline-block px-3 py-1 rounded-full bg-[#E6F0FC] text-[#1E6FD9] text-xs font-black tracking-wide">
+              Together Always
             </div>
 
             <p className="text-sm text-[#627D98] leading-relaxed">
               A serene, accessible digital companion designed with large touch surfaces, gentle memory stimulation, and natural voice guidance to support elders and families facing cognitive decline.
             </p>
 
-            {/* SIH 2026 & Trust Badges */}
-            <div className="pt-2 flex flex-wrap gap-2">
+            {/* Trust Badges */}
+            <div className="pt-1 flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20 text-xs font-bold">
                 <Sparkles className="h-3 w-3 text-teal-500" />
-                Senior Wellness & Care Verified
+                Senior Wellness Verified
               </span>
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 text-primary border border-primary/20 text-xs font-bold">
                 <ShieldCheck className="h-3 w-3 text-primary" />
-                NER Multilingual Support
+                Multilingual Support
               </span>
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 text-xs font-bold">
                 <Radio className="h-3 w-3 text-emerald-500" />
@@ -143,156 +147,161 @@ export function Footer({
             </div>
           </div>
 
-          {/* Column 2: Senior Daily Navigation (Span 3) */}
+          {/* Column 2: Quick Links (Span 3) */}
           <div className="lg:col-span-3 space-y-3">
             <h4 className="text-sm font-extrabold uppercase tracking-wider text-foreground/90 flex items-center gap-2">
               <Heart className="h-4 w-4 text-teal-500" />
-              Senior Companion
+              Quick Links
             </h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
                 <button
+                  type="button"
                   onClick={() => onNavigate("home")}
                   className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-teal-400" />
-                  {t("home") || "Home Dashboard"}
+                  {t("home") || "Home"}
                 </button>
               </li>
               <li>
                 <button
-                  onClick={() => onNavigate("medicines")}
-                  className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
-                >
-                  <Pill className="h-3.5 w-3.5 text-teal-500" />
-                  {t("medicines") || "Medicine Manager & Stock"}
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onNavigate("reminders")}
-                  className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
-                >
-                  <Clock className="h-3.5 w-3.5 text-teal-500" />
-                  {t("reminders") || "Smart Voice Reminders"}
-                </button>
-              </li>
-              <li>
-                <button
+                  type="button"
                   onClick={() => onNavigate("games")}
                   className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
                 >
                   <Gamepad2 className="h-3.5 w-3.5 text-teal-500" />
-                  {t("games") || "10 Cognitive Memory Games"}
+                  {t("games") || "Games"}
                 </button>
               </li>
               <li>
                 <button
+                  type="button"
+                  onClick={() => onNavigate("medicines")}
+                  className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
+                >
+                  <Pill className="h-3.5 w-3.5 text-teal-500" />
+                  {t("medicines") || "Medicines"}
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => onNavigate("appointments")}
+                  className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
+                >
+                  <Calendar className="h-3.5 w-3.5 text-teal-500" />
+                  {t("appointments") || "Appointments"}
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={onOpenVoice}
+                  className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium text-[#1E6FD9] font-bold"
+                >
+                  <Mic className="h-3.5 w-3.5 text-[#1E6FD9]" />
+                  Voice AI
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => onNavigate("family_tree")}
+                  className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
+                >
+                  <Users className="h-3.5 w-3.5 text-rose-500" />
+                  Family Tree
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => onNavigate("journal")}
+                  className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
+                >
+                  <Heart className="h-3.5 w-3.5 text-pink-500" />
+                  Memories
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => onNavigate("routine")}
+                  className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
+                >
+                  <Clock className="h-3.5 w-3.5 text-emerald-500" />
+                  Memory Garden
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
                   onClick={() => onNavigate("cultural")}
                   className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium text-emerald-600 dark:text-emerald-400 font-bold"
                 >
                   <Sparkles className="h-3.5 w-3.5 text-emerald-500" />
-                  North East Heritage Hub (NER)
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onNavigate("social")}
-                  className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium text-rose-600 dark:text-rose-400 font-bold"
-                >
-                  <Heart className="h-3.5 w-3.5 text-rose-500" />
-                  Family Greetings & Audio Feed
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onNavigate("checkin")}
-                  className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
-                >
-                  <Brain className="h-3.5 w-3.5 text-teal-500" />
-                  {t("checkin") || "Cognitive Agility & Baseline Check-in"}
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onNavigate("journal")}
-                  className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
-                >
-                  <Mic className="h-3.5 w-3.5 text-teal-500" />
-                  {t("journal") || "Voice Journal & Audio Notes"}
+                  Cultural Hub
                 </button>
               </li>
             </ul>
           </div>
 
-          {/* Column 3: Caregiver & Family Network (Span 2) */}
+          {/* Column 3: Support (Span 2) */}
           <div className="lg:col-span-2 space-y-3">
             <h4 className="text-sm font-extrabold uppercase tracking-wider text-foreground/90 flex items-center gap-2">
               <Users className="h-4 w-4 text-cyan-500" />
-              Family & Clinical Care
+              Support
             </h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
                 <button
+                  type="button"
                   onClick={() => onNavigate("caregiver")}
                   className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
                 >
                   <Activity className="h-3.5 w-3.5 text-cyan-500" />
-                  {t("caregiverDashboard") || "Caregiver Console"}
+                  {t("caregiverDashboard") || "Caregiver Portal"}
                 </button>
               </li>
               <li>
                 <button
-                  onClick={() => onNavigate("healthcare")}
-                  className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-bold text-teal-600 dark:text-teal-400"
-                >
-                  <Activity className="h-3.5 w-3.5 text-teal-500" />
-                  Healthcare Worker Triage
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onNavigate("routine")}
-                  className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
-                >
-                  <Clock className="h-3.5 w-3.5 text-cyan-500" />
-                  {t("routine") || "Daily Routine Plan"}
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onNavigate("appointments")}
-                  className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
-                >
-                  <Calendar className="h-3.5 w-3.5 text-cyan-500" />
-                  {t("appointments") || "Doctor Appointments"}
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onNavigate("family")}
-                  className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
-                >
-                  <Users className="h-3.5 w-3.5 text-cyan-500" />
-                  {t("family") || "Family Contact Circle"}
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={onOpenAuth}
-                  className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
-                >
-                  <Lock className="h-3.5 w-3.5 text-cyan-500" />
-                  {store.profile.full_name ? "Account Profile" : "Sign In / Evaluator Demo"}
-                </button>
-              </li>
-              <li>
-                <button
+                  type="button"
                   onClick={() => onNavigate("settings")}
                   className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
                 >
                   <Settings className="h-3.5 w-3.5 text-cyan-500" />
-                  {t("settings") || "Settings & Accessibility"}
+                  {t("settings") || "Settings"}
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={onOpenSos}
+                  className="hover:text-[#DC2626] hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-bold text-[#DC2626]"
+                >
+                  <span className="h-2 w-2 rounded-full bg-[#DC2626]" />
+                  SOS Emergency
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={onOpenVoice}
+                  className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
+                >
+                  <LifeBuoy className="h-3.5 w-3.5 text-cyan-500" />
+                  Voice Help & AI
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={onOpenAuth}
+                  className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
+                >
+                  <Lock className="h-3.5 w-3.5 text-cyan-500" />
+                  {store.profile.full_name ? "Account Profile" : "Account Access"}
                 </button>
               </li>
             </ul>

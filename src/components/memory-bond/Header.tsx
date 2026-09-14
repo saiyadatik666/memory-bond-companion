@@ -64,13 +64,14 @@ export function Header({
 
   return (
     <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-[#E8EEF5] px-4 sm:px-6 py-2.5 sm:py-3 transition-colors select-none">
-      <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-3 sm:gap-6">
-        {/* Mobile / Tablet Logo (hidden on large screens because sidebar displays logo) */}
-        <div className="flex items-center gap-2 lg:hidden">
+      <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-2.5 sm:gap-6">
+        {/* Brand Logo visible on all viewports */}
+        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={() => onNavigate(store.profile.role === "caregiver" ? "caregiver" : "home")}
             className="flex items-center cursor-pointer focus-visible:outline-none"
+            aria-label="Memory Bond Home"
           >
             <MemoryBondLogo size="sm" />
           </button>
@@ -95,19 +96,20 @@ export function Header({
         </form>
 
         {/* Right Tools & Navigation Controls matching reference */}
-        <div className="flex items-center gap-2 sm:gap-3 ml-auto">
+        <div className="flex items-center gap-1.5 sm:gap-3 ml-auto shrink-0">
           {/* Language Selector Dropdown (Pill shaped with globe & chevron) */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
-                className="h-10 px-3.5 rounded-full border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] text-[#0F243E] font-bold text-xs sm:text-sm gap-2 shadow-xs cursor-pointer focus-visible:ring-1 focus-visible:ring-[#1E6FD9]"
+                className="h-10 px-2 sm:px-3.5 rounded-full border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] text-[#0F243E] font-bold text-xs sm:text-sm gap-1 sm:gap-2 shadow-xs cursor-pointer focus-visible:ring-1 focus-visible:ring-[#1E6FD9] shrink-0"
                 aria-label="Choose Language"
               >
-                <Globe className="h-4 w-4 text-[#486581]" />
-                <span className="truncate max-w-[90px]">{currentLangObj.label}</span>
-                <ChevronDown className="h-3.5 w-3.5 text-[#829AB1]" />
+                <Globe className="h-4 w-4 text-[#486581] shrink-0" />
+                <span className="hidden sm:inline truncate max-w-[90px]">{currentLangObj.label}</span>
+                <span className="sm:hidden font-mono text-[11px] font-extrabold text-[#1E6FD9]">{currentLangObj.code.toUpperCase()}</span>
+                <ChevronDown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#829AB1] shrink-0" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -188,7 +190,7 @@ export function Header({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="h-10 pl-1 pr-3 rounded-full border border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] flex items-center gap-2.5 transition-colors shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E6FD9]"
+                className="h-10 pl-1 pr-1.5 sm:pr-3 rounded-full border border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] flex items-center gap-1.5 sm:gap-2.5 transition-colors shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E6FD9] shrink-0"
                 aria-label="User Profile"
               >
                 {/* Circular Profile Avatar */}
@@ -199,7 +201,7 @@ export function Header({
                     className="w-full h-full object-cover object-top"
                   />
                 </div>
-                <span className="text-xs sm:text-sm font-bold text-[#0F243E] max-w-[120px] truncate">
+                <span className="hidden sm:inline text-xs sm:text-sm font-bold text-[#0F243E] max-w-[120px] truncate">
                   Hello, {firstName}
                 </span>
                 <ChevronDown className="h-3.5 w-3.5 text-[#829AB1] shrink-0" />

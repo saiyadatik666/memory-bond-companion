@@ -130,11 +130,12 @@ export function MedicineManagerView({ store }: { store: MemoryBondStore }) {
             Track daily doses, stock levels, and automatic 2–3 day refill warnings.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="inline-flex rounded-2xl border border-border bg-card p-1 shadow-xs">
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+          <div className="inline-flex rounded-2xl border border-border bg-card p-1 shadow-xs flex-wrap">
             <button
+              type="button"
               onClick={() => setActiveTab("prescriptions")}
-              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                 activeTab === "prescriptions"
                   ? "bg-primary text-primary-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
@@ -143,19 +144,20 @@ export function MedicineManagerView({ store }: { store: MemoryBondStore }) {
               Prescriptions ({store.medicines.length})
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab("history")}
-              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === "history"
                   ? "bg-primary text-primary-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <History className="h-4 w-4" /> Dose History ({store.medicineLogs.length})
+              <History className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Dose History ({store.medicineLogs.length})
             </button>
           </div>
 
-          <Button onClick={() => setIsAddModalOpen(true)} className="gap-2 font-bold text-base h-12 px-5 rounded-2xl">
-            <Plus className="h-5 w-5" /> Add Medicine
+          <Button onClick={() => setIsAddModalOpen(true)} className="gap-2 font-bold text-xs sm:text-base h-10 sm:h-12 px-4 sm:px-5 rounded-2xl cursor-pointer">
+            <Plus className="h-4 w-4 sm:h-5 sm:w-5" /> Add Medicine
           </Button>
         </div>
       </div>

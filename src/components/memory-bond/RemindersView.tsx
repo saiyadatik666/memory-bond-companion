@@ -259,11 +259,12 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="inline-flex rounded-2xl border border-border bg-card p-1 shadow-xs">
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+          <div className="inline-flex rounded-2xl border border-border bg-card p-1 shadow-xs flex-wrap">
             <button
+              type="button"
               onClick={() => setActiveTab("today")}
-              className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              className={`px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                 activeTab === "today"
                   ? "bg-primary text-primary-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
@@ -272,8 +273,9 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
               Today ({todayReminders.length})
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab("upcoming")}
-              className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              className={`px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                 activeTab === "upcoming"
                   ? "bg-primary text-primary-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
@@ -282,8 +284,9 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
               Upcoming ({upcomingReminders.length})
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab("completed")}
-              className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === "completed"
                   ? "bg-primary text-primary-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
@@ -293,8 +296,8 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
             </button>
           </div>
 
-          <Button onClick={handleOpenAdd} className="gap-2 font-bold text-base h-12 px-6 rounded-2xl cursor-pointer">
-            <Plus className="h-5 w-5" /> New Reminder
+          <Button onClick={handleOpenAdd} className="gap-2 font-bold text-xs sm:text-base h-10 sm:h-12 px-4 sm:px-6 rounded-2xl cursor-pointer">
+            <Plus className="h-4 w-4 sm:h-5 sm:w-5" /> New Reminder
           </Button>
         </div>
       </div>

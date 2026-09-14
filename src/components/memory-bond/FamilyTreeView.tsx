@@ -93,63 +93,67 @@ export function FamilyTreeView({ store, initialTab = "tree" }: FamilyTreeViewPro
         </div>
 
         {/* Navigation Sub-Tabs */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-6 pt-5 border-t border-rose-500/20">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5 mt-6 pt-5 border-t border-rose-500/20">
           <button
+            type="button"
             onClick={() => setActiveTab("tree")}
-            className={`flex items-center justify-center gap-2 py-3 px-4 rounded-2xl font-black text-sm transition-all cursor-pointer ${
+            className={`flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 px-2 sm:px-4 rounded-2xl font-black text-xs sm:text-sm transition-all cursor-pointer ${
               activeTab === "tree"
                 ? "bg-rose-500 text-white shadow-md shadow-rose-500/20"
                 : "bg-card hover:bg-rose-500/10 text-foreground border border-border"
             }`}
           >
-            <Users className="h-4 w-4" />
-            <span>Family Members</span>
-            <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-black/20 text-white font-bold">
+            <Users className="h-4 w-4 shrink-0" />
+            <span className="truncate">Family Members</span>
+            <span className="ml-0.5 sm:ml-1 px-1.5 py-0.5 text-[10px] sm:text-xs rounded-full bg-black/20 text-white font-bold shrink-0">
               {contactsList.length}
             </span>
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab("greetings")}
-            className={`flex items-center justify-center gap-2 py-3 px-4 rounded-2xl font-black text-sm transition-all cursor-pointer ${
+            className={`flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 px-2 sm:px-4 rounded-2xl font-black text-xs sm:text-sm transition-all cursor-pointer ${
               activeTab === "greetings"
                 ? "bg-rose-500 text-white shadow-md shadow-rose-500/20"
                 : "bg-card hover:bg-rose-500/10 text-foreground border border-border"
             }`}
           >
-            <MessageCircle className="h-4 w-4" />
-            <span>Family Greetings</span>
-            <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-black/20 text-white font-bold">
+            <MessageCircle className="h-4 w-4 shrink-0" />
+            <span className="truncate">Greetings</span>
+            <span className="ml-0.5 sm:ml-1 px-1.5 py-0.5 text-[10px] sm:text-xs rounded-full bg-black/20 text-white font-bold shrink-0">
               {socialFeedList.length}
             </span>
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab("cues")}
-            className={`flex items-center justify-center gap-2 py-3 px-4 rounded-2xl font-black text-sm transition-all cursor-pointer ${
+            className={`flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 px-2 sm:px-4 rounded-2xl font-black text-xs sm:text-sm transition-all cursor-pointer ${
               activeTab === "cues"
                 ? "bg-rose-500 text-white shadow-md shadow-rose-500/20"
                 : "bg-card hover:bg-rose-500/10 text-foreground border border-border"
             }`}
           >
-            <HelpCircle className="h-4 w-4" />
-            <span>Memory Cues</span>
-            <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-black/20 text-white font-bold">
+            <Sparkles className="h-4 w-4 shrink-0" />
+            <span className="truncate">Memory Cues</span>
+            <span className="ml-0.5 sm:ml-1 px-1.5 py-0.5 text-[10px] sm:text-xs rounded-full bg-black/20 text-white font-bold shrink-0">
               {cuesList.length}
             </span>
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab("journal")}
-            className={`flex items-center justify-center gap-2 py-3 px-4 rounded-2xl font-black text-sm transition-all cursor-pointer ${
+            className={`flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 px-2 sm:px-4 rounded-2xl font-black text-xs sm:text-sm transition-all cursor-pointer ${
               activeTab === "journal"
                 ? "bg-rose-500 text-white shadow-md shadow-rose-500/20"
                 : "bg-card hover:bg-rose-500/10 text-foreground border border-border"
             }`}
           >
-            <BookOpen className="h-4 w-4" />
-            <span>Cherished Notes</span>
-            <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-black/20 text-white font-bold">
+            <BookOpen className="h-4 w-4 shrink-0" />
+            <span className="truncate">Cherished Notes</span>
+            <span className="ml-0.5 sm:ml-1 px-1.5 py-0.5 text-[10px] sm:text-xs rounded-full bg-black/20 text-white font-bold shrink-0">
               {journalList.length}
             </span>
           </button>

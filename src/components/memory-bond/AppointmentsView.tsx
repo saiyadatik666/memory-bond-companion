@@ -104,9 +104,9 @@ export function AppointmentsView({ store }: { store: MemoryBondStore }) {
         </div>
         <Button
           onClick={() => setIsAddOpen(true)}
-          className="gap-2 font-bold text-base h-12 px-6 rounded-2xl shadow-sm"
+          className="gap-2 font-bold text-xs sm:text-base h-10 sm:h-12 px-4 sm:px-6 rounded-2xl shadow-sm cursor-pointer"
         >
-          <Plus className="h-5 w-5" /> Schedule Appointment
+          <Plus className="h-4 w-4 sm:h-5 sm:w-5" /> Schedule Appointment
         </Button>
       </div>
 

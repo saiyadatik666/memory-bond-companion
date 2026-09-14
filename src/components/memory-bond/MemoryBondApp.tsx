@@ -225,7 +225,7 @@ export function MemoryBondApp() {
   return (
     <SafeRouteErrorBoundary>
       <div
-        className={`min-h-screen overflow-x-hidden bg-background text-foreground flex flex-col justify-between pb-24 ${fontClass} ${
+        className={`min-h-screen overflow-x-clip bg-background text-foreground flex flex-col justify-between ${fontClass} ${
           store.profile.high_contrast ? "high-contrast contrast-boost" : ""
         } ${store.profile.reduced_motion ? "reduced-motion" : ""}`}
       >
@@ -237,7 +237,7 @@ export function MemoryBondApp() {
         onOpenSihDemo={() => setIsSihDemoOpen(true)}
       />
 
-      {/* Main Header */}
+      {/* Main Header — Sticky at the top */}
       <Header
         store={store}
         onOpenVoice={() => setIsVoiceOpen(true)}
@@ -258,8 +258,8 @@ export function MemoryBondApp() {
           onOpenNotifications={() => setIsNotificationsOpen(true)}
         />
 
-        {/* Main View Container with safe clearance */}
-        <main className="flex-1 min-w-0 px-3 sm:px-6 pt-4 pb-24 sm:pb-28 lg:pb-12 animate-in fade-in">
+        {/* Main View Container */}
+        <main id="main-content" className="flex-1 min-w-0 px-3 sm:px-6 pt-4 pb-12 animate-in fade-in">
           {currentTab === "home" && (
             <SeniorHome
               store={store}
@@ -333,7 +333,16 @@ export function MemoryBondApp() {
         </main>
       </div>
 
-      {/* Bottom Navigation */}
+      {/* Shared Global Footer — ONE single source of truth rendered across every normal page */}
+      <Footer
+        store={store}
+        onNavigate={handleNavigate}
+        onOpenSos={handleOpenSos}
+        onOpenVoice={() => setIsVoiceOpen(true)}
+        onOpenAuth={() => setIsAuthOpen(true)}
+      />
+
+      {/* Bottom Navigation for Mobile & Tablet */}
       <BottomNavigation
         currentTab={currentTab}
         onSelectTab={handleNavigate}
@@ -385,17 +394,6 @@ export function MemoryBondApp() {
         onOpenSos={handleOpenSos}
         onOpenMemoryStory={() => setIsMemoryStoryOpen(true)}
       />
-
-      {/* Accessible Footer — Rendered on Home dashboard only, eliminating repeated bottom sections on game and inner activity pages (Requirement 27) */}
-      {currentTab === "home" && (
-        <Footer
-          store={store}
-          onNavigate={handleNavigate}
-          onOpenSos={handleOpenSos}
-          onOpenVoice={() => setIsVoiceOpen(true)}
-          onOpenAuth={() => setIsAuthOpen(true)}
-        />
-      )}
 
       {/* Floating Accessibility Companion Bubble (Android Overlay Simulator) */}
       {store.profile.floating_bubble !== false && (

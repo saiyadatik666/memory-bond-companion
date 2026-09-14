@@ -179,7 +179,7 @@ export function NorthEastCulturalConnect({ store }: { store: MemoryBondStore }) 
           </div>
 
           {/* Mode Switcher */}
-          <div className="flex sm:flex-col gap-2 shrink-0">
+          <div className="flex flex-col sm:flex-row md:flex-col gap-2 shrink-0 w-full sm:w-auto">
             <Button
               variant={activeTab === "explore" ? "default" : "outline"}
               onClick={() => setActiveTab("explore")}

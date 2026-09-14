@@ -332,7 +332,7 @@ export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
           <Button
             size="lg"
             onClick={startRoutineCall}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 font-black rounded-2xl gap-2.5 h-14 px-8 text-base shadow-sm hover:scale-105 transition-all cursor-pointer"
+            className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90 font-black rounded-2xl gap-2.5 h-12 sm:h-14 px-6 sm:px-8 text-sm sm:text-base shadow-sm hover:scale-102 transition-all cursor-pointer"
           >
             <PhoneCall className="h-5 w-5 animate-bounce" />
             {t("startRoutineCall") || "Start Daily Routine Call"}
@@ -341,7 +341,7 @@ export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
       </div>
 
       {/* Routine Timeline Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-secondary/30 p-6">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-secondary/30 p-5 sm:p-6">
         <div>
           <h3 className="text-xl sm:text-2xl font-black text-foreground flex items-center gap-2.5">
             <Sun className="h-7 w-7 text-primary" /> Visual Routine Schedule
@@ -350,11 +350,11 @@ export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
             Structured rhythm of the day with large icons and clear progress tracking.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="rounded-2xl bg-card border border-border px-4 py-2 font-bold shadow-xs text-sm">
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+          <span className="rounded-2xl bg-card border border-border px-3 sm:px-4 py-2 font-bold shadow-xs text-xs sm:text-sm">
             Today: {completedCount} / {store.routines.length} Done
           </span>
-          <Button onClick={() => setIsAddOpen(true)} className="gap-2 font-bold text-sm h-11 px-5 rounded-2xl">
+          <Button onClick={() => setIsAddOpen(true)} className="gap-2 font-bold text-xs sm:text-sm h-10 sm:h-11 px-4 sm:px-5 rounded-2xl cursor-pointer">
             <Plus className="h-4 w-4" /> Add Routine
           </Button>
         </div>
