@@ -107,7 +107,7 @@ export function DesktopSidebar({
           <div className="flex items-center gap-2">
             <MemoryBondLogo variant="icon" size="xs" />
             <span className="text-[11px] font-black uppercase tracking-wider text-[#486581]">
-              {role === "caregiver" ? "Caregiver Portal" : "Senior Companion"}
+              Memory Bond • {role === "caregiver" ? "Caregiver" : "Senior"}
             </span>
           </div>
           <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" title="System Live" />

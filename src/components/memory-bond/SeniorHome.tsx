@@ -475,8 +475,8 @@ export function SeniorHome({
               </span>
             </div>
 
-            {/* EXACT 4 x 2 Grid across desktop, tablet and mobile */}
-            <div className="grid grid-cols-4 gap-1.5 xs:gap-2.5 sm:gap-3.5 md:gap-4 w-full">
+            {/* Responsive arrangement: 2x4 on mobile for elder touch comfort, exact 4x2 on tablet/desktop */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 xs:gap-3 sm:gap-3.5 md:gap-4 w-full">
               {quickAccessItems.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -485,7 +485,7 @@ export function SeniorHome({
                     type="button"
                     onClick={item.onClick}
                     aria-label={`${item.title}: ${item.desc}`}
-                    className={`group p-2.5 xs:p-3 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border ${item.cardBorder} ${item.hoverBg} text-left transition-all duration-200 cursor-pointer flex flex-col justify-between shadow-[0_2px_12px_-2px_rgba(15,36,62,0.04)] hover:shadow-md hover:-translate-y-0.5 active:scale-96 select-none min-w-0 w-full overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E6FD9] min-h-[120px] xs:min-h-[126px] sm:min-h-[136px] md:min-h-[146px]`}
+                    className={`group p-3 xs:p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border ${item.cardBorder} ${item.hoverBg} text-left transition-all duration-200 cursor-pointer flex flex-col justify-between shadow-[0_2px_12px_-2px_rgba(15,36,62,0.04)] hover:shadow-md hover:-translate-y-0.5 active:scale-96 select-none min-w-0 w-full overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E6FD9] min-h-[112px] xs:min-h-[120px] sm:min-h-[136px] md:min-h-[146px]`}
                   >
                     {/* Top Row: Icon Container + Tap Indicator Arrow */}
                     <div className="flex items-center justify-between w-full">
@@ -499,10 +499,10 @@ export function SeniorHome({
 
                     {/* Bottom Area: Title + Description with comfortable elder-friendly spacing */}
                     <div className="w-full min-w-0 mt-2 sm:mt-2.5">
-                      <div className="text-[11.5px] xs:text-[12.5px] sm:text-sm md:text-base font-black text-[#0F243E] font-display leading-[1.18] tracking-tight">
+                      <div className="text-xs xs:text-sm sm:text-sm md:text-base font-black text-[#0F243E] font-display leading-[1.2] tracking-tight">
                         {item.title}
                       </div>
-                      <p className="text-[9.5px] xs:text-[10px] sm:text-[11px] md:text-xs text-[#627D98] font-semibold mt-1 leading-[1.25] line-clamp-2">
+                      <p className="text-[10px] xs:text-[11px] sm:text-[11px] md:text-xs text-[#627D98] font-semibold mt-1 leading-[1.25] line-clamp-2">
                         {item.desc}
                       </p>
                     </div>

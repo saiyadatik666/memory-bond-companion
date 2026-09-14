@@ -63,8 +63,8 @@ export function Header({
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-[#E8EEF5] px-4 sm:px-6 py-2.5 sm:py-3 transition-colors select-none">
-      <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-2.5 sm:gap-6">
+    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-[#E8EEF5] px-3 sm:px-6 py-2 sm:py-2.5 transition-colors select-none">
+      <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-2 sm:gap-6">
         {/* Brand Logo visible on all viewports */}
         <div className="flex items-center gap-2 shrink-0">
           <button
@@ -90,20 +90,20 @@ export function Header({
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search anything..."
               aria-label="Search activities, medicines, family or voice topics"
-              className="w-full h-10 pl-11 pr-4 rounded-full bg-[#F4F8FD] border border-[#E2EAF5] text-sm font-semibold text-[#0F243E] placeholder-[#829AB1] focus:outline-none focus:border-[#1E6FD9] focus:bg-white focus:ring-2 focus:ring-[#1E6FD9]/15 transition-all shadow-xs"
+              className="w-full h-9 sm:h-10 pl-11 pr-4 rounded-full bg-[#F4F8FD] border border-[#E2EAF5] text-sm font-semibold text-[#0F243E] placeholder-[#829AB1] focus:outline-none focus:border-[#1E6FD9] focus:bg-white focus:ring-2 focus:ring-[#1E6FD9]/15 transition-all shadow-xs"
             />
           </div>
         </form>
 
         {/* Right Tools & Navigation Controls matching reference */}
-        <div className="flex items-center gap-1.5 sm:gap-3 ml-auto shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 md:gap-3 ml-auto shrink-0">
           {/* Language Selector Dropdown (Pill shaped with globe & chevron) */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
-                className="h-10 px-2 sm:px-3.5 rounded-full border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] text-[#0F243E] font-bold text-xs sm:text-sm gap-1 sm:gap-2 shadow-xs cursor-pointer focus-visible:ring-1 focus-visible:ring-[#1E6FD9] shrink-0"
+                className="h-9 sm:h-10 px-2 sm:px-3.5 rounded-full border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] text-[#0F243E] font-bold text-xs sm:text-sm gap-1 sm:gap-2 shadow-xs cursor-pointer focus-visible:ring-1 focus-visible:ring-[#1E6FD9] shrink-0"
                 aria-label="Choose Language"
               >
                 <Globe className="h-4 w-4 text-[#486581] shrink-0" />
@@ -175,13 +175,13 @@ export function Header({
           <button
             type="button"
             onClick={onOpenNotifications}
-            className="relative w-10 h-10 rounded-full border border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] text-[#486581] hover:text-[#0F243E] flex items-center justify-center transition-colors shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E6FD9]"
+            className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] text-[#486581] hover:text-[#0F243E] flex items-center justify-center transition-colors shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E6FD9] shrink-0"
             aria-label="View Notifications"
             title="Notifications"
           >
             <Bell className="h-4 w-4" />
             {unreadCount > 0 && (
-              <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-[#EF4444] ring-2 ring-white" />
+              <span className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-2.5 h-2.5 rounded-full bg-[#EF4444] ring-2 ring-white" />
             )}
           </button>
 
@@ -190,21 +190,21 @@ export function Header({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="h-10 pl-1 pr-1.5 sm:pr-3 rounded-full border border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] flex items-center gap-1.5 sm:gap-2.5 transition-colors shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E6FD9] shrink-0"
+                className="h-9 sm:h-10 pl-1 pr-1.5 sm:pr-3 rounded-full border border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] flex items-center gap-1.5 sm:gap-2.5 transition-colors shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E6FD9] shrink-0"
                 aria-label="User Profile"
               >
                 {/* Circular Profile Avatar */}
-                <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-[#E2EAF5] bg-[#EBF3FC]">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full overflow-hidden shrink-0 border border-[#E2EAF5] bg-[#EBF3FC]">
                   <img
                     src="/images/family_memory_hero.jpg"
                     alt={userDisplayName}
                     className="w-full h-full object-cover object-top"
                   />
                 </div>
-                <span className="hidden sm:inline text-xs sm:text-sm font-bold text-[#0F243E] max-w-[120px] truncate">
+                <span className="hidden md:inline text-xs sm:text-sm font-bold text-[#0F243E] max-w-[120px] truncate">
                   Hello, {firstName}
                 </span>
-                <ChevronDown className="h-3.5 w-3.5 text-[#829AB1] shrink-0" />
+                <ChevronDown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#829AB1] shrink-0" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent

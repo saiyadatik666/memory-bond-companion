@@ -441,7 +441,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
         <div className="w-full max-w-xl rounded-3xl bg-white border border-sky-100 shadow-xl p-6 sm:p-10 space-y-7">
           <div className="text-center space-y-2">
             <div className="flex justify-center pb-1">
-              <MemoryBondLogo variant="icon" size="sm" />
+              <MemoryBondLogo variant="horizontal" size="sm" />
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-foreground font-display">
               What is your role?

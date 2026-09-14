@@ -101,11 +101,8 @@ export function SeniorInterestsScreen({
             <span>{texts.backBtn}</span>
           </button>
 
-          <div className="flex items-center gap-2.5">
-            <MemoryBondLogo variant="icon" size="sm" />
-            <span className="font-extrabold text-foreground text-sm sm:text-base hidden xs:inline font-display">
-              Memory Bond
-            </span>
+          <div className="flex items-center gap-2">
+            <MemoryBondLogo variant="horizontal" size="sm" />
           </div>
 
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-secondary text-primary font-black text-xs sm:text-sm">

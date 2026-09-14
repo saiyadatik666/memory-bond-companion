@@ -31,16 +31,16 @@ export function MemoryBondLogo({
     size === "xs"
       ? "h-6"
       : size === "sm"
-      ? "h-8 sm:h-9"
+      ? "h-7 sm:h-8"
       : size === "default"
-      ? "h-10 sm:h-11 md:h-12"
+      ? "h-8 sm:h-9 md:h-10"
       : size === "md"
-      ? "h-11 sm:h-12 md:h-13"
+      ? "h-10 sm:h-11 md:h-12"
       : size === "lg"
-      ? "h-13 sm:h-16"
+      ? "h-12 sm:h-14 md:h-16"
       : size === "xl"
-      ? "h-18 sm:h-24"
-      : "h-24 sm:h-32 md:h-36";
+      ? "h-16 sm:h-20 md:h-24"
+      : "h-20 sm:h-28 md:h-32";
 
   // Dimensions for icon-only (aspect ratio ~1:1)
   const iconDimensions =
@@ -74,25 +74,17 @@ export function MemoryBondLogo({
       ? "h-36 sm:h-44"
       : "h-44 sm:h-52";
 
-  // Variant 1: Responsive Logo (Icon on mobile < sm, Full Horizontal on sm+)
+  // Variant 1: Responsive Logo (Shows emblem + official "Memory Bond" brand text across all viewports)
   if (variant === "responsive") {
     return (
       <div className={`inline-flex items-center select-none ${className}`}>
-        {/* Mobile: Compact Official Icon only (Prevents squeezing on 360px-430px) */}
-        <img
-          src="/images/brand/logo_icon.png"
-          alt={alt}
-          loading={priority ? "eager" : "lazy"}
-          decoding="async"
-          className={`block sm:hidden ${iconDimensions} object-contain shrink-0 drop-shadow-2xs transition-transform hover:scale-105`}
-        />
-        {/* Tablet / Desktop: Full Primary Horizontal Logo */}
+        {/* Official Primary Horizontal Logo: emblem + "Memory Bond" wordmark visible on mobile, tablet & desktop */}
         <img
           src="/images/brand/logo_horizontal.png"
           alt={alt}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
-          className={`hidden sm:block ${horizontalHeight} w-auto object-contain shrink-0 drop-shadow-2xs transition-transform hover:scale-102`}
+          className={`${horizontalHeight} w-auto object-contain shrink-0 drop-shadow-2xs transition-transform hover:scale-102`}
         />
       </div>
     );

@@ -221,6 +221,12 @@
     border-color: var(--color-border);
   }
 
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
   body {
     background: var(--bg-ambient);
     background-attachment: fixed;
