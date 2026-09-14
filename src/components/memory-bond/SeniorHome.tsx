@@ -439,7 +439,7 @@ export function SeniorHome({
             </div>
 
             {/* EXACT 4 x 2 Grid across desktop, tablet and mobile */}
-            <div className="grid grid-cols-4 gap-2 sm:gap-3.5 md:gap-4 w-full">
+            <div className="grid grid-cols-4 gap-1.5 xs:gap-2.5 sm:gap-3.5 md:gap-4 w-full">
               {quickAccessItems.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -448,22 +448,24 @@ export function SeniorHome({
                     type="button"
                     onClick={item.onClick}
                     aria-label={`${item.title}: ${item.desc}`}
-                    className={`group p-2.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border ${item.cardBorder} ${item.hoverBg} text-left transition-all duration-200 cursor-pointer flex flex-col justify-between shadow-[0_2px_10px_-2px_rgba(15,36,62,0.03)] hover:shadow-md hover:-translate-y-0.5 active:scale-97 select-none min-w-0 w-full overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E6FD9] min-h-[96px] sm:min-h-[128px] md:min-h-[138px]`}
+                    className={`group p-2.5 xs:p-3 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border ${item.cardBorder} ${item.hoverBg} text-left transition-all duration-200 cursor-pointer flex flex-col justify-between shadow-[0_2px_12px_-2px_rgba(15,36,62,0.04)] hover:shadow-md hover:-translate-y-0.5 active:scale-96 select-none min-w-0 w-full overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E6FD9] min-h-[120px] xs:min-h-[126px] sm:min-h-[136px] md:min-h-[146px]`}
                   >
+                    {/* Top Row: Icon Container + Tap Indicator Arrow */}
                     <div className="flex items-center justify-between w-full">
                       <div
-                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl ${item.iconBg} flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform shrink-0`}
+                        className={`w-9 h-9 xs:w-10 xs:h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl ${item.iconBg} flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform shrink-0`}
                       >
-                        <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <Icon className="h-4.5 w-4.5 xs:h-5 xs:h-5 sm:h-5.5 sm:w-5.5" />
                       </div>
-                      <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#829AB1] group-hover:text-[#0F243E] group-hover:translate-x-0.5 transition-all shrink-0 hidden sm:block" />
+                      <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#829AB1]/70 group-hover:text-[#0F243E] group-hover:translate-x-0.5 transition-all shrink-0" />
                     </div>
 
-                    <div className="w-full min-w-0 mt-1.5 sm:mt-2.5">
-                      <div className="text-[11px] sm:text-sm md:text-base font-black text-[#0F243E] font-display leading-tight truncate">
+                    {/* Bottom Area: Title + Description with comfortable elder-friendly spacing */}
+                    <div className="w-full min-w-0 mt-2 sm:mt-2.5">
+                      <div className="text-[11.5px] xs:text-[12.5px] sm:text-sm md:text-base font-black text-[#0F243E] font-display leading-[1.18] tracking-tight">
                         {item.title}
                       </div>
-                      <p className="text-[9px] sm:text-[11px] md:text-xs text-[#627D98] font-semibold mt-0.5 leading-tight truncate hidden xs:block sm:block">
+                      <p className="text-[9.5px] xs:text-[10px] sm:text-[11px] md:text-xs text-[#627D98] font-semibold mt-1 leading-[1.25] line-clamp-2">
                         {item.desc}
                       </p>
                     </div>
