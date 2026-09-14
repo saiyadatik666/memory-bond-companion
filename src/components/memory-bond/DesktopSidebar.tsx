@@ -102,11 +102,14 @@ export function DesktopSidebar({
       className="hidden lg:flex flex-col w-64 xl:w-72 shrink-0 bg-white/95 backdrop-blur-md border-r border-[#E8EEF5] sticky top-14 sm:top-16 h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-4rem)] overflow-y-auto px-4 py-4 shadow-[2px_0_16px_rgba(15,36,62,0.02)] z-20 justify-between select-none"
     >
       <div>
-        {/* Navigation Category Header */}
+        {/* Navigation Category Header with Official Brand Icon */}
         <div className="px-3 pb-3 pt-1 flex items-center justify-between">
-          <span className="text-[11px] font-black uppercase tracking-wider text-[#829AB1]">
-            {role === "caregiver" ? "Caregiver Portal" : "Senior Companion"}
-          </span>
+          <div className="flex items-center gap-2">
+            <MemoryBondLogo variant="icon" size="xs" />
+            <span className="text-[11px] font-black uppercase tracking-wider text-[#486581]">
+              {role === "caregiver" ? "Caregiver Portal" : "Senior Companion"}
+            </span>
+          </div>
           <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" title="System Live" />
         </div>
 

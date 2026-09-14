@@ -73,7 +73,7 @@ export function Header({
             className="flex items-center cursor-pointer focus-visible:outline-none"
             aria-label="Memory Bond Home"
           >
-            <MemoryBondLogo size="sm" />
+            <MemoryBondLogo variant="responsive" size="default" />
           </button>
         </div>
 

@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import type { MemoryBondStore, UserRole } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
+import { MemoryBondLogo } from "./MemoryBondLogo";
 
 export function AuthModal({
   isOpen,
@@ -213,8 +214,8 @@ export function AuthModal({
 
         {/* Header */}
         <div className="text-center space-y-2">
-          <div className="mx-auto w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-xs">
-            <ShieldCheck className="h-7 w-7" />
+          <div className="flex justify-center pb-1">
+            <MemoryBondLogo variant="horizontal" size="default" />
           </div>
           <h3 className="text-2xl font-black text-foreground">
             {mode === "signin"

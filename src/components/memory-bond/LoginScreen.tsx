@@ -292,19 +292,16 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
     return (
       <div className="min-h-screen bg-ambient flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
         <div className="w-full max-w-lg rounded-3xl bg-white border border-[#E2EAF5] shadow-xl p-7 sm:p-10 text-center space-y-7">
-          {/* Memory Bond Logo with Soft Glow */}
-          <div className="flex justify-center">
-            <MemoryBondLogo size="lg" showText={false} />
+          {/* Memory Bond Official Logo with Generous Whitespace */}
+          <div className="flex justify-center pt-2">
+            <MemoryBondLogo variant="stacked" size="lg" />
           </div>
 
-          {/* Title & Tagline */}
+          {/* Tagline & Badge */}
           <div className="space-y-2.5">
             <span className="text-xs uppercase tracking-widest font-black text-[#1E6FD9] bg-[#E0F2FE] px-4 py-1.5 rounded-full border border-[#BAE6FD]">
               Care Companion
             </span>
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-[#0F243E] font-display">
-              Memory Bond
-            </h1>
             <p className="text-base sm:text-lg font-bold text-[#627D98] max-w-sm mx-auto leading-relaxed">
               Warm like family. Calm like a companion.
             </p>
@@ -560,6 +557,9 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
               <ArrowLeft className="h-5 w-5" />
             </button>
             <div className="text-center">
+              <div className="flex justify-center pb-1">
+                <MemoryBondLogo variant="horizontal" size="sm" />
+              </div>
               <h2 className="text-xl font-black text-foreground font-display">{labels.title}</h2>
               <p className="text-xs text-muted-foreground font-medium">{labels.subtitle}</p>
             </div>
@@ -699,6 +699,9 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="text-center">
+            <div className="flex justify-center pb-1">
+              <MemoryBondLogo variant="horizontal" size="sm" />
+            </div>
             <h2 className="text-xl font-black text-foreground font-display">Caregiver & Family</h2>
             <p className="text-xs text-muted-foreground font-medium">Sign in to manage and assist your senior</p>
           </div>

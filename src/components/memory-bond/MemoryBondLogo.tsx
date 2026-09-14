@@ -1,76 +1,152 @@
 import React from "react";
 
+export type MemoryBondLogoVariant =
+  | "horizontal"
+  | "icon"
+  | "stacked"
+  | "app-icon"
+  | "responsive";
+
+export type MemoryBondLogoSize = "xs" | "sm" | "default" | "md" | "lg" | "xl" | "hero";
+
+export interface MemoryBondLogoProps {
+  className?: string;
+  variant?: MemoryBondLogoVariant;
+  size?: MemoryBondLogoSize;
+  showText?: boolean;
+  alt?: string;
+  priority?: boolean;
+}
+
 export function MemoryBondLogo({
   className = "",
+  variant = "horizontal",
   size = "default",
   showText = true,
-}: {
-  className?: string;
-  size?: "sm" | "default" | "lg";
-  showText?: boolean;
-}) {
-  const iconSize = size === "sm" ? "w-8 h-8" : size === "lg" ? "w-11 h-11" : "w-9 h-9";
-  const textSize = size === "sm" ? "text-base" : size === "lg" ? "text-xl" : "text-lg";
+  alt = "Memory Bond",
+  priority = true,
+}: MemoryBondLogoProps) {
+  // Height constraints per size for horizontal logo (aspect ratio ~2.71:1)
+  const horizontalHeight =
+    size === "xs"
+      ? "h-6"
+      : size === "sm"
+      ? "h-8 sm:h-9"
+      : size === "default" || size === "md"
+      ? "h-9 sm:h-10"
+      : size === "lg"
+      ? "h-12 sm:h-14"
+      : size === "xl"
+      ? "h-16 sm:h-20"
+      : "h-20 sm:h-24 md:h-28";
 
+  // Dimensions for icon-only (aspect ratio ~1:1)
+  const iconDimensions =
+    size === "xs"
+      ? "h-6 w-6"
+      : size === "sm"
+      ? "h-8 w-8"
+      : size === "default" || size === "md"
+      ? "h-10 w-10"
+      : size === "lg"
+      ? "h-12 w-12 sm:h-14 sm:w-14"
+      : size === "xl"
+      ? "h-16 w-16 sm:h-20 sm:w-20"
+      : "h-20 w-20 sm:h-24 sm:w-24";
+
+  // Dimensions for stacked logo (aspect ratio ~0.93:1)
+  const stackedHeight =
+    size === "xs"
+      ? "h-12"
+      : size === "sm"
+      ? "h-16"
+      : size === "default" || size === "md"
+      ? "h-20 sm:h-24"
+      : size === "lg"
+      ? "h-24 sm:h-28"
+      : size === "xl"
+      ? "h-32 sm:h-36"
+      : "h-40 sm:h-48";
+
+  // Variant 1: Responsive Logo (Icon on mobile < sm, Full Horizontal on sm+)
+  if (variant === "responsive") {
+    return (
+      <div className={`inline-flex items-center select-none ${className}`}>
+        {/* Mobile: Compact Official Icon only (Prevents squeezing on 360px-430px) */}
+        <img
+          src="/images/brand/logo_icon.png"
+          alt={alt}
+          loading={priority ? "eager" : "lazy"}
+          decoding="async"
+          className={`block sm:hidden ${iconDimensions} object-contain shrink-0 drop-shadow-2xs transition-transform hover:scale-105`}
+        />
+        {/* Tablet / Desktop: Full Primary Horizontal Logo */}
+        <img
+          src="/images/brand/logo_horizontal.png"
+          alt={alt}
+          loading={priority ? "eager" : "lazy"}
+          decoding="async"
+          className={`hidden sm:block ${horizontalHeight} w-auto object-contain shrink-0 drop-shadow-2xs transition-transform hover:scale-102`}
+        />
+      </div>
+    );
+  }
+
+  // Variant 2: Icon Only (Heart + 2 figures + Neural Brain Emblem)
+  if (variant === "icon" || !showText) {
+    return (
+      <div className={`inline-flex items-center justify-center select-none ${className}`}>
+        <img
+          src="/images/brand/logo_icon.png"
+          alt={alt}
+          loading={priority ? "eager" : "lazy"}
+          decoding="async"
+          className={`${iconDimensions} object-contain shrink-0 drop-shadow-2xs transition-transform hover:scale-105`}
+        />
+      </div>
+    );
+  }
+
+  // Variant 3: Stacked Logo (Icon centered above wordmark)
+  if (variant === "stacked") {
+    return (
+      <div className={`inline-flex items-center justify-center select-none ${className}`}>
+        <img
+          src="/images/brand/logo_stacked.png"
+          alt={alt}
+          loading={priority ? "eager" : "lazy"}
+          decoding="async"
+          className={`${stackedHeight} w-auto object-contain shrink-0 drop-shadow-2xs transition-transform hover:scale-102`}
+        />
+      </div>
+    );
+  }
+
+  // Variant 4: App Icon (in soft squircle)
+  if (variant === "app-icon") {
+    return (
+      <div className={`inline-flex items-center justify-center select-none ${className}`}>
+        <img
+          src="/images/brand/logo_app_icon.png"
+          alt={alt}
+          loading={priority ? "eager" : "lazy"}
+          decoding="async"
+          className={`${iconDimensions} object-contain shrink-0 drop-shadow-sm transition-transform hover:scale-105`}
+        />
+      </div>
+    );
+  }
+
+  // Variant 5 (Default): Primary Horizontal Official Logo
   return (
-    <div className={`flex items-center gap-2.5 select-none ${className}`}>
-      {/* Curved organic heart emblem matching reference image */}
-      <svg
-        viewBox="0 0 100 100"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className={`${iconSize} shrink-0 drop-shadow-xs transition-transform hover:scale-105`}
-        aria-hidden="true"
-      >
-        <defs>
-          <linearGradient id="mb-leaf-green" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#10B981" />
-            <stop offset="100%" stopColor="#059669" />
-          </linearGradient>
-          <linearGradient id="mb-heart-blue" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#0284C7" />
-            <stop offset="100%" stopColor="#2563EB" />
-          </linearGradient>
-          <linearGradient id="mb-heart-cyan" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#06B6D4" />
-            <stop offset="100%" stopColor="#0284C7" />
-          </linearGradient>
-        </defs>
-
-        {/* Left Green Leaf / Guardian Figure */}
-        <path
-          d="M 50 82 C 34 72 15 56 15 36 C 15 22 26 12 39 12 C 45 12 48 15 50 18 C 47 27 45 38 48 50 C 50 60 52 70 50 82 Z"
-          fill="url(#mb-leaf-green)"
-        />
-
-        {/* Right Sky Blue Wing / Care Wing */}
-        <path
-          d="M 50 82 C 66 72 85 56 85 36 C 85 22 74 12 61 12 C 55 12 52 15 50 18 C 53 27 55 38 52 50 C 50 60 48 70 50 82 Z"
-          fill="url(#mb-heart-blue)"
-        />
-
-        {/* Inner Gentle Soul / Embracing Family Core */}
-        <circle cx="39" cy="30" r="5" fill="#FFFFFF" fillOpacity="0.9" />
-        <circle cx="61" cy="30" r="5" fill="#FFFFFF" fillOpacity="0.9" />
-        <path
-          d="M 33 46 C 35 39 43 39 45 46 C 45 52 35 56 33 46 Z"
-          fill="#FFFFFF"
-          fillOpacity="0.85"
-        />
-        <path
-          d="M 55 46 C 57 39 65 39 67 46 C 67 52 57 56 55 46 Z"
-          fill="#FFFFFF"
-          fillOpacity="0.85"
-        />
-      </svg>
-
-      {showText && (
-        <span
-          className={`font-black tracking-tight text-[#0F243E] font-display ${textSize} leading-none`}
-        >
-          Memory Bond
-        </span>
-      )}
+    <div className={`inline-flex items-center select-none ${className}`}>
+      <img
+        src="/images/brand/logo_horizontal.png"
+        alt={alt}
+        loading={priority ? "eager" : "lazy"}
+        decoding="async"
+        className={`${horizontalHeight} w-auto object-contain shrink-0 drop-shadow-2xs transition-transform hover:scale-102`}
+      />
     </div>
   );
 }
