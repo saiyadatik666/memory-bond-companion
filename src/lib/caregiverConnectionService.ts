@@ -32,6 +32,7 @@ export interface ConnectionResult {
   success: boolean;
   code: string;
   caregiverName: string;
+  caregiverRelationship?: string;
   caregiverPhone?: string;
   alreadyConnected?: boolean;
   error?: string;
@@ -80,18 +81,28 @@ export const CONNECTION_MESSAGES: Record<
   },
 };
 
+export interface ExtractedCaregiverCode {
+  code: string | null;
+  caregiverName?: string;
+  relationship?: string;
+  phone?: string;
+  expires?: number;
+}
+
+export interface ResolvedCaregiverProfile {
+  name: string;
+  relationship: string;
+  phone: string;
+}
+
 /**
  * Extract and normalize caregiver code from any source:
  * - Direct text: "MB-CG-781042"
  * - Raw digits: "781042" -> "MB-CG-781042"
- * - JSON payload: {"code": "MB-CG-781042", "name": "Sunita", "expires": 1789277083909}
+ * - JSON payload: {"code": "MB-CG-781042", "name": "Rahul", "relationship": "Son", "expires": 1789277083909}
  * - URL fragment or query: "?link=MB-CG-781042" or "#link=MB-CG-781042"
  */
-export function extractAndNormalizeCaregiverCode(input: string): {
-  code: string | null;
-  caregiverName?: string;
-  expires?: number;
-} {
+export function extractAndNormalizeCaregiverCode(input: string): ExtractedCaregiverCode {
   if (!input || typeof input !== "string") {
     return { code: null };
   }
@@ -106,6 +117,8 @@ export function extractAndNormalizeCaregiverCode(input: string): {
         return {
           code: extracted,
           caregiverName: parsed.name || parsed.caregiverName,
+          relationship: parsed.relationship || parsed.relation,
+          phone: parsed.phone,
           expires: parsed.expires ? Number(parsed.expires) : undefined,
         };
       }
@@ -152,17 +165,38 @@ export function validateCaregiverCodeFormat(code: string): boolean {
 }
 
 /**
- * Resolve Caregiver display name based on code or known demo registry
+ * Resolve Caregiver display name and relationship based on code or known demo registry
  */
-export function resolveCaregiverProfile(code: string): { name: string; phone: string } {
+export function resolveCaregiverProfile(
+  code: string,
+  hintName?: string,
+  hintRelationship?: string
+): ResolvedCaregiverProfile {
   const upper = code.toUpperCase();
 
-  // Known demo pairing codes
+  // If hints were embedded directly in QR code
+  if (hintName && hintRelationship) {
+    return {
+      name: hintName,
+      relationship: hintRelationship,
+      phone: "+91 98765 43210",
+    };
+  }
+
+  // Known pairing codes
   if (upper === "MB-CG-781042") {
-    return { name: "Sunita Sharma (Daughter)", phone: "+91 98765 43210" };
+    return {
+      name: hintName || "Sunita Sharma",
+      relationship: hintRelationship || "Daughter / Primary Caregiver",
+      phone: "+91 98765 43210",
+    };
   }
   if (upper === "MB-CAREGIVER-2026") {
-    return { name: "Dr. Rajesh Sharma (Son)", phone: "+91 98765 12345" };
+    return {
+      name: hintName || "Rahul Sharma",
+      relationship: hintRelationship || "Son",
+      phone: "+91 98765 43211",
+    };
   }
 
   // Check if this browser has an active caregiver session with this code
@@ -171,7 +205,11 @@ export function resolveCaregiverProfile(code: string): { name: string; phone: st
     if (activeSessionStr) {
       const active = JSON.parse(activeSessionStr);
       if (active.caregiverCode === upper && active.fullName) {
-        return { name: active.fullName, phone: active.phone || "+91 98765 43210" };
+        return {
+          name: active.fullName,
+          relationship: active.relationship || hintRelationship || "Family Caregiver",
+          phone: active.phone || "+91 98765 43210",
+        };
       }
     }
   } catch {}
@@ -179,12 +217,21 @@ export function resolveCaregiverProfile(code: string): { name: string; phone: st
   // Check saved caregiver name
   try {
     const savedName = localStorage.getItem(`mb_cg_name_${upper}`);
+    const savedRel = localStorage.getItem(`mb_cg_rel_${upper}`);
     if (savedName) {
-      return { name: savedName, phone: "+91 98765 43210" };
+      return {
+        name: savedName,
+        relationship: savedRel || hintRelationship || "Family Caregiver",
+        phone: "+91 98765 43210",
+      };
     }
   } catch {}
 
-  return { name: "Family Caregiver", phone: "+91 98765 43210" };
+  return {
+    name: hintName || "Family Caregiver",
+    relationship: hintRelationship || "Family Member",
+    phone: "+91 98765 43210",
+  };
 }
 
 /**
@@ -422,6 +469,7 @@ export async function connectSeniorToCaregiver(params: ConnectionParams): Promis
     success: true,
     code: normalizedCode,
     caregiverName,
+    caregiverRelationship: resolvedCaregiver.relationship,
     caregiverPhone,
     alreadyConnected: false,
     databasePersisted,

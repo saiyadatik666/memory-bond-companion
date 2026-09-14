@@ -675,10 +675,14 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
         <QRScannerModal
           isOpen={isScannerOpen}
           onClose={() => setIsScannerOpen(false)}
+          store={store}
+          seniorName={seniorName.trim() || store.profile.full_name || "Ramesh Sharma"}
           onScan={(scanned) => {
-            setIsScannerOpen(false);
             setConnectionCode(scanned);
-            handleVerifyAndLinkSenior(scanned);
+          }}
+          onSuccess={() => {
+            setIsScannerOpen(false);
+            onAuthenticated("senior");
           }}
           expectedCodeHint={localStorage.getItem("mb_caregiver_unique_code") || "MB-CG-781042"}
           alreadyLinkedCode={localStorage.getItem("mb_linked_caregiver_code") || undefined}
