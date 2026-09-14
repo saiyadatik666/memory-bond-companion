@@ -1,45 +1,33 @@
 import { useState, useEffect } from "react";
 import {
-  Sun,
-  Pill,
-  Bell,
   Gamepad2,
-  HelpCircle,
-  Mic,
-  Users,
-  AlertOctagon,
-  Clock,
+  Pill,
   Calendar,
-  AlertTriangle,
-  CheckCircle2,
-  Sparkles,
-  ChevronRight,
-  ClipboardCheck,
-  Volume2,
-  Sliders,
-  Check,
-  HeartHandshake,
-  Footprints,
-  Compass,
-  MessageCircle,
-  Droplets,
-  ShieldCheck,
-  WifiOff,
+  Users,
+  Mic,
   Heart,
-  Bot,
-  ShoppingBag,
   Leaf,
-  BookOpen,
+  Compass,
+  ShieldAlert,
+  ChevronRight,
+  CheckCircle2,
+  Circle,
   ArrowRight,
-  PhoneCall,
-  Activity,
+  Volume2,
+  WifiOff,
+  AlertTriangle,
+  Sparkles,
+  Sun,
+  ShoppingBag,
+  Check,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
 import { speakText, stopSpeaking } from "@/lib/voiceParser";
-import { MemoryGarden } from "./MemoryGarden";
 import { SosHoldControl } from "./SosHoldControl";
+import { AiRobotAvatar, MemoryGardenIllustration } from "./Illustrations";
 
 export function SeniorHome({
   store,
@@ -56,12 +44,24 @@ export function SeniorHome({
   const [currentTime, setCurrentTime] = useState<string>("");
   const [hour, setHour] = useState<number>(9);
 
-  // Daily Shopping & Quick Checklist State (Section 13)
+  // Daily Routine & Checklist State
   const [shoppingItems, setShoppingItems] = useState([
     { id: "shop-1", name: "Fresh Milk & Curd", done: false },
     { id: "shop-2", name: "Fresh Seasonal Vegetables", done: true },
     { id: "shop-3", name: "Herbal Green Tea & Honey", done: false },
   ]);
+
+  // Interactive local checklist for right-panel reminders
+  const [checkedReminders, setCheckedReminders] = useState<Record<string, boolean>>({
+    "rem-1": true, // 08:00 AM Morning Medicine
+    "rem-2": false, // 10:00 AM Blood Pressure Check
+    "rem-3": false, // 02:00 PM Afternoon Medicine
+    "rem-4": false, // 06:00 PM Evening Medicine
+  });
+
+  const toggleReminderCheck = (id: string) => {
+    setCheckedReminders((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const toggleShoppingItem = (id: string) => {
     setShoppingItems((prev) =>
@@ -85,12 +85,8 @@ export function SeniorHome({
   const todayStr = new Date().toISOString().split("T")[0];
   const routinesDone = store.routines.filter((r) => r.done_date === todayStr).length;
   const nextMedicine = store.medicines[0];
-  const nextReminder = store.reminders.find((r) => r.active && r.last_done !== todayStr);
   const lowStockMeds = store.medicines.filter((m) => m.stock <= m.refill_threshold);
   const nextAppointment = store.appointments[0];
-  const primaryCaregiver = store.caregiverLinks[0];
-  const hydrationReminder = store.reminders.find((r) => r.type === "hydration");
-  const isHydrated = hydrationReminder ? hydrationReminder.last_done === todayStr : false;
   const medsDoneToday = store.medicineLogs.filter(
     (l) => l.taken_at?.slice(0, 10) === todayStr && l.status === "taken"
   ).length;
@@ -101,591 +97,348 @@ export function SeniorHome({
     return "Good Evening";
   })();
 
-  // Proactive Personalized AI Recommendation
-  const proactiveAiPrompt = (() => {
-    if (hour >= 8 && hour < 12) {
-      return lang === "hi"
-        ? `शुभ प्रभात ${store.profile.full_name} जी। क्या आप आज का शांत मेमोरी गेम खेलना चाहेंगे?`
-        : `Good morning ${store.profile.full_name}. Would you like to play your morning memory activity?`;
-    } else if (hour >= 16 && hour < 19) {
-      return lang === "hi"
-        ? `${store.profile.full_name} जी, शाम की ताज़ा हवा में 20 मिनट टहलने का समय हो गया है।`
-        : `${store.profile.full_name}, it is a pleasant time for your gentle 20-minute evening walk.`;
-    }
-    return lang === "hi"
-      ? `${store.profile.full_name} जी, आपकी दवाइयाँ और दिनचर्या पूरी तरह तैयार हैं।`
-      : `${store.profile.full_name}, everything is calm and safe. What would you like to do?`;
-  })();
+  const rawName = store.profile.full_name?.trim() || "Dadaji";
+  const displayName = rawName.split(" ")[0] || "Dadaji";
+
+  const quoteText = "Small steps every day keep your mind active and happy.";
 
   const speakWelcome = () => {
     stopSpeaking();
     speakText(
-      `${greeting}, ${store.profile.full_name}. ${proactiveAiPrompt}. Small steps every day keep your mind active and happy.`,
+      `${greeting}, ${displayName}. ${quoteText}`,
       speechLocale || "en-IN"
     );
   };
 
   // -------------------------------------------------------------------------
-  // 1. SENIOR EASY MODE VIEW (Ultra-simplified large tiles, high contrast)
+  // QUICK ACCESS: EXACT 4 × 2 (8 CARDS) — SINGLE SOURCE OF TRUTH
+  // Exact Order per Prompt Sections 12, 13, 14, 15, 16, 17, 18, 19, 40:
+  // ROW 1: 1. Play Games, 2. SOS Emergency, 3. Appointments, 4. Voice AI
+  // ROW 2: 5. Family Tree, 6. Memories, 7. Memory Garden, 8. Cultural Hub
   // -------------------------------------------------------------------------
-  if (store.profile.easy_mode) {
-    return (
-      <div className="space-y-6 max-w-4xl mx-auto animate-in fade-in">
-        {/* Easy Mode Top Banner */}
-        <div className="flex items-center justify-between bg-sky-50 border-2 border-sky-200 p-4 rounded-3xl shadow-xs">
-          <div className="flex items-center gap-2 text-sky-800 font-black text-sm">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <span>{t("easyModeActive", "Senior Easy Mode Active")}</span>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => store.updateProfile({ easy_mode: false })}
-            className="rounded-2xl font-black text-xs border-sky-300 text-sky-900 bg-white hover:bg-sky-100 cursor-pointer shadow-xs"
-          >
-            Switch to Standard View
-          </Button>
-        </div>
-
-        {/* Easy Mode Hero Card */}
-        <div className="rounded-3xl border border-sky-100 bg-white p-6 sm:p-8 shadow-sm space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <div className="text-4xl sm:text-6xl font-black tracking-tight text-foreground font-display">
-                {currentTime || "10:00 AM"}
-              </div>
-              <div className="text-base sm:text-lg font-bold text-muted-foreground mt-1">
-                {new Date().toLocaleDateString(undefined, {
-                  weekday: "long",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </div>
-            </div>
-
-            <Button
-              size="lg"
-              onClick={speakWelcome}
-              className="rounded-2xl font-black gap-2 h-14 px-6 text-base bg-sky-100 hover:bg-sky-200 text-sky-900 border border-sky-200 shadow-xs cursor-pointer"
-            >
-              <Volume2 className="h-6 w-6 text-primary" /> Read Aloud
-            </Button>
-          </div>
-
-          <div className="border-t border-border pt-3">
-            <h2 className="text-2xl sm:text-3xl font-black text-foreground font-display">
-              {greeting}, {store.profile.full_name}
-            </h2>
-            <p className="text-base font-bold text-primary mt-1">
-              ✨ {proactiveAiPrompt}
-            </p>
-          </div>
-        </div>
-
-        {/* Emergency SOS Control */}
-        <SosHoldControl variant="heroCard" onTrigger={onOpenSos} />
-
-        {/* 4 Massive Action Tiles */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          {/* Tile 1: Routine */}
-          <button
-            type="button"
-            onClick={() => onNavigate("routine")}
-            className="rounded-3xl border-2 border-amber-200 bg-amber-50/70 p-6 sm:p-8 text-left space-y-3 hover:border-amber-400 hover:shadow-md active:scale-98 transition-all flex flex-col justify-between min-h-[190px] cursor-pointer"
-          >
-            <div className="flex items-center justify-between">
-              <div className="w-16 h-16 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md">
-                <Sun className="h-9 w-9" />
-              </div>
-              <span className="text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full bg-amber-200/80 text-amber-900">
-                1. TODAY
-              </span>
-            </div>
-            <div>
-              <div className="text-2xl sm:text-3xl font-black text-foreground font-display">
-                {t("today").toUpperCase()} & ROUTINE
-              </div>
-              <p className="text-base font-bold text-muted-foreground mt-1">
-                {routinesDone} of {store.routines.length} completed today
-              </p>
-            </div>
-          </button>
-
-          {/* Tile 2: Medicines */}
-          <button
-            type="button"
-            onClick={() => onNavigate("medicines")}
-            className="rounded-3xl border-2 border-teal-200 bg-emerald-50/70 p-6 sm:p-8 text-left space-y-3 hover:border-teal-400 hover:shadow-md active:scale-98 transition-all flex flex-col justify-between min-h-[190px] cursor-pointer"
-          >
-            <div className="flex items-center justify-between">
-              <div className="w-16 h-16 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-md">
-                <Pill className="h-9 w-9" />
-              </div>
-              <span className="text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full bg-teal-200/80 text-teal-900">
-                2. MEDICINES
-              </span>
-            </div>
-            <div>
-              <div className="text-2xl sm:text-3xl font-black text-foreground font-display">
-                {t("medicines").toUpperCase()}
-              </div>
-              <p className="text-base font-bold text-teal-800 mt-1 truncate">
-                {nextMedicine ? `${nextMedicine.name} (${nextMedicine.dosage})` : "All medicines taken"}
-              </p>
-            </div>
-          </button>
-
-          {/* Tile 3: Voice Companion */}
-          <button
-            type="button"
-            onClick={onOpenVoiceAssistant}
-            className="rounded-3xl border-2 border-blue-200 bg-sky-50/70 p-6 sm:p-8 text-left space-y-3 hover:border-blue-400 hover:shadow-md active:scale-98 transition-all flex flex-col justify-between min-h-[190px] cursor-pointer"
-          >
-            <div className="flex items-center justify-between">
-              <div className="w-16 h-16 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md">
-                <Mic className="h-9 w-9" />
-              </div>
-              <span className="text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full bg-blue-200/80 text-blue-900">
-                3. VOICE AI
-              </span>
-            </div>
-            <div>
-              <div className="text-2xl sm:text-3xl font-black text-foreground font-display">
-                SPEAK TO COMPANION
-              </div>
-              <p className="text-base font-bold text-muted-foreground mt-1">
-                Tap and talk naturally in your language
-              </p>
-            </div>
-          </button>
-
-          {/* Tile 4: Reminders */}
-          <button
-            type="button"
-            onClick={() => onNavigate("reminders")}
-            className="rounded-3xl border-2 border-indigo-200 bg-indigo-50/70 p-6 sm:p-8 text-left space-y-3 hover:border-indigo-400 hover:shadow-md active:scale-98 transition-all flex flex-col justify-between min-h-[190px] cursor-pointer"
-          >
-            <div className="flex items-center justify-between">
-              <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
-                <Bell className="h-9 w-9" />
-              </div>
-              <span className="text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full bg-indigo-200/80 text-indigo-900">
-                4. REMINDERS
-              </span>
-            </div>
-            <div>
-              <div className="text-2xl sm:text-3xl font-black text-foreground font-display">
-                SMART REMINDERS
-              </div>
-              <p className="text-base font-bold text-muted-foreground mt-1">
-                Medicines, walking, hydration, shopping
-              </p>
-            </div>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // -------------------------------------------------------------------------
-  // 2. STANDARD COMPREHENSIVE VIEW
-  // -------------------------------------------------------------------------
-  // Single Source of Truth for Quick Access (Strictly 8 Items, 4x2 on desktop, 2-col responsive on mobile)
   const quickAccessItems = [
-    // ROW 1: 1. Play Games, 2. Medicines, 3. Appointments, 4. Voice AI
+    // ROW 1
     {
       id: "qa-games",
-      title: t("qaPlayGames", "Play Games"),
-      desc: t("qaPlayGamesDesc", "Brain puzzles & memory fun"),
+      title: "Play Games",
+      desc: "Mind stimulation",
       icon: Gamepad2,
       onClick: () => onNavigate("games"),
-      border: "border-indigo-100 hover:border-indigo-300 dark:border-indigo-900/40",
-      bg: "bg-indigo-50/60 hover:bg-indigo-50/90 dark:bg-indigo-950/20",
-      iconBg: "bg-indigo-500",
-      textHover: "group-hover:text-indigo-700 dark:group-hover:text-indigo-300",
-    },
-    {
-      id: "qa-medicines",
-      title: t("qaMedicines", "Medicines"),
-      desc: t("qaMedicinesDesc", "Daily dosage & pill alerts"),
-      icon: Pill,
-      onClick: () => onNavigate("medicines"),
-      border: "border-emerald-100 hover:border-emerald-300 dark:border-emerald-900/40",
-      bg: "bg-emerald-50/60 hover:bg-emerald-50/90 dark:bg-emerald-950/20",
-      iconBg: "bg-emerald-600",
-      textHover: "group-hover:text-emerald-700 dark:group-hover:text-emerald-300",
-    },
-    {
-      id: "qa-appointments",
-      title: t("qaAppointments", "Appointments"),
-      desc: t("qaAppointmentsDesc", "Doctor & clinic visits"),
-      icon: Calendar,
-      onClick: () => onNavigate("appointments"),
-      border: "border-sky-100 hover:border-sky-300 dark:border-sky-900/40",
-      bg: "bg-sky-50/60 hover:bg-sky-50/90 dark:bg-sky-950/20",
-      iconBg: "bg-sky-600",
-      textHover: "group-hover:text-sky-700 dark:group-hover:text-sky-300",
-    },
-    {
-      id: "qa-voice",
-      title: t("qaVoiceAi", "Voice AI"),
-      desc: t("qaVoiceAiDesc", "Speak in regional language"),
-      icon: Mic,
-      onClick: onOpenVoiceAssistant,
-      border: "border-blue-100 hover:border-blue-300 dark:border-blue-900/40",
-      bg: "bg-blue-50/60 hover:bg-blue-50/90 dark:bg-blue-950/20",
-      iconBg: "bg-primary",
-      textHover: "group-hover:text-primary",
-    },
-    // ROW 2: 5. Family Tree, 6. Emergency SOS (replaces Memories), 7. Memory Garden, 8. Cultural Hub
-    {
-      id: "qa-family-tree",
-      title: t("qaFamilyTree", "Family Tree"),
-      desc: t("qaFamilyTreeDesc", "Loved ones & contacts"),
-      icon: Users,
-      onClick: () => onNavigate("family_tree"),
-      border: "border-amber-100 hover:border-amber-300 dark:border-amber-900/40",
-      bg: "bg-amber-50/60 hover:bg-amber-50/90 dark:bg-amber-950/20",
-      iconBg: "bg-amber-500",
-      textHover: "group-hover:text-amber-700 dark:group-hover:text-amber-300",
+      accentBg: "bg-[#F3E8FF]",
+      accentFg: "text-[#7E22CE]",
+      iconBg: "bg-[#F3E8FF] text-[#7E22CE]",
+      cardBorder: "border-[#E9D5FF] hover:border-[#C084FC]",
+      hoverBg: "hover:bg-[#FAF5FF]",
     },
     {
       id: "qa-sos",
-      title: t("qaEmergencySos", "Emergency SOS"),
-      desc: t("qaEmergencySosDesc", "Instant help & family alert"),
-      icon: AlertOctagon,
+      title: "SOS Emergency",
+      desc: "Emergency help",
+      icon: ShieldAlert,
       onClick: onOpenSos,
-      border: "border-rose-200 hover:border-rose-400 dark:border-rose-900/60 ring-1 ring-rose-300/40",
-      bg: "bg-rose-50/80 hover:bg-rose-100/90 dark:bg-rose-950/30",
-      iconBg: "bg-rose-600",
-      textHover: "group-hover:text-rose-700 dark:group-hover:text-rose-400",
+      accentBg: "bg-[#FEE2E2]",
+      accentFg: "text-[#DC2626]",
+      iconBg: "bg-[#FEE2E2] text-[#DC2626]",
+      cardBorder: "border-[#FECACA] hover:border-[#F87171]",
+      hoverBg: "hover:bg-[#FEF2F2]",
+    },
+    {
+      id: "qa-appointments",
+      title: "Appointments",
+      desc: "Doctor reviews",
+      icon: Calendar,
+      onClick: () => onNavigate("appointments"),
+      accentBg: "bg-[#E0F2FE]",
+      accentFg: "text-[#0284C7]",
+      iconBg: "bg-[#E0F2FE] text-[#0284C7]",
+      cardBorder: "border-[#BAE6FD] hover:border-[#38BDF8]",
+      hoverBg: "hover:bg-[#F0F9FF]",
+    },
+    {
+      id: "qa-voice",
+      title: "Voice AI",
+      desc: "Speak in regional",
+      icon: Mic,
+      onClick: onOpenVoiceAssistant,
+      accentBg: "bg-[#DBEAFE]",
+      accentFg: "text-[#1D4ED8]",
+      iconBg: "bg-[#DBEAFE] text-[#1D4ED8]",
+      cardBorder: "border-[#BFDBFE] hover:border-[#60A5FA]",
+      hoverBg: "hover:bg-[#EFF6FF]",
+    },
+    // ROW 2
+    {
+      id: "qa-family-tree",
+      title: "Family Tree",
+      desc: "Loved ones & ties",
+      icon: Users,
+      onClick: () => onNavigate("family_tree"),
+      accentBg: "bg-[#FCE7F3]",
+      accentFg: "text-[#9D174D]",
+      iconBg: "bg-[#FCE7F3] text-[#9D174D]",
+      cardBorder: "border-[#FBCFE8] hover:border-[#F472B6]",
+      hoverBg: "hover:bg-[#FDF2F8]",
+    },
+    {
+      id: "qa-memories",
+      title: "Memories",
+      desc: "Photos & greetings",
+      icon: Heart,
+      onClick: () => onNavigate("journal"),
+      accentBg: "bg-[#EDE9FE]",
+      accentFg: "text-[#6D28D9]",
+      iconBg: "bg-[#EDE9FE] text-[#6D28D9]",
+      cardBorder: "border-[#DDD6FE] hover:border-[#A78BFA]",
+      hoverBg: "hover:bg-[#F5F3FF]",
     },
     {
       id: "qa-garden",
-      title: t("qaMemoryGarden", "Memory Garden"),
-      desc: t("qaMemoryGardenDesc", "Daily routine & bloom tracker"),
+      title: "Memory Garden",
+      desc: "Daily blooming",
       icon: Leaf,
       onClick: () => onNavigate("routine"),
-      border: "border-teal-100 hover:border-teal-300 dark:border-teal-900/40",
-      bg: "bg-teal-50/60 hover:bg-teal-50/90 dark:bg-teal-950/20",
-      iconBg: "bg-teal-600",
-      textHover: "group-hover:text-teal-700 dark:group-hover:text-teal-300",
+      accentBg: "bg-[#DCFCE7]",
+      accentFg: "text-[#15803D]",
+      iconBg: "bg-[#DCFCE7] text-[#15803D]",
+      cardBorder: "border-[#BBF7D0] hover:border-[#4ADE80]",
+      hoverBg: "hover:bg-[#F0FDF4]",
     },
     {
       id: "qa-cultural",
-      title: t("qaCulturalHub", "Cultural Hub"),
-      desc: t("qaCulturalHubDesc", "Festivals, folklore & songs"),
+      title: "Cultural Hub",
+      desc: "North East roots",
       icon: Compass,
       onClick: () => onNavigate("cultural"),
-      border: "border-cyan-100 hover:border-cyan-300 dark:border-cyan-900/40",
-      bg: "bg-cyan-50/60 hover:bg-cyan-50/90 dark:bg-cyan-950/20",
-      iconBg: "bg-cyan-700",
-      textHover: "group-hover:text-cyan-800 dark:group-hover:text-cyan-300",
+      accentBg: "bg-[#CCFBF1]",
+      accentFg: "text-[#0F766E]",
+      iconBg: "bg-[#CCFBF1] text-[#0F766E]",
+      cardBorder: "border-[#99F6E4] hover:border-[#2DD4BF]",
+      hoverBg: "hover:bg-[#F0FDFA]",
     },
   ];
 
   return (
-    <div className="space-y-6 sm:space-y-8 animate-in fade-in">
-      {/* 1. VISIBLE OFFLINE MODE BANNER */}
+    <div className="space-y-6 sm:space-y-7 animate-in fade-in pb-12">
+      {/* Offline Mode Alert */}
       {!store.isOnline && (
-        <div className="rounded-3xl border border-amber-200 bg-amber-50/90 p-4 sm:p-5 shadow-xs flex flex-wrap items-center justify-between gap-3">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/95 p-3.5 sm:p-4 shadow-xs flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+            <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
               <WifiOff className="h-5 w-5" />
             </div>
             <div>
-              <div className="text-base font-black text-amber-900 flex items-center gap-2">
-                <span>{t("offlineMode", "Offline Mode")}</span>
-              </div>
-              <p className="text-xs font-semibold text-amber-800/80 mt-0.5 max-w-xl">
-                Memory Bond is safely working offline. Your medicines and games are stored on your device and will sync automatically.
+              <div className="text-sm font-black text-amber-900">Offline Safe Mode</div>
+              <p className="text-xs font-semibold text-amber-800/80">
+                Medicines and games are safely saved on this device.
               </p>
             </div>
           </div>
           {store.syncQueue.length > 0 && (
-            <span className="px-3 py-1 rounded-full bg-amber-500 text-white text-xs font-black shrink-0">
-              {store.syncQueue.length} Updates Saved Locally
+            <span className="px-2.5 py-1 rounded-full bg-amber-500 text-white text-xs font-black shrink-0">
+              {store.syncQueue.length} Local Updates
             </span>
           )}
         </div>
       )}
 
-      {/* Critical Refill Warning Banner if any */}
+      {/* Critical Medicine Refill Warning if any */}
       {lowStockMeds.length > 0 && (
         <div
           onClick={() => onNavigate("medicines")}
-          className="rounded-3xl border border-amber-200 bg-amber-50/80 p-4 sm:p-5 shadow-xs flex items-center justify-between gap-4 cursor-pointer hover:bg-amber-100/80 transition-colors"
+          className="rounded-2xl border border-rose-200 bg-rose-50/90 p-3.5 sm:p-4 shadow-xs flex items-center justify-between gap-3 cursor-pointer hover:bg-rose-100/80 transition-colors"
         >
           <div className="flex items-center gap-3">
-            <AlertTriangle className="h-6 w-6 text-amber-600 shrink-0" />
+            <AlertTriangle className="h-5 w-5 text-rose-600 shrink-0" />
             <div>
-              <h4 className="text-base font-bold text-foreground font-display">
-                {t("medicineLow") || "Your medicine is running low."}
+              <h4 className="text-sm font-bold text-[#0F243E]">
+                {lowStockMeds[0]?.name} is running low ({lowStockMeds[0]?.stock} remaining)
               </h4>
-              <p className="text-xs text-muted-foreground font-semibold mt-0.5">
-                {lowStockMeds[0]?.name} has {lowStockMeds[0]?.stock} {lowStockMeds[0]?.unit}s remaining. Caregiver has been notified.
+              <p className="text-xs text-[#627D98] font-medium">
+                Tap to view medicine refill details. Caregiver notified.
               </p>
             </div>
           </div>
-          <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+          <ChevronRight className="h-5 w-5 text-[#829AB1] shrink-0" />
         </div>
       )}
 
-      {/* 2. COMPACT WELCOME HERO SECTION (Requirements 9 & 10) */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-sky-50 via-white to-emerald-50/40 border border-sky-100 p-5 sm:p-7 shadow-xs">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] items-center gap-6">
-          <div className="space-y-3">
-            {/* Top Bar: Pill & Time */}
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-black uppercase tracking-wider">
-                <Sparkles className="h-3.5 w-3.5" /> Memory Bond • Daily Care
-              </span>
-              <span className="text-xs font-bold text-muted-foreground bg-white/90 px-3 py-1 rounded-full border border-border shadow-xs">
-                🕒 {currentTime || "10:00 AM"} • {new Date().toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
-              </span>
-              <button
-                type="button"
-                onClick={() => store.updateProfile({ easy_mode: true })}
-                className="inline-flex items-center gap-1 rounded-full bg-white hover:bg-sky-50 px-2.5 py-1 text-xs font-bold text-foreground border border-border transition-colors cursor-pointer shadow-xs"
-                title="Switch to Senior Easy Mode"
-              >
-                <Sliders className="h-3 w-3 text-primary" /> Easy Mode
-              </button>
-            </div>
+      {/* ========================================================================= */}
+      {/* DESKTOP 2-COLUMN / 3-SECTION MASTER CANVAS                                */}
+      {/* Left/Center (approx 68%): Hero + Daily Summary + Quick Access 4x2 + AI    */}
+      {/* Right (approx 32%): Reminders + Appointment + Memory Garden Sprout        */}
+      {/* ========================================================================= */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 sm:gap-6 items-start">
+        {/* ======================================================================= */}
+        {/* CENTER / MAIN CONTENT (8 COLUMNS ON XL)                                  */}
+        {/* ======================================================================= */}
+        <div className="xl:col-span-8 space-y-5 sm:space-y-6 min-w-0">
+          {/* 1. WELCOME / HERO SECTION matching reference image */}
+          <div className="relative overflow-hidden rounded-3xl bg-white border border-[#E2EAF5] shadow-[0_4px_24px_-4px_rgba(15,36,62,0.04)] p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+            {/* Left Welcome Text */}
+            <div className="flex-1 space-y-2.5 text-left min-w-0 w-full">
+              <div className="space-y-1">
+                <p className="text-lg sm:text-xl font-bold text-[#486581]">
+                  {greeting},
+                </p>
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#0F243E] font-display tracking-tight flex items-center gap-2.5">
+                  <span>{displayName}</span>
+                  <span className="text-2xl sm:text-3xl">☀️</span>
+                </h2>
+              </div>
 
-            {/* Main Greeting & Quote */}
-            <div>
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-foreground font-display">
-                {greeting}, {store.profile.full_name || "Dadi Ji"} 👋
-              </h2>
-              <p className="text-sm sm:text-base font-bold text-sky-800 mt-1 italic">
-                “Small steps every day keep your mind active and happy.”
+              <p className="text-sm sm:text-base font-semibold text-[#627D98] max-w-md leading-relaxed">
+                “{quoteText}”
               </p>
-            </div>
 
-            {/* Proactive AI Whisper */}
-            <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-foreground/80 bg-white/70 p-2.5 rounded-2xl border border-sky-100/80 max-w-2xl">
-              <span className="text-base">✨</span>
-              <span>{proactiveAiPrompt}</span>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex flex-wrap items-center gap-2.5 pt-1">
-              <Button
-                size="sm"
-                onClick={speakWelcome}
-                variant="outline"
-                className="rounded-2xl font-bold gap-2 h-10 px-4 text-xs bg-white hover:bg-sky-50 border-sky-200 text-sky-900 shadow-xs cursor-pointer"
-              >
-                <Volume2 className="h-4 w-4 text-primary" /> Read Aloud
-              </Button>
-              <Button
-                size="sm"
-                onClick={onOpenVoiceAssistant}
-                className="rounded-2xl font-black gap-2 h-10 px-4 text-xs bg-primary hover:bg-primary/90 text-white shadow-xs cursor-pointer"
-              >
-                <Mic className="h-4 w-4" /> Speak with Companion
-              </Button>
-            </div>
-          </div>
-
-          {/* Warm Indian Family Memory Photograph (Requirement 10) */}
-          <div className="relative w-full lg:w-72 sm:h-44 h-40 rounded-2xl overflow-hidden shadow-sm border border-sky-200/60 shrink-0">
-            <img
-              src="/images/family_memory_hero.jpg"
-              alt="Elderly Indian grandfather sharing happy family memory photo album with granddaughter"
-              className="w-full h-full object-cover object-center"
-              loading="eager"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent flex items-end p-3">
-              <span className="text-[11px] font-black text-white drop-shadow-sm flex items-center gap-1.5">
-                <Heart className="h-3.5 w-3.5 fill-rose-400 text-rose-400" />
-                Cherished Family Memories
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. DAILY SUMMARY CARDS (Requirement 11: Real application data, subtle pastels) */}
-      <section aria-label="Daily Summary">
-        <div className="flex items-center justify-between mb-3.5">
-          <h3 className="text-lg sm:text-xl font-black text-foreground font-display flex items-center gap-2">
-            <span>{t("todaysWellnessSummary", "Today's Wellness Summary")}</span>
-          </h3>
-          <span className="text-xs font-bold text-muted-foreground">
-            {new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
-          {/* Card 1: Today's Games */}
-          <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/70 to-white p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-3 hover:border-indigo-300 transition-all">
-            <div className="flex items-start justify-between gap-2">
-              <div className="w-11 h-11 rounded-2xl bg-indigo-500 text-white flex items-center justify-center shadow-xs shrink-0">
-                <Gamepad2 className="h-6 w-6" />
-              </div>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-800 uppercase tracking-wider">
-                Games
-              </span>
-            </div>
-            <div>
-              <span className="text-[11px] font-bold text-indigo-800 uppercase tracking-wider">
-                Today's Games
-              </span>
-              <div className="text-xl font-black text-foreground mt-0.5 font-display">
-                {store.activityRecommendation?.gameTitle || "Pattern Recall"}
-              </div>
-              <p className="text-xs text-muted-foreground font-semibold mt-0.5">
-                Level {store.activityRecommendation?.recommendedLevel || 2} • 10 mins peaceful practice
-              </p>
-            </div>
-            <div className="pt-2 border-t border-indigo-100 flex items-center justify-between">
-              <span className="text-[11px] font-bold text-indigo-700">
-                Score: {store.cognitiveScore.overall} pts
-              </span>
-              <Button
-                size="sm"
-                onClick={() => onNavigate("games")}
-                className="h-8 px-3.5 rounded-xl font-black text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer"
-              >
-                Play ➔
-              </Button>
-            </div>
-          </div>
-
-          {/* Card 2: Medicines */}
-          <div className="rounded-2xl border border-teal-100 bg-gradient-to-br from-emerald-50/70 to-white p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-3 hover:border-teal-300 transition-all">
-            <div className="flex items-start justify-between gap-2">
-              <div className="w-11 h-11 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-xs shrink-0">
-                <Pill className="h-6 w-6" />
-              </div>
-              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                medsDoneToday > 0 ? "bg-teal-100 text-teal-800" : "bg-blue-100 text-blue-800"
-              }`}>
-                {medsDoneToday > 0 ? "✓ Taken" : "Scheduled"}
-              </span>
-            </div>
-            <div>
-              <span className="text-[11px] font-bold text-teal-800 uppercase tracking-wider">
-                Medicines
-              </span>
-              <div className="text-xl font-black text-foreground mt-0.5 truncate font-display">
-                {nextMedicine ? nextMedicine.name : "Amlodipine"}
-              </div>
-              <p className="text-xs text-muted-foreground font-semibold mt-0.5">
-                {nextMedicine?.times?.[0] || "8:30 AM"} • After food ({nextMedicine?.stock ?? 28} left)
-              </p>
-            </div>
-            <div className="pt-2 border-t border-teal-100 flex items-center justify-between">
-              <span className="text-[11px] font-bold text-teal-700">
-                {medsDoneToday > 0 ? "Recorded today" : "Due morning"}
-              </span>
-              {medsDoneToday === 0 ? (
-                <Button
-                  size="sm"
-                  onClick={() => store.takeMedicine("med-1")}
-                  className="h-8 px-3 rounded-xl font-black text-xs bg-teal-600 hover:bg-teal-700 text-white shadow-xs cursor-pointer"
+              {/* Subtle heart divider matching reference image */}
+              <div className="pt-2 flex items-center gap-3">
+                <div className="w-12 h-px bg-[#E2EAF5]" />
+                <span className="text-[#0284C7] text-sm">♡</span>
+                <div className="w-12 h-px bg-[#E2EAF5]" />
+                <button
+                  type="button"
+                  onClick={speakWelcome}
+                  className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#F4F8FD] hover:bg-[#EBF3FC] text-[#1E6FD9] border border-[#E2EAF5] text-xs font-bold transition-colors cursor-pointer"
+                  title="Read aloud"
                 >
-                  Mark Taken
-                </Button>
-              ) : (
-                <span className="text-xs font-black text-teal-700">✓ Completed</span>
-              )}
+                  <Volume2 className="h-3.5 w-3.5" /> Read
+                </button>
+              </div>
+            </div>
+
+            {/* Right Family Photograph matching reference image */}
+            <div className="w-full md:w-80 lg:w-96 h-48 sm:h-52 rounded-2xl overflow-hidden shadow-sm shrink-0 border border-[#E2EAF5]/80">
+              <img
+                src="/images/family_memory_hero.jpg"
+                alt="Elderly Indian grandfather spending a happy moment with younger family member reading photo album"
+                className="w-full h-full object-cover object-center transition-transform duration-500 hover:scale-103"
+                loading="eager"
+              />
             </div>
           </div>
 
-          {/* Card 3: Appointments */}
-          <div className="rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50/70 to-white p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-3 hover:border-sky-300 transition-all">
-            <div className="flex items-start justify-between gap-2">
-              <div className="w-11 h-11 rounded-2xl bg-sky-600 text-white flex items-center justify-center shadow-xs shrink-0">
-                <Calendar className="h-6 w-6" />
+          {/* 2. DAILY SUMMARY CARDS (Row of 4) matching reference image */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {/* Card 1: Today's Games */}
+            <div
+              onClick={() => onNavigate("games")}
+              className="rounded-2xl sm:rounded-3xl bg-white border border-[#E2EAF5] p-4 sm:p-5 shadow-[0_2px_12px_-2px_rgba(15,36,62,0.03)] hover:shadow-md hover:border-[#C084FC]/50 transition-all cursor-pointer flex flex-col justify-between group select-none min-h-[136px]"
+            >
+              <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-full bg-[#F3E8FF] text-[#7E22CE] flex items-center justify-center shadow-xs">
+                  <Gamepad2 className="h-5 w-5" />
+                </div>
+                <ChevronRight className="h-4 w-4 text-[#829AB1] group-hover:text-[#7E22CE] group-hover:translate-x-0.5 transition-all" />
               </div>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-sky-100 text-sky-800 uppercase tracking-wider">
-                Clinic
-              </span>
-            </div>
-            <div>
-              <span className="text-[11px] font-bold text-sky-800 uppercase tracking-wider">
-                Appointments
-              </span>
-              <div className="text-xl font-black text-foreground mt-0.5 truncate font-display">
-                {nextAppointment ? nextAppointment.title : "Dr. Deepen Barua"}
-              </div>
-              <p className="text-xs text-muted-foreground font-semibold mt-0.5">
-                {nextAppointment ? `${nextAppointment.date} at ${nextAppointment.time}` : "Tomorrow, 4:00 PM • Review"}
-              </p>
-            </div>
-            <div className="pt-2 border-t border-sky-100 flex items-center justify-between">
-              <span className="text-[11px] font-bold text-sky-700">Family Synced</span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onNavigate("appointments")}
-                className="h-8 px-3 rounded-xl font-bold text-xs border-sky-200 text-sky-900 bg-white hover:bg-sky-50 cursor-pointer"
-              >
-                View
-              </Button>
-            </div>
-          </div>
-
-          {/* Card 4: Hydration */}
-          <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/70 to-white p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-3 hover:border-blue-300 transition-all">
-            <div className="flex items-start justify-between gap-2">
-              <div className="w-11 h-11 rounded-2xl bg-blue-500 text-white flex items-center justify-center shadow-xs shrink-0">
-                <Droplets className="h-6 w-6" />
-              </div>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-800 uppercase tracking-wider">
-                Hydration
-              </span>
-            </div>
-            <div>
-              <span className="text-[11px] font-bold text-blue-800 uppercase tracking-wider">
-                Hydration Tracker
-              </span>
-              <div className="text-xl font-black text-foreground mt-0.5 font-display">
-                {store.hydrationGlasses} of {store.hydrationTarget} Glasses
-              </div>
-              <p className="text-xs text-muted-foreground font-semibold mt-0.5">
-                {store.hydrationGlasses >= store.hydrationTarget ? "Daily goal achieved! 🌟" : "Drink a warm glass with lemon"}
-              </p>
-            </div>
-            <div className="pt-2 border-t border-blue-100 flex items-center justify-between">
-              <span className="text-[11px] font-bold text-blue-700">Goal: {store.hydrationTarget} glasses</span>
-              <Button
-                size="sm"
-                onClick={() => store.drinkGlassOfWater()}
-                className="h-8 px-3 rounded-xl font-black text-xs bg-blue-600 hover:bg-blue-700 text-white shadow-xs cursor-pointer"
-              >
-                + Drank Water
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 4. MAIN CONTENT & RIGHT CONTEXTUAL PANELS (Responsive Grid for Desktop) */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        {/* LEFT/CENTER 8 COLUMNS: Quick Access Features + Daily Routine */}
-        <div className="xl:col-span-8 space-y-6">
-          {/* QUICK ACCESS: Exactly 8 Cards in 4x2 desktop layout and comfortable responsive mobile layout */}
-          <section aria-label="Quick Access Features" className="rounded-3xl border border-border bg-card p-4 sm:p-5 md:p-6 shadow-xs space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <h3 className="text-lg sm:text-xl md:text-2xl font-black text-foreground font-display tracking-tight">
-                  {t("quickAccess", "Quick Access")}
-                </h3>
-                <p className="text-xs sm:text-sm font-semibold text-muted-foreground mt-0.5">
-                  {t("quickAccessSubtitle", "Tap any card to open your daily memory, family, and health companion tools")}
+              <div className="mt-3">
+                <span className="text-xs font-bold text-[#627D98] block">
+                  Today's Games
+                </span>
+                <div className="text-xl sm:text-2xl font-black text-[#0F243E] font-display mt-0.5">
+                  2 / 5
+                </div>
+                <p className="text-[11px] font-semibold text-[#829AB1] mt-0.5 truncate">
+                  Play and stay active
                 </p>
               </div>
-              <span className="text-xs sm:text-sm font-black text-primary px-3 py-1 rounded-full bg-primary/10 shrink-0">
-                {quickAccessItems.length} {t("activitiesCount", "Activities")}
+            </div>
+
+            {/* Card 2: Medicines */}
+            <div
+              onClick={() => onNavigate("medicines")}
+              className="rounded-2xl sm:rounded-3xl bg-white border border-[#E2EAF5] p-4 sm:p-5 shadow-[0_2px_12px_-2px_rgba(15,36,62,0.03)] hover:shadow-md hover:border-[#4ADE80]/50 transition-all cursor-pointer flex flex-col justify-between group select-none min-h-[136px]"
+            >
+              <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-full bg-[#DCFCE7] text-[#15803D] flex items-center justify-center shadow-xs">
+                  <Pill className="h-5 w-5" />
+                </div>
+                <ChevronRight className="h-4 w-4 text-[#829AB1] group-hover:text-[#15803D] group-hover:translate-x-0.5 transition-all" />
+              </div>
+              <div className="mt-3">
+                <span className="text-xs font-bold text-[#627D98] block">
+                  Medicines
+                </span>
+                <div className="text-xl sm:text-2xl font-black text-[#0F243E] font-display mt-0.5">
+                  {store.medicines.length > 0 ? "1 due today" : "0 due today"}
+                </div>
+                <p className="text-[11px] font-semibold text-[#829AB1] mt-0.5 truncate">
+                  Stay on track
+                </p>
+              </div>
+            </div>
+
+            {/* Card 3: Appointments */}
+            <div
+              onClick={() => onNavigate("appointments")}
+              className="rounded-2xl sm:rounded-3xl bg-white border border-[#E2EAF5] p-4 sm:p-5 shadow-[0_2px_12px_-2px_rgba(15,36,62,0.03)] hover:shadow-md hover:border-[#38BDF8]/50 transition-all cursor-pointer flex flex-col justify-between group select-none min-h-[136px]"
+            >
+              <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-full bg-[#E0F2FE] text-[#0284C7] flex items-center justify-center shadow-xs">
+                  <Calendar className="h-5 w-5" />
+                </div>
+                <ChevronRight className="h-4 w-4 text-[#829AB1] group-hover:text-[#0284C7] group-hover:translate-x-0.5 transition-all" />
+              </div>
+              <div className="mt-3">
+                <span className="text-xs font-bold text-[#627D98] block">
+                  Appointments
+                </span>
+                <div className="text-xl sm:text-2xl font-black text-[#0F243E] font-display mt-0.5">
+                  {store.appointments.length > 0 ? `${store.appointments.length} scheduled` : "0 today"}
+                </div>
+                <p className="text-[11px] font-semibold text-[#829AB1] mt-0.5 truncate">
+                  Doctor reviews
+                </p>
+              </div>
+            </div>
+
+            {/* Card 4: Family Members */}
+            <div
+              onClick={() => onNavigate("family_tree")}
+              className="rounded-2xl sm:rounded-3xl bg-white border border-[#E2EAF5] p-4 sm:p-5 shadow-[0_2px_12px_-2px_rgba(15,36,62,0.03)] hover:shadow-md hover:border-[#F472B6]/50 transition-all cursor-pointer flex flex-col justify-between group select-none min-h-[136px]"
+            >
+              <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-full bg-[#FCE7F3] text-[#9D174D] flex items-center justify-center shadow-xs">
+                  <Users className="h-5 w-5" />
+                </div>
+                <ChevronRight className="h-4 w-4 text-[#829AB1] group-hover:text-[#9D174D] group-hover:translate-x-0.5 transition-all" />
+              </div>
+              <div className="mt-3">
+                <span className="text-xs font-bold text-[#627D98] block">
+                  Family Members
+                </span>
+                <div className="text-xl sm:text-2xl font-black text-[#0F243E] font-display mt-0.5">
+                  5
+                </div>
+                <p className="text-[11px] font-semibold text-[#829AB1] mt-0.5 truncate">
+                  Stay connected
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. QUICK ACCESS — EXACT 4 × 2 (8 CARDS) matching reference image */}
+          <section aria-label="Quick Access Features" className="space-y-3.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xl text-amber-500">✨</span>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-black text-[#0F243E] font-display tracking-tight leading-none">
+                    Quick Access
+                  </h3>
+                  <p className="text-xs font-semibold text-[#627D98] mt-1">
+                    Explore your favorite features
+                  </p>
+                </div>
+              </div>
+
+              {/* Dynamic 8 Activities Badge matching reference image */}
+              <span className="px-3 py-1 rounded-full bg-[#E0F2FE] text-[#0284C7] text-xs font-black shrink-0 border border-[#BAE6FD]">
+                {quickAccessItems.length} Activities
               </span>
             </div>
 
-            {/* Responsive grid: exactly 4 columns x 2 rows on tablet/desktop, 2 columns x 4 rows on mobile */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-3.5 md:gap-4 w-full">
+            {/* EXACT 4 x 2 Grid across desktop, tablet and mobile */}
+            <div className="grid grid-cols-4 gap-2 sm:gap-3.5 md:gap-4 w-full">
               {quickAccessItems.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -694,19 +447,22 @@ export function SeniorHome({
                     type="button"
                     onClick={item.onClick}
                     aria-label={`${item.title}: ${item.desc}`}
-                    className={`group p-3.5 sm:p-4 md:p-5 rounded-2xl sm:rounded-3xl border ${item.border} ${item.bg} text-left transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[110px] sm:min-h-[130px] md:min-h-[148px] shadow-xs hover:shadow-md hover:-translate-y-0.5 active:scale-97 select-none min-w-0 w-full overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`}
+                    className={`group p-2.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border ${item.cardBorder} ${item.hoverBg} text-left transition-all duration-200 cursor-pointer flex flex-col justify-between shadow-[0_2px_10px_-2px_rgba(15,36,62,0.03)] hover:shadow-md hover:-translate-y-0.5 active:scale-97 select-none min-w-0 w-full overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E6FD9] min-h-[96px] sm:min-h-[128px] md:min-h-[138px]`}
                   >
                     <div className="flex items-center justify-between w-full">
-                      <div className={`w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl sm:rounded-2xl ${item.iconBg} text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform shrink-0`}>
-                        <Icon className="h-5 w-5 sm:h-6 sm:w-6 md:h-6.5 md:w-6.5" />
+                      <div
+                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl ${item.iconBg} flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform shrink-0`}
+                      >
+                        <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                       </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-foreground/70 group-hover:translate-x-0.5 transition-all" />
+                      <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#829AB1] group-hover:text-[#0F243E] group-hover:translate-x-0.5 transition-all shrink-0 hidden sm:block" />
                     </div>
-                    <div className="w-full min-w-0 mt-2.5 sm:mt-3">
-                      <div className={`text-sm sm:text-base md:text-lg font-black text-foreground ${item.textHover} font-display leading-snug tracking-tight truncate`}>
+
+                    <div className="w-full min-w-0 mt-1.5 sm:mt-2.5">
+                      <div className="text-[11px] sm:text-sm md:text-base font-black text-[#0F243E] font-display leading-tight truncate">
                         {item.title}
                       </div>
-                      <p className="text-xs sm:text-xs md:text-sm text-muted-foreground font-semibold mt-0.5 sm:mt-1 leading-snug line-clamp-2">
+                      <p className="text-[9px] sm:text-[11px] md:text-xs text-[#627D98] font-semibold mt-0.5 leading-tight truncate hidden xs:block sm:block">
                         {item.desc}
                       </p>
                     </div>
@@ -716,190 +472,301 @@ export function SeniorHome({
             </div>
           </section>
 
-          {/* DAILY ROUTINES & SHOPPING CHECKLIST */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Daily Routine Summary Card */}
-            <div className="rounded-3xl border border-amber-100 bg-white p-5 shadow-xs space-y-3">
-              <div className="flex items-center justify-between border-b border-border/80 pb-2.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-xs">
-                    <Sun className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-base font-black text-foreground font-display">Daily Routine</h4>
-                    <span className="text-[11px] font-bold text-muted-foreground">{routinesDone} of {store.routines.length} completed</span>
-                  </div>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onNavigate("routine")}
-                  className="h-8 px-3 rounded-xl font-bold text-xs"
-                >
-                  View All
-                </Button>
-              </div>
-
-              <div className="space-y-2">
-                {store.routines.slice(0, 3).map((rt) => {
-                  const isDone = rt.done_date === todayStr;
-                  return (
-                    <div
-                      key={rt.id}
-                      onClick={() => store.toggleRoutineDone(rt.id)}
-                      className="flex items-center justify-between p-2.5 rounded-xl bg-secondary/50 border border-border/70 hover:bg-secondary cursor-pointer transition-colors"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 border ${
-                          isDone ? "bg-primary border-primary text-white" : "border-muted-foreground/50 bg-white"
-                        }`}>
-                          {isDone && <Check className="h-3.5 w-3.5 stroke-[3]" />}
-                        </div>
-                        <span className={`text-xs font-bold truncate ${isDone ? "line-through text-muted-foreground" : "text-foreground"}`}>
-                          {rt.activity}
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-bold text-muted-foreground shrink-0">{rt.time}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Daily Shopping & Pharmacy Checklist */}
-            <div className="rounded-3xl border border-purple-100 bg-white p-5 shadow-xs space-y-3">
-              <div className="flex items-center justify-between border-b border-border/80 pb-2.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-xs">
-                    <ShoppingBag className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-base font-black text-foreground font-display">Daily Needs</h4>
-                    <span className="text-[11px] font-bold text-muted-foreground">
-                      {shoppingItems.filter((i) => i.done).length} of {shoppingItems.length} purchased
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                {shoppingItems.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => toggleShoppingItem(item.id)}
-                    className="flex items-center gap-2.5 p-2.5 rounded-xl bg-secondary/50 border border-border/70 hover:bg-secondary cursor-pointer transition-colors"
-                  >
-                    <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 border ${
-                      item.done ? "bg-purple-600 border-purple-600 text-white" : "border-muted-foreground/50 bg-white"
-                    }`}>
-                      {item.done && <Check className="h-3.5 w-3.5 stroke-[3]" />}
-                    </div>
-                    <span className={`text-xs font-bold ${item.done ? "line-through text-muted-foreground" : "text-foreground"}`}>
-                      {item.name}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* TRANSPARENT AI ADAPTATION ENGINE (Senior-friendly non-clinical view) */}
-          <div className="rounded-3xl border border-sky-100 bg-white p-5 sm:p-6 shadow-xs space-y-3">
-            <div className="flex items-center justify-between border-b border-border pb-2.5">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <h4 className="text-base font-black text-foreground font-display">
-                  Why this game was chosen for you today
-                </h4>
-              </div>
-              <span className="text-[11px] font-bold text-sky-800 bg-sky-50 px-2.5 py-0.5 rounded-full border border-sky-200">
-                Personalized
-              </span>
-            </div>
-
-            <p className="text-xs sm:text-sm text-foreground/80 font-semibold leading-relaxed">
-              "{store.activityRecommendation?.whyThisActivityText || "Your recent practice shows strong visual memory and steady recall. Today's Pattern Recall exercise gently sharpens active attention."}"
-            </p>
-
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-1 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-muted-foreground">Focus Area:</span>
-                <span className="font-black text-primary">Visual Memory & Focus</span>
-              </div>
-              <Button
-                size="sm"
-                onClick={() => onNavigate("games")}
-                className="h-8 px-4 rounded-xl font-black text-xs bg-primary hover:bg-primary/90 text-white shadow-xs cursor-pointer"
-              >
-                Start Practice ➔
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* RIGHT 4 COLUMNS: Contextual Desktop Panels (AI Assistant, Memory Garden, Emergency SOS) */}
-        <div className="xl:col-span-4 space-y-6">
-          {/* AI ASSISTANT DEDICATED CARD (Requirement 13) */}
-          <div className="rounded-3xl border border-sky-200 bg-gradient-to-br from-sky-50 via-white to-blue-50/50 p-5 sm:p-6 shadow-xs space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/20 shrink-0">
-                <Bot className="h-7 w-7" />
-              </div>
-              <div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
-                  Caring AI Companion
-                </span>
-                <h3 className="text-lg font-black text-foreground font-display mt-0.5">
+          {/* 4. AI ASSISTANT SECTION matching reference banner */}
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#E0F2FE] via-[#EDF6FF] to-[#E2EEFC] border border-[#BAE6FD] p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+            {/* Left AI Robot Avatar & Text */}
+            <div className="flex items-center gap-4 min-w-0 w-full sm:w-auto">
+              <AiRobotAvatar className="w-14 h-14 sm:w-16 sm:h-16" />
+              <div className="min-w-0">
+                <h4 className="text-lg sm:text-xl font-black text-[#0F243E] font-display leading-tight">
                   Need Help?
-                </h3>
-                <p className="text-xs text-muted-foreground font-semibold">
-                  Talk to your AI Assistant anytime
+                </h4>
+                <p className="text-xs sm:text-sm font-semibold text-[#486581] mt-0.5">
+                  Talk to your AI Assistant
                 </p>
               </div>
             </div>
 
-            <p className="text-xs text-foreground/80 font-medium leading-relaxed bg-white/80 p-3 rounded-2xl border border-sky-100">
-              Ask about your medicines, weather, daily appointments, or just have a peaceful conversation in your language.
-            </p>
-
+            {/* Right Action Button */}
             <Button
-              size="lg"
               onClick={onOpenVoiceAssistant}
-              className="w-full h-12 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black text-sm shadow-sm gap-2.5 cursor-pointer active:scale-98"
+              className="h-11 px-6 rounded-full bg-[#1E6FD9] hover:bg-[#1858AE] text-white font-black text-xs sm:text-sm shadow-sm gap-2 cursor-pointer shrink-0 transition-transform active:scale-95"
             >
-              <Mic className="h-5 w-5 animate-pulse" />
-              <span>🎙️ Talk to AI Assistant</span>
+              <span>Start Chat</span>
+              <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
 
-          {/* MEMORY GARDEN PREVIEW (Requirement 14) */}
-          <div className="rounded-3xl border border-emerald-100 bg-white p-5 shadow-xs">
-            <MemoryGarden store={store} onNavigate={onNavigate} compact={true} />
-          </div>
-
-          {/* EMERGENCY SOS 3-SECOND CONTINUOUS HOLD HERO (Reassuring, Clear, Accessible) */}
-          <div className="rounded-3xl border border-rose-100 bg-white p-4 shadow-xs">
-            <SosHoldControl variant="heroCard" onTrigger={onOpenSos} />
-          </div>
-
-          {/* FAMILY & CAREGIVER SYNC QUICK STATUS */}
-          <div className="rounded-3xl border border-border bg-white p-4 sm:p-5 shadow-xs flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shrink-0">
-                <Heart className="h-5 w-5 fill-rose-500/20 text-rose-600" />
+          {/* Additional Collapsible Functional Routine Checklist (Preserving existing features) */}
+          <div className="rounded-3xl border border-[#E2EAF5] bg-white p-5 shadow-xs space-y-3">
+            <div className="flex items-center justify-between border-b border-[#EDF2F7] pb-2.5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-600 flex items-center justify-center font-black">
+                  <Sun className="h-4 w-4" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-[#0F243E] font-display">
+                    Daily Routine & Needs
+                  </h4>
+                  <span className="text-[11px] font-semibold text-[#627D98]">
+                    {routinesDone} completed today
+                  </span>
+                </div>
               </div>
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                  Caregiver Link
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onNavigate("routine")}
+                className="h-7 px-3 rounded-full text-xs font-bold border-[#E2EAF5] text-[#1E6FD9] hover:bg-[#F4F8FD]"
+              >
+                View Routine
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {shoppingItems.map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => toggleShoppingItem(item.id)}
+                  className="flex items-center gap-2.5 p-2 rounded-xl bg-[#F4F8FD] hover:bg-[#EBF3FC] border border-[#E2EAF5] cursor-pointer transition-colors"
+                >
+                  <div
+                    className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 border ${
+                      item.done
+                        ? "bg-[#1E6FD9] border-[#1E6FD9] text-white"
+                        : "border-[#829AB1] bg-white"
+                    }`}
+                  >
+                    {item.done && <Check className="h-3 w-3 stroke-[3]" />}
+                  </div>
+                  <span
+                    className={`text-xs font-semibold truncate ${
+                      item.done ? "line-through text-[#829AB1]" : "text-[#0F243E]"
+                    }`}
+                  >
+                    {item.name}
+                  </span>
                 </div>
-                <div className="text-sm font-black text-foreground truncate">
-                  {primaryCaregiver ? primaryCaregiver.caregiver_name : "Rahul (Son)"}
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ======================================================================= */}
+        {/* RIGHT SIDE PANEL (4 COLUMNS ON XL) matching reference image              */}
+        {/* ======================================================================= */}
+        <div className="xl:col-span-4 space-y-5 sm:space-y-6">
+          {/* CARD 1: TODAY'S REMINDERS matching reference timeline */}
+          <div className="rounded-3xl bg-white border border-[#E2EAF5] p-5 shadow-[0_4px_24px_-4px_rgba(15,36,62,0.04)] space-y-4">
+            <div className="flex items-center justify-between border-b border-[#EDF2F7] pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-[#E0F2FE] text-[#0284C7] flex items-center justify-center">
+                  <Clock className="h-4 w-4" />
                 </div>
+                <h4 className="text-base font-black text-[#0F243E] font-display">
+                  Today's Reminders
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => onNavigate("routine")}
+                className="text-xs font-bold text-[#1E6FD9] hover:underline cursor-pointer"
+              >
+                View all
+              </button>
+            </div>
+
+            {/* Timeline List matching reference image */}
+            <div className="space-y-3">
+              {/* Item 1: 08:00 AM Morning Medicine */}
+              <div
+                onClick={() => toggleReminderCheck("rem-1")}
+                className="flex items-start justify-between gap-3 p-2.5 rounded-2xl hover:bg-[#F4F8FD] transition-colors cursor-pointer group"
+              >
+                <div className="flex items-start gap-3 min-w-0">
+                  <span className="text-xs font-bold text-[#829AB1] w-16 shrink-0 pt-0.5">
+                    • 08:00 AM
+                  </span>
+                  <div className="min-w-0">
+                    <div className="text-xs sm:text-sm font-bold text-[#0F243E] truncate">
+                      Morning Medicine
+                    </div>
+                    <div className="text-[11px] font-medium text-[#627D98] truncate">
+                      {nextMedicine?.name || "Paracetamol 500mg"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Checked Green Circle */}
+                {checkedReminders["rem-1"] ? (
+                  <CheckCircle2 className="h-5 w-5 text-[#16A34A] shrink-0 mt-0.5 fill-[#DCFCE7]" />
+                ) : (
+                  <Circle className="h-5 w-5 text-[#CBD5E1] shrink-0 mt-0.5 group-hover:text-[#16A34A]" />
+                )}
+              </div>
+
+              {/* Item 2: 10:00 AM Blood Pressure Check */}
+              <div
+                onClick={() => toggleReminderCheck("rem-2")}
+                className="flex items-start justify-between gap-3 p-2.5 rounded-2xl hover:bg-[#F4F8FD] transition-colors cursor-pointer group"
+              >
+                <div className="flex items-start gap-3 min-w-0">
+                  <span className="text-xs font-bold text-[#829AB1] w-16 shrink-0 pt-0.5">
+                    • 10:00 AM
+                  </span>
+                  <div className="min-w-0">
+                    <div className="text-xs sm:text-sm font-bold text-[#0F243E] truncate">
+                      Blood Pressure Check
+                    </div>
+                    <div className="text-[11px] font-medium text-[#627D98] truncate">
+                      At Home
+                    </div>
+                  </div>
+                </div>
+
+                {checkedReminders["rem-2"] ? (
+                  <CheckCircle2 className="h-5 w-5 text-[#16A34A] shrink-0 mt-0.5 fill-[#DCFCE7]" />
+                ) : (
+                  <Circle className="h-5 w-5 text-[#CBD5E1] shrink-0 mt-0.5 group-hover:text-[#16A34A]" />
+                )}
+              </div>
+
+              {/* Item 3: 02:00 PM Afternoon Medicine */}
+              <div
+                onClick={() => toggleReminderCheck("rem-3")}
+                className="flex items-start justify-between gap-3 p-2.5 rounded-2xl hover:bg-[#F4F8FD] transition-colors cursor-pointer group"
+              >
+                <div className="flex items-start gap-3 min-w-0">
+                  <span className="text-xs font-bold text-[#829AB1] w-16 shrink-0 pt-0.5">
+                    • 02:00 PM
+                  </span>
+                  <div className="min-w-0">
+                    <div className="text-xs sm:text-sm font-bold text-[#0F243E] truncate">
+                      Afternoon Medicine
+                    </div>
+                    <div className="text-[11px] font-medium text-[#627D98] truncate">
+                      Vitamin D3
+                    </div>
+                  </div>
+                </div>
+
+                {checkedReminders["rem-3"] ? (
+                  <CheckCircle2 className="h-5 w-5 text-[#16A34A] shrink-0 mt-0.5 fill-[#DCFCE7]" />
+                ) : (
+                  <Circle className="h-5 w-5 text-[#CBD5E1] shrink-0 mt-0.5 group-hover:text-[#16A34A]" />
+                )}
+              </div>
+
+              {/* Item 4: 06:00 PM Evening Medicine */}
+              <div
+                onClick={() => toggleReminderCheck("rem-4")}
+                className="flex items-start justify-between gap-3 p-2.5 rounded-2xl hover:bg-[#F4F8FD] transition-colors cursor-pointer group"
+              >
+                <div className="flex items-start gap-3 min-w-0">
+                  <span className="text-xs font-bold text-[#829AB1] w-16 shrink-0 pt-0.5">
+                    • 06:00 PM
+                  </span>
+                  <div className="min-w-0">
+                    <div className="text-xs sm:text-sm font-bold text-[#0F243E] truncate">
+                      Evening Medicine
+                    </div>
+                    <div className="text-[11px] font-medium text-[#627D98] truncate">
+                      Metformin 500mg
+                    </div>
+                  </div>
+                </div>
+
+                {checkedReminders["rem-4"] ? (
+                  <CheckCircle2 className="h-5 w-5 text-[#16A34A] shrink-0 mt-0.5 fill-[#DCFCE7]" />
+                ) : (
+                  <Circle className="h-5 w-5 text-[#CBD5E1] shrink-0 mt-0.5 group-hover:text-[#16A34A]" />
+                )}
               </div>
             </div>
-            <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 shrink-0">
-              ● Connected
-            </span>
+          </div>
+
+          {/* CARD 2: UPCOMING APPOINTMENT matching reference image */}
+          <div className="rounded-3xl bg-white border border-[#E2EAF5] p-5 shadow-[0_4px_24px_-4px_rgba(15,36,62,0.04)] space-y-3">
+            <div className="flex items-center justify-between border-b border-[#EDF2F7] pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-[#E0F2FE] text-[#0284C7] flex items-center justify-center">
+                  <Calendar className="h-4 w-4" />
+                </div>
+                <h4 className="text-base font-black text-[#0F243E] font-display">
+                  Upcoming Appointment
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => onNavigate("appointments")}
+                className="text-xs font-bold text-[#1E6FD9] hover:underline cursor-pointer"
+              >
+                View all
+              </button>
+            </div>
+
+            {/* Appointment Detail Card */}
+            <div
+              onClick={() => onNavigate("appointments")}
+              className="p-3.5 rounded-2xl bg-[#F8FAFD] border-l-4 border-l-[#1E6FD9] border border-[#E2EAF5] flex items-center justify-between gap-3 cursor-pointer hover:bg-[#F0F5FB] transition-colors group"
+            >
+              <div className="min-w-0">
+                <span className="text-[11px] font-black text-[#627D98] block">
+                  {nextAppointment?.date || "15 Sep 2025"}
+                </span>
+                <div className="text-sm font-black text-[#0F243E] truncate mt-0.5">
+                  {nextAppointment?.title || "General Checkup"}
+                </div>
+                <div className="text-xs font-semibold text-[#627D98] truncate mt-0.5">
+                  {nextAppointment?.doctor || "Dr. Sharma"}
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 text-[#1E6FD9] group-hover:translate-x-0.5 transition-transform shrink-0" />
+            </div>
+          </div>
+
+          {/* CARD 3: MEMORY GARDEN SPROUT CARD matching reference image */}
+          <div className="rounded-3xl bg-[#F0FDF4] border border-[#BBF7D0] p-5 shadow-[0_4px_24px_-4px_rgba(15,36,62,0.04)] space-y-3 relative overflow-hidden">
+            {/* Header Pill */}
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#DCFCE7] text-[#15803D] text-xs font-black border border-[#86EFAC]/60">
+                <Leaf className="h-3.5 w-3.5" /> Memory Garden
+              </span>
+            </div>
+
+            {/* Calm Supportive Text */}
+            <div>
+              <h4 className="text-sm font-black text-[#14532D] font-display">
+                Your mind is like a garden...
+              </h4>
+              <p className="text-xs font-semibold text-[#166534]/90 mt-1 leading-relaxed">
+                Keep it watered with good thoughts, happy moments and positive energy.
+              </p>
+            </div>
+
+            {/* Progress Bar 3/5 */}
+            <div className="space-y-1 pt-1">
+              <div className="w-full bg-[#DCFCE7] rounded-full h-2 overflow-hidden border border-[#86EFAC]/40">
+                <div
+                  className="bg-[#16A34A] h-2 rounded-full transition-all duration-700 ease-out"
+                  style={{ width: "60%" }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[11px] font-black text-[#15803D]">
+                <span>3/5</span>
+                <span>3/5</span>
+              </div>
+            </div>
+
+            {/* Visual Sprout & Watering Can Illustration */}
+            <div className="pt-2">
+              <MemoryGardenIllustration className="w-full h-24" />
+            </div>
+          </div>
+
+          {/* EMERGENCY SOS 3-SECOND HOLD HERO CONTROL (Preserving accessibility) */}
+          <div className="rounded-3xl border border-rose-100 bg-white p-4 shadow-xs">
+            <SosHoldControl variant="heroCard" onTrigger={onOpenSos} />
           </div>
         </div>
       </div>

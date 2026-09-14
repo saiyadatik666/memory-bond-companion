@@ -1,14 +1,14 @@
+import { useState } from "react";
 import {
-  Heart,
-  Mic,
+  Search,
+  Globe,
   Bell,
-  Languages,
+  ChevronDown,
   Settings,
   User,
-  Wifi,
-  WifiOff,
-  Sparkles,
-  ChevronDown,
+  LogOut,
+  Mic,
+  Menu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +21,16 @@ import {
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { LANGUAGES, useI18n, NER_STATES, getLanguagesByState } from "@/lib/i18n";
 import { voiceManager } from "@/lib/voiceProvider";
+import { MemoryBondLogo } from "./MemoryBondLogo";
+
+interface HeaderProps {
+  store: MemoryBondStore;
+  onOpenVoice: () => void;
+  onOpenNotifications: () => void;
+  onOpenAuth: () => void;
+  onNavigate: (tab: string) => void;
+  onSignOut?: () => void;
+}
 
 export function Header({
   store,
@@ -29,63 +39,82 @@ export function Header({
   onOpenAuth,
   onNavigate,
   onSignOut,
-}: {
-  store: MemoryBondStore;
-  onOpenVoice: () => void;
-  onOpenNotifications: () => void;
-  onOpenAuth: () => void;
-  onNavigate: (tab: string) => void;
-  onSignOut?: () => void;
-}) {
-  const { lang, setLang, t } = useI18n();
+}: HeaderProps) {
+  const { lang, setLang } = useI18n();
+  const [searchQuery, setSearchQuery] = useState("");
   const unreadCount = store.notifications.filter((n) => !n.read).length;
   const currentLangObj = LANGUAGES.find((l) => l.code === lang) || LANGUAGES[0];
 
-  return (
-    <header className="border-b border-border/80 bg-card/95 backdrop-blur-md sticky top-0 z-30 shadow-xs">
-      <div className="max-w-[1600px] mx-auto px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-3">
-        {/* Brand Logo & Name (Requirement 19: "Memory Bond" MUST ALWAYS remain in English) */}
-        <button
-          type="button"
-          onClick={() => onNavigate("home")}
-          className="flex items-center gap-2.5 sm:gap-3.5 text-left group transition-all cursor-pointer select-none"
-        >
-          <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-2xl bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white shadow-sm shadow-primary/20 group-hover:scale-105 group-active:scale-95 transition-transform">
-            <Heart className="h-5 w-5 sm:h-6 sm:w-6 fill-white/30 text-white" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="text-base sm:text-lg font-black tracking-tight text-foreground font-display">
-                MEMORY BOND
-              </h1>
-              <span className="hidden sm:inline-flex text-[11px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                Care Companion
-              </span>
-            </div>
-            <p className="text-[11px] font-semibold text-muted-foreground truncate hidden md:block">
-              {t("tagline") || "Technology with a human heart — Elderly & Memory Care"}
-            </p>
-          </div>
-        </button>
+  const userDisplayName = store.profile.full_name?.trim() || "Dadaji";
+  const firstName = userDisplayName.split(" ")[0] || "Dadaji";
 
-        {/* Right Tools & Navigation */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5">
-          {/* Language Selector Dropdown (Preserving all native scripts & NER states) */}
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    const q = searchQuery.toLowerCase();
+    if (q.includes("game") || q.includes("puzzle")) onNavigate("games");
+    else if (q.includes("med") || q.includes("pill") || q.includes("dawa")) onNavigate("medicines");
+    else if (q.includes("doctor") || q.includes("appoint")) onNavigate("appointments");
+    else if (q.includes("family") || q.includes("photo")) onNavigate("family_tree");
+    else if (q.includes("remind") || q.includes("routine")) onNavigate("routine");
+    else if (q.includes("garden")) onNavigate("routine");
+    else if (q.includes("cultural") || q.includes("song")) onNavigate("cultural");
+    else onOpenVoice();
+  };
+
+  return (
+    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-[#E8EEF5] px-4 sm:px-6 py-2.5 sm:py-3 transition-colors select-none">
+      <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-3 sm:gap-6">
+        {/* Mobile / Tablet Logo (hidden on large screens because sidebar displays logo) */}
+        <div className="flex items-center gap-2 lg:hidden">
+          <button
+            type="button"
+            onClick={() => onNavigate(store.profile.role === "caregiver" ? "caregiver" : "home")}
+            className="flex items-center cursor-pointer focus-visible:outline-none"
+          >
+            <MemoryBondLogo size="sm" />
+          </button>
+        </div>
+
+        {/* Center/Left: Pill Search Bar matching reference image */}
+        <form
+          onSubmit={handleSearch}
+          className="relative flex-1 max-w-md hidden sm:flex items-center"
+        >
+          <div className="relative w-full">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#829AB1] pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search anything..."
+              aria-label="Search activities, medicines, family or voice topics"
+              className="w-full h-10 pl-11 pr-4 rounded-full bg-[#F4F8FD] border border-[#E2EAF5] text-sm font-semibold text-[#0F243E] placeholder-[#829AB1] focus:outline-none focus:border-[#1E6FD9] focus:bg-white focus:ring-2 focus:ring-[#1E6FD9]/15 transition-all shadow-xs"
+            />
+          </div>
+        </form>
+
+        {/* Right Tools & Navigation Controls matching reference */}
+        <div className="flex items-center gap-2 sm:gap-3 ml-auto">
+          {/* Language Selector Dropdown (Pill shaped with globe & chevron) */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
-                className="rounded-2xl gap-1.5 font-bold text-xs h-10 px-2.5 sm:px-3.5 border-border bg-card hover:bg-secondary text-foreground cursor-pointer shadow-xs"
-                title="Select language"
+                className="h-10 px-3.5 rounded-full border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] text-[#0F243E] font-bold text-xs sm:text-sm gap-2 shadow-xs cursor-pointer focus-visible:ring-1 focus-visible:ring-[#1E6FD9]"
+                aria-label="Choose Language"
               >
-                <Languages className="h-4 w-4 text-primary" />
-                <span className="hidden sm:inline">{currentLangObj.native}</span>
-                <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                <Globe className="h-4 w-4 text-[#486581]" />
+                <span className="truncate max-w-[90px]">{currentLangObj.label}</span>
+                <ChevronDown className="h-3.5 w-3.5 text-[#829AB1]" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64 max-h-[75vh] overflow-y-auto rounded-2xl p-2 bg-card border-border shadow-xl">
-              <div className="px-2 py-1 text-[11px] font-extrabold text-primary uppercase tracking-wider">
+            <DropdownMenuContent
+              align="end"
+              className="w-64 max-h-[75vh] overflow-y-auto rounded-2xl p-2 bg-white border-[#E2EAF5] shadow-xl"
+            >
+              <div className="px-3 py-1.5 text-[11px] font-extrabold text-[#1E6FD9] uppercase tracking-wider">
                 Pan-India Languages
               </div>
               {LANGUAGES.filter((l) => !l.state).map((l) => (
@@ -97,20 +126,20 @@ export function Header({
                     store.updateProfile({ language: l.code });
                   }}
                   className={`rounded-xl cursor-pointer flex items-center justify-between font-bold py-2 px-3 text-xs transition-colors ${
-                    lang === l.code ? "bg-primary text-primary-foreground font-black" : "hover:bg-secondary text-foreground"
+                    lang === l.code
+                      ? "bg-[#E6F0FC] text-[#1E6FD9] font-black"
+                      : "hover:bg-[#F4F8FD] text-[#0F243E]"
                   }`}
                 >
                   <span>{l.native}</span>
-                  <span className={`text-[11px] font-normal ${lang === l.code ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                    {l.label}
-                  </span>
+                  <span className="text-[11px] text-[#627D98] font-normal">{l.label}</span>
                 </DropdownMenuItem>
               ))}
 
               {NER_STATES.map((stateName) => (
                 <div key={stateName} className="mt-2">
                   <DropdownMenuSeparator />
-                  <div className="px-2 py-1 text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider">
+                  <div className="px-3 py-1 text-[10px] font-extrabold text-[#627D98] uppercase tracking-wider">
                     {stateName} (NER)
                   </div>
                   {getLanguagesByState(stateName).map((l) => (
@@ -119,16 +148,20 @@ export function Header({
                       onClick={() => {
                         voiceManager.stopSpeaking();
                         setLang(l.code);
-                        store.updateProfile({ language: l.code, selected_ner_state: stateName, selected_state: stateName });
+                        store.updateProfile({
+                          language: l.code,
+                          selected_ner_state: stateName,
+                          selected_state: stateName,
+                        });
                       }}
                       className={`rounded-xl cursor-pointer flex items-center justify-between font-bold py-1.5 px-3 text-xs transition-colors ${
-                        lang === l.code ? "bg-primary text-primary-foreground font-black" : "hover:bg-secondary text-foreground"
+                        lang === l.code
+                          ? "bg-[#E6F0FC] text-[#1E6FD9] font-black"
+                          : "hover:bg-[#F4F8FD] text-[#0F243E]"
                       }`}
                     >
                       <span>{l.native}</span>
-                      <span className={`text-[10px] font-normal ${lang === l.code ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                        {l.label}
-                      </span>
+                      <span className="text-[10px] text-[#627D98] font-normal">{l.label}</span>
                     </DropdownMenuItem>
                   ))}
                 </div>
@@ -136,123 +169,82 @@ export function Header({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* AI Voice Assistant Quick Action */}
-          <Button
-            size="sm"
-            onClick={onOpenVoice}
-            className="rounded-2xl gap-2 font-bold text-xs h-10 px-3 sm:px-4 bg-primary hover:bg-primary/90 text-white shadow-sm shadow-primary/25 cursor-pointer transition-all active:scale-95"
-            title="Open AI Voice Assistant"
-          >
-            <Mic className="h-4 w-4 animate-pulse" />
-            <span className="hidden sm:inline font-black">{t("speak")}</span>
-          </Button>
-
-          {/* Offline / Sync Queue Status */}
-          {!store.isOnline ? (
-            <div
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-900 dark:text-amber-300 text-xs font-bold"
-              title="Working offline. All progress saved locally."
-            >
-              <WifiOff className="h-3.5 w-3.5 text-amber-600" />
-              <span className="hidden md:inline">Offline</span>
-              {store.syncQueue.length > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-white text-[10px] font-black">
-                  {store.syncQueue.length}
-                </span>
-              )}
-            </div>
-          ) : store.syncQueue.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => store.triggerSyncNow()}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-primary/15 border border-primary/30 text-primary text-xs font-bold hover:bg-primary/25 transition-colors cursor-pointer"
-              title="Click to sync offline actions to cloud"
-            >
-              <Wifi className="h-3.5 w-3.5" />
-              <span className="hidden md:inline">Sync ({store.syncQueue.length})</span>
-            </button>
-          ) : null}
-
-          {/* Notification Bell */}
-          <Button
-            variant="ghost"
-            size="sm"
+          {/* Notifications Circular Button with Red Badge Dot */}
+          <button
+            type="button"
             onClick={onOpenNotifications}
-            className="relative rounded-2xl h-10 w-10 p-0 text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer"
+            className="relative w-10 h-10 rounded-full border border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] text-[#486581] hover:text-[#0F243E] flex items-center justify-center transition-colors shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E6FD9]"
+            aria-label="View Notifications"
             title="Notifications"
           >
-            <Bell className="h-5 w-5" />
+            <Bell className="h-4 w-4" />
             {unreadCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-destructive text-white text-[10px] font-black flex items-center justify-center animate-bounce">
-                {unreadCount}
-              </span>
+              <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-[#EF4444] ring-2 ring-white" />
             )}
-          </Button>
+          </button>
 
-          {/* User Profile Pill & Dropdown */}
+          {/* User Profile Pill matching reference image */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-2xl h-10 px-2.5 sm:px-3 gap-2 text-xs font-bold text-foreground border-border bg-card hover:bg-secondary cursor-pointer shadow-xs"
-                title="User Profile & Settings"
+              <button
+                type="button"
+                className="h-10 pl-1 pr-3 rounded-full border border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] flex items-center gap-2.5 transition-colors shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E6FD9]"
+                aria-label="User Profile"
               >
-                <div className="w-6 h-6 rounded-full bg-primary/15 text-primary flex items-center justify-center font-black text-xs shrink-0">
-                  {store.profile.full_name ? store.profile.full_name.charAt(0).toUpperCase() : "U"}
+                {/* Circular Profile Avatar */}
+                <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-[#E2EAF5] bg-[#EBF3FC]">
+                  <img
+                    src="/images/family_memory_hero.jpg"
+                    alt={userDisplayName}
+                    className="w-full h-full object-cover object-top"
+                  />
                 </div>
-                <span className="hidden sm:inline truncate max-w-[90px]">
-                  {store.profile.full_name.split(" ")[0]}
+                <span className="text-xs sm:text-sm font-bold text-[#0F243E] max-w-[120px] truncate">
+                  Hello, {firstName}
                 </span>
-              </Button>
+                <ChevronDown className="h-3.5 w-3.5 text-[#829AB1] shrink-0" />
+              </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2 bg-card border-border shadow-lg space-y-1">
-              <div className="px-3 py-2 border-b border-border/80">
-                <div className="font-black text-sm text-foreground truncate">
-                  {store.profile.full_name}
+            <DropdownMenuContent
+              align="end"
+              className="w-56 rounded-2xl p-2 bg-white border-[#E2EAF5] shadow-xl space-y-1"
+            >
+              <div className="px-3 py-2 border-b border-[#EDF2F7]">
+                <div className="font-black text-sm text-[#0F243E] truncate">
+                  {userDisplayName}
                 </div>
-                <div className="text-[11px] font-bold text-primary uppercase tracking-wider mt-0.5">
+                <div className="text-[11px] font-bold text-[#1E6FD9] uppercase tracking-wider mt-0.5">
                   {store.profile.role === "caregiver" ? "Caregiver Account" : "Senior Account"}
                 </div>
               </div>
 
               <DropdownMenuItem
                 onClick={() => onNavigate("settings")}
-                className="rounded-xl text-xs font-semibold cursor-pointer py-2 px-3 hover:bg-secondary flex items-center gap-2"
+                className="rounded-xl text-xs font-semibold cursor-pointer py-2 px-3 hover:bg-[#F4F8FD] text-[#0F243E] flex items-center gap-2"
               >
-                <Settings className="h-4 w-4 text-muted-foreground" />
+                <Settings className="h-4 w-4 text-[#627D98]" />
                 <span>Accessibility & Settings</span>
               </DropdownMenuItem>
 
               <DropdownMenuItem
                 onClick={onOpenAuth}
-                className="rounded-xl text-xs font-semibold cursor-pointer py-2 px-3 hover:bg-secondary flex items-center gap-2"
+                className="rounded-xl text-xs font-semibold cursor-pointer py-2 px-3 hover:bg-[#F4F8FD] text-[#0F243E] flex items-center gap-2"
               >
-                <User className="h-4 w-4 text-muted-foreground" />
+                <User className="h-4 w-4 text-[#627D98]" />
                 <span>Switch / Link Account</span>
               </DropdownMenuItem>
 
               {onSignOut && (
                 <DropdownMenuItem
                   onClick={onSignOut}
-                  className="rounded-xl text-xs font-bold text-destructive focus:bg-destructive/10 cursor-pointer py-2 px-3"
+                  className="rounded-xl text-xs font-bold text-[#DC2626] focus:bg-[#FEE2E2] cursor-pointer py-2 px-3 flex items-center gap-2"
                 >
-                  Sign Out
+                  <LogOut className="h-4 w-4" />
+                  <span>Sign Out</span>
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-
-          {/* Quick Settings Shortcut (Mobile/Tablet) */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onNavigate("settings")}
-            className="rounded-2xl h-10 w-10 p-0 text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer sm:hidden"
-            title="Accessibility Settings"
-          >
-            <Settings className="h-5 w-5" />
-          </Button>
         </div>
       </div>
     </header>

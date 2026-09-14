@@ -255,6 +255,7 @@ export function MemoryBondApp() {
           store={store}
           onOpenVoice={() => setIsVoiceOpen(true)}
           onOpenSos={handleOpenSos}
+          onOpenNotifications={() => setIsNotificationsOpen(true)}
         />
 
         {/* Main View Container with safe clearance */}

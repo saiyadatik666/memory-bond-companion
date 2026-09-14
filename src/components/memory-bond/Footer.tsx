@@ -21,6 +21,7 @@ import { LANGUAGES, useI18n, type LangCode } from "@/lib/i18n";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { SosHoldControl } from "./SosHoldControl";
 import { RegionalLanguageSection } from "./RegionalLanguageSection";
+import { MemoryBondLogo } from "./MemoryBondLogo";
 
 interface FooterProps {
   store: MemoryBondStore;
@@ -118,20 +119,10 @@ export function Footer({
           {/* Column 1: Brand, Mission & Hackathon Badges (Span 4) */}
           <div className="lg:col-span-4 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white shadow-md shadow-primary/25">
-                <Heart className="h-6 w-6 fill-white/25" />
-              </div>
-              <div>
-                <h3 className="text-xl font-black tracking-tight font-display text-foreground">
-                  MEMORY BOND
-                </h3>
-                <p className="text-xs font-semibold text-muted-foreground">
-                  AI Cognitive Gaming & Memory Companion
-                </p>
-              </div>
+              <MemoryBondLogo size="lg" />
             </div>
 
-            <p className="text-sm text-muted-foreground leading-relaxed">
+            <p className="text-sm text-[#627D98] leading-relaxed">
               A serene, accessible digital companion designed with large touch surfaces, gentle memory stimulation, and natural voice guidance to support elders and families facing cognitive decline.
             </p>
 

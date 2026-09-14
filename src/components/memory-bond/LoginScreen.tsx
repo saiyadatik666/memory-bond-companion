@@ -30,6 +30,7 @@ import { RegionalLanguageSection } from "./RegionalLanguageSection";
 import { LANGUAGES, useI18n } from "@/lib/i18n";
 import { speakText } from "@/lib/voiceParser";
 import { connectSeniorToCaregiver } from "@/lib/caregiverConnectionService";
+import { MemoryBondLogo } from "./MemoryBondLogo";
 
 interface LoginScreenProps {
   store: MemoryBondStore;
@@ -290,25 +291,22 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
   if (stage === "welcome") {
     return (
       <div className="min-h-screen bg-ambient flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
-        <div className="w-full max-w-lg rounded-3xl bg-white border border-sky-100 shadow-xl p-7 sm:p-10 text-center space-y-7">
-          {/* Heart Logo with Soft Glow */}
-          <div className="relative mx-auto w-20 h-20 flex items-center justify-center">
-            <div className="absolute inset-0 rounded-3xl bg-primary/15 blur-lg" />
-            <div className="relative w-20 h-20 rounded-3xl bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white shadow-lg shadow-primary/25">
-              <Heart className="h-10 w-10 fill-white/25 text-white" />
-            </div>
+        <div className="w-full max-w-lg rounded-3xl bg-white border border-[#E2EAF5] shadow-xl p-7 sm:p-10 text-center space-y-7">
+          {/* Memory Bond Logo with Soft Glow */}
+          <div className="flex justify-center">
+            <MemoryBondLogo size="lg" showText={false} />
           </div>
 
           {/* Title & Tagline */}
           <div className="space-y-2.5">
-            <span className="text-xs uppercase tracking-widest font-black text-primary bg-primary/10 px-4 py-1.5 rounded-full border border-primary/20">
-              AI Senior Companion
+            <span className="text-xs uppercase tracking-widest font-black text-[#1E6FD9] bg-[#E0F2FE] px-4 py-1.5 rounded-full border border-[#BAE6FD]">
+              Care Companion
             </span>
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-foreground font-display">
-              MEMORY BOND
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-[#0F243E] font-display">
+              Memory Bond
             </h1>
-            <p className="text-base sm:text-lg font-bold text-muted-foreground max-w-sm mx-auto leading-relaxed">
-              Technology with a human heart — Helping you remember what matters.
+            <p className="text-base sm:text-lg font-bold text-[#627D98] max-w-sm mx-auto leading-relaxed">
+              Warm like family. Calm like a companion.
             </p>
           </div>
 
