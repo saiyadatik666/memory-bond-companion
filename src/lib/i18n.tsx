@@ -307,6 +307,11 @@ const en: Dict = {
   interestPuzzles: "Puzzles & Games",
   interestFamily: "Family & Grandchildren",
   interestCulture: "Culture & Traditions",
+  seniorInterestsTitle: "What are you interested in?",
+  seniorInterestsSubtitle: "Choose your preferences so Memory Bond can tailor your experience to you.",
+  seniorInterestsContinue: "Continue",
+  seniorInterestsAlert: "Please select at least 1 interest to continue.",
+  seniorInterestsCount: "selected",
   // Birthday
   birthday: "Birthday",
   birthdayReminderTomorrow: "Tomorrow is {name}'s birthday!",
@@ -549,6 +554,11 @@ const hi: Dict = {
   interestPuzzles: "पहेलियाँ और खेल",
   interestFamily: "परिवार और नाती-पोते",
   interestCulture: "संस्कृति और परंपरा",
+  seniorInterestsTitle: "आपको किस चीज़ में रुचि है?",
+  seniorInterestsSubtitle: "आप अपनी पसंद चुनें, ताकि Memory Bond आपके अनुभव को आपके अनुसार बेहतर बना सके।",
+  seniorInterestsContinue: "आगे बढ़ें",
+  seniorInterestsAlert: "कृपया आगे बढ़ने के लिए कम से कम 1 रुचि चुनें।",
+  seniorInterestsCount: "चुनी गई",
   // Birthday
   birthday: "जन्मदिन",
   birthdayReminderTomorrow: "कल {name} का जन्मदिन है!",

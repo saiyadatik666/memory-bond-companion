@@ -30,6 +30,7 @@ import { LANGUAGES, useI18n } from "@/lib/i18n";
 import { speakText } from "@/lib/voiceParser";
 import { connectSeniorToCaregiver } from "@/lib/caregiverConnectionService";
 import { MemoryBondLogo } from "./MemoryBondLogo";
+import { SeniorInterestsScreen } from "./SeniorInterestsScreen";
 
 interface LoginScreenProps {
   store: MemoryBondStore;
@@ -39,8 +40,8 @@ interface LoginScreenProps {
 export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
   const { lang, setLang, t } = useI18n();
 
-  // Onboarding Stage: 'welcome' -> 'language' -> 'role' -> 'caregiver_auth' | 'senior_auth'
-  const [stage, setStage] = useState<"welcome" | "language" | "role" | "caregiver_auth" | "senior_auth">(() => {
+  // Onboarding Stage: 'welcome' -> 'language' -> 'role' -> 'senior_interests' -> 'senior_auth' | 'caregiver_auth'
+  const [stage, setStage] = useState<"welcome" | "language" | "role" | "senior_interests" | "caregiver_auth" | "senior_auth">(() => {
     if (typeof window !== "undefined" && localStorage.getItem("mb_welcome_completed")) {
       return "role";
     }
@@ -61,6 +62,20 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
   // Senior linking state
   const [connectionCode, setConnectionCode] = useState("");
   const [seniorName, setSeniorName] = useState(store.profile.full_name || "Ramesh Sharma");
+  const [seniorInterests, setSeniorInterests] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("mb_senior_interests");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {}
+    }
+    return store.profile.interests && store.profile.interests.length > 0
+      ? store.profile.interests
+      : ["music", "gardening", "family"];
+  });
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [linkingError, setLinkingError] = useState<string | null>(null);
   const [linkingSuccess, setLinkingSuccess] = useState<string | null>(null);
@@ -247,6 +262,10 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
 
       setLinkingSuccess(successMsg);
 
+      store.updateProfile({
+        interests: seniorInterests,
+      });
+
       setTimeout(() => {
         onAuthenticated("senior");
       }, 750);
@@ -270,6 +289,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
         userId: seniorId,
         role: "senior",
         fullName: name,
+        interests: seniorInterests,
       })
     );
     localStorage.setItem("mb_authenticated_user_id", seniorId);
@@ -279,6 +299,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
       full_name: name,
       role: "senior",
       onboarded: true,
+      interests: seniorInterests,
     });
     store.setRole("senior");
     onAuthenticated("senior");
@@ -435,7 +456,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
             {/* Senior Card */}
             <button
               type="button"
-              onClick={() => setStage("senior_auth")}
+              onClick={() => setStage("senior_interests")}
               className="group p-6 rounded-3xl border-2 border-amber-200 hover:border-amber-400 bg-amber-50/40 hover:bg-amber-50 text-left space-y-3.5 transition-all cursor-pointer hover:shadow-md hover:scale-[1.01]"
             >
               <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
@@ -503,6 +524,26 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
   }
 
   // ==========================================================================
+  // SCREEN 3B: SENIOR INTEREST SELECTION (NEW STEP)
+  // ==========================================================================
+  if (stage === "senior_interests") {
+    return (
+      <SeniorInterestsScreen
+        initialInterests={seniorInterests}
+        onContinue={(selected) => {
+          setSeniorInterests(selected);
+          store.updateProfile({ interests: selected });
+          try {
+            localStorage.setItem("mb_senior_interests", JSON.stringify(selected));
+          } catch {}
+          setStage("senior_auth");
+        }}
+        onBack={() => setStage("role")}
+      />
+    );
+  }
+
+  // ==========================================================================
   // SCREEN 4A: SENIOR LINKING & ACCESS
   // ==========================================================================
   if (stage === "senior_auth") {
@@ -552,7 +593,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
         <div className="w-full max-w-md rounded-3xl bg-white border border-sky-100 shadow-xl p-6 sm:p-8 space-y-6">
           <div className="flex items-center justify-between border-b border-border pb-3">
             <button
-              onClick={() => setStage("role")}
+              onClick={() => setStage("senior_interests")}
               disabled={isLinking}
               className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer disabled:opacity-50"
             >

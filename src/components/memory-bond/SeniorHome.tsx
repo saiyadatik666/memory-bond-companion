@@ -29,6 +29,7 @@ import { useI18n } from "@/lib/i18n";
 import { speakText, stopSpeaking } from "@/lib/voiceParser";
 import { SosHoldControl } from "./SosHoldControl";
 import { AiRobotAvatar, MemoryGardenIllustration } from "./Illustrations";
+import { SENIOR_INTERESTS_LIST, getLocalizedInterest } from "@/lib/seniorInterestsData";
 
 export function SeniorHome({
   store,
@@ -317,6 +318,42 @@ export function SeniorHome({
               />
             </div>
           </div>
+
+          {/* Personalized Senior Interests Ribbon */}
+          {store.profile.interests && store.profile.interests.length > 0 && (
+            <div className="rounded-2xl bg-white border border-[#E2EAF5] p-3.5 sm:p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-[#1E6FD9] shrink-0">
+                <Sparkles className="h-4 w-4" />
+                <span>
+                  {lang === "hi"
+                    ? "आपकी रुचियां"
+                    : lang === "as"
+                    ? "আপোনাৰ ৰুচি"
+                    : lang === "bn"
+                    ? "আপনার পছন্দ"
+                    : lang === "gu"
+                    ? "તમારી પસંદ"
+                    : "Your Interests"}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2 items-center">
+                {store.profile.interests.map((interestId) => {
+                  const match = SENIOR_INTERESTS_LIST.find((item) => item.id === interestId);
+                  if (!match) return null;
+                  const { label } = getLocalizedInterest(match, lang);
+                  return (
+                    <span
+                      key={interestId}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-[#EBF3FC] text-[#0F243E] border border-[#D0E2F7] shadow-2xs hover:bg-[#DCEBFA] transition-colors select-none"
+                    >
+                      <span>{match.icon}</span>
+                      <span>{label}</span>
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* 2. DAILY SUMMARY CARDS (Row of 4) matching reference image */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
