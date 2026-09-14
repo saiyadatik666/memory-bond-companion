@@ -244,9 +244,9 @@ export function CaregiverDashboard({
             </div>
           </div>
 
-          {/* Rendered SVG QR Code */}
+          {/* Rendered Standard ISO/IEC 18004 QR Code */}
           <div className="flex flex-col items-center gap-2 p-4 rounded-3xl bg-card border-2 border-border shadow-md shrink-0">
-            <QRCodeDisplay value={caregiverUniqueCode} size={140} />
+            <QRCodeDisplay value={caregiverUniqueCode} size={180} />
             <span className="text-[11px] font-bold text-muted-foreground tracking-wide">
               Scan from Senior Login
             </span>

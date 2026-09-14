@@ -122,9 +122,9 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
             </div>
           </div>
 
-          {/* Real Scannable QR Code */}
+          {/* Real Scannable Standard QR Code */}
           <div className="flex flex-col items-center justify-center text-center p-4 rounded-3xl bg-card border-2 border-border shadow-md shrink-0">
-            <QRCodeDisplay value={store.profile.member_id} size={140} />
+            <QRCodeDisplay value={store.profile.member_id} size={180} />
             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-1.5">
               Scan with Caregiver App
             </span>
