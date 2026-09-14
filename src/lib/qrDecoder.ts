@@ -3,13 +3,12 @@
  * 
  * Powered by:
  * 1. Native Hardware BarcodeDetector (instant hardware decoding where supported)
- * 2. Synchronous Bundled jsQR Engine (100% offline, zero network requests, zero script tags)
+ * 2. Client-safe Local jsQR Engine via /js/jsQR.min.js (100% offline, zero network requests)
  * 3. Multi-Region Scanning:
  *    - Region A: Centered Viewfinder ROI (high resolution for elder aiming)
  *    - Region B: Full Camera Frame (wide angle for distance / off-center holding)
  * 4. Dual Polarity ("attemptBoth") for high resilience against screen glare and reflections
  */
-import jsQR from "./jsqr";
 
 export interface QrDecodeResult {
   data: string;
@@ -17,6 +16,40 @@ export interface QrDecodeResult {
 
 let barcodeDetectorInstance: any = null;
 let isBarcodeDetectorSupported: boolean | null = null;
+let jsQrLoadingPromise: Promise<boolean> | null = null;
+
+/**
+ * Dynamically ensures the local jsQR library is loaded on the client from /js/jsQR.min.js
+ */
+export async function ensureJsQrLoaded(): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  if (typeof (window as any).jsQR === "function") return true;
+  if (jsQrLoadingPromise) return jsQrLoadingPromise;
+
+  jsQrLoadingPromise = new Promise<boolean>((resolve) => {
+    try {
+      const existing = document.querySelector('script[data-qr-lib="jsqr"]');
+      if (existing) {
+        if (typeof (window as any).jsQR === "function") return resolve(true);
+        existing.addEventListener("load", () => resolve(typeof (window as any).jsQR === "function"));
+        existing.addEventListener("error", () => resolve(false));
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = "/js/jsQR.min.js";
+      script.setAttribute("data-qr-lib", "jsqr");
+      script.async = true;
+      script.onload = () => resolve(typeof (window as any).jsQR === "function");
+      script.onerror = () => resolve(false);
+      document.head.appendChild(script);
+    } catch {
+      resolve(false);
+    }
+  });
+
+  return jsQrLoadingPromise;
+}
 
 /**
  * Check if the browser natively supports BarcodeDetector with qr_code format
@@ -79,21 +112,22 @@ export async function scanFrameForQr(
         }
       }
     }
-  } catch (err) {
+  } catch {
     // Hardware detector fell through; seamlessly proceed to Engine 2
   }
 
   // ===========================================================================
-  // ENGINE 2: Bundled High-Precision jsQR Engine
+  // ENGINE 2: Local High-Precision jsQR Engine
   // ===========================================================================
   try {
+    const isLoaded = await ensureJsQrLoaded();
+    const jsQR = typeof window !== "undefined" ? (window as any).jsQR : null;
+    if (!isLoaded || typeof jsQR !== "function") return null;
+
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return null;
 
     // STRATEGY A: Center Viewfinder ROI Crop (High-Resolution Sensor Extraction)
-    // The senior aligns the QR code inside the central square frame.
-    // By extracting the center square crop at high resolution (up to 720px),
-    // small QR codes have crisp, unblurred modules.
     const minDim = Math.min(vWidth, vHeight);
     const cropX = Math.floor((vWidth - minDim) / 2);
     const cropY = Math.floor((vHeight - minDim) / 2);
@@ -116,7 +150,6 @@ export async function scanFrameForQr(
     }
 
     // STRATEGY B: Full-Frame Multi-Angle Scan
-    // In case the QR code is held slightly outside the center square or far away.
     const maxDim = 800;
     const scale = Math.min(1, maxDim / Math.max(vWidth, vHeight));
     const fullW = Math.floor(vWidth * scale);
@@ -138,7 +171,7 @@ export async function scanFrameForQr(
       return { data: fullResult.data.trim() };
     }
   } catch (err) {
-    console.debug("[QR Decoder] Analysis tick bypassed:", err);
+    console.debug("[QR Decoder] Analysis tick notice:", err);
   }
 
   return null;
