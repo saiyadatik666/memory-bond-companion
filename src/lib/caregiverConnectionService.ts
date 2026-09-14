@@ -159,7 +159,7 @@ export function extractAndNormalizeCaregiverCode(input: string): ExtractedCaregi
 export function validateCaregiverCodeFormat(code: string): boolean {
   if (!code) return false;
   const upper = code.trim().toUpperCase();
-  if (upper === "MB-CAREGIVER-2026") return true;
+  if (upper === "MB-CAREGIVER-2026" || upper === "MEMORY_BOND_TEST_QR_123") return true;
   // MB-CG- followed by 4 to 12 alphanumeric characters
   return /^MB-CG-[A-Z0-9]{4,12}$/.test(upper);
 }
@@ -173,6 +173,15 @@ export function resolveCaregiverProfile(
   hintRelationship?: string
 ): ResolvedCaregiverProfile {
   const upper = code.toUpperCase();
+
+  // Test QR payload support
+  if (upper === "MEMORY_BOND_TEST_QR_123") {
+    return {
+      name: hintName || "Test Family Member",
+      relationship: hintRelationship || "Family Tester",
+      phone: "+91 98765 00000",
+    };
+  }
 
   // If hints were embedded directly in QR code
   if (hintName && hintRelationship) {
