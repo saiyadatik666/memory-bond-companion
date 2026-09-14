@@ -1012,14 +1012,14 @@ export function VoiceAssistantModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-3 sm:p-4 backdrop-blur-md animate-in fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-3 sm:p-4 backdrop-blur-md animate-in fade-in duration-200"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           handleExit();
         }
       }}
     >
-      <div className="relative w-full max-w-2xl rounded-3xl border border-border bg-card p-5 sm:p-7 shadow-2xl space-y-5 flex flex-col max-h-[92vh]">
+      <div className="relative w-full max-w-2xl rounded-3xl border border-border bg-card p-5 sm:p-7 shadow-2xl space-y-5 flex flex-col max-h-[92vh] modal-enter">
         
         {/* Top Header: STOP Button, Auto-Detected Language Pill, New Topic, Language Selector, Exit Button */}
         <div className="flex items-center justify-between pb-3 border-b border-border shrink-0 gap-2 flex-wrap sm:flex-nowrap">

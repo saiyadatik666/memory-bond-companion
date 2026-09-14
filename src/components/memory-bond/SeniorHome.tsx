@@ -220,7 +220,7 @@ export function SeniorHome({
   ];
 
   return (
-    <div className="space-y-6 sm:space-y-7 animate-in fade-in pb-12">
+    <div className="space-y-6 sm:space-y-7 pb-12">
       {/* Offline Mode Alert */}
       {!store.isOnline && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50/95 p-3.5 sm:p-4 shadow-xs flex items-center justify-between gap-3">

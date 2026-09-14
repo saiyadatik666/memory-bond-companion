@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useMemoryBondStore } from "@/lib/memoryBondStore";
 import { Header } from "./Header";
 import { DemoControlBar } from "./DemoControlBar";
@@ -182,10 +182,45 @@ export function MemoryBondApp() {
     }
   }, []);
 
-  const handleNavigate = (tab: string) => {
-    setCurrentTab(tab);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const navTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleNavigate = useCallback((tab: string) => {
+    if (tab === currentTab && !isTransitioning) {
+      window.scrollTo({ top: 0, behavior: "instant" });
+      return;
+    }
+
+    // If reduced motion is enabled, switch immediately without delay
+    if (store.profile.reduced_motion) {
+      window.scrollTo({ top: 0, behavior: "instant" });
+      setCurrentTab(tab);
+      return;
+    }
+
+    if (navTimeoutRef.current) {
+      clearTimeout(navTimeoutRef.current);
+    }
+
+    // Step 1: Smooth, subtle fade out of current page (70ms)
+    setIsTransitioning(true);
+
+    navTimeoutRef.current = setTimeout(() => {
+      // Step 2: Instant scroll reset to top so no elevator scroll/jump occurs
+      window.scrollTo({ top: 0, behavior: "instant" });
+      // Step 3: Switch view & start gentle fade-in + 98.5% scale (180ms)
+      setCurrentTab(tab);
+      setIsTransitioning(false);
+    }, 70);
+  }, [currentTab, isTransitioning, store.profile.reduced_motion]);
+
+  useEffect(() => {
+    return () => {
+      if (navTimeoutRef.current) {
+        clearTimeout(navTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Requirement 19: Website MUST start with Login / Account Access page
   if (!isAuthenticated) {
@@ -258,78 +293,83 @@ export function MemoryBondApp() {
           onOpenNotifications={() => setIsNotificationsOpen(true)}
         />
 
-        {/* Main View Container */}
-        <main id="main-content" className="flex-1 min-w-0 px-3 sm:px-6 pt-4 pb-12 animate-in fade-in">
-          {currentTab === "home" && (
-            <SeniorHome
-              store={store}
-              onNavigate={handleNavigate}
-              onOpenSos={handleOpenSos}
-              onOpenVoiceAssistant={() => setIsVoiceOpen(true)}
-            />
-          )}
-
-          {currentTab === "caregiver" && (
-            store.profile.role !== "senior" ? (
-              <CaregiverDashboard store={store} onNavigate={handleNavigate} />
-            ) : (
+        {/* Main View Container with Unified Senior-Friendly Page Transition */}
+        <main id="main-content" className="flex-1 min-w-0 px-3 sm:px-6 pt-4 pb-12">
+          <div
+            key={currentTab}
+            className={isTransitioning ? "page-transition-exit" : "page-transition-enter"}
+          >
+            {currentTab === "home" && (
               <SeniorHome
                 store={store}
                 onNavigate={handleNavigate}
+                onOpenSos={handleOpenSos}
                 onOpenVoiceAssistant={() => setIsVoiceOpen(true)}
               />
-            )
-          )}
+            )}
 
-          {currentTab === "healthcare" && (
-            <CaregiverDashboard store={store} onNavigate={handleNavigate} />
-          )}
+            {currentTab === "caregiver" && (
+              store.profile.role !== "senior" ? (
+                <CaregiverDashboard store={store} onNavigate={handleNavigate} />
+              ) : (
+                <SeniorHome
+                  store={store}
+                  onNavigate={handleNavigate}
+                  onOpenVoiceAssistant={() => setIsVoiceOpen(true)}
+                />
+              )
+            )}
 
-          {currentTab === "cultural" && (
-            <NorthEastCulturalConnect store={store} />
-          )}
+            {currentTab === "healthcare" && (
+              <CaregiverDashboard store={store} onNavigate={handleNavigate} />
+            )}
 
-          {/* Unified Family Tree replacing standalone sections 6, 7 and 8 */}
-          {currentTab === "family_tree" && (
-            <FamilyTreeView store={store} initialTab="tree" />
-          )}
+            {currentTab === "cultural" && (
+              <NorthEastCulturalConnect store={store} />
+            )}
 
-          {currentTab === "social" && (
-            <FamilyTreeView store={store} initialTab="greetings" />
-          )}
-
-          {currentTab === "cues" && (
-            <FamilyTreeView store={store} initialTab="cues" />
-          )}
-
-          {currentTab === "journal" && (
-            <FamilyTreeView store={store} initialTab="journal" />
-          )}
-
-          {currentTab === "medicines" && <MedicineManagerView store={store} />}
-
-          {currentTab === "reminders" && <RemindersView store={store} />}
-
-          {currentTab === "games" && (
-            <CognitiveGamesHub store={store} onNavigate={handleNavigate} />
-          )}
-
-          {currentTab === "checkin" && <CognitiveCheckIn store={store} />}
-
-          {currentTab === "routine" && <DailyRoutineView store={store} />}
-
-          {currentTab === "appointments" && <AppointmentsView store={store} />}
-
-          {/* Connect Caregiver & Family: Caregiver/Admin only. If a Senior accesses this, render FamilyTreeView instead */}
-          {currentTab === "family" && (
-            store.profile.role !== "senior" ? (
-              <FamilyManagementView store={store} />
-            ) : (
+            {/* Unified Family Tree replacing standalone sections 6, 7 and 8 */}
+            {currentTab === "family_tree" && (
               <FamilyTreeView store={store} initialTab="tree" />
-            )
-          )}
+            )}
 
-          {currentTab === "settings" && <SettingsView store={store} />}
+            {currentTab === "social" && (
+              <FamilyTreeView store={store} initialTab="greetings" />
+            )}
+
+            {currentTab === "cues" && (
+              <FamilyTreeView store={store} initialTab="cues" />
+            )}
+
+            {currentTab === "journal" && (
+              <FamilyTreeView store={store} initialTab="journal" />
+            )}
+
+            {currentTab === "medicines" && <MedicineManagerView store={store} />}
+
+            {currentTab === "reminders" && <RemindersView store={store} />}
+
+            {currentTab === "games" && (
+              <CognitiveGamesHub store={store} onNavigate={handleNavigate} />
+            )}
+
+            {currentTab === "checkin" && <CognitiveCheckIn store={store} />}
+
+            {currentTab === "routine" && <DailyRoutineView store={store} />}
+
+            {currentTab === "appointments" && <AppointmentsView store={store} />}
+
+            {/* Connect Caregiver & Family: Caregiver/Admin only. If a Senior accesses this, render FamilyTreeView instead */}
+            {currentTab === "family" && (
+              store.profile.role !== "senior" ? (
+                <FamilyManagementView store={store} />
+              ) : (
+                <FamilyTreeView store={store} initialTab="tree" />
+              )
+            )}
+
+            {currentTab === "settings" && <SettingsView store={store} />}
+          </div>
         </main>
       </div>
 

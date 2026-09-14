@@ -543,8 +543,8 @@ export function SosModal({
     .sort((a, b) => a.priority - b.priority);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-3 sm:p-4 backdrop-blur-md animate-in fade-in overflow-y-auto">
-      <div className="relative w-full max-w-lg rounded-3xl border-2 border-destructive/60 bg-card p-6 sm:p-8 shadow-2xl space-y-6 text-center mx-auto my-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-3 sm:p-4 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto">
+      <div className="relative w-full max-w-lg rounded-3xl border-2 border-destructive/60 bg-card p-6 sm:p-8 shadow-2xl space-y-6 text-center mx-auto my-auto modal-enter">
         {/* Close / Cancel X button (available during countdown & voice input) */}
         {sessionState !== "COMPLETED" && (
           <button
@@ -561,7 +561,7 @@ export function SosModal({
         {/* STAGE 1: VOICE EMERGENCY LISTENING                           */}
         {/* ============================================================ */}
         {sessionState === "VOICE_INPUT" && (
-          <div className="space-y-6 animate-in zoom-in-95">
+          <div className="space-y-6 animate-in fade-in duration-150">
             <div className="w-20 h-20 rounded-full bg-destructive/15 border-2 border-destructive mx-auto flex items-center justify-center text-destructive animate-pulse">
               <Mic className="h-10 w-10" />
             </div>
@@ -608,7 +608,7 @@ export function SosModal({
         {/* STAGE 2: FULL-SCREEN SOS CONFIRMATION WITH 10-SEC COUNTDOWN  */}
         {/* ============================================================ */}
         {(sessionState === "COUNTDOWN" || sessionState === "CONFIRMATION" || sessionState === "IDLE") && (
-          <div className="space-y-6 animate-in zoom-in-95">
+          <div className="space-y-6 animate-in fade-in duration-150">
             <div className="rounded-3xl border-3 border-destructive bg-destructive/15 p-6 space-y-3">
               <div className="w-16 h-16 rounded-full bg-destructive text-white mx-auto flex items-center justify-center animate-bounce shadow-lg">
                 <AlertTriangle className="h-9 w-9" />
@@ -675,7 +675,7 @@ export function SosModal({
         {/* STAGE 3: SOS DISPATCHED & ESCALATION FLOW                     */}
         {/* ============================================================ */}
         {sessionState === "COMPLETED" && (
-          <div className="space-y-6 animate-in zoom-in-95">
+          <div className="space-y-6 animate-in fade-in duration-150">
             {/* Active Status Alert */}
             <div className="rounded-3xl border-3 border-destructive bg-destructive/15 p-5 space-y-2 text-center">
               <div className="w-14 h-14 rounded-full bg-destructive text-white mx-auto flex items-center justify-center animate-bounce shadow-lg">

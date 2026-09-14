@@ -202,8 +202,8 @@ export function AuthModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-md animate-in fade-in">
-      <div className="relative w-full max-w-md rounded-3xl border-2 border-border bg-card p-6 sm:p-8 shadow-2xl space-y-5 animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-md rounded-3xl border-2 border-border bg-card p-6 sm:p-8 shadow-2xl space-y-5 modal-enter max-h-[90vh] overflow-y-auto">
         {/* Close Button */}
         <button
           onClick={onClose}

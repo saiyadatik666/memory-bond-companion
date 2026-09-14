@@ -286,3 +286,107 @@
   min-width: 48px;
 }
 
+/* ========================================================================= */
+/* MEMORY BOND — UNIFIED SENIOR-FRIENDLY PAGE TRANSITION SYSTEM              */
+/* Smooth, calm, fast (160-200ms), 98.5% -> 100% subtle scale + opacity fade */
+/* ZERO bottom-to-top sliding, ZERO layout shifts, ZERO vertical jumping    */
+/* ========================================================================= */
+
+@keyframes pageEnter {
+  0% {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pageExit {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.08;
+  }
+}
+
+.page-transition-enter {
+  animation: pageEnter 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+  transform-origin: center top;
+}
+
+.page-transition-exit {
+  animation: pageExit 70ms ease-out forwards;
+  will-change: opacity;
+}
+
+/* Modal / Popup subtle enter */
+@keyframes modalEnter {
+  0% {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modal-enter {
+  animation: modalEnter 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+
+/* Subtle 3-dot pulse animation for data loading */
+@keyframes dotPulse {
+  0%, 100% {
+    opacity: 0.25;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+.pulse-dot-1 {
+  animation: dotPulse 1.2s infinite ease-in-out;
+  animation-delay: 0ms;
+}
+.pulse-dot-2 {
+  animation: dotPulse 1.2s infinite ease-in-out;
+  animation-delay: 200ms;
+}
+.pulse-dot-3 {
+  animation: dotPulse 1.2s infinite ease-in-out;
+  animation-delay: 400ms;
+}
+
+/* Reduced motion accessibility overrides */
+@media (prefers-reduced-motion: reduce) {
+  .page-transition-enter,
+  .page-transition-exit,
+  .modal-enter,
+  .pulse-dot-1,
+  .pulse-dot-2,
+  .pulse-dot-3 {
+    animation: none !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+.reduced-motion .page-transition-enter,
+.reduced-motion .page-transition-exit,
+.reduced-motion .modal-enter,
+.reduced-motion .pulse-dot-1,
+.reduced-motion .pulse-dot-2,
+.reduced-motion .pulse-dot-3 {
+  animation: none !important;
+  transform: none !important;
+  transition: none !important;
+}
+

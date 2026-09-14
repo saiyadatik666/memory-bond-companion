@@ -460,7 +460,7 @@ export function QRScannerModal({
       {/* Hidden scratch canvas used strictly for mathematical image frame decode */}
       <canvas ref={canvasRef} className="hidden" aria-hidden="true" />
 
-      <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-card border-2 border-sky-100 dark:border-border shadow-2xl p-5 sm:p-7 text-foreground my-auto space-y-5 animate-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-card border-2 border-sky-100 dark:border-border shadow-2xl p-5 sm:p-7 text-foreground my-auto space-y-5 modal-enter">
         
         {/* ================================================================= */}
         {/* STAGE 1 & 2: SCANNER VIEW (Live Camera + Scanning Frame)          */}

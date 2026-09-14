@@ -65,7 +65,7 @@ export function FamilyTreeView({ store, initialTab = "tree" }: FamilyTreeViewPro
   };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-12 animate-in fade-in duration-300">
+    <div className="space-y-6 max-w-6xl mx-auto pb-12">
       {/* Header Banner */}
       <div className="rounded-3xl bg-gradient-to-r from-rose-500/15 via-purple-500/10 to-amber-500/15 border-2 border-rose-500/30 p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

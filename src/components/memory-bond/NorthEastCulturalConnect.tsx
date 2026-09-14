@@ -157,7 +157,7 @@ export function NorthEastCulturalConnect({ store }: { store: MemoryBondStore }) 
   };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-12 animate-in fade-in">
+    <div className="space-y-6 max-w-6xl mx-auto pb-12">
       {/* 1. Header Banner */}
       <div className="relative overflow-hidden rounded-3xl border-2 border-primary/30 bg-gradient-to-br from-card via-card to-primary/10 p-6 sm:p-8 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">

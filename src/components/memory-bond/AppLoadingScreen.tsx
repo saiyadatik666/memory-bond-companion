@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { RotateCcw, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
+import { RotateCcw, ArrowRight, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MemoryBondLogo } from "./MemoryBondLogo";
+import { MemoryBondPulseDots } from "./MemoryBondLoading";
 
 interface AppLoadingScreenProps {
   error?: string | null;
@@ -32,7 +33,7 @@ export function AppLoadingScreen({ error, onRetry, onSkip }: AppLoadingScreenPro
     <div
       role="status"
       aria-live="polite"
-      className="min-h-screen bg-ambient flex flex-col items-center justify-center p-4 sm:p-6 select-none animate-in fade-in duration-300"
+      className="min-h-screen bg-ambient flex flex-col items-center justify-center p-4 sm:p-6 select-none page-transition-enter"
     >
       <div className="w-full max-w-md rounded-3xl bg-white/95 dark:bg-card/95 border border-sky-100 dark:border-border shadow-2xl p-8 sm:p-10 text-center space-y-6 backdrop-blur-md">
         {/* Official Memory Bond Logo with Generous Whitespace & Soft Ambient Glow */}
@@ -83,11 +84,13 @@ export function AppLoadingScreen({ error, onRetry, onSkip }: AppLoadingScreenPro
             </div>
           </div>
         ) : (
-          /* Normal Clean Progress State */
-          <div className="space-y-4">
-            <div className="flex items-center justify-center gap-2.5 text-sm font-bold text-foreground">
-              <Loader2 className="h-4 w-4 text-primary animate-spin" />
-              <span>Loading your cognitive companion...</span>
+          /* Normal Clean Progress State with Subtle Pulse Dots */
+          <div className="space-y-3 py-1">
+            <div className="flex flex-col items-center justify-center gap-2.5">
+              <MemoryBondPulseDots />
+              <span className="text-xs sm:text-sm font-bold text-foreground">
+                Loading your cognitive companion...
+              </span>
             </div>
 
             {/* Fail-safe slow network fallback: NEVER leaves the user stuck */}
