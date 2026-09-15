@@ -54,22 +54,22 @@ export function DesktopSidebar({
     { id: "games", label: t("games") || "Games", icon: Gamepad2 },
     { id: "medicines", label: t("medicines") || "Medicines", icon: Pill },
     { id: "appointments", label: t("appointments") || "Appointments", icon: Calendar },
-    { id: "voice", label: "Voice AI", icon: Mic, isAction: true, onAction: onOpenVoice },
-    { id: "family_tree", label: "Family Tree", icon: Users },
-    { id: "journal", label: "Memories", icon: Heart },
-    { id: "routine", label: "Memory Garden", icon: Leaf },
-    { id: "cultural", label: "Cultural Hub", icon: Compass },
+    { id: "voice", label: t("qaVoiceAi") || "Voice AI", icon: Mic, isAction: true, onAction: onOpenVoice },
+    { id: "family_tree", label: t("qaFamilyTree") || "Family Tree", icon: Users },
+    { id: "journal", label: t("journal") || "Memories", icon: Heart },
+    { id: "routine", label: t("qaMemoryGarden") || "Memory Garden", icon: Leaf },
+    { id: "cultural", label: t("qaCulturalHub") || "Cultural Hub", icon: Compass },
   ];
 
   const caregiverNavItems: NavItem[] = [
-    { id: "caregiver", label: "Dashboard", icon: Home },
+    { id: "caregiver", label: t("caregiverDashboard") || "Dashboard", icon: Home },
     { id: "medicines", label: t("medicines") || "Medicines", icon: Pill },
     { id: "appointments", label: t("appointments") || "Appointments", icon: Calendar },
-    { id: "family", label: "Care Network", icon: Users },
-    { id: "voice", label: "Voice AI", icon: Mic, isAction: true, onAction: onOpenVoice },
-    { id: "family_tree", label: "Family Tree", icon: Users },
-    { id: "routine", label: "Daily Routine", icon: Sun },
-    { id: "cultural", label: "Cultural Hub", icon: Compass },
+    { id: "family", label: t("family") || "Care Network", icon: Users },
+    { id: "voice", label: t("qaVoiceAi") || "Voice AI", icon: Mic, isAction: true, onAction: onOpenVoice },
+    { id: "family_tree", label: t("qaFamilyTree") || "Family Tree", icon: Users },
+    { id: "routine", label: t("routine") || "Daily Routine", icon: Sun },
+    { id: "cultural", label: t("qaCulturalHub") || "Cultural Hub", icon: Compass },
   ];
 
   const mainNavItems = role === "caregiver" ? caregiverNavItems : seniorNavItems;
@@ -77,14 +77,14 @@ export function DesktopSidebar({
   const secondaryNavItems: NavItem[] = [
     {
       id: "notifications",
-      label: "Notifications",
+      label: t("notifications") || "Notifications",
       icon: Bell,
       isAction: true,
       onAction: onOpenNotifications,
     },
     {
       id: "sos",
-      label: "SOS",
+      label: t("sos") || "SOS",
       icon: ShieldAlert,
       isAction: true,
       onAction: onOpenSos,
@@ -107,7 +107,7 @@ export function DesktopSidebar({
           <div className="flex items-center gap-2">
             <MemoryBondLogo variant="icon" size="xs" />
             <span className="text-[11px] font-black uppercase tracking-wider text-[#486581]">
-              Memory Bond • {role === "caregiver" ? "Caregiver" : "Senior"}
+              Memory Bond • {role === "caregiver" ? t("iAmCaregiver") : t("iAmSenior")}
             </span>
           </div>
           <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" title="System Live" />

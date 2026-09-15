@@ -31,12 +31,12 @@ export function BottomNavigation({
     { id: "home", label: t("home") || "Home", icon: Home },
     { id: "games", label: t("games") || "Games", icon: Gamepad2 },
     { id: "family_tree", label: t("family") || "Family", icon: Users },
-    { id: "voice", label: "Voice", icon: Mic, isVoiceAction: true },
+    { id: "voice", label: t("voiceNote") || "Voice", icon: Mic, isVoiceAction: true },
     { id: "settings", label: t("settings") || "Settings", icon: Settings },
   ];
 
   const caregiverTabs = [
-    { id: "caregiver", label: "Dashboard", icon: Home },
+    { id: "caregiver", label: t("caregiverDashboard") || "Dashboard", icon: Home },
     { id: "medicines", label: t("medicines") || "Medicines", icon: Pill },
     { id: "appointments", label: t("appointments") || "Appointments", icon: Calendar },
     { id: "family", label: t("family") || "Family", icon: Users },

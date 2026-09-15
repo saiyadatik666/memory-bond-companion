@@ -40,7 +40,7 @@ export function Header({
   onNavigate,
   onSignOut,
 }: HeaderProps) {
-  const { lang, setLang } = useI18n();
+  const { lang, setLang, t } = useI18n();
   const [searchQuery, setSearchQuery] = useState("");
   const unreadCount = store.notifications.filter((n) => !n.read).length;
   const currentLangObj = LANGUAGES.find((l) => l.code === lang) || LANGUAGES[0];
@@ -117,7 +117,7 @@ export function Header({
               className="w-64 max-h-[75vh] overflow-y-auto rounded-2xl p-2 bg-white border-[#E2EAF5] shadow-xl"
             >
               <div className="px-3 py-1.5 text-[11px] font-extrabold text-[#1E6FD9] uppercase tracking-wider">
-                Pan-India Languages
+                {t("language")}
               </div>
               {LANGUAGES.filter((l) => !l.state).map((l) => (
                 <DropdownMenuItem
@@ -202,7 +202,7 @@ export function Header({
                   />
                 </div>
                 <span className="hidden md:inline text-xs sm:text-sm font-bold text-[#0F243E] max-w-[120px] truncate">
-                  Hello, {firstName}
+                  {t("welcomeBack")}, {firstName}
                 </span>
                 <ChevronDown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#829AB1] shrink-0" />
               </button>
@@ -216,7 +216,7 @@ export function Header({
                   {userDisplayName}
                 </div>
                 <div className="text-[11px] font-bold text-[#1E6FD9] uppercase tracking-wider mt-0.5">
-                  {store.profile.role === "caregiver" ? "Caregiver Account" : "Senior Account"}
+                  {store.profile.role === "caregiver" ? t("caregiverDashboard") : t("iAmSenior")}
                 </div>
               </div>
 
@@ -225,7 +225,7 @@ export function Header({
                 className="rounded-xl text-xs font-semibold cursor-pointer py-2 px-3 hover:bg-[#F4F8FD] text-[#0F243E] flex items-center gap-2"
               >
                 <Settings className="h-4 w-4 text-[#627D98]" />
-                <span>Accessibility & Settings</span>
+                <span>{t("settings")}</span>
               </DropdownMenuItem>
 
               <DropdownMenuItem
@@ -242,7 +242,7 @@ export function Header({
                   className="rounded-xl text-xs font-bold text-[#DC2626] focus:bg-[#FEE2E2] cursor-pointer py-2 px-3 flex items-center gap-2"
                 >
                   <LogOut className="h-4 w-4" />
-                  <span>Sign Out</span>
+                  <span>{t("signOut")}</span>
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>

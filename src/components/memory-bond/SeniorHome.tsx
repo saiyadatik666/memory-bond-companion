@@ -94,15 +94,15 @@ export function SeniorHome({
   ).length;
 
   const greeting = (() => {
-    if (hour < 12) return "Good Morning";
-    if (hour < 17) return "Good Afternoon";
-    return "Good Evening";
+    if (hour < 12) return t("goodMorning");
+    if (hour < 17) return t("goodAfternoon");
+    return t("goodEvening");
   })();
 
   const rawName = store.profile.full_name?.trim() || "Dadaji";
   const displayName = rawName.split(" ")[0] || "Dadaji";
 
-  const quoteText = "Small steps every day keep your mind active and happy.";
+  const quoteText = t("smallStepsQuote");
 
   const speakWelcome = () => {
     stopSpeaking();
@@ -122,8 +122,8 @@ export function SeniorHome({
     // ROW 1
     {
       id: "qa-games",
-      title: "Play Games",
-      desc: "Mind stimulation",
+      title: t("qaPlayGames"),
+      desc: t("qaPlayGamesDesc"),
       icon: Gamepad2,
       onClick: () => onNavigate("games"),
       accentBg: "bg-[#F3E8FF]",
@@ -134,8 +134,8 @@ export function SeniorHome({
     },
     {
       id: "qa-sos",
-      title: "SOS Emergency",
-      desc: "Emergency help",
+      title: t("qaEmergencySos"),
+      desc: t("qaEmergencySosDesc"),
       icon: ShieldAlert,
       onClick: onOpenSos,
       accentBg: "bg-[#FEE2E2]",
@@ -146,8 +146,8 @@ export function SeniorHome({
     },
     {
       id: "qa-appointments",
-      title: "Appointments",
-      desc: "Doctor reviews",
+      title: t("qaAppointments"),
+      desc: t("qaAppointmentsDesc"),
       icon: Calendar,
       onClick: () => onNavigate("appointments"),
       accentBg: "bg-[#E0F2FE]",
@@ -158,8 +158,8 @@ export function SeniorHome({
     },
     {
       id: "qa-voice",
-      title: "Voice AI",
-      desc: "Speak in regional",
+      title: t("qaVoiceAi"),
+      desc: t("qaVoiceAiDesc"),
       icon: Mic,
       onClick: onOpenVoiceAssistant,
       accentBg: "bg-[#DBEAFE]",
@@ -171,8 +171,8 @@ export function SeniorHome({
     // ROW 2
     {
       id: "qa-family-tree",
-      title: "Family Tree",
-      desc: "Loved ones & ties",
+      title: t("qaFamilyTree"),
+      desc: t("qaFamilyTreeDesc"),
       icon: Users,
       onClick: () => onNavigate("family_tree"),
       accentBg: "bg-[#FCE7F3]",
@@ -183,8 +183,8 @@ export function SeniorHome({
     },
     {
       id: "qa-reminders",
-      title: "Reminders",
-      desc: "Important things",
+      title: t("reminders"),
+      desc: t("qaRemindersDesc"),
       icon: Bell,
       onClick: () => onNavigate("reminders"),
       accentBg: "bg-[#EDE9FE]",
@@ -195,9 +195,10 @@ export function SeniorHome({
     },
     {
       id: "qa-garden",
-      title: "Memory Garden",
-      desc: "Daily blooming",
+      title: t("qaMemoryGarden"),
+      desc: t("qaMemoryGardenDesc"),
       icon: Leaf,
+
       onClick: () => onNavigate("routine"),
       accentBg: "bg-[#DCFCE7]",
       accentFg: "text-[#15803D]",
@@ -207,8 +208,8 @@ export function SeniorHome({
     },
     {
       id: "qa-cultural",
-      title: "Cultural Hub",
-      desc: "North East roots",
+      title: t("qaCulturalHub"),
+      desc: t("qaCulturalHubDesc"),
       icon: Compass,
       onClick: () => onNavigate("cultural"),
       accentBg: "bg-[#CCFBF1]",
@@ -229,15 +230,15 @@ export function SeniorHome({
               <WifiOff className="h-5 w-5" />
             </div>
             <div>
-              <div className="text-sm font-black text-amber-900">Offline Safe Mode</div>
+              <div className="text-sm font-black text-amber-900">{t("offlineSafeMode")}</div>
               <p className="text-xs font-semibold text-amber-800/80">
-                Medicines and games are safely saved on this device.
+                {t("offlineSafeDesc")}
               </p>
             </div>
           </div>
           {store.syncQueue.length > 0 && (
             <span className="px-2.5 py-1 rounded-full bg-amber-500 text-white text-xs font-black shrink-0">
-              {store.syncQueue.length} Local Updates
+              {store.syncQueue.length} {t("localUpdates")}
             </span>
           )}
         </div>
@@ -253,10 +254,10 @@ export function SeniorHome({
             <AlertTriangle className="h-5 w-5 text-rose-600 shrink-0" />
             <div>
               <h4 className="text-sm font-bold text-[#0F243E]">
-                {lowStockMeds[0]?.name} is running low ({lowStockMeds[0]?.stock} remaining)
+                {lowStockMeds[0]?.name} – {t("medicineLow")}
               </h4>
               <p className="text-xs text-[#627D98] font-medium">
-                Tap to view medicine refill details. Caregiver notified.
+                {t("tapRefillDetails")}
               </p>
             </div>
           </div>
@@ -303,7 +304,7 @@ export function SeniorHome({
                   className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#F4F8FD] hover:bg-[#EBF3FC] text-[#1E6FD9] border border-[#E2EAF5] text-xs font-bold transition-colors cursor-pointer"
                   title="Read aloud"
                 >
-                  <Volume2 className="h-3.5 w-3.5" /> Read
+                  <Volume2 className="h-3.5 w-3.5" /> {t("readAloudBtn")}
                 </button>
               </div>
             </div>
@@ -324,17 +325,7 @@ export function SeniorHome({
             <div className="rounded-2xl bg-white border border-[#E2EAF5] p-3.5 sm:p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-[#1E6FD9] shrink-0">
                 <Sparkles className="h-4 w-4" />
-                <span>
-                  {lang === "hi"
-                    ? "आपकी रुचियां"
-                    : lang === "as"
-                    ? "আপোনাৰ ৰুচি"
-                    : lang === "bn"
-                    ? "আপনার পছন্দ"
-                    : lang === "gu"
-                    ? "તમારી પસંદ"
-                    : "Your Interests"}
-                </span>
+                <span>{t("yourInterests")}</span>
               </div>
               <div className="flex flex-wrap gap-2 items-center">
                 {store.profile.interests.map((interestId) => {
@@ -370,13 +361,13 @@ export function SeniorHome({
               </div>
               <div className="mt-3">
                 <span className="text-xs font-bold text-[#627D98] block">
-                  Today's Games
+                  {t("todaysGames")}
                 </span>
                 <div className="text-xl sm:text-2xl font-black text-[#0F243E] font-display mt-0.5">
                   2 / 5
                 </div>
                 <p className="text-[11px] font-semibold text-[#829AB1] mt-0.5 truncate">
-                  Play and stay active
+                  {t("playAndStayActive")}
                 </p>
               </div>
             </div>
@@ -394,13 +385,13 @@ export function SeniorHome({
               </div>
               <div className="mt-3">
                 <span className="text-xs font-bold text-[#627D98] block">
-                  Medicines
+                  {t("medicines")}
                 </span>
                 <div className="text-xl sm:text-2xl font-black text-[#0F243E] font-display mt-0.5">
-                  {store.medicines.length > 0 ? "1 due today" : "0 due today"}
+                  {store.medicines.length > 0 ? `1 ${t("dueToday")}` : `0 ${t("dueToday")}`}
                 </div>
                 <p className="text-[11px] font-semibold text-[#829AB1] mt-0.5 truncate">
-                  Stay on track
+                  {t("stayOnTrack")}
                 </p>
               </div>
             </div>
@@ -418,13 +409,13 @@ export function SeniorHome({
               </div>
               <div className="mt-3">
                 <span className="text-xs font-bold text-[#627D98] block">
-                  Appointments
+                  {t("appointments")}
                 </span>
                 <div className="text-xl sm:text-2xl font-black text-[#0F243E] font-display mt-0.5">
-                  {store.appointments.length > 0 ? `${store.appointments.length} scheduled` : "0 today"}
+                  {store.appointments.length > 0 ? `${store.appointments.length} ${t("scheduled")}` : `0 ${t("today")}`}
                 </div>
                 <p className="text-[11px] font-semibold text-[#829AB1] mt-0.5 truncate">
-                  Doctor reviews
+                  {t("doctorReviews")}
                 </p>
               </div>
             </div>
@@ -442,13 +433,13 @@ export function SeniorHome({
               </div>
               <div className="mt-3">
                 <span className="text-xs font-bold text-[#627D98] block">
-                  Family Members
+                  {t("familyMembers")}
                 </span>
                 <div className="text-xl sm:text-2xl font-black text-[#0F243E] font-display mt-0.5">
                   5
                 </div>
                 <p className="text-[11px] font-semibold text-[#829AB1] mt-0.5 truncate">
-                  Stay connected
+                  {t("stayConnected")}
                 </p>
               </div>
             </div>
@@ -461,17 +452,17 @@ export function SeniorHome({
                 <span className="text-xl text-amber-500">✨</span>
                 <div>
                   <h3 className="text-lg sm:text-xl font-black text-[#0F243E] font-display tracking-tight leading-none">
-                    Quick Access
+                    {t("quickAccess")}
                   </h3>
                   <p className="text-xs font-semibold text-[#627D98] mt-1">
-                    Explore your favorite features
+                    {t("exploreFeatures")}
                   </p>
                 </div>
               </div>
 
               {/* Dynamic 8 Activities Badge matching reference image */}
               <span className="px-3 py-1 rounded-full bg-[#E0F2FE] text-[#0284C7] text-xs font-black shrink-0 border border-[#BAE6FD]">
-                {quickAccessItems.length} Activities
+                {quickAccessItems.length} {t("activitiesCount")}
               </span>
             </div>
 
@@ -519,10 +510,10 @@ export function SeniorHome({
               <AiRobotAvatar className="w-14 h-14 sm:w-16 sm:h-16" />
               <div className="min-w-0">
                 <h4 className="text-lg sm:text-xl font-black text-[#0F243E] font-display leading-tight">
-                  Need Help?
+                  {t("needHelp")}
                 </h4>
                 <p className="text-xs sm:text-sm font-semibold text-[#486581] mt-0.5">
-                  Talk to your AI Assistant
+                  {t("talkToAiAssistant")}
                 </p>
               </div>
             </div>
@@ -532,7 +523,7 @@ export function SeniorHome({
               onClick={onOpenVoiceAssistant}
               className="h-11 px-6 rounded-full bg-[#1E6FD9] hover:bg-[#1858AE] text-white font-black text-xs sm:text-sm shadow-sm gap-2 cursor-pointer shrink-0 transition-transform active:scale-95"
             >
-              <span>Start Chat</span>
+              <span>{t("startChat")}</span>
               <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
@@ -546,10 +537,10 @@ export function SeniorHome({
                 </div>
                 <div>
                   <h4 className="text-sm font-black text-[#0F243E] font-display">
-                    Daily Routine & Needs
+                    {t("dailyRoutineAndNeeds")}
                   </h4>
                   <span className="text-[11px] font-semibold text-[#627D98]">
-                    {routinesDone} completed today
+                    {routinesDone} {t("completedToday")}
                   </span>
                 </div>
               </div>
@@ -559,7 +550,7 @@ export function SeniorHome({
                 onClick={() => onNavigate("routine")}
                 className="h-7 px-3 rounded-full text-xs font-bold border-[#E2EAF5] text-[#1E6FD9] hover:bg-[#F4F8FD]"
               >
-                View Routine
+                {t("viewRoutine")}
               </Button>
             </div>
 
@@ -604,7 +595,7 @@ export function SeniorHome({
                   <Clock className="h-4 w-4" />
                 </div>
                 <h4 className="text-base font-black text-[#0F243E] font-display">
-                  Today's Reminders
+                  {t("todaysReminders")}
                 </h4>
               </div>
               <button
@@ -612,7 +603,7 @@ export function SeniorHome({
                 onClick={() => onNavigate("routine")}
                 className="text-xs font-bold text-[#1E6FD9] hover:underline cursor-pointer"
               >
-                View all
+                {t("viewAll")}
               </button>
             </div>
 
@@ -629,7 +620,7 @@ export function SeniorHome({
                   </span>
                   <div className="min-w-0">
                     <div className="text-xs sm:text-sm font-bold text-[#0F243E] truncate">
-                      Morning Medicine
+                      {t("morningMedicine")}
                     </div>
                     <div className="text-[11px] font-medium text-[#627D98] truncate">
                       {nextMedicine?.name || "Paracetamol 500mg"}
@@ -656,10 +647,10 @@ export function SeniorHome({
                   </span>
                   <div className="min-w-0">
                     <div className="text-xs sm:text-sm font-bold text-[#0F243E] truncate">
-                      Blood Pressure Check
+                      {t("bloodPressureCheck")}
                     </div>
                     <div className="text-[11px] font-medium text-[#627D98] truncate">
-                      At Home
+                      {t("atHome")}
                     </div>
                   </div>
                 </div>
@@ -682,7 +673,7 @@ export function SeniorHome({
                   </span>
                   <div className="min-w-0">
                     <div className="text-xs sm:text-sm font-bold text-[#0F243E] truncate">
-                      Afternoon Medicine
+                      {t("afternoonMedicine")}
                     </div>
                     <div className="text-[11px] font-medium text-[#627D98] truncate">
                       Vitamin D3
@@ -708,7 +699,7 @@ export function SeniorHome({
                   </span>
                   <div className="min-w-0">
                     <div className="text-xs sm:text-sm font-bold text-[#0F243E] truncate">
-                      Evening Medicine
+                      {t("eveningMedicine")}
                     </div>
                     <div className="text-[11px] font-medium text-[#627D98] truncate">
                       Metformin 500mg
@@ -733,7 +724,7 @@ export function SeniorHome({
                   <Calendar className="h-4 w-4" />
                 </div>
                 <h4 className="text-base font-black text-[#0F243E] font-display">
-                  Upcoming Appointment
+                  {t("upcomingAppointment")}
                 </h4>
               </div>
               <button
@@ -741,7 +732,7 @@ export function SeniorHome({
                 onClick={() => onNavigate("appointments")}
                 className="text-xs font-bold text-[#1E6FD9] hover:underline cursor-pointer"
               >
-                View all
+                {t("viewAll")}
               </button>
             </div>
 
@@ -770,17 +761,17 @@ export function SeniorHome({
             {/* Header Pill */}
             <div className="flex items-center justify-between">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#DCFCE7] text-[#15803D] text-xs font-black border border-[#86EFAC]/60">
-                <Leaf className="h-3.5 w-3.5" /> Memory Garden
+                <Leaf className="h-3.5 w-3.5" /> {t("qaMemoryGarden")}
               </span>
             </div>
 
             {/* Calm Supportive Text */}
             <div>
               <h4 className="text-sm font-black text-[#14532D] font-display">
-                Your mind is like a garden...
+                {t("yourMindIsGarden")}
               </h4>
               <p className="text-xs font-semibold text-[#166534]/90 mt-1 leading-relaxed">
-                Keep it watered with good thoughts, happy moments and positive energy.
+                {t("mindGardenQuote")}
               </p>
             </div>
 
