@@ -444,10 +444,10 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
               <MemoryBondLogo variant="horizontal" size="sm" />
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-foreground font-display">
-              What is your role?
+              {t("rolePrompt") || "What is your role?"}
             </h2>
             <p className="text-sm text-muted-foreground font-medium">
-              Please choose how you will be using Memory Bond today
+              {t("chooseRole") || "Please choose how you will be using Memory Bond today"}
             </p>
           </div>
 
@@ -464,17 +464,17 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
               </div>
               <div className="space-y-1">
                 <h3 className="text-xl font-black text-foreground group-hover:text-amber-900 font-display">
-                  Senior
+                  {t("roleSenior") || "Senior"}
                 </h3>
                 <p className="text-xs font-bold text-amber-800 uppercase tracking-wider">
-                  Self / Elderly
+                  {t("selfElderly") || "Self / Elderly"}
                 </p>
                 <p className="text-xs text-muted-foreground leading-relaxed pt-1">
-                  Gentle reminders, medicine alerts, voice conversations, and brain games.
+                  {t("roleSeniorDesc") || "Gentle reminders, medicine alerts, voice conversations, and brain games."}
                 </p>
               </div>
               <div className="flex items-center gap-1.5 text-xs font-black text-amber-900 pt-1">
-                <span>Enter as Senior</span>
+                <span>{t("enterSenior") || "Enter as Senior"}</span>
                 <ArrowRight className="h-3.5 w-3.5" />
               </div>
             </button>
@@ -490,17 +490,17 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
               </div>
               <div className="space-y-1">
                 <h3 className="text-xl font-black text-foreground group-hover:text-primary font-display">
-                  Caregiver / Family
+                  {t("roleCaregiver") || "Caregiver / Family"}
                 </h3>
                 <p className="text-xs font-bold text-primary uppercase tracking-wider">
-                  Son, Daughter, Guardian
+                  {t("familyGuardian") || "Son, Daughter, Guardian"}
                 </p>
                 <p className="text-xs text-muted-foreground leading-relaxed pt-1">
-                  Manage medicines, schedule reminders, add family photos, and track wellness.
+                  {t("roleCaregiverDesc") || "Manage medicines, schedule reminders, add family photos, and track wellness."}
                 </p>
               </div>
               <div className="flex items-center gap-1.5 text-xs font-black text-primary pt-1">
-                <span>Enter as Caregiver</span>
+                <span>{t("enterCaregiver") || "Enter as Caregiver"}</span>
                 <ArrowRight className="h-3.5 w-3.5" />
               </div>
             </button>
@@ -512,10 +512,10 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
               onClick={() => setStage("language")}
               className="text-xs font-bold text-muted-foreground cursor-pointer gap-1.5"
             >
-              <ArrowLeft className="h-3.5 w-3.5" /> Change Language
+              <ArrowLeft className="h-3.5 w-3.5" /> {t("changeLanguage") || "Change Language"}
             </Button>
             <span className="text-xs text-muted-foreground font-semibold">
-              Step 2 of 2
+              {t("step2of2") || "Step 2 of 2"}
             </span>
           </div>
         </div>
@@ -749,8 +749,8 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
             <div className="flex justify-center pb-1">
               <MemoryBondLogo variant="horizontal" size="sm" />
             </div>
-            <h2 className="text-xl font-black text-foreground font-display">Caregiver & Family</h2>
-            <p className="text-xs text-muted-foreground font-medium">Sign in to manage and assist your senior</p>
+            <h2 className="text-xl font-black text-foreground font-display">{t("roleCaregiver") || "Caregiver & Family"}</h2>
+            <p className="text-xs text-muted-foreground font-medium">{t("manageAndAssistSenior") || "Sign in to manage and assist your senior"}</p>
           </div>
           <div className="w-8" />
         </div>
@@ -766,7 +766,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Sign In
+            {t("signIn") || "Sign In"}
           </button>
           <button
             type="button"
@@ -777,7 +777,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Create Account
+            {t("signUp") || "Create Account"}
           </button>
         </div>
 
@@ -785,7 +785,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
         <form onSubmit={handleCaregiverAuth} className="space-y-4">
           {authMode === "signup" && (
             <div className="space-y-1">
-              <Label className="text-xs font-bold">Full Name</Label>
+              <Label className="text-xs font-bold">{t("fullName") || "Full Name"}</Label>
               <div className="relative">
                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -799,7 +799,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
           )}
 
           <div className="space-y-1">
-            <Label className="text-xs font-bold">Email Address</Label>
+            <Label className="text-xs font-bold">{t("email") || "Email Address"}</Label>
             <div className="relative">
               <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -814,7 +814,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
           </div>
 
           <div className="space-y-1">
-            <Label className="text-xs font-bold">Password</Label>
+            <Label className="text-xs font-bold">{t("password") || "Password"}</Label>
             <div className="relative">
               <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -858,9 +858,9 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
             {isLoading ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : authMode === "signup" ? (
-              "Create Caregiver Account"
+              t("createCaregiverAccount") || "Create Caregiver Account"
             ) : (
-              "Sign In to Caregiver Portal"
+              t("signInCaregiverPortal") || "Sign In to Caregiver Portal"
             )}
           </Button>
         </form>
@@ -874,7 +874,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
             className="w-full h-11 rounded-2xl font-black text-xs gap-2 border border-primary/30 text-foreground cursor-pointer hover:bg-primary/10"
           >
             <Sparkles className="h-4 w-4 text-primary" />
-            1-Click Demo Caregiver Portal Access
+            {t("oneClickCaregiverDemo") || "1-Click Demo Caregiver Portal Access"}
           </Button>
         </div>
       </div>

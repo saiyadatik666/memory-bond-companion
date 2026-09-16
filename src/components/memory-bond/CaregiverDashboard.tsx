@@ -31,13 +31,24 @@ import {
   Send,
   QrCode,
   Copy,
+  Globe,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, LANGUAGES, NER_STATES, getLanguagesByState } from "@/lib/i18n";
+import { voiceManager } from "@/lib/voiceProvider";
 import { QRCodeDisplay } from "./QRCodeDisplay";
+import { RegionalLanguageSection } from "./RegionalLanguageSection";
 
 export function CaregiverDashboard({
   store,
@@ -46,7 +57,8 @@ export function CaregiverDashboard({
   store: MemoryBondStore;
   onNavigate: (tab: string) => void;
 }) {
-  const { t } = useI18n();
+  const { t, lang, setLang } = useI18n();
+  const currentLangObj = LANGUAGES.find((l) => l.code === lang) || LANGUAGES[0];
   const [selectedCaregiverId, setSelectedCaregiverId] = useState<string>(
     store.caregiverLinks[0]?.id || "cg-1"
   );
@@ -135,32 +147,108 @@ export function CaregiverDashboard({
           <div>
             <div className="flex items-center gap-2">
               <span className="text-2xl">👋</span>
-              <h2 className="text-2xl sm:text-3xl font-black text-foreground font-display">GOOD MORNING, CAREGIVER</h2>
+              <h2 className="text-2xl sm:text-3xl font-black text-foreground font-display">
+                {t("goodMorningCaregiver") || "GOOD MORNING, CAREGIVER"}
+              </h2>
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              Active caregiver oversight for elderly family members across the North Eastern Region
+              {t("caregiverOverview") || "Active caregiver oversight for elderly family members across the North Eastern Region"}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
+            {/* Direct Caregiver Language Selector Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-10 px-3.5 rounded-2xl border-primary/30 bg-card hover:bg-primary/10 text-foreground font-bold text-xs sm:text-sm gap-2 shadow-xs cursor-pointer"
+                  aria-label="Change Language"
+                >
+                  <Globe className="h-4 w-4 text-primary shrink-0" />
+                  <span className="font-extrabold text-primary">{currentLangObj.native}</span>
+                  <span className="hidden sm:inline text-xs text-muted-foreground">({currentLangObj.label})</span>
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-64 max-h-[75vh] overflow-y-auto rounded-2xl p-2 bg-white border border-border shadow-xl z-50"
+              >
+                <div className="px-3 py-1.5 text-[11px] font-extrabold text-primary uppercase tracking-wider">
+                  {t("panIndiaLanguages") || t("language")}
+                </div>
+                {LANGUAGES.filter((l) => !l.state || l.state === "Pan-India").map((l) => (
+                  <DropdownMenuItem
+                    key={l.code}
+                    onClick={() => {
+                      voiceManager.stopSpeaking();
+                      setLang(l.code);
+                      store.updateProfile({ language: l.code });
+                    }}
+                    className={`rounded-xl cursor-pointer flex items-center justify-between font-bold py-2 px-3 text-xs transition-colors ${
+                      lang === l.code
+                        ? "bg-primary/10 text-primary font-black"
+                        : "hover:bg-secondary text-foreground"
+                    }`}
+                  >
+                    <span>{l.native}</span>
+                    <span className="text-[11px] text-muted-foreground font-normal">{l.label}</span>
+                  </DropdownMenuItem>
+                ))}
+
+                {NER_STATES.map((stateName) => (
+                  <div key={stateName} className="mt-2">
+                    <DropdownMenuSeparator />
+                    <div className="px-3 py-1 text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider">
+                      {stateName} (NER)
+                    </div>
+                    {getLanguagesByState(stateName).map((l) => (
+                      <DropdownMenuItem
+                        key={l.code}
+                        onClick={() => {
+                          voiceManager.stopSpeaking();
+                          setLang(l.code);
+                          store.updateProfile({
+                            language: l.code,
+                            selected_ner_state: stateName,
+                            selected_state: stateName,
+                          });
+                        }}
+                        className={`rounded-xl cursor-pointer flex items-center justify-between font-bold py-1.5 px-3 text-xs transition-colors ${
+                          lang === l.code
+                            ? "bg-primary/10 text-primary font-black"
+                            : "hover:bg-secondary text-foreground"
+                        }`}
+                      >
+                        <span>{l.native}</span>
+                        <span className="text-[10px] text-muted-foreground font-normal">{l.label}</span>
+                      </DropdownMenuItem>
+                    ))}
+                  </div>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <div className="px-3.5 py-2 rounded-2xl bg-card border border-border shadow-xs flex items-center gap-2 text-xs font-black">
               <Users className="h-4 w-4 text-primary" />
-              <span>Assigned Seniors:</span>
-              <span className="text-primary text-base font-black">5</span>
+              <span>{t("assignedSeniorsCount") || "Assigned Seniors:"}</span>
+              <span className="text-primary text-base font-black">{assignedSeniors.length || 5}</span>
             </div>
             <div className="px-3 py-1.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span>🟢 Stable activity:</span>
+              <span>🟢 {t("stableActivity") || "Stable activity:"}</span>
               <span className="font-black">3</span>
             </div>
             <div className="px-3 py-1.5 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-xs font-bold flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-amber-500" />
-              <span>🟡 Needs attention:</span>
+              <span>🟡 {t("needsAttention") || "Needs attention:"}</span>
               <span className="font-black">1</span>
             </div>
             <div className="px-3 py-1.5 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-700 dark:text-rose-400 text-xs font-bold flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-rose-500" />
-              <span>🔴 Urgent:</span>
+              <span>🔴 {t("urgentAction") || "Urgent:"}</span>
               <span className="font-black">1</span>
             </div>
           </div>
@@ -169,8 +257,8 @@ export function CaregiverDashboard({
         {/* Multi-Senior Switcher Bar */}
         <div className="pt-3 border-t border-border space-y-2">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span className="font-bold uppercase tracking-wider">Select Assigned Senior to Monitor:</span>
-            <span className="italic">Data syncs automatically</span>
+            <span className="font-bold uppercase tracking-wider">{t("selectAssignedSenior") || "Select Assigned Senior to Monitor:"}</span>
+            <span className="italic">{t("dataSyncsAuto") || "Data syncs automatically"}</span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
             {assignedSeniors.map((sn) => {
@@ -197,7 +285,11 @@ export function CaregiverDashboard({
                   <div className={`text-[10px] font-bold mt-1 truncate ${
                     sn.status === "stable" ? "text-emerald-600" : sn.status === "attention" ? "text-amber-600" : "text-destructive"
                   }`}>
-                    {sn.statusLabel}
+                    {sn.status === "stable"
+                      ? (t("statusNormal") || "🟢 Activity Status: Normal")
+                      : sn.status === "attention"
+                      ? (t("statusAttention") || "🟡 Needs Attention")
+                      : (t("statusUrgent") || "🔴 Urgent: Action Needed")}
                   </div>
                 </button>
               );
@@ -212,22 +304,22 @@ export function CaregiverDashboard({
           <div className="space-y-3 max-w-xl">
             <div className="flex items-center gap-2">
               <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-primary/20 text-primary border border-primary/30 flex items-center gap-1.5">
-                <QrCode className="h-3.5 w-3.5" /> Caregiver Pairing Identity
+                <QrCode className="h-3.5 w-3.5" /> {t("caregiverPairingIdentity") || "Caregiver Pairing Identity"}
               </span>
               <span className="text-xs text-muted-foreground font-semibold flex items-center gap-1">
-                <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" /> Secure Link Active
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" /> {t("secureLinkActive") || "Secure Link Active"}
               </span>
             </div>
             <h3 className="text-xl sm:text-2xl font-black text-foreground">
-              Unique Senior Linking QR & Code
+              {t("uniqueSeniorLinkingQrCode") || "Unique Senior Linking QR & Code"}
             </h3>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Share this unique QR code or connection code to securely link your elderly family member's device. When they scan this code from their login screen, their account links exclusively to your caregiver profile.
+              {t("shareQrCodeDesc") || "Share this unique QR code or connection code to securely link your elderly family member's device. When they scan this code from their login screen, their account links exclusively to your caregiver profile."}
             </p>
 
             <div className="pt-2 flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-card border-2 border-primary/30 shadow-xs">
-                <span className="text-xs text-muted-foreground font-bold">Pairing Code:</span>
+                <span className="text-xs text-muted-foreground font-bold">{t("pairingCode") || "Pairing Code:"}</span>
                 <span className="font-mono font-black text-lg text-primary tracking-wider">
                   {caregiverUniqueCode}
                 </span>
@@ -239,7 +331,7 @@ export function CaregiverDashboard({
                 className="h-11 rounded-2xl text-xs gap-1.5 font-bold cursor-pointer hover:border-primary"
               >
                 <Copy className="h-4 w-4" />
-                {copiedCode ? "Copied to Clipboard!" : "Copy Code"}
+                {copiedCode ? (t("copiedToClipboard") || "Copied to Clipboard!") : (t("copyCode") || "Copy Code")}
               </Button>
             </div>
           </div>
@@ -248,7 +340,7 @@ export function CaregiverDashboard({
           <div className="flex flex-col items-center gap-2 p-4 rounded-3xl bg-card border-2 border-border shadow-md shrink-0">
             <QRCodeDisplay value={caregiverUniqueCode} size={180} />
             <span className="text-[11px] font-bold text-muted-foreground tracking-wide">
-              Scan from Senior Login
+              {t("scanFromSeniorLogin") || "Scan from Senior Login"}
             </span>
           </div>
         </div>
@@ -273,11 +365,11 @@ export function CaregiverDashboard({
                     ? "bg-amber-500/15 border-amber-500/30 text-amber-600"
                     : "bg-rose-500/15 border-rose-500/30 text-rose-600"
                 }`}>
-                  {activeSenior.status === "stable" ? "🟢 Activity Status: Normal" : activeSenior.status === "attention" ? "🟡 Needs Attention" : "🔴 Urgent: Action Needed"}
+                  {activeSenior.status === "stable" ? (t("statusNormal") || "🟢 Activity Status: Normal") : activeSenior.status === "attention" ? (t("statusAttention") || "🟡 Needs Attention") : (t("statusUrgent") || "🔴 Urgent: Action Needed")}
                 </span>
               </div>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Age: {activeSenior.age} • Region: {activeSenior.region} • Last active: <span className="font-semibold text-foreground">{activeSenior.lastActive}</span> • Last sync: <span className="font-mono text-foreground">{activeSenior.lastSync}</span>
+                Age: {activeSenior.age} • Region: {activeSenior.region} • {t("lastActive") || "Last active"}: <span className="font-semibold text-foreground">{activeSenior.lastActive}</span> • Last sync: <span className="font-mono text-foreground">{activeSenior.lastSync}</span>
               </p>
             </div>
           </div>
@@ -289,20 +381,20 @@ export function CaregiverDashboard({
               onClick={() => setIsAlertConfigOpen(true)}
               className="gap-1.5 font-bold rounded-xl h-11 text-xs"
             >
-              <Bell className="h-4 w-4 text-primary" /> Alert Preferences
+              <Bell className="h-4 w-4 text-primary" /> {t("alertPreferences") || "Alert Preferences"}
             </Button>
             <a
               href={`tel:${store.profile.phone}`}
               className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-xs hover:bg-primary/90"
             >
-              <PhoneCall className="h-4 w-4" /> Call Senior
+              <PhoneCall className="h-4 w-4" /> {t("callSenior") || "Call Senior"}
             </a>
             <Button
               variant="outline"
               onClick={() => store.setRole("senior")}
               className="font-bold rounded-xl text-sm h-11"
             >
-              Senior View
+              {t("seniorView") || "Senior View"}
             </Button>
           </div>
         </div>
@@ -312,63 +404,63 @@ export function CaregiverDashboard({
           {/* 1. Medicine */}
           <div className="rounded-2xl border-2 border-border bg-secondary/30 p-3.5 space-y-1">
             <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
-              <span>Medicine</span>
+              <span>{t("qaMedicines") || "Medicine"}</span>
               <Pill className="h-4 w-4 text-emerald-600" />
             </div>
             <div className="text-lg font-black text-foreground flex items-center gap-1">
               <span>✅</span> {activeSenior.id === "sr-1" ? (missedLogs.length > 0 ? "1 / 2" : "2 / 2") : activeSenior.medicineStatus}
             </div>
             <div className="text-[11px] text-muted-foreground truncate">
-              {activeSenior.id === "sr-1" && missedLogs.length > 0 ? "1 missed dose" : "Prescribed on track"}
+              {activeSenior.id === "sr-1" && missedLogs.length > 0 ? (t("missed") || "1 missed dose") : (t("statusNormal") || "Prescribed on track")}
             </div>
           </div>
 
           {/* 2. Hydration */}
           <div className="rounded-2xl border-2 border-border bg-secondary/30 p-3.5 space-y-1">
             <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
-              <span>Hydration</span>
+              <span>{t("hydration") || "Hydration"}</span>
               <Droplets className="h-4 w-4 text-sky-600" />
             </div>
             <div className="text-lg font-black text-foreground flex items-center gap-1">
               <span>💧</span> {activeSenior.id === "sr-1" ? `${store.hydrationGlasses || 4} / ${store.hydrationTarget || 6}` : activeSenior.hydration}
             </div>
             <div className="text-[11px] text-muted-foreground truncate">
-              Glasses today
+              {t("glassesToday") || "Glasses today"}
             </div>
           </div>
 
           {/* 3. Memory Games */}
           <div className="rounded-2xl border-2 border-border bg-secondary/30 p-3.5 space-y-1">
             <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
-              <span>Memory Games</span>
+              <span>{t("qaPlayGames") || "Memory Games"}</span>
               <Gamepad2 className="h-4 w-4 text-indigo-600" />
             </div>
             <div className="text-lg font-black text-foreground flex items-center gap-1">
-              <span>🧠</span> {activeSenior.gamesCompleted} completed
+              <span>🧠</span> {activeSenior.gamesCompleted} {t("completedToday") || "completed"}
             </div>
             <div className="text-[11px] text-muted-foreground truncate">
-              Adaptive Level 2
+              {t("adaptiveLevel2") || "Adaptive Level 2"}
             </div>
           </div>
 
           {/* 4. Routine */}
           <div className="rounded-2xl border-2 border-border bg-secondary/30 p-3.5 space-y-1">
             <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
-              <span>Routine</span>
+              <span>{t("routine") || "Routine"}</span>
               <Clock className="h-4 w-4 text-amber-600" />
             </div>
             <div className="text-lg font-black text-foreground flex items-center gap-1">
               <span>📅</span> {activeSenior.id === "sr-1" ? `${routinesDone} / ${store.routines.length}` : activeSenior.routine}
             </div>
             <div className="text-[11px] text-muted-foreground truncate">
-              Daily tasks logged
+              {t("dailyTasksLogged") || "Daily tasks logged"}
             </div>
           </div>
 
           {/* 5. Last Active */}
           <div className="rounded-2xl border-2 border-border bg-secondary/30 p-3.5 space-y-1">
             <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
-              <span>Last Active</span>
+              <span>{t("lastActive") || "Last Active"}</span>
               <Activity className="h-4 w-4 text-primary" />
             </div>
             <div className="text-base font-black text-foreground truncate">
@@ -382,14 +474,14 @@ export function CaregiverDashboard({
           {/* 6. Wellness Trend */}
           <div className="rounded-2xl border-2 border-border bg-secondary/30 p-3.5 space-y-1">
             <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
-              <span>Wellness Trend</span>
+              <span>{t("wellnessTrend") || "Wellness Trend"}</span>
               <TrendingUp className="h-4 w-4 text-emerald-600" />
             </div>
             <div className="text-base font-black text-success flex items-center gap-1">
               <span>↗️</span> {activeSenior.wellnessTrend}
             </div>
             <div className="text-[10px] text-muted-foreground truncate">
-              Non-diagnostic
+              {t("nonDiagnostic") || "Non-diagnostic"}
             </div>
           </div>
         </div>
@@ -399,17 +491,17 @@ export function CaregiverDashboard({
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-warning font-black text-sm">
               <AlertTriangle className="h-4 w-4" />
-              <span>Activity Pattern Signals (Section 17)</span>
+              <span>{t("activityPatternSignals") || "Activity Pattern Signals"}</span>
             </div>
             <span className="text-[11px] font-bold text-muted-foreground">
-              These indicators are for activity tracking and are not a medical diagnosis.
+              {t("notMedical") || "These indicators are for activity tracking and are not a medical diagnosis."}
             </span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs">
             <div className="p-2.5 rounded-xl bg-card border border-warning/30 flex items-start gap-2">
               <span className="text-warning font-bold">⚠️</span>
               <div>
-                <span className="font-bold text-foreground">Activity pattern needs attention:</span>
+                <span className="font-bold text-foreground">{t("activityPatternNeedsAttention") || "Activity pattern needs attention:"}</span>
                 <p className="text-muted-foreground text-[11px]">
                   {activeSenior.status === "urgent"
                     ? "Missed morning medication and no routine check-in recorded."
@@ -422,7 +514,7 @@ export function CaregiverDashboard({
             <div className="p-2.5 rounded-xl bg-card border border-warning/30 flex items-start gap-2">
               <span className="text-warning font-bold">⚠️</span>
               <div>
-                <span className="font-bold text-foreground">Routine Adherence:</span>
+                <span className="font-bold text-foreground">{t("routineAdherence") || "Routine Adherence:"}</span>
                 <p className="text-muted-foreground text-[11px]">
                   {routinesDone < store.routines.length ? "Tasks pending for afternoon & evening." : "All routine tasks complete."}
                 </p>
@@ -431,9 +523,9 @@ export function CaregiverDashboard({
             <div className="p-2.5 rounded-xl bg-card border border-warning/30 flex items-start gap-2">
               <span className="text-warning font-bold">⚠️</span>
               <div>
-                <span className="font-bold text-foreground">Caregiver Inactivity Watch:</span>
+                <span className="font-bold text-foreground">{t("caregiverInactivityWatch") || "Caregiver Inactivity Watch:"}</span>
                 <p className="text-muted-foreground text-[11px]">
-                  Last active {activeSenior.lastActive}. Notification threshold set to 4 hours.
+                  {t("lastActive") || "Last active"} {activeSenior.lastActive}. Notification threshold set to 4 hours.
                 </p>
               </div>
             </div>
@@ -444,9 +536,9 @@ export function CaregiverDashboard({
         <div className="pt-2 border-t border-border space-y-2.5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-black uppercase tracking-wider text-muted-foreground">
-              Caregiver Actions (Section 18)
+              {t("caregiverActions") || "Caregiver Actions"}
             </span>
-            <span className="text-xs text-primary font-bold">10 Available Actions</span>
+            <span className="text-xs text-primary font-bold">{t("availableActions") || "10 Available Actions"}</span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-xs font-bold">
@@ -454,61 +546,61 @@ export function CaregiverDashboard({
               href={`tel:${store.profile.phone}`}
               className="p-2.5 rounded-xl border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center gap-1.5 transition-all text-center"
             >
-              <PhoneCall className="h-3.5 w-3.5 shrink-0" /> 1. Call Senior
+              <PhoneCall className="h-3.5 w-3.5 shrink-0" /> {t("actionCallSenior") || "1. Call Senior"}
             </a>
             <button
               onClick={() => onNavigate("reminders")}
               className="p-2.5 rounded-xl border border-border bg-card hover:bg-secondary flex items-center justify-center gap-1.5 transition-all text-foreground cursor-pointer"
             >
-              <Send className="h-3.5 w-3.5 text-primary shrink-0" /> 2. Send Reminder
+              <Send className="h-3.5 w-3.5 text-primary shrink-0" /> {t("actionSendReminder") || "2. Send Reminder"}
             </button>
             <button
               onClick={() => onNavigate("reminders")}
               className="p-2.5 rounded-xl border border-border bg-card hover:bg-secondary flex items-center justify-center gap-1.5 transition-all text-foreground cursor-pointer"
             >
-              <Plus className="h-3.5 w-3.5 text-primary shrink-0" /> 3. Add Reminder
+              <Plus className="h-3.5 w-3.5 text-primary shrink-0" /> {t("actionAddReminder") || "3. Add Reminder"}
             </button>
             <button
               onClick={() => onNavigate("routine")}
               className="p-2.5 rounded-xl border border-border bg-card hover:bg-secondary flex items-center justify-center gap-1.5 transition-all text-foreground cursor-pointer"
             >
-              <Calendar className="h-3.5 w-3.5 text-primary shrink-0" /> 4. Edit Routine
+              <Calendar className="h-3.5 w-3.5 text-primary shrink-0" /> {t("actionEditRoutine") || "4. Edit Routine"}
             </button>
             <button
               onClick={() => onNavigate("appointments")}
               className="p-2.5 rounded-xl border border-border bg-card hover:bg-secondary flex items-center justify-center gap-1.5 transition-all text-foreground cursor-pointer"
             >
-              <Calendar className="h-3.5 w-3.5 text-primary shrink-0" /> 5. Add Appointment
+              <Calendar className="h-3.5 w-3.5 text-primary shrink-0" /> {t("actionAddAppointment") || "5. Add Appointment"}
             </button>
             <button
               onClick={() => onNavigate("medicines")}
               className="p-2.5 rounded-xl border border-border bg-card hover:bg-secondary flex items-center justify-center gap-1.5 transition-all text-foreground cursor-pointer"
             >
-              <Pill className="h-3.5 w-3.5 text-primary shrink-0" /> 6. Medicine Schedule
+              <Pill className="h-3.5 w-3.5 text-primary shrink-0" /> {t("actionMedicineSchedule") || "6. Medicine Schedule"}
             </button>
             <button
               onClick={() => onNavigate("journal")}
               className="p-2.5 rounded-xl border border-border bg-card hover:bg-secondary flex items-center justify-center gap-1.5 transition-all text-foreground cursor-pointer"
             >
-              <History className="h-3.5 w-3.5 text-primary shrink-0" /> 7. Activity History
+              <History className="h-3.5 w-3.5 text-primary shrink-0" /> {t("actionActivityHistory") || "7. Activity History"}
             </button>
             <button
               onClick={() => onNavigate("games")}
               className="p-2.5 rounded-xl border border-border bg-card hover:bg-secondary flex items-center justify-center gap-1.5 transition-all text-foreground cursor-pointer"
             >
-              <Gamepad2 className="h-3.5 w-3.5 text-primary shrink-0" /> 8. Game Performance
+              <Gamepad2 className="h-3.5 w-3.5 text-primary shrink-0" /> {t("actionGamePerformance") || "8. Game Performance"}
             </button>
             <button
               onClick={() => onNavigate("family")}
               className="p-2.5 rounded-xl border border-border bg-card hover:bg-secondary flex items-center justify-center gap-1.5 transition-all text-foreground cursor-pointer"
             >
-              <Heart className="h-3.5 w-3.5 text-rose-500 shrink-0" /> 9. Family Memories
+              <Heart className="h-3.5 w-3.5 text-rose-500 shrink-0" /> {t("actionFamilyMemories") || "9. Family Memories"}
             </button>
             <button
               onClick={() => setIsAlertConfigOpen(true)}
               className="p-2.5 rounded-xl border border-border bg-card hover:bg-secondary flex items-center justify-center gap-1.5 transition-all text-foreground cursor-pointer"
             >
-              <Bell className="h-3.5 w-3.5 text-primary shrink-0" /> 10. Review Alerts
+              <Bell className="h-3.5 w-3.5 text-primary shrink-0" /> {t("actionReviewAlerts") || "10. Review Alerts"}
             </button>
           </div>
         </div>
@@ -518,9 +610,9 @@ export function CaregiverDashboard({
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-xl font-black text-foreground flex items-center gap-2">
-            <Activity className="h-5 w-5 text-primary" /> Senior Status Indicators (Section 7)
+            <Activity className="h-5 w-5 text-primary" /> {t("seniorStatusIndicators") || "Senior Status Indicators"}
           </h3>
-          <span className="text-xs font-bold text-muted-foreground">Live Monitoring</span>
+          <span className="text-xs font-bold text-muted-foreground">{t("liveMonitoring") || "Live Monitoring"}</span>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
@@ -529,14 +621,14 @@ export function CaregiverDashboard({
             missedLogs.length > 0 ? "border-destructive/60 bg-destructive/10" : "border-border bg-card"
           }`}>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-muted-foreground">Medicine</span>
+              <span className="text-xs font-bold text-muted-foreground">{t("qaMedicines") || "Medicine"}</span>
               <Pill className={`h-4 w-4 ${missedLogs.length > 0 ? "text-destructive" : "text-emerald-600"}`} />
             </div>
             <div className={`text-lg font-black ${missedLogs.length > 0 ? "text-destructive" : "text-success"}`}>
-              {missedLogs.length > 0 ? "⚠ Missed" : "✓ Taken"}
+              {missedLogs.length > 0 ? `⚠ ${t("missed") || "Missed"}` : `✓ ${t("taken") || "Taken"}`}
             </div>
             <p className="text-[11px] text-muted-foreground truncate">
-              {missedLogs.length > 0 ? `${missedLogs.length} dose missed` : "All on schedule"}
+              {missedLogs.length > 0 ? `${missedLogs.length} ${t("missed") || "missed"}` : (t("statusNormal") || "All on schedule")}
             </p>
           </div>
 
@@ -545,11 +637,11 @@ export function CaregiverDashboard({
             hydrationDone ? "border-border bg-card" : "border-warning/50 bg-warning/10"
           }`}>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-muted-foreground">Hydration</span>
+              <span className="text-xs font-bold text-muted-foreground">{t("hydration") || "Hydration"}</span>
               <Droplets className={`h-4 w-4 ${hydrationDone ? "text-sky-600" : "text-warning"}`} />
             </div>
             <div className={`text-lg font-black ${hydrationDone ? "text-success" : "text-warning"}`}>
-              {hydrationDone ? "✓ Completed" : "⚠ Pending"}
+              {hydrationDone ? `✓ ${t("done") || "Completed"}` : `⚠ ${t("pending") || "Pending"}`}
             </div>
             <p className="text-[11px] text-muted-foreground truncate">
               {hydrationDone ? "Warm water logged" : "Drink warm water due"}
@@ -559,11 +651,11 @@ export function CaregiverDashboard({
           {/* 3. Cognitive Status */}
           <div className="rounded-2xl border-2 border-border bg-card p-4 space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-muted-foreground">Cognitive</span>
+              <span className="text-xs font-bold text-muted-foreground">{t("cognitiveScore") || "Cognitive"}</span>
               <Gamepad2 className="h-4 w-4 text-indigo-600" />
             </div>
             <div className={`text-lg font-black ${cognitiveDone ? "text-success" : "text-primary"}`}>
-              {cognitiveDone ? "✓ Completed" : "✓ Active"}
+              {cognitiveDone ? `✓ ${t("done") || "Completed"}` : `✓ ${t("active") || "Active"}`}
             </div>
             <p className="text-[11px] text-muted-foreground truncate">
               CES: {store.cognitiveScore.overall} / 100
@@ -575,25 +667,25 @@ export function CaregiverDashboard({
             routinesDone < 2 ? "border-warning/50 bg-warning/10" : "border-border bg-card"
           }`}>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-muted-foreground">Daily Activity</span>
+              <span className="text-xs font-bold text-muted-foreground">{t("dailyRoutineCall") || "Daily Activity"}</span>
               <Clock className="h-4 w-4 text-amber-600" />
             </div>
             <div className={`text-lg font-black ${routinesDone < 2 ? "text-warning" : "text-foreground"}`}>
               {routinesDone < 2 ? "⚠ Low" : "✓ Active"}
             </div>
             <p className="text-[11px] text-muted-foreground truncate">
-              {routinesDone} / {store.routines.length} completed
+              {routinesDone} / {store.routines.length} {t("completedToday") || "completed"}
             </p>
           </div>
 
           {/* 5. Mood Engagement */}
           <div className="rounded-2xl border-2 border-border bg-card p-4 space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-muted-foreground">Mood</span>
+              <span className="text-xs font-bold text-muted-foreground">{t("mood") || "Mood"}</span>
               <Smile className="h-4 w-4 text-rose-600" />
             </div>
             <div className="text-lg font-black text-foreground">
-              Normal
+              {t("normalText") || "Normal"}
             </div>
             <p className="text-[11px] text-muted-foreground truncate">
               Family calls active
@@ -605,14 +697,14 @@ export function CaregiverDashboard({
             recentSos ? "border-destructive/60 bg-destructive/10" : "border-border bg-card"
           }`}>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-muted-foreground">Emergency</span>
+              <span className="text-xs font-bold text-muted-foreground">{t("qaEmergencySos") || "Emergency"}</span>
               <AlertOctagon className={`h-4 w-4 ${recentSos ? "text-destructive" : "text-muted-foreground"}`} />
             </div>
             <div className={`text-base font-black ${recentSos ? "text-destructive" : "text-success"}`}>
-              {recentSos ? "⚠ Active SOS" : "No active SOS"}
+              {recentSos ? `⚠ ${t("activeSos") || "Active SOS"}` : (t("noActiveSos") || "No active SOS")}
             </div>
             <p className="text-[11px] text-muted-foreground truncate">
-              {recentSos ? "Location shared" : "Calm & safe"}
+              {recentSos ? (t("locationShared") || "Location shared") : (t("calmAndSafe") || "Calm & safe")}
             </p>
           </div>
         </div>
@@ -623,10 +715,10 @@ export function CaregiverDashboard({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="text-lg sm:text-xl font-black text-foreground flex items-center gap-2">
-              <Users className="h-5 w-5 text-rose-500" /> Family Care & Emergency Contacts
+              <Users className="h-5 w-5 text-rose-500" /> {t("familyCareAndEmergencyContacts") || "Family Care & Emergency Contacts"}
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Manage authorized family members, alert recipients, and voice memories for senior identification.
+              {t("familyCareDesc") || "Manage authorized family members, alert recipients, and voice memories for senior identification."}
             </p>
           </div>
           <Button
@@ -634,7 +726,7 @@ export function CaregiverDashboard({
             onClick={() => onNavigate("family")}
             className="rounded-xl font-bold text-xs gap-1.5 bg-primary text-primary-foreground"
           >
-            <Plus className="h-3.5 w-3.5" /> Manage Family Members ({store.contacts.length})
+            <Plus className="h-3.5 w-3.5" /> {t("manageFamilyMembers") || "Manage Family Members"} ({store.contacts.length})
           </Button>
         </div>
 
@@ -667,12 +759,12 @@ export function CaregiverDashboard({
               <div className="flex flex-wrap gap-1.5 pt-1">
                 {contact.is_emergency && (
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-destructive/15 text-destructive border border-destructive/30">
-                    SOS Alerts Active
+                    {t("activeSos") || "SOS Alerts Active"}
                   </span>
                 )}
                 {contact.active_for_calls && (
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-primary/15 text-primary border border-primary/30">
-                    Calls Active
+                    {t("stayConnected") || "Calls Active"}
                   </span>
                 )}
               </div>
@@ -687,14 +779,14 @@ export function CaregiverDashboard({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-warning font-black text-lg">
               <AlertTriangle className="h-6 w-6" />
-              <span>MEDICINE REFILL ALERT ({lowStockMeds.length} Items Approaching Threshold)</span>
+              <span>{t("medicineRefillAlert") || "MEDICINE REFILL ALERT"} ({lowStockMeds.length} {t("itemsRemaining") || "Items Approaching Threshold"})</span>
             </div>
             <Button
               size="sm"
               onClick={() => onNavigate("medicines")}
               className="bg-primary text-white font-bold rounded-xl"
             >
-              Manage Refills
+              {t("manageRefills") || "Manage Refills"}
             </Button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -706,7 +798,7 @@ export function CaregiverDashboard({
                 </div>
                 <div className="text-right">
                   <span className="font-black text-destructive text-lg">{med.stock}</span>
-                  <span className="text-xs text-muted-foreground ml-1">{med.unit}s left</span>
+                  <span className="text-xs text-muted-foreground ml-1">{med.unit}s {t("stock") || "left"}</span>
                 </div>
               </div>
             ))}
@@ -721,10 +813,10 @@ export function CaregiverDashboard({
             <AlertTriangle className="h-6 w-6 text-destructive shrink-0" />
             <div>
               <h4 className="font-bold text-foreground">
-                Missed Medicine Escalation Recorded Today
+                {t("missedMedicineEscalation") || "Missed Medicine Escalation Recorded Today"}
               </h4>
               <p className="text-xs text-muted-foreground font-medium">
-                Senior logged missed dose at {missedLogs[0]?.scheduled_time || "recent time"}. Please give a gentle check-in call.
+                {t("missed") || "Senior logged missed dose at"} {missedLogs[0]?.scheduled_time || "recent time"}.
               </p>
             </div>
           </div>
@@ -732,7 +824,7 @@ export function CaregiverDashboard({
             href={`tel:${store.profile.phone}`}
             className="px-4 py-2 rounded-xl bg-destructive text-white font-bold text-xs inline-flex items-center gap-1.5"
           >
-            <PhoneCall className="h-3.5 w-3.5" /> Call to Remind
+            <PhoneCall className="h-3.5 w-3.5" /> {t("callToRemind") || "Call to Remind"}
           </a>
         </div>
       )}
@@ -742,10 +834,10 @@ export function CaregiverDashboard({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="text-lg sm:text-xl font-black text-foreground flex items-center gap-2">
-              <Bell className="h-5 w-5 text-primary" /> 3-Stage Reminder Escalation Flow
+              <Bell className="h-5 w-5 text-primary" /> {t("threeStageEscalationFlow") || "3-Stage Reminder Escalation Flow"}
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Automated progression: Stage 1 (Sent) ➔ Stage 2 (Second Notice) ➔ Stage 3 (Caregiver Alert)
+              {t("escalationProgressionDesc") || "Automated progression: Stage 1 (Sent) ➔ Stage 2 (Second Notice) ➔ Stage 3 (Caregiver Alert)"}
             </p>
           </div>
           {typeof store.simulateEscalationFlow === "function" && (
@@ -755,7 +847,7 @@ export function CaregiverDashboard({
               onClick={() => store.simulateEscalationFlow("Evening Donepezil 5mg")}
               className="rounded-xl font-bold text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
             >
-              <RefreshCw className="h-3.5 w-3.5" /> Test 3-Stage Escalation
+              <RefreshCw className="h-3.5 w-3.5" /> {t("testEscalation") || "Test 3-Stage Escalation"}
             </Button>
           )}
         </div>
@@ -786,12 +878,12 @@ export function CaregiverDashboard({
                   <div className="flex items-center gap-2">
                     {isResolved ? (
                       <span className="text-xs font-bold text-success flex items-center gap-1">
-                        <Check className="h-3.5 w-3.5" /> Acknowledged / Resolved
+                        <Check className="h-3.5 w-3.5" /> {t("acknowledgedResolved") || "Acknowledged / Resolved"}
                       </span>
                     ) : (
                       <>
                         <span className={`text-xs font-black uppercase ${isAlerted ? "text-destructive" : "text-warning"}`}>
-                          {isAlerted ? "Stage 3: Caregiver Escalated" : `Stage ${esc.stage}: In Progress`}
+                          {isAlerted ? (t("stageCaregiverAlert") || "Stage 3: Caregiver Escalated") : `Stage ${esc.stage}`}
                         </span>
                         {typeof store.resolveReminderEscalation === "function" && (
                           <Button
@@ -799,7 +891,7 @@ export function CaregiverDashboard({
                             onClick={() => store.resolveReminderEscalation(esc.id)}
                             className="h-8 px-3 text-xs font-bold rounded-xl"
                           >
-                            Mark Handled
+                            {t("markHandled") || "Mark Handled"}
                           </Button>
                         )}
                       </>
@@ -812,20 +904,20 @@ export function CaregiverDashboard({
                   <div className={`p-2 rounded-xl border ${
                     esc.stage >= 1 ? "bg-primary/15 border-primary/40 text-primary" : "bg-card border-border text-muted-foreground"
                   }`}>
-                    <div>1. First Reminder</div>
-                    <div className="text-[10px] font-normal opacity-80">Sent to Senior</div>
+                    <div>{t("stageFirstReminder") || "1. First Reminder"}</div>
+                    <div className="text-[10px] font-normal opacity-80">{t("sentToSenior") || "Sent to Senior"}</div>
                   </div>
                   <div className={`p-2 rounded-xl border ${
                     esc.stage >= 2 ? "bg-warning/20 border-warning/50 text-warning" : "bg-card border-border text-muted-foreground"
                   }`}>
-                    <div>2. Second Notice</div>
-                    <div className="text-[10px] font-normal opacity-80">Unanswered</div>
+                    <div>{t("stageSecondNotice") || "2. Second Notice"}</div>
+                    <div className="text-[10px] font-normal opacity-80">{t("unanswered") || "Unanswered"}</div>
                   </div>
                   <div className={`p-2 rounded-xl border ${
                     esc.stage === 3 ? "bg-destructive/20 border-destructive/50 text-destructive" : "bg-card border-border text-muted-foreground"
                   }`}>
-                    <div>3. Caregiver Alert</div>
-                    <div className="text-[10px] font-normal opacity-80">Phone Call / SMS</div>
+                    <div>{t("stageCaregiverAlert") || "3. Caregiver Alert"}</div>
+                    <div className="text-[10px] font-normal opacity-80">{t("phoneCallSms") || "Phone Call / SMS"}</div>
                   </div>
                 </div>
               </div>
@@ -839,10 +931,10 @@ export function CaregiverDashboard({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="text-lg sm:text-xl font-black text-foreground flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" /> Historical Performance Trends
+              <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" /> {t("historicalPerformanceTrends") || "Historical Performance Trends"}
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Non-diagnostic cognitive engagement trends across daily, weekly, and monthly activity windows.
+              {t("trendsDesc") || "Non-diagnostic cognitive engagement trends across daily, weekly, and monthly activity windows."}
             </p>
           </div>
 
@@ -858,7 +950,7 @@ export function CaregiverDashboard({
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {tab}
+                {t(tab) || tab}
               </button>
             ))}
           </div>
@@ -871,7 +963,7 @@ export function CaregiverDashboard({
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-muted-foreground">{point.period}</span>
                 <span className="text-xs font-black px-2 py-0.5 rounded-full bg-primary/15 text-primary">
-                  {point.sessionCount} session{point.sessionCount === 1 ? "" : "s"}
+                  {point.sessionCount} {t("sessions") || "sessions"}
                 </span>
               </div>
               <div className="flex items-baseline gap-2">
@@ -879,10 +971,10 @@ export function CaregiverDashboard({
                 <span className="text-xs text-muted-foreground font-semibold">/ 100 CES</span>
               </div>
               <div className="grid grid-cols-2 gap-1.5 text-[11px] font-semibold text-muted-foreground pt-1 border-t border-border/50">
-                <div>Memory: <span className="text-foreground font-bold">{point.memory}</span></div>
-                <div>Attention: <span className="text-foreground font-bold">{point.attention}</span></div>
-                <div>Recognition: <span className="text-foreground font-bold">{point.recognition}</span></div>
-                <div>Recall: <span className="text-foreground font-bold">{point.recall}</span></div>
+                <div>{t("memoryLabel") || "Memory"}: <span className="text-foreground font-bold">{point.memory}</span></div>
+                <div>{t("attentionLabel") || "Attention"}: <span className="text-foreground font-bold">{point.attention}</span></div>
+                <div>{t("recognitionLabel") || "Recognition"}: <span className="text-foreground font-bold">{point.recognition}</span></div>
+                <div>{t("recallLabel") || "Recall"}: <span className="text-foreground font-bold">{point.recall}</span></div>
               </div>
             </div>
           ))}
@@ -890,7 +982,7 @@ export function CaregiverDashboard({
 
         {/* Disclaimer footer */}
         <p className="text-[11px] text-muted-foreground italic border-t border-border/60 pt-2">
-          Note: Cognitive Engagement Scores reflect activity participation, reaction speed, and memory exercise consistency. They are strictly non-diagnostic wellness indicators.
+          {t("cognitiveTrendDisclaimer") || "Note: Cognitive Engagement Scores reflect activity participation, reaction speed, and memory exercise consistency. They are strictly non-diagnostic wellness indicators."}
         </p>
       </div>
 
@@ -898,7 +990,7 @@ export function CaregiverDashboard({
         <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-sm space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="font-bold text-lg text-foreground flex items-center gap-2">
-              <History className="h-5 w-5 text-primary" /> Daily Routine Call Summary
+              <History className="h-5 w-5 text-primary" /> {t("dailyRoutineCallSummary") || "Daily Routine Call Summary"}
             </h4>
             <span className="text-xs font-mono text-muted-foreground">
               {recentRoutineCall.date} at {recentRoutineCall.time}
@@ -914,20 +1006,20 @@ export function CaregiverDashboard({
       <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
           <h4 className="font-bold text-lg text-foreground flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-rose-500" /> Senior Memory Journal
+            <BookOpen className="h-5 w-5 text-rose-500" /> {t("seniorMemoryJournal") || "Senior Memory Journal"}
           </h4>
           {permissions.journal ? (
-            <span className="text-xs font-bold text-success">Authorized Access</span>
+            <span className="text-xs font-bold text-success">{t("authorizedAccess") || "Authorized Access"}</span>
           ) : (
             <span className="text-xs font-bold text-muted-foreground flex items-center gap-1">
-              <Lock className="h-3.5 w-3.5" /> Private by Senior's Permission
+              <Lock className="h-3.5 w-3.5" /> {t("privateBySeniorPermission") || "Private by Senior's Permission"}
             </span>
           )}
         </div>
 
         {!permissions.journal ? (
           <p className="text-sm text-muted-foreground italic">
-            The senior has designated private memories confidential. Access can be granted from the senior's family settings.
+            {t("privateMemoriesNotice") || "The senior has designated private memories confidential. Access can be granted from the senior's family settings."}
           </p>
         ) : (
           <div className="space-y-2">
@@ -940,13 +1032,29 @@ export function CaregiverDashboard({
         )}
       </div>
 
+      {/* Regional & National Languages for Caregiver */}
+      <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Globe className="h-5 w-5 text-primary" />
+            <h4 className="font-bold text-lg text-foreground">
+              {t("language") || "Language"} / {t("selectLanguage") || "Select Language"}
+            </h4>
+          </div>
+          <span className="text-xs font-bold text-primary px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
+            {currentLangObj.native} ({currentLangObj.label})
+          </span>
+        </div>
+        <RegionalLanguageSection store={store} compact />
+      </div>
+
       {/* Configurable Alert Settings Modal */}
       {isAlertConfigOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-md animate-in fade-in">
           <div className="w-full max-w-md rounded-3xl border-2 border-border bg-card p-6 sm:p-8 shadow-xl space-y-5 animate-in zoom-in-95">
             <div className="flex items-center justify-between pb-3 border-b border-border">
               <h3 className="text-xl font-black text-foreground flex items-center gap-2">
-                <Bell className="h-5 w-5 text-primary" /> Caregiver Alert Settings
+                <Bell className="h-5 w-5 text-primary" /> {t("caregiverAlertSettings") || "Caregiver Alert Settings"}
               </h3>
               <button
                 onClick={() => setIsAlertConfigOpen(false)}
@@ -957,14 +1065,14 @@ export function CaregiverDashboard({
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Configure alert preferences so you are only notified when meaningful intervention is needed.
+              {t("alertConfigDesc") || "Configure alert preferences so you are only notified when meaningful intervention is needed."}
             </p>
 
             <div className="space-y-4">
               <div className="flex items-center justify-between p-3 rounded-2xl bg-secondary/30 border border-border">
                 <div>
-                  <Label className="font-bold text-sm text-foreground">Missed Medicine Alerts</Label>
-                  <p className="text-xs text-muted-foreground">Alert when senior misses scheduled dosage</p>
+                  <Label className="font-bold text-sm text-foreground">{t("missedMedicineAlerts") || "Missed Medicine Alerts"}</Label>
+                  <p className="text-xs text-muted-foreground">{t("missedMedicineAlertsDesc") || "Alert when senior misses scheduled dosage"}</p>
                 </div>
                 <Switch
                   checked={alertConfig.missed_medicines}
@@ -974,8 +1082,8 @@ export function CaregiverDashboard({
 
               <div className="flex items-center justify-between p-3 rounded-2xl bg-secondary/30 border border-border">
                 <div>
-                  <Label className="font-bold text-sm text-foreground">Low Stock & Refill Alerts</Label>
-                  <p className="text-xs text-muted-foreground">Alert when &lt; 3 days of medicine remains</p>
+                  <Label className="font-bold text-sm text-foreground">{t("lowStockRefillAlerts") || "Low Stock & Refill Alerts"}</Label>
+                  <p className="text-xs text-muted-foreground">{t("lowStockRefillAlertsDesc") || "Alert when &lt; 3 days of medicine remains"}</p>
                 </div>
                 <Switch
                   checked={alertConfig.low_stock}
@@ -985,8 +1093,8 @@ export function CaregiverDashboard({
 
               <div className="flex items-center justify-between p-3 rounded-2xl bg-secondary/30 border border-border">
                 <div>
-                  <Label className="font-bold text-sm text-foreground">Emergency SOS Alerts</Label>
-                  <p className="text-xs text-muted-foreground">Immediate priority call & location dispatch</p>
+                  <Label className="font-bold text-sm text-foreground">{t("emergencySosAlerts") || "Emergency SOS Alerts"}</Label>
+                  <p className="text-xs text-muted-foreground">{t("emergencySosAlertsDesc") || "Immediate priority call & location dispatch"}</p>
                 </div>
                 <Switch
                   checked={alertConfig.sos_emergency}
@@ -996,8 +1104,8 @@ export function CaregiverDashboard({
 
               <div className="flex items-center justify-between p-3 rounded-2xl bg-secondary/30 border border-border">
                 <div>
-                  <Label className="font-bold text-sm text-foreground">Daily Routine Call Summaries</Label>
-                  <p className="text-xs text-muted-foreground">Summary upon daily routine check-in completion</p>
+                  <Label className="font-bold text-sm text-foreground">{t("dailyRoutineCallSummaries") || "Daily Routine Call Summaries"}</Label>
+                  <p className="text-xs text-muted-foreground">{t("dailyRoutineCallSummariesDesc") || "Summary upon daily routine check-in completion"}</p>
                 </div>
                 <Switch
                   checked={alertConfig.daily_routine}
@@ -1010,7 +1118,7 @@ export function CaregiverDashboard({
               onClick={() => setIsAlertConfigOpen(false)}
               className="w-full font-bold rounded-xl h-11"
             >
-              Save Preferences
+              {t("savePreferences") || "Save Preferences"}
             </Button>
           </div>
         </div>

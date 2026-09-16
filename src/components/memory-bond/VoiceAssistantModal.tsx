@@ -1066,7 +1066,7 @@ export function VoiceAssistantModal({
             >
               <option value="auto">🌐 Auto-Detect</option>
               <optgroup label="Pan-India National Languages">
-                {LANGUAGES.filter((l) => !l.state).map((l) => (
+                {LANGUAGES.filter((l) => !l.state || l.state === "Pan-India").map((l) => (
                   <option key={l.code} value={l.speech}>
                     {l.native} ({l.label})
                   </option>

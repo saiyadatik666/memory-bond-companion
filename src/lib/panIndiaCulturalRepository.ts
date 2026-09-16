@@ -1,9 +1,11 @@
 // ===========================================================================
 // Memory Bond — Pan-India Cultural Knowledge Repository
-// 1000+ Meaningful Cultural Items Across All Indian States & Regions
+// 2000+ Meaningful Cultural Items Across All Indian States & Regions
 // Categories: Festivals, Food, Clothing, Music, Dance, Art, Crafts, Traditions,
 // Objects, Instruments, Lifestyle, Architecture, Markets, Agriculture, Nature
 // ===========================================================================
+
+import { NER_CULTURAL_CATALOG } from "./nerCulturalRepository";
 
 export type CulturalCategory =
   | "festivals"
@@ -611,19 +613,68 @@ function generatePanIndiaCatalog(): CulturalItem[] {
     },
   };
 
-  // 3. Systematically fill all states across the 15 categories to reach over 1,000 items
+  // 2. Add deeply curated state templates
+  for (const [stateName, profileObj] of Object.entries(ALL_STATES_CULTURE_PROFILES)) {
+    const stateInfo = INDIAN_STATES.find((s) => s.name === stateName);
+    const region = stateInfo?.region || "North";
+
+    for (const [catKey, seedList] of Object.entries(profileObj)) {
+      const category: CulturalCategory = catKey === "landmarks" ? "architecture" : (catKey as CulturalCategory);
+      for (const seed of seedList) {
+        items.push({
+          id: `cul-${stateName.toLowerCase().slice(0, 3)}-${counter++}`,
+          name: seed.name,
+          nativeName: seed.native || seed.name,
+          state: stateName,
+          region,
+          category,
+          icon: seed.icon,
+          description: seed.desc,
+          reminiscenceStory: seed.story,
+          audioCueText: `${seed.name}. ${seed.desc}`,
+          tags: [stateName, category, seed.name],
+        });
+      }
+    }
+  }
+
+  // 3. Add North Eastern Region heritage catalog (NER_CULTURAL_CATALOG)
+  for (const nerItem of NER_CULTURAL_CATALOG) {
+    if (items.some((it) => it.name.toLowerCase() === nerItem.name.toLowerCase())) continue;
+    const catMap: Record<string, CulturalCategory> = {
+      object: "objects",
+      theme: "traditions",
+      music: "music",
+      nature: "nature",
+      attire: "clothing",
+      craft: "crafts",
+    };
+    const category: CulturalCategory = catMap[nerItem.category] || "objects";
+    items.push({
+      id: `cul-ner-${nerItem.id}-${counter++}`,
+      name: nerItem.name,
+      nativeName: nerItem.nativeName,
+      state: nerItem.state,
+      region: "North-East",
+      category,
+      icon: nerItem.icon,
+      description: nerItem.description,
+      reminiscenceStory: nerItem.reminiscenceStory,
+      audioCueText: nerItem.audioCueText || nerItem.description,
+      tags: [nerItem.state, category, nerItem.name, "North-East"],
+    });
+  }
+
+  // 4. Systematically fill all states across the 15 categories to reach over 2,000 items
   for (const stateObj of INDIAN_STATES) {
     const sName = stateObj.name;
     const region = stateObj.region;
 
-    // Use specific profile if available, otherwise generate culturally tailored entries for each of the 15 categories
-    const profile = ALL_STATES_CULTURE_PROFILES[sName];
-
     for (const catObj of CULTURAL_CATEGORIES) {
       const cat = catObj.id;
 
-      // Ensure minimum 2-3 items per category for every state (30 states * 15 categories * 2.5 = 1100+ items!)
-      const numItemsForStateCat = 3;
+      // 5 items per category for every state ensures 2,250+ total authentic items across India
+      const numItemsForStateCat = 5;
 
       for (let i = 1; i <= numItemsForStateCat; i++) {
         // Skip if already in custom seeds
@@ -753,7 +804,7 @@ function generatePanIndiaCatalog(): CulturalItem[] {
   return items;
 }
 
-// Singleton repository with 1000+ cultural items
+// Singleton repository with 2000+ cultural items
 export const PAN_INDIA_CULTURAL_CATALOG: CulturalItem[] = generatePanIndiaCatalog();
 
 // ===========================================================================
@@ -761,12 +812,37 @@ export const PAN_INDIA_CULTURAL_CATALOG: CulturalItem[] = generatePanIndiaCatalo
 // ===========================================================================
 
 export function getCulturalItemsByState(state: string): CulturalItem[] {
-  if (!state || state === "all" || state === "All India") {
+  if (
+    !state ||
+    state === "all" ||
+    state === "All India" ||
+    state.toLowerCase() === "all" ||
+    state.toLowerCase() === "all india" ||
+    state.toLowerCase() === "pan-india" ||
+    state.toLowerCase() === "pan india"
+  ) {
     return PAN_INDIA_CULTURAL_CATALOG;
   }
   const clean = state.toLowerCase().trim();
   return PAN_INDIA_CULTURAL_CATALOG.filter(
     (item) => item.state.toLowerCase() === clean || item.state.toLowerCase().includes(clean)
+  );
+}
+
+export function getCulturalItemsByRegion(region: string): CulturalItem[] {
+  if (
+    !region ||
+    region === "all" ||
+    region === "All India" ||
+    region.toLowerCase() === "all" ||
+    region.toLowerCase() === "all india" ||
+    region.toLowerCase() === "pan-india"
+  ) {
+    return PAN_INDIA_CULTURAL_CATALOG;
+  }
+  const clean = region.toLowerCase().trim();
+  return PAN_INDIA_CULTURAL_CATALOG.filter(
+    (item) => item.region.toLowerCase() === clean || item.region.toLowerCase().includes(clean)
   );
 }
 

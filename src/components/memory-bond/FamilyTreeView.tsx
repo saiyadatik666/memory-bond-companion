@@ -83,10 +83,10 @@ export function FamilyTreeView({ store, initialTab = "tree" }: FamilyTreeViewPro
                 </span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-black text-foreground mt-1">
-                FAMILY TREE
+                {t("qaFamilyTree") || "FAMILY TREE"}
               </h1>
               <p className="text-sm text-muted-foreground font-medium mt-0.5">
-                Your loved ones, family greetings, memory cues, and cherished stories in one caring place.
+                {t("familyCareDesc") || "Your loved ones, family greetings, memory cues, and cherished stories in one caring place."}
               </p>
             </div>
           </div>
@@ -104,7 +104,7 @@ export function FamilyTreeView({ store, initialTab = "tree" }: FamilyTreeViewPro
             }`}
           >
             <Users className="h-4 w-4 shrink-0" />
-            <span className="truncate">Family Members</span>
+            <span className="truncate">{t("familyMembers") || "Family Members"}</span>
             <span className="ml-0.5 sm:ml-1 px-1.5 py-0.5 text-[10px] sm:text-xs rounded-full bg-black/20 text-white font-bold shrink-0">
               {contactsList.length}
             </span>
@@ -120,7 +120,7 @@ export function FamilyTreeView({ store, initialTab = "tree" }: FamilyTreeViewPro
             }`}
           >
             <MessageCircle className="h-4 w-4 shrink-0" />
-            <span className="truncate">Greetings</span>
+            <span className="truncate">{t("welcomeTitle") || "Greetings"}</span>
             <span className="ml-0.5 sm:ml-1 px-1.5 py-0.5 text-[10px] sm:text-xs rounded-full bg-black/20 text-white font-bold shrink-0">
               {socialFeedList.length}
             </span>
@@ -136,7 +136,7 @@ export function FamilyTreeView({ store, initialTab = "tree" }: FamilyTreeViewPro
             }`}
           >
             <Sparkles className="h-4 w-4 shrink-0" />
-            <span className="truncate">Memory Cues</span>
+            <span className="truncate">{t("cues") || "Memory Cues"}</span>
             <span className="ml-0.5 sm:ml-1 px-1.5 py-0.5 text-[10px] sm:text-xs rounded-full bg-black/20 text-white font-bold shrink-0">
               {cuesList.length}
             </span>
@@ -152,7 +152,7 @@ export function FamilyTreeView({ store, initialTab = "tree" }: FamilyTreeViewPro
             }`}
           >
             <BookOpen className="h-4 w-4 shrink-0" />
-            <span className="truncate">Cherished Notes</span>
+            <span className="truncate">{t("journal") || "Cherished Notes"}</span>
             <span className="ml-0.5 sm:ml-1 px-1.5 py-0.5 text-[10px] sm:text-xs rounded-full bg-black/20 text-white font-bold shrink-0">
               {journalList.length}
             </span>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Search,
   Globe,
@@ -9,6 +9,7 @@ import {
   LogOut,
   Mic,
   Menu,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,24 +43,55 @@ export function Header({
 }: HeaderProps) {
   const { lang, setLang, t } = useI18n();
   const [searchQuery, setSearchQuery] = useState("");
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const mobileSearchInputRef = useRef<HTMLInputElement | null>(null);
   const unreadCount = store.notifications.filter((n) => !n.read).length;
   const currentLangObj = LANGUAGES.find((l) => l.code === lang) || LANGUAGES[0];
 
   const userDisplayName = store.profile.full_name?.trim() || "Dadaji";
   const firstName = userDisplayName.split(" ")[0] || "Dadaji";
 
+  useEffect(() => {
+    if (isMobileSearchOpen && mobileSearchInputRef.current) {
+      mobileSearchInputRef.current.focus();
+    }
+  }, [isMobileSearchOpen]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isMobileSearchOpen) {
+        setIsMobileSearchOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isMobileSearchOpen]);
+
+  const executeSearch = (rawQuery: string) => {
+    if (!rawQuery.trim()) return;
+    const q = rawQuery.toLowerCase().trim();
+    if (q.includes("game") || q.includes("puzzle") || q.includes("khel") || q.includes("રમત")) onNavigate("games");
+    else if (q.includes("med") || q.includes("pill") || q.includes("dawa") || q.includes("દવા")) onNavigate("medicines");
+    else if (q.includes("doctor") || q.includes("appoint") || q.includes("clinic")) onNavigate("appointments");
+    else if (q.includes("family") || q.includes("photo") || q.includes("tree") || q.includes("parivar") || q.includes("પરિવાર")) onNavigate("family_tree");
+    else if (q.includes("remind") || q.includes("routine") || q.includes("dinacharya") || q.includes("દિનચર્યા")) onNavigate("routine");
+    else if (q.includes("garden") || q.includes("plant") || q.includes("bagicha")) onNavigate("routine");
+    else if (q.includes("cultural") || q.includes("song") || q.includes("festival") || q.includes("garba") || q.includes("bhajan")) onNavigate("cultural");
+    else if (q.includes("caregiver") || q.includes("portal") || q.includes("dashboard")) onNavigate("caregiver");
+    else if (q.includes("setting") || q.includes("profile") || q.includes("account")) onNavigate("settings");
+    else if (q.includes("sos") || q.includes("emergency") || q.includes("help") || q.includes("madad")) onNavigate("home");
+    else onOpenVoice();
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchQuery.trim()) return;
-    const q = searchQuery.toLowerCase();
-    if (q.includes("game") || q.includes("puzzle")) onNavigate("games");
-    else if (q.includes("med") || q.includes("pill") || q.includes("dawa")) onNavigate("medicines");
-    else if (q.includes("doctor") || q.includes("appoint")) onNavigate("appointments");
-    else if (q.includes("family") || q.includes("photo")) onNavigate("family_tree");
-    else if (q.includes("remind") || q.includes("routine")) onNavigate("routine");
-    else if (q.includes("garden")) onNavigate("routine");
-    else if (q.includes("cultural") || q.includes("song")) onNavigate("cultural");
-    else onOpenVoice();
+    executeSearch(searchQuery);
+    setIsMobileSearchOpen(false);
+  };
+
+  const handleQuickCategory = (tab: string) => {
+    onNavigate(tab);
+    setIsMobileSearchOpen(false);
   };
 
   return (
@@ -77,10 +109,10 @@ export function Header({
           </button>
         </div>
 
-        {/* Center/Left: Pill Search Bar matching reference image */}
+        {/* Center/Left: Pill Search Bar matching reference image on tablet & desktop */}
         <form
           onSubmit={handleSearch}
-          className="relative flex-1 max-w-md hidden sm:flex items-center"
+          className="relative flex-1 min-w-[140px] max-w-xs md:max-w-md hidden sm:flex items-center"
         >
           <div className="relative w-full">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#829AB1] pointer-events-none" />
@@ -96,7 +128,22 @@ export function Header({
         </form>
 
         {/* Right Tools & Navigation Controls matching reference */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 md:gap-3 ml-auto shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2.5 md:gap-3 ml-auto shrink-0">
+          {/* Mobile Search Button (Compact round button on mobile, hidden on tablet/desktop) */}
+          <button
+            type="button"
+            onClick={() => setIsMobileSearchOpen((prev) => !prev)}
+            className={`sm:hidden relative w-9 h-9 rounded-full border transition-all flex items-center justify-center cursor-pointer shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E6FD9] shrink-0 ${
+              isMobileSearchOpen
+                ? "bg-[#1E6FD9] text-white border-[#1E6FD9]"
+                : "border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] text-[#486581] hover:text-[#0F243E]"
+            }`}
+            aria-label={isMobileSearchOpen ? "Close Search" : "Open Search"}
+            aria-expanded={isMobileSearchOpen}
+            title="Search"
+          >
+            {isMobileSearchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
+          </button>
           {/* Language Selector Dropdown (Pill shaped with globe & chevron) */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -117,9 +164,9 @@ export function Header({
               className="w-64 max-h-[75vh] overflow-y-auto rounded-2xl p-2 bg-white border-[#E2EAF5] shadow-xl"
             >
               <div className="px-3 py-1.5 text-[11px] font-extrabold text-[#1E6FD9] uppercase tracking-wider">
-                {t("language")}
+                {t("panIndiaLanguages") || t("language")}
               </div>
-              {LANGUAGES.filter((l) => !l.state).map((l) => (
+              {LANGUAGES.filter((l) => !l.state || l.state === "Pan-India").map((l) => (
                 <DropdownMenuItem
                   key={l.code}
                   onClick={() => {
@@ -249,6 +296,96 @@ export function Header({
           </DropdownMenu>
         </div>
       </div>
+
+      {/* Mobile Search Expansion Panel */}
+      {isMobileSearchOpen && (
+        <div className="sm:hidden pt-2.5 pb-1 border-t border-[#E8EEF5] mt-2 animate-in slide-in-from-top-2 fade-in duration-200 space-y-2 max-w-[1600px] mx-auto">
+          <form onSubmit={handleSearch} className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#829AB1] pointer-events-none" />
+              <input
+                ref={mobileSearchInputRef}
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search anything..."
+                aria-label="Search activities, medicines, family or voice topics"
+                className="w-full h-10 pl-10 pr-8 rounded-full bg-[#F4F8FD] border border-[#1E6FD9]/40 text-sm font-semibold text-[#0F243E] placeholder-[#829AB1] focus:outline-none focus:border-[#1E6FD9] focus:bg-white focus:ring-2 focus:ring-[#1E6FD9]/20 transition-all shadow-xs"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-[#829AB1] hover:text-[#0F243E] cursor-pointer"
+                  aria-label="Clear search query"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
+            <Button
+              type="submit"
+              size="sm"
+              className="h-10 px-3.5 rounded-full bg-[#1E6FD9] hover:bg-[#1858ad] text-white font-bold text-xs shrink-0 cursor-pointer shadow-xs"
+            >
+              Search
+            </Button>
+          </form>
+
+          {/* Quick Senior-Friendly Category Chips for 1-Tap Navigation */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-bold text-[#486581] no-scrollbar">
+            <span className="text-[10px] uppercase font-black tracking-wider text-[#829AB1] shrink-0 mr-0.5">
+              Quick:
+            </span>
+            <button
+              type="button"
+              onClick={() => handleQuickCategory("medicines")}
+              className="px-2.5 py-1 rounded-full bg-[#F4F8FD] border border-[#E2EAF5] hover:border-[#1E6FD9]/40 hover:bg-white text-[#0F243E] shrink-0 flex items-center gap-1 cursor-pointer transition-colors"
+            >
+              💊 {t("medicines") || "Medicines"}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickCategory("games")}
+              className="px-2.5 py-1 rounded-full bg-[#F4F8FD] border border-[#E2EAF5] hover:border-[#1E6FD9]/40 hover:bg-white text-[#0F243E] shrink-0 flex items-center gap-1 cursor-pointer transition-colors"
+            >
+              🧠 {t("games") || "Games"}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickCategory("family_tree")}
+              className="px-2.5 py-1 rounded-full bg-[#F4F8FD] border border-[#E2EAF5] hover:border-[#1E6FD9]/40 hover:bg-white text-[#0F243E] shrink-0 flex items-center gap-1 cursor-pointer transition-colors"
+            >
+              👨‍👩‍👧 {t("family") || "Family"}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickCategory("appointments")}
+              className="px-2.5 py-1 rounded-full bg-[#F4F8FD] border border-[#E2EAF5] hover:border-[#1E6FD9]/40 hover:bg-white text-[#0F243E] shrink-0 flex items-center gap-1 cursor-pointer transition-colors"
+            >
+              📅 {t("appointments") || "Appointments"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsMobileSearchOpen(false);
+                onOpenVoice();
+              }}
+              className="px-2.5 py-1 rounded-full bg-[#F4F8FD] border border-[#E2EAF5] hover:border-[#1E6FD9]/40 hover:bg-white text-[#0F243E] shrink-0 flex items-center gap-1 cursor-pointer transition-colors"
+            >
+              🎙️ {t("qaVoiceAi") || "Voice AI"}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickCategory("routine")}
+              className="px-2.5 py-1 rounded-full bg-[#F4F8FD] border border-[#E2EAF5] hover:border-[#1E6FD9]/40 hover:bg-white text-[#0F243E] shrink-0 flex items-center gap-1 cursor-pointer transition-colors"
+            >
+              🌸 {t("routine") || "Routine"}
+            </button>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
