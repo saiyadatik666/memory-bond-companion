@@ -238,6 +238,7 @@ export function Footer({
               <Users className="h-4 w-4 text-cyan-500" />
               Support
             </h4>
+            <ul className="space-y-2 text-sm text-muted-foreground">
               {isCaregiver && (
                 <li>
                   <button
