@@ -38,7 +38,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
-import { useI18n } from "@/lib/i18n";
+import { LANGUAGES, useI18n } from "@/lib/i18n";
 import { QRCodeDisplay } from "./QRCodeDisplay";
 import { RegionalLanguageSection } from "./RegionalLanguageSection";
 
@@ -49,7 +49,8 @@ export function CaregiverDashboard({
   store: MemoryBondStore;
   onNavigate: (tab: string) => void;
 }) {
-  const { t } = useI18n();
+  const { lang, t } = useI18n();
+  const currentLangObj = LANGUAGES.find((l) => l.code === lang) || LANGUAGES[0];
   const [selectedCaregiverId, setSelectedCaregiverId] = useState<string>(
     store.caregiverLinks[0]?.id || "cg-1"
   );
