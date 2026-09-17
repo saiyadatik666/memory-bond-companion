@@ -13,6 +13,8 @@ import {
   AlertTriangle,
   AlertOctagon,
   Bell,
+  Users,
+  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
@@ -80,49 +82,52 @@ export function SeniorHome({
 
   // -------------------------------------------------------------------------
   // QUICK ACCESS: EXACTLY 4 CORE ACTIONS AS MANDATED BY SPECIFICATION
-  // 1. Play Games, 2. Reminders, 3. Voice AI, 4. SOS Emergency
+  // 1. Play Games, 2. My Reminders, 3. Family Tree, 4. Cultural Hub
   // -------------------------------------------------------------------------
   const quickAccessItems = [
     {
       id: "qa-games",
       title: t("qaPlayGames") || "Play Games",
-      desc: t("qaPlayGamesDesc") || "Keep your mind sharp",
+      desc: t("qaPlayGamesDesc") || "Brain puzzles & memory fun",
       icon: Gamepad2,
       onClick: () => onNavigate("games"),
       iconBg: "bg-[#F3E8FF] text-[#7E22CE]",
       cardBorder: "border-[#E9D5FF] hover:border-[#C084FC]",
       hoverBg: "hover:bg-[#FAF5FF]",
+      isEmergency: false,
     },
     {
       id: "qa-reminders",
-      title: t("reminders") || "Reminders",
-      desc: t("qaRemindersDesc") || "Check today's schedule",
+      title: t("myReminders") || t("qaReminders") || t("reminders") || "My Reminders",
+      desc: t("qaRemindersDesc") || "Important reminders & tasks",
       icon: Bell,
       onClick: () => onNavigate("reminders"),
       iconBg: "bg-[#EDE9FE] text-[#6D28D9]",
       cardBorder: "border-[#DDD6FE] hover:border-[#A78BFA]",
       hoverBg: "hover:bg-[#F5F3FF]",
+      isEmergency: false,
     },
     {
-      id: "qa-voice",
-      title: t("qaVoiceAi") || "Voice AI",
-      desc: t("qaVoiceAiDesc") || "Speak with your companion",
-      icon: Mic,
-      onClick: onOpenVoiceAssistant,
-      iconBg: "bg-[#DBEAFE] text-[#1D4ED8]",
-      cardBorder: "border-[#BFDBFE] hover:border-[#60A5FA]",
-      hoverBg: "hover:bg-[#EFF6FF]",
+      id: "qa-family",
+      title: t("qaFamilyTree") || "Family Tree",
+      desc: t("qaFamilyTreeDesc") || "Connect with your loved ones",
+      icon: Users,
+      onClick: () => onNavigate("family_tree"),
+      iconBg: "bg-[#DCFCE7] text-[#15803D]",
+      cardBorder: "border-[#BBF7D0] hover:border-[#86EFAC]",
+      hoverBg: "hover:bg-[#F0FDF4]",
+      isEmergency: false,
     },
     {
-      id: "qa-sos",
-      title: t("qaEmergencySos") || "SOS Emergency",
-      desc: t("qaEmergencySosDesc") || "Instant help alert",
-      icon: AlertOctagon,
-      onClick: onOpenSos,
-      iconBg: "bg-[#FEE2E2] text-[#DC2626]",
-      cardBorder: "border-[#FECACA] hover:border-[#F87171]",
-      hoverBg: "hover:bg-[#FEF2F2]",
-      isEmergency: true,
+      id: "qa-cultural",
+      title: t("qaCulturalHub") || "Cultural Hub",
+      desc: t("qaCulturalHubDesc") || "Explore culture, stories & traditions",
+      icon: Globe,
+      onClick: () => onNavigate("cultural"),
+      iconBg: "bg-[#FEF3C7] text-[#D97706]",
+      cardBorder: "border-[#FDE68A] hover:border-[#FCD34D]",
+      hoverBg: "hover:bg-[#FFFBEB]",
+      isEmergency: false,
     },
   ];
 
