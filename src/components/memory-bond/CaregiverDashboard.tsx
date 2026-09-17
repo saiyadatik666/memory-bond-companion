@@ -31,22 +31,13 @@ import {
   Send,
   QrCode,
   Copy,
-  Globe,
   ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
-import { useI18n, LANGUAGES, NER_STATES, getLanguagesByState } from "@/lib/i18n";
-import { voiceManager } from "@/lib/voiceProvider";
+import { useI18n } from "@/lib/i18n";
 import { QRCodeDisplay } from "./QRCodeDisplay";
 import { RegionalLanguageSection } from "./RegionalLanguageSection";
 
@@ -57,8 +48,7 @@ export function CaregiverDashboard({
   store: MemoryBondStore;
   onNavigate: (tab: string) => void;
 }) {
-  const { t, lang, setLang } = useI18n();
-  const currentLangObj = LANGUAGES.find((l) => l.code === lang) || LANGUAGES[0];
+  const { t } = useI18n();
   const [selectedCaregiverId, setSelectedCaregiverId] = useState<string>(
     store.caregiverLinks[0]?.id || "cg-1"
   );
@@ -157,80 +147,6 @@ export function CaregiverDashboard({
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            {/* Direct Caregiver Language Selector Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-10 px-3.5 rounded-2xl border-primary/30 bg-card hover:bg-primary/10 text-foreground font-bold text-xs sm:text-sm gap-2 shadow-xs cursor-pointer"
-                  aria-label="Change Language"
-                >
-                  <Globe className="h-4 w-4 text-primary shrink-0" />
-                  <span className="font-extrabold text-primary">{currentLangObj.native}</span>
-                  <span className="hidden sm:inline text-xs text-muted-foreground">({currentLangObj.label})</span>
-                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                className="w-64 max-h-[75vh] overflow-y-auto rounded-2xl p-2 bg-white border border-border shadow-xl z-50"
-              >
-                <div className="px-3 py-1.5 text-[11px] font-extrabold text-primary uppercase tracking-wider">
-                  {t("panIndiaLanguages") || t("language")}
-                </div>
-                {LANGUAGES.filter((l) => !l.state || l.state === "Pan-India").map((l) => (
-                  <DropdownMenuItem
-                    key={l.code}
-                    onClick={() => {
-                      voiceManager.stopSpeaking();
-                      setLang(l.code);
-                      store.updateProfile({ language: l.code });
-                    }}
-                    className={`rounded-xl cursor-pointer flex items-center justify-between font-bold py-2 px-3 text-xs transition-colors ${
-                      lang === l.code
-                        ? "bg-primary/10 text-primary font-black"
-                        : "hover:bg-secondary text-foreground"
-                    }`}
-                  >
-                    <span>{l.native}</span>
-                    <span className="text-[11px] text-muted-foreground font-normal">{l.label}</span>
-                  </DropdownMenuItem>
-                ))}
-
-                {NER_STATES.map((stateName) => (
-                  <div key={stateName} className="mt-2">
-                    <DropdownMenuSeparator />
-                    <div className="px-3 py-1 text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider">
-                      {stateName} (NER)
-                    </div>
-                    {getLanguagesByState(stateName).map((l) => (
-                      <DropdownMenuItem
-                        key={l.code}
-                        onClick={() => {
-                          voiceManager.stopSpeaking();
-                          setLang(l.code);
-                          store.updateProfile({
-                            language: l.code,
-                            selected_ner_state: stateName,
-                            selected_state: stateName,
-                          });
-                        }}
-                        className={`rounded-xl cursor-pointer flex items-center justify-between font-bold py-1.5 px-3 text-xs transition-colors ${
-                          lang === l.code
-                            ? "bg-primary/10 text-primary font-black"
-                            : "hover:bg-secondary text-foreground"
-                        }`}
-                      >
-                        <span>{l.native}</span>
-                        <span className="text-[10px] text-muted-foreground font-normal">{l.label}</span>
-                      </DropdownMenuItem>
-                    ))}
-                  </div>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
             <div className="px-3.5 py-2 rounded-2xl bg-card border border-border shadow-xs flex items-center gap-2 text-xs font-black">
               <Users className="h-4 w-4 text-primary" />
               <span>{t("assignedSeniorsCount") || "Assigned Seniors:"}</span>
