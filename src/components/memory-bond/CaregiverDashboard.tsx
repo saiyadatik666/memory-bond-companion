@@ -32,15 +32,13 @@ import {
   QrCode,
   Copy,
   ChevronDown,
-  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
-import { LANGUAGES, useI18n } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
 import { QRCodeDisplay } from "./QRCodeDisplay";
-import { RegionalLanguageSection } from "./RegionalLanguageSection";
 
 export function CaregiverDashboard({
   store,
@@ -49,8 +47,7 @@ export function CaregiverDashboard({
   store: MemoryBondStore;
   onNavigate: (tab: string) => void;
 }) {
-  const { lang, t } = useI18n();
-  const currentLangObj = LANGUAGES.find((l) => l.code === lang) || LANGUAGES[0];
+  const { t } = useI18n();
   const [selectedCaregiverId, setSelectedCaregiverId] = useState<string>(
     store.caregiverLinks[0]?.id || "cg-1"
   );
@@ -943,21 +940,7 @@ export function CaregiverDashboard({
         )}
       </div>
 
-      {/* Regional & National Languages for Caregiver */}
-      <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-sm space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Globe className="h-5 w-5 text-primary" />
-            <h4 className="font-bold text-lg text-foreground">
-              {t("language") || "Language"} / {t("selectLanguage") || "Select Language"}
-            </h4>
-          </div>
-          <span className="text-xs font-bold text-primary px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
-            {currentLangObj.native} ({currentLangObj.label})
-          </span>
-        </div>
-        <RegionalLanguageSection store={store} compact />
-      </div>
+
 
       {/* Configurable Alert Settings Modal */}
       {isAlertConfigOpen && (

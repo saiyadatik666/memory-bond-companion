@@ -17,10 +17,9 @@ import {
   Radio,
   Lock,
 } from "lucide-react";
-import { LANGUAGES, useI18n, type LangCode } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { SosHoldControl } from "./SosHoldControl";
-import { RegionalLanguageSection } from "./RegionalLanguageSection";
 import { MemoryBondLogo } from "./MemoryBondLogo";
 
 interface FooterProps {
@@ -42,15 +41,10 @@ export function Footer({
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleLanguageChange = (code: LangCode) => {
-    setLang(code);
-    store.updateProfile({ language: code });
-  };
-
   const isCaregiver = store.profile.role === "caregiver";
 
   return (
-    <footer className="relative mt-12 bg-white border-t border-border/80 shadow-xs text-foreground transition-colors overflow-hidden">
+    <footer className="hidden md:block relative mt-12 bg-white border-t border-border/80 shadow-xs text-foreground transition-colors overflow-hidden">
       {/* Top Accent Gradient Line */}
       <div className="h-1 w-full bg-gradient-to-r from-sky-400 via-primary to-emerald-400 opacity-80" />
 
@@ -348,10 +342,7 @@ export function Footer({
           </div>
         </div>
 
-        {/* Regional & Indian Languages Expandable Section */}
-        <div className="mt-8 pt-6 border-t border-border/70">
-          <RegionalLanguageSection store={store} compact />
-        </div>
+
 
         {/* Regulatory Medical Disclaimer Box */}
         <div className="mt-8 p-4 rounded-2xl bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/30 text-xs text-muted-foreground flex items-start gap-3">

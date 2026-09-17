@@ -543,7 +543,22 @@ export function SettingsView({ store }: { store: MemoryBondStore }) {
         </div>
       </div>
 
-      {/* 8. Reset / Demo Controls */}
+      {/* 8. Statutory Non-Diagnostic Health & Safety Notice */}
+      <div className="rounded-3xl border border-amber-500/30 bg-amber-500/10 dark:bg-amber-500/5 p-6 shadow-xs space-y-3">
+        <div className="flex items-start gap-3">
+          <Shield className="h-6 w-6 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <div className="space-y-1.5">
+            <h4 className="font-bold text-base text-foreground">
+              Statutory Non-Diagnostic Health & Safety Notice
+            </h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <strong>Memory Bond</strong> is an assistive cognitive wellness, lifestyle reminder, and family coordination companion created as a dedicated elder-care platform. It does not provide medical diagnosis, therapeutic cures, neurological evaluations, or clinical prescriptions. Always seek guidance from certified physicians, geriatric specialists, or neurologists for any health conditions.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 9. Reset / Demo Controls */}
       <div className="rounded-3xl border border-dashed border-border bg-card p-6 shadow-xs flex items-center justify-between gap-4">
         <div>
           <h4 className="font-bold text-foreground">Reset Application Demo Data</h4>

@@ -20,6 +20,7 @@ import {
   Gamepad2,
   Heart,
   Leaf,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -229,40 +230,49 @@ export function Header({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8 sm:h-9 md:h-10 px-2 sm:px-3 rounded-full border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] text-[#0F243E] font-bold text-xs sm:text-sm gap-1 sm:gap-1.5 shadow-xs cursor-pointer focus-visible:ring-1 focus-visible:ring-[#1E6FD9] shrink-0"
+                  className="h-8 sm:h-9 md:h-10 px-2.5 sm:px-3 rounded-full border-[#BAE6FD] bg-[#F0F9FF] hover:bg-[#E0F2FE] text-[#0369A1] font-black text-xs sm:text-sm gap-1.5 shadow-2xs cursor-pointer focus-visible:ring-2 focus-visible:ring-[#0284C7] shrink-0 transition-all"
                   aria-label="Choose Language"
+                  title={`Language: ${currentLangObj.native} (${currentLangObj.label})`}
                 >
-                  <Globe className="h-4 w-4 text-[#486581] shrink-0" />
-                  <span className="hidden md:inline truncate max-w-[85px]">{currentLangObj.label}</span>
-                  <span className="md:hidden font-mono text-[11px] font-extrabold text-[#1E6FD9]">{currentLangObj.code.toUpperCase()}</span>
-                  <ChevronDown className="h-3 w-3 text-[#829AB1] shrink-0" />
+                  <Globe className="h-4 w-4 text-[#0284C7] shrink-0" />
+                  <span className="font-bold truncate max-w-[70px] sm:max-w-[90px] md:max-w-[120px]">
+                    {currentLangObj.native}
+                  </span>
+                  <ChevronDown className="h-3 w-3 text-[#0284C7] shrink-0 opacity-70" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
                 className="w-64 max-h-[75vh] overflow-y-auto rounded-2xl p-2 bg-white border-[#E2EAF5] shadow-xl z-50"
               >
-                <div className="px-3 py-1.5 text-[11px] font-extrabold text-[#1E6FD9] uppercase tracking-wider">
-                  {t("panIndiaLanguages") || "Languages"}
+                <div className="px-3 py-1.5 text-[11px] font-extrabold text-[#0284C7] uppercase tracking-wider flex items-center justify-between">
+                  <span>{t("panIndiaLanguages") || "Languages"}</span>
+                  <span className="text-[10px] text-[#627D98] font-normal">22+ Supported</span>
                 </div>
-                {LANGUAGES.filter((l) => !l.state || l.state === "Pan-India").map((l) => (
-                  <DropdownMenuItem
-                    key={l.code}
-                    onClick={() => {
-                      voiceManager.stopSpeaking();
-                      setLang(l.code);
-                      store.updateProfile({ language: l.code });
-                    }}
-                    className={`rounded-xl cursor-pointer flex items-center justify-between font-bold py-2 px-3 text-xs transition-colors ${
-                      lang === l.code
-                        ? "bg-[#E6F0FC] text-[#1E6FD9] font-black"
-                        : "hover:bg-[#F4F8FD] text-[#0F243E]"
-                    }`}
-                  >
-                    <span>{l.native}</span>
-                    <span className="text-[11px] text-[#627D98] font-normal">{l.label}</span>
-                  </DropdownMenuItem>
-                ))}
+                {LANGUAGES.filter((l) => !l.state || l.state === "Pan-India").map((l) => {
+                  const isSelected = lang === l.code;
+                  return (
+                    <DropdownMenuItem
+                      key={l.code}
+                      onClick={() => {
+                        voiceManager.stopSpeaking();
+                        setLang(l.code);
+                        store.updateProfile({ language: l.code });
+                      }}
+                      className={`rounded-xl cursor-pointer flex items-center justify-between font-bold py-2 px-3 text-xs transition-colors ${
+                        isSelected
+                          ? "bg-[#E0F2FE] text-[#0369A1] font-black"
+                          : "hover:bg-[#F4F8FD] text-[#0F243E]"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {isSelected && <Check className="h-3.5 w-3.5 text-[#0284C7] shrink-0" />}
+                        <span>{l.native}</span>
+                      </div>
+                      <span className="text-[11px] text-[#627D98] font-normal">{l.label}</span>
+                    </DropdownMenuItem>
+                  );
+                })}
 
                 {NER_STATES.map((stateName) => (
                   <div key={stateName} className="mt-2">
@@ -270,28 +280,34 @@ export function Header({
                     <div className="px-3 py-1 text-[10px] font-extrabold text-[#627D98] uppercase tracking-wider">
                       {stateName} (NER)
                     </div>
-                    {getLanguagesByState(stateName).map((l) => (
-                      <DropdownMenuItem
-                        key={l.code}
-                        onClick={() => {
-                          voiceManager.stopSpeaking();
-                          setLang(l.code);
-                          store.updateProfile({
-                            language: l.code,
-                            selected_ner_state: stateName,
-                            selected_state: stateName,
-                          });
-                        }}
-                        className={`rounded-xl cursor-pointer flex items-center justify-between font-bold py-1.5 px-3 text-xs transition-colors ${
-                          lang === l.code
-                            ? "bg-[#E6F0FC] text-[#1E6FD9] font-black"
-                            : "hover:bg-[#F4F8FD] text-[#0F243E]"
-                        }`}
-                      >
-                        <span>{l.native}</span>
-                        <span className="text-[10px] text-[#627D98] font-normal">{l.label}</span>
-                      </DropdownMenuItem>
-                    ))}
+                    {getLanguagesByState(stateName).map((l) => {
+                      const isSelected = lang === l.code;
+                      return (
+                        <DropdownMenuItem
+                          key={l.code}
+                          onClick={() => {
+                            voiceManager.stopSpeaking();
+                            setLang(l.code);
+                            store.updateProfile({
+                              language: l.code,
+                              selected_ner_state: stateName,
+                              selected_state: stateName,
+                            });
+                          }}
+                          className={`rounded-xl cursor-pointer flex items-center justify-between font-bold py-1.5 px-3 text-xs transition-colors ${
+                            isSelected
+                              ? "bg-[#E0F2FE] text-[#0369A1] font-black"
+                              : "hover:bg-[#F4F8FD] text-[#0F243E]"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {isSelected && <Check className="h-3 w-3 text-[#0284C7] shrink-0" />}
+                            <span>{l.native}</span>
+                          </div>
+                          <span className="text-[10px] text-[#627D98] font-normal">{l.label}</span>
+                        </DropdownMenuItem>
+                      );
+                    })}
                   </div>
                 ))}
               </DropdownMenuContent>
@@ -311,12 +327,12 @@ export function Header({
               )}
             </button>
 
-            {/* Profile / Account Menu (Desktop & Tablet) */}
+            {/* Profile / Account Menu (Desktop & Tablet: sm+) */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="h-8 sm:h-9 md:h-10 pl-1 pr-1.5 sm:pr-3 rounded-full border border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] flex items-center gap-1.5 sm:gap-2 transition-colors shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E6FD9] shrink-0"
+                  className="hidden sm:flex h-8 sm:h-9 md:h-10 pl-1 pr-1.5 sm:pr-3 rounded-full border border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] items-center gap-1.5 sm:gap-2 transition-colors shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E6FD9] shrink-0"
                   aria-label="User Account"
                 >
                   <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full overflow-hidden shrink-0 border border-[#D0E2FF] bg-[#EBF3FC]">
@@ -514,6 +530,46 @@ export function Header({
                     {role === "caregiver" ? "Primary Caregiver Account" : "Senior Member"}
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Quick Language Switcher inside Mobile Drawer */}
+            <div className="p-3.5 bg-[#F8FAFD] border-b border-[#E8EEF5]">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5 text-xs font-black text-[#0F243E]">
+                  <Globe className="h-4 w-4 text-[#0284C7]" />
+                  <span>{t("language") || "Language"}</span>
+                </div>
+                <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-[#E0F2FE] text-[#0369A1] border border-[#BAE6FD]">
+                  {currentLangObj.native}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  { code: "en", label: "English" },
+                  { code: "hi", label: "हिन्दी" },
+                  { code: "gu", label: "ગુજરાતી" },
+                  { code: "as", label: "অসমীয়া" },
+                  { code: "bn", label: "বাংলা" },
+                  { code: "mr", label: "मराठी" },
+                ].map((quick) => (
+                  <button
+                    key={quick.code}
+                    type="button"
+                    onClick={() => {
+                      voiceManager.stopSpeaking();
+                      setLang(quick.code);
+                      store.updateProfile({ language: quick.code });
+                    }}
+                    className={`py-2 px-1.5 rounded-xl text-xs font-bold transition-all text-center cursor-pointer ${
+                      lang === quick.code
+                        ? "bg-[#0284C7] text-white shadow-xs font-black"
+                        : "bg-white border border-[#E2EAF5] text-[#0F243E] hover:bg-[#F0F9FF]"
+                    }`}
+                  >
+                    {quick.label}
+                  </button>
+                ))}
               </div>
             </div>
 

@@ -342,7 +342,7 @@ export function MemoryBondApp() {
 
         {/* Main Responsive Body Canvas */}
         <div className="flex-1 w-full max-w-[1600px] mx-auto flex items-start">
-          <main id="main-content" className="flex-1 w-full min-w-0 px-3 sm:px-6 pt-4 pb-12">
+          <main id="main-content" className="flex-1 w-full min-w-0 px-3 sm:px-6 pt-4 pb-24 md:pb-12">
             <div
               key={currentTab}
               className={isTransitioning ? "page-transition-exit" : "page-transition-enter"}
