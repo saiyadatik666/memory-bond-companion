@@ -38,7 +38,6 @@ export interface HeaderProps {
   currentTab?: string;
   onOpenVoice: () => void;
   onOpenNotifications: () => void;
-  onOpenAuth: () => void;
   onNavigate: (tab: string) => void;
   onSignOut?: () => void;
   onOpenSos?: () => void;
@@ -49,7 +48,6 @@ export function Header({
   currentTab = "caregiver",
   onOpenVoice,
   onOpenNotifications,
-  onOpenAuth,
   onNavigate,
   onSignOut,
   onOpenSos,
@@ -355,13 +353,6 @@ export function Header({
                   <span>{t("settings") || "Settings"}</span>
                 </DropdownMenuItem>
 
-                <DropdownMenuItem
-                  onClick={onOpenAuth}
-                  className="rounded-xl text-xs font-semibold cursor-pointer py-2 px-3 hover:bg-[#F4F8FD] text-[#0F243E] flex items-center gap-2"
-                >
-                  <User className="h-4 w-4 text-[#627D98]" />
-                  <span>Switch / Link Account</span>
-                </DropdownMenuItem>
 
                 {onSignOut && (
                   <DropdownMenuItem
@@ -599,17 +590,6 @@ export function Header({
 
             {/* Drawer Bottom Actions */}
             <div className="p-4 border-t border-[#E8EEF5] bg-[#F8FAFD] space-y-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  onOpenAuth();
-                }}
-                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] text-xs font-extrabold text-[#0F243E] transition-colors cursor-pointer"
-              >
-                <User className="h-4 w-4 text-[#5B728D]" />
-                <span>Switch / Link Account</span>
-              </button>
 
               {onSignOut && (
                 <button

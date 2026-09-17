@@ -28,7 +28,6 @@ interface FooterProps {
   onNavigate: (tab: string) => void;
   onOpenSos: () => void;
   onOpenVoice: () => void;
-  onOpenAuth: () => void;
 }
 
 export function Footer({
@@ -36,7 +35,6 @@ export function Footer({
   onNavigate,
   onOpenSos,
   onOpenVoice,
-  onOpenAuth,
 }: FooterProps) {
   const { lang, setLang, t } = useI18n();
 
@@ -51,12 +49,6 @@ export function Footer({
 
   const isCaregiver = store.profile.role === "caregiver";
 
-  const toggleRole = () => {
-    const nextRole = isCaregiver ? "senior" : "caregiver";
-    store.updateProfile({ role: nextRole });
-    onNavigate(nextRole === "caregiver" ? "caregiver" : "home");
-  };
-
   return (
     <footer className="relative mt-12 bg-white border-t border-border/80 shadow-xs text-foreground transition-colors overflow-hidden">
       {/* Top Accent Gradient Line */}
@@ -65,7 +57,7 @@ export function Footer({
       {/* Quick Interactive Utility Bar */}
       <div className="border-b border-border/60 bg-sky-50/40">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 text-xs">
-          {/* Left: Role Switcher & Live Pulse */}
+          {/* Left: Locked Role Indicator & System Live Pulse */}
           <div className="flex items-center flex-wrap gap-2.5">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-border text-foreground font-medium shadow-xs">
               <span className="relative flex h-2.5 w-2.5">
@@ -75,17 +67,10 @@ export function Footer({
               <span>System: <strong className="text-emerald-700 font-bold">Online & Encrypted</strong></span>
             </div>
 
-            <button
-              onClick={toggleRole}
-              className="group flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 transition-all cursor-pointer font-bold"
-              title="Click to toggle Senior / Caregiver role"
-            >
-              <Users className="h-3.5 w-3.5 group-hover:scale-110 transition-transform" />
-              <span>Current Role: <strong>{isCaregiver ? "Caregiver Portal" : "Senior Companion"}</strong></span>
-              <span className="text-[10px] uppercase tracking-wider bg-primary text-white px-1.5 py-0.5 rounded font-black ml-1">
-                Switch
-              </span>
-            </button>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary border border-primary/25 font-bold select-none">
+              <Users className="h-3.5 w-3.5" />
+              <span>Role: <strong>{isCaregiver ? "Caregiver / Family" : "Senior Companion"}</strong></span>
+            </div>
           </div>
 
           {/* Right: Instant Assistance Triggers & Back to Top */}
@@ -157,11 +142,11 @@ export function Footer({
               <li>
                 <button
                   type="button"
-                  onClick={() => onNavigate("home")}
+                  onClick={() => onNavigate(isCaregiver ? "caregiver" : "home")}
                   className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-teal-400" />
-                  {t("home") || "Home"}
+                  {isCaregiver ? (t("caregiverDashboard") || "Dashboard") : (t("home") || "Home")}
                 </button>
               </li>
               <li>
@@ -253,17 +238,18 @@ export function Footer({
               <Users className="h-4 w-4 text-cyan-500" />
               Support
             </h4>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigate("caregiver")}
-                  className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
-                >
-                  <Activity className="h-3.5 w-3.5 text-cyan-500" />
-                  {t("caregiverDashboard") || "Caregiver Portal"}
-                </button>
-              </li>
+              {isCaregiver && (
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate("caregiver")}
+                    className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
+                  >
+                    <Activity className="h-3.5 w-3.5 text-cyan-500" />
+                    {t("caregiverDashboard") || "Caregiver Portal"}
+                  </button>
+                </li>
+              )}
               <li>
                 <button
                   type="button"
@@ -292,16 +278,6 @@ export function Footer({
                 >
                   <LifeBuoy className="h-3.5 w-3.5 text-cyan-500" />
                   Voice Help & AI
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={onOpenAuth}
-                  className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium"
-                >
-                  <Lock className="h-3.5 w-3.5 text-cyan-500" />
-                  {store.profile.full_name ? "Account Profile" : "Account Access"}
                 </button>
               </li>
             </ul>
@@ -401,13 +377,6 @@ export function Footer({
               className="hover:text-primary transition-colors cursor-pointer"
             >
               Accessibility Controls
-            </button>
-            <span>•</span>
-            <button
-              onClick={onOpenAuth}
-              className="hover:text-primary transition-colors cursor-pointer"
-            >
-              Evaluator Demo Mode
             </button>
             <span>•</span>
             <span className="text-emerald-600 dark:text-emerald-400 font-bold">

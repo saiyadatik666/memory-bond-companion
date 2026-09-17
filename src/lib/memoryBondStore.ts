@@ -1116,12 +1116,29 @@ export function useMemoryBondStore() {
 
   // Active Profile & Role
   const [profile, setProfile] = useState<Profile>(() => {
+    let base: Profile = DEMO_PROFILE;
     try {
       const saved = localStorage.getItem(getKey("profile"));
-      return saved ? JSON.parse(saved) : DEMO_PROFILE;
-    } catch {
-      return DEMO_PROFILE;
+      if (saved) base = JSON.parse(saved);
+    } catch {}
+
+    // Synchronize strictly with active authenticated session if one exists
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("mb_active_session");
+        if (raw) {
+          const session = JSON.parse(raw);
+          if (session?.role) {
+            base = {
+              ...base,
+              role: session.role,
+              full_name: session.fullName || base.full_name,
+            };
+          }
+        }
+      } catch {}
     }
+    return base;
   });
 
   // Medicines
@@ -1432,11 +1449,43 @@ export function useMemoryBondStore() {
   // --- ACTIONS ---
 
   const setRole = useCallback((role: UserRole) => {
+    // If an authenticated session is active, lock role to session role
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("mb_active_session");
+        if (raw) {
+          const session = JSON.parse(raw);
+          if (session?.role && session.role !== role) {
+            console.warn(
+              `[Security] Role change to '${role}' rejected. Active session is locked to '${session.role}'. Log out to switch roles.`
+            );
+            return;
+          }
+        }
+      } catch {}
+    }
     setProfile((prev) => ({ ...prev, role }));
   }, []);
 
   const updateProfile = useCallback((patch: Partial<Profile>) => {
-    setProfile((prev) => ({ ...prev, ...patch }));
+    setProfile((prev) => {
+      let nextRole = patch.role !== undefined ? patch.role : prev.role;
+      if (typeof window !== "undefined" && patch.role !== undefined) {
+        try {
+          const raw = localStorage.getItem("mb_active_session");
+          if (raw) {
+            const session = JSON.parse(raw);
+            if (session?.role && session.role !== patch.role) {
+              console.warn(
+                `[Security] Role update to '${patch.role}' rejected. Active session is locked to '${session.role}'.`
+              );
+              nextRole = session.role;
+            }
+          }
+        } catch {}
+      }
+      return { ...prev, ...patch, role: nextRole };
+    });
   }, []);
 
   // Offline Sync Queue Helper (Queues real actions when offline)

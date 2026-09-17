@@ -305,13 +305,6 @@ export function CaregiverDashboard({
             >
               <PhoneCall className="h-4 w-4" /> {t("callSenior") || "Call Senior"}
             </a>
-            <Button
-              variant="outline"
-              onClick={() => store.setRole("senior")}
-              className="font-bold rounded-xl text-sm h-11"
-            >
-              {t("seniorView") || "Senior View"}
-            </Button>
           </div>
         </div>
 
