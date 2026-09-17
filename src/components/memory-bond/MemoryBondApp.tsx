@@ -3,7 +3,6 @@ import { useMemoryBondStore } from "@/lib/memoryBondStore";
 import { Header } from "./Header";
 import { DemoControlBar } from "./DemoControlBar";
 import { BottomNavigation } from "./BottomNavigation";
-import { DesktopSidebar } from "./DesktopSidebar";
 
 // Views
 import { SeniorHome } from "./SeniorHome";
@@ -272,29 +271,22 @@ export function MemoryBondApp() {
         onOpenSihDemo={() => setIsSihDemoOpen(true)}
       />
 
-      {/* Main Header — Sticky at the top */}
+      {/* Main Header — Sticky at the top with responsive horizontal navigation */}
       <Header
         store={store}
+        currentTab={currentTab}
         onOpenVoice={() => setIsVoiceOpen(true)}
         onOpenNotifications={() => setIsNotificationsOpen(true)}
         onOpenAuth={() => setIsAuthOpen(true)}
         onNavigate={handleNavigate}
         onSignOut={handleSignOut}
+        onOpenSos={handleOpenSos}
       />
 
-      {/* Main Responsive Body: Left Sidebar on Desktop + Centered Main Canvas */}
+      {/* Main Responsive Body: Full Width Main Canvas (Sidebar Presentation Removed) */}
       <div className="flex-1 w-full max-w-[1600px] mx-auto flex items-start">
-        <DesktopSidebar
-          currentTab={currentTab}
-          onNavigate={handleNavigate}
-          store={store}
-          onOpenVoice={() => setIsVoiceOpen(true)}
-          onOpenSos={handleOpenSos}
-          onOpenNotifications={() => setIsNotificationsOpen(true)}
-        />
-
         {/* Main View Container with Unified Senior-Friendly Page Transition */}
-        <main id="main-content" className="flex-1 min-w-0 px-3 sm:px-6 pt-4 pb-12">
+        <main id="main-content" className="flex-1 w-full min-w-0 px-3 sm:px-6 pt-4 pb-12">
           <div
             key={currentTab}
             className={isTransitioning ? "page-transition-exit" : "page-transition-enter"}
