@@ -2,6 +2,17 @@ import type { MemoryBondStore } from "./memoryBondStore";
 import { conversationalAI } from "./conversationalAI";
 import { voiceManager, getBestMatchingVoice, cleanAIResponse } from "./voiceProvider";
 import { isWorldKnowledgeQuery, resolveWorldKnowledge, resolveVerifiedFact } from "./worldKnowledgeEngine";
+import {
+  createVerifiedReminder,
+  getTodayReminders,
+  getNextReminder,
+  formatRemindersForSpeech,
+  formatNextReminderForSpeech,
+  formatConfirmationSpeech,
+  getLocalTodayDateString,
+  getLocalTomorrowDateString,
+} from "./reminderService";
+
 
 // ---------------------------------------------------------------------------
 // Intent types
@@ -18,6 +29,7 @@ export type VoiceIntent =
       title: string;
       time: string;
       date?: string | null;
+      repeat?: "none" | "daily" | "weekly" | "interval";
       notes?: string;
       reminderType:
         | "medicine"
@@ -30,6 +42,8 @@ export type VoiceIntent =
         | "walking"
         | "meal"
         | "custom";
+      needsTime?: boolean;
+      needsTitle?: boolean;
       confirmationMessage: string;
     }
   | {
@@ -201,6 +215,98 @@ export function extractTime(text: string): string {
 
   return "08:30";
 }
+
+/**
+ * Extracts explicit time mentioned by user.
+ * Returns null if no explicit time was spoken (preventing silent arbitrary defaulting).
+ */
+export function extractExplicitTime(text: string): string | null {
+  const norm = normalizeNumerals(text);
+  const t = norm.toLowerCase();
+
+  // 1. Format: 8:30 AM / 8.30 PM / 8:30 / 8.30
+  const m1 = t.match(/\b(\d{1,2})[:.](\d{2})\s*(am|pm)?\b/i);
+  if (m1 && m1[1] && m1[2]) {
+    let h = parseInt(m1[1], 10);
+    const min = m1[2];
+    const mer = m1[3]?.toLowerCase();
+    if (mer === "pm" && h < 12) h += 12;
+    if (mer === "am" && h === 12) h = 0;
+    return `${h.toString().padStart(2, "0")}:${min}`;
+  }
+
+  // 2. Format: 8 AM / 8 PM / 8 baje / 8 बजे / 8 o'clock / 8 বজাত / 8 વાગ્યે / 8 वाजता / 8 hours
+  const m2 = t.match(/\b(\d{1,2})\s*(am|pm|baje|बजे|বজাত|টায়|વાગ્યે|વાગે|वाजता|o'clock|घंटे|ghante)\b/i);
+  if (m2 && m2[1]) {
+    let h = parseInt(m2[1], 10);
+    const marker = (m2[2] || "").toLowerCase();
+    if (h >= 1 && h <= 12) {
+      const isPm =
+        marker === "pm" ||
+        t.includes("evening") ||
+        t.includes("shaam") ||
+        t.includes("शाम") ||
+        t.includes("night") ||
+        t.includes("raat") ||
+        t.includes("रात") ||
+        t.includes("dopahar") ||
+        t.includes("दोपहर") ||
+        t.includes("afternoon");
+      if (isPm && h < 12) h += 12;
+      if (marker === "am" && h === 12) h = 0;
+      return `${h.toString().padStart(2, "0")}:00`;
+    }
+  }
+
+  // 3. Format: "at 8" / "at 7" / "at 8 PM"
+  const m3 = t.match(/\bat\s+(\d{1,2})(?!\d)\b/i);
+  if (m3 && m3[1]) {
+    let h = parseInt(m3[1], 10);
+    if (h >= 1 && h <= 12) {
+      const isPm =
+        t.includes("pm") ||
+        t.includes("evening") ||
+        t.includes("shaam") ||
+        t.includes("night") ||
+        t.includes("raat") ||
+        t.includes("afternoon");
+      if (isPm && h < 12) h += 12;
+      return `${h.toString().padStart(2, "0")}:00`;
+    }
+  }
+
+  // 4. Hindi number words with baje/बजे or am/pm
+  for (const [word, num] of Object.entries(NUMBER_WORDS)) {
+    if (
+      t.includes(word) &&
+      (t.includes("baje") ||
+        t.includes("बजे") ||
+        t.includes("am") ||
+        t.includes("pm") ||
+        t.includes("o'clock") ||
+        t.includes("বজাত") ||
+        t.includes("વાગ્યે"))
+    ) {
+      const isPm =
+        t.includes("pm") ||
+        t.includes("shaam") ||
+        t.includes("शाम") ||
+        t.includes("night") ||
+        t.includes("raat") ||
+        t.includes("रात");
+      const h = isPm && num < 12 ? num + 12 : num;
+      return `${h.toString().padStart(2, "0")}:00`;
+    }
+  }
+
+  // 5. Natural explicit time-of-day phrases
+  if (t.includes("tonight") || t.includes("this evening") || t.includes("आज रात")) return "20:00";
+  if (t.includes("every morning") || t.includes("कल सुबह") || t.includes("tomorrow morning") || t.includes("subah")) return "08:00";
+  if (t.includes("every evening") || t.includes("कल शाम") || t.includes("tomorrow evening") || t.includes("shaam")) return "18:00";
+
+  return null;
+}
+
 
 // ---------------------------------------------------------------------------
 // Localised message maps for All 12 Languages
@@ -840,123 +946,284 @@ export function parseVoiceIntent(
     };
   }
 
-  // 5. Query next reminder: "What is my reminder?" / "रिमाइंडर क्या है?"
+  // 5. Query today's reminders or list reminders: "What reminders do I have today?" / "आज के रिमाइंडर्स"
   if (
-    lower.includes("reminder") &&
-    (lower.includes("what") || lower.includes("next") || lower.includes("kya hai") || lower.includes("क्या है") || lower.includes("কি আছে"))
+    (lower.includes("reminder") || lower.includes("reminders") || lower.includes("रिमाइंडर") || lower.includes("रिमाइंडर्स")) &&
+    (lower.includes("what reminders do i have") ||
+      lower.includes("what are my reminders") ||
+      lower.includes("do i have today") ||
+      lower.includes("today") ||
+      lower.includes("aaj") ||
+      lower.includes("आज") ||
+      lower.includes("list") ||
+      lower.includes("mere")) &&
+    !lower.includes("set") &&
+    !lower.includes("laga") &&
+    !lower.includes("lagao") &&
+    !lower.includes("remind me")
   ) {
-    const nextRem = store.reminders.find((r) => r.active);
-    if (!nextRem) {
-      return { type: "QUERY_NEXT_REMINDER", message: pick(NO_REMINDER_MSG, locale) };
-    }
-    const fn = pick(NEXT_REMINDER_MSG, locale);
+    const todayList = getTodayReminders(store);
+    const msg = formatRemindersForSpeech(todayList, locale);
     return {
-      type: "QUERY_NEXT_REMINDER",
-      message: fn(nextRem.title, nextRem.time),
+      type: "SPEAK_REMINDERS",
+      message: msg,
     };
   }
 
-  // 6. Create Reminder: "Remind me to..." / "याद दिलाना" / "মনত পেলাবা"
+  // 5.1. Query next reminder: "What is my next reminder?" / "What's my next reminder?" / "अगला रिमाइंडर"
   if (
+    lower.includes("next reminder") ||
+    (lower.includes("next") && (lower.includes("reminder") || lower.includes("रिमाइंडर"))) ||
+    lower.includes("अगला रिमाइंडर") ||
+    lower.includes("agla reminder") ||
+    (lower.includes("reminder") && (lower.includes("what") || lower.includes("kya hai") || lower.includes("क्या है") || lower.includes("কি আছে")))
+  ) {
+    const nextRem = getNextReminder(store);
+    const msg = formatNextReminderForSpeech(nextRem, locale);
+    return {
+      type: "QUERY_NEXT_REMINDER",
+      message: msg,
+    };
+  }
+
+  // 6. Create Reminder (supports natural Hindi, English, Hinglish, regional phrases)
+  const isCreateReminderTrigger =
     lower.includes("remind me") ||
     lower.includes("reminder") ||
     lower.includes("yaad dilana") ||
     lower.includes("yaad dilao") ||
+    lower.includes("yaad dila dena") ||
+    lower.includes("yaad dila do") ||
+    lower.includes("yaad dila") ||
     lower.includes("याद दिलाना") ||
     lower.includes("याद दिलाओ") ||
     lower.includes("याद दिला देना") ||
+    lower.includes("याद दिला दो") ||
     lower.includes("याद दिला") ||
-    lower.includes("मनত পেলাবা") ||
-    lower.includes("মনে করিয়ে") ||
-    lower.includes("યાદ દેવડાવજો") ||
-    lower.includes("आठवण करा") ||
-    lower.includes("நினைவூட்டு") ||
-    lower.includes("గుర్తు చేయి")
-  ) {
-    const time = extractTime(text);
-    
-    // Extract date if tomorrow/future day is spoken
-    let reminderDate: string | null = null;
-    if (
+    lower.includes("don't let me forget") ||
+    lower.includes("dont let me forget") ||
+    lower.includes("paani dena hai") ||
+    lower.includes("pani dena hai") ||
+    lower.includes("pani dene ka") ||
+    lower.includes("paani dene ka") ||
+    lower.includes("pani peena hai") ||
+    lower.includes("paani peena hai") ||
+    lower.includes("dawa leni hai") ||
+    lower.includes("medicine leni hai") ||
+    ((lower.includes("every day") || lower.includes("everyday") || lower.includes("har roz") || lower.includes("हर रोज़")) &&
+      (lower.includes("drink water") || lower.includes("medicine") || lower.includes("walk")));
+
+  if (isCreateReminderTrigger) {
+    const explicitTime = extractExplicitTime(text);
+
+    // Relative date detection using user's real local time
+    const isTomorrow =
       lower.includes("tomorrow") ||
+      lower.includes("kal") ||
       lower.includes("कल") ||
-      lower.includes("কাল") ||
+      lower.includes("काल") ||
       lower.includes("কাইলৈ") ||
       lower.includes("કાલે") ||
       lower.includes("उद्या") ||
       lower.includes("நாளை") ||
-      lower.includes("రేపు")
-    ) {
-      reminderDate = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-    }
+      lower.includes("రేపు");
 
-    // Categorize reminder
+    const isDaily =
+      lower.includes("every day") ||
+      lower.includes("everyday") ||
+      lower.includes("daily") ||
+      lower.includes("har roz") ||
+      lower.includes("har din") ||
+      lower.includes("हर रोज़") ||
+      lower.includes("हर दिन") ||
+      lower.includes("every morning") ||
+      lower.includes("every evening");
+
+    const isInterval =
+      lower.includes("two hours") ||
+      lower.includes("2 hours") ||
+      lower.includes("do ghante") ||
+      lower.includes("दो घंटे") ||
+      lower.includes("every hour");
+
+    const isWeekly =
+      lower.includes("every monday") ||
+      lower.includes("every tuesday") ||
+      lower.includes("every wednesday") ||
+      lower.includes("every thursday") ||
+      lower.includes("every friday") ||
+      lower.includes("every saturday") ||
+      lower.includes("every sunday") ||
+      lower.includes("har somwar");
+
+    const repeat: "none" | "daily" | "weekly" | "interval" = isInterval
+      ? "interval"
+      : isDaily
+      ? "daily"
+      : isWeekly
+      ? "weekly"
+      : "none";
+
+    const reminderDate = isDaily ? null : isTomorrow ? getLocalTomorrowDateString() : getLocalTodayDateString();
+
     let reminderType: Extract<VoiceIntent, { type: "CREATE_REMINDER" }>["reminderType"] = "custom";
     let extractedNotes = "";
+    let cleanTitle = "";
 
-    if (lower.includes("water") || lower.includes("hydration") || lower.includes("drink") || lower.includes("pani") || lower.includes("पानी") || lower.includes("जल") || lower.includes("પાણી")) {
-      reminderType = "hydration";
-    } else if (lower.includes("medicine") || lower.includes("dawa") || lower.includes("pill") || lower.includes("tablet") || lower.includes("दवा") || lower.includes("ঔষধ") || lower.includes("દવા")) {
-      reminderType = "medicine";
-    } else if (
-      lower.includes("buy") ||
-      lower.includes("purchase") ||
-      lower.includes("shopping") ||
-      lower.includes("market") ||
-      lower.includes("vegetable") ||
-      lower.includes("sabzi") ||
-      lower.includes("rice") ||
-      lower.includes("tea") ||
-      lower.includes("grocery") ||
-      lower.includes("kirana") ||
-      lower.includes("bazaar") ||
-      lower.includes("सब्जी") ||
-      lower.includes("खरीद") ||
-      lower.includes("দোকান") ||
-      lower.includes("বজাৰ") ||
-      lower.includes("বাজার")
+    // 1. Water / Gardening: "paudhon ko pani", "water the plants"
+    if (
+      lower.includes("plant") ||
+      lower.includes("paudhon") ||
+      lower.includes("paudhe") ||
+      lower.includes("पौधों") ||
+      lower.includes("पौधे") ||
+      lower.includes("water the plants") ||
+      lower.includes("water plants")
     ) {
-      reminderType = "shopping";
-      const buyMatch = text.match(/(?:buy|purchase|खरीदने|लाने|কিনিবলৈ|কিনতে)\s+([a-zA-Z\u0900-\u09FF\s,]+)/i);
-      if (buyMatch && buyMatch[1]) {
-        extractedNotes = `Items: ${buyMatch[1].trim()}`;
-      } else if (lower.includes("rice") || lower.includes("tea")) {
-        extractedNotes = "Items: rice, tea";
-      }
-    } else if (lower.includes("call") || lower.includes("phone") || lower.includes("sunita") || lower.includes("बेटी") || lower.includes("daughter") || lower.includes("ఫోన్")) {
-      reminderType = "family_call";
-    } else if (lower.includes("walk") || lower.includes("walking") || lower.includes("stretch") || lower.includes("exercise") || lower.includes("टहलना")) {
+      cleanTitle = "Water the plants";
       reminderType = "routine";
     }
-
-    // Clean reminder title
-    let cleanTitle = text
-      .replace(/^(please\s+)?(remind me to|set a reminder for|reminder for|remind me)\s*/i, "")
-      .replace(/कल सुबह|कल शाम|सुबह|शाम|बजे|याद दिलाना|याद दिलाओ/gi, "")
-      .replace(/at\s+\d{1,2}(:\d{2})?\s*(am|pm)?/i, "")
-      .replace(/tomorrow(\s+morning|\s+evening|\s+afternoon)?(\s+to)?/gi, "")
-      .replace(/^(morning|evening|afternoon)\s+to\s+/i, "")
-      .replace(/^to\s+/i, "")
-      .trim();
-
-    if (!cleanTitle || cleanTitle.length < 3) {
-      if (reminderType === "hydration") cleanTitle = "Drink warm water";
-      else if (reminderType === "medicine") cleanTitle = "Take medicine";
-      else if (reminderType === "shopping") cleanTitle = extractedNotes ? `Buy ${extractedNotes.replace("Items: ", "")}` : "Pick up fresh groceries";
-      else cleanTitle = "Daily task";
-    } else {
-      cleanTitle = cleanTitle.charAt(0).toUpperCase() + cleanTitle.slice(1);
+    // 2. Hydration: "drink water", "pani peena", "every 2 hours"
+    else if (
+      lower.includes("drink water") ||
+      lower.includes("pani peena") ||
+      lower.includes("paani peena") ||
+      lower.includes("pani pina") ||
+      lower.includes("पानी पीना") ||
+      lower.includes("drink") ||
+      lower.includes("hydration")
+    ) {
+      cleanTitle = "Drink water";
+      reminderType = "hydration";
+      if (isInterval) {
+        extractedNotes = "Every 2 hours";
+      }
+    }
+    // 3. Medicine: "blood pressure medicine", "one tablet", "take medicine"
+    else if (lower.includes("blood pressure") || lower.includes("bp medicine") || lower.includes("बीपी")) {
+      cleanTitle = "Take blood pressure medicine";
+      reminderType = "medicine";
+    } else if (lower.includes("one tablet") || lower.includes("1 tablet") || lower.includes("एक गोली")) {
+      cleanTitle = "Take 1 tablet";
+      reminderType = "medicine";
+    } else if (
+      lower.includes("medicine") ||
+      lower.includes("dawa") ||
+      lower.includes("dawai") ||
+      lower.includes("pill") ||
+      lower.includes("tablet") ||
+      lower.includes("दवा") ||
+      lower.includes("दवाई") ||
+      lower.includes("ঔষধ") ||
+      lower.includes("દવા")
+    ) {
+      cleanTitle = "Take medicine";
+      reminderType = "medicine";
+    }
+    // 4. Family Call: "call my daughter", "call son", "beti ko call"
+    else if (lower.includes("call my daughter") || lower.includes("call daughter") || lower.includes("beti") || lower.includes("बेटी")) {
+      cleanTitle = "Call daughter";
+      reminderType = "family_call";
+    } else if (lower.includes("call son") || lower.includes("beta") || lower.includes("बेटे") || lower.includes("call family")) {
+      cleanTitle = "Call family";
+      reminderType = "family_call";
+    }
+    // 5. Walking / Exercise
+    else if (lower.includes("walk") || lower.includes("walking") || lower.includes("tahalna") || lower.includes("टहलना")) {
+      cleanTitle = "Go for a walk";
+      reminderType = "walking";
+    } else if (lower.includes("exercise") || lower.includes("kasrat") || lower.includes("कसरत") || lower.includes("vyayam")) {
+      cleanTitle = "Exercise";
+      reminderType = "routine";
+    }
+    // 6. Doctor Appointment
+    else if (lower.includes("doctor appointment") || lower.includes("doctor") || lower.includes("clinic") || lower.includes("hospital") || lower.includes("डॉक्टर")) {
+      cleanTitle = "Doctor appointment";
+      reminderType = "appointment";
     }
 
-    const msgFn = pick(REM_CONFIRM, locale);
+    // If not categorized by specific phrase, extract stripped title
+    if (!cleanTitle) {
+      let rawClean = text
+        .replace(/^(please\s+)?(remind me to|set a reminder for|reminder for|remind me|don't let me forget to|don't let me forget|dont let me forget to|dont let me forget)\s*/i, "")
+        .replace(/(?:kal|tomorrow|today|tonight|subah|shaam|raat|dopahar|morning|evening|afternoon|night|every day|everyday|daily|every morning|every evening)\s*/gi, "")
+        .replace(/(?:at\s+)?\d{1,2}(?::\d{2})?\s*(?:am|pm|baje|बजे|o'clock)?\s*/gi, "")
+        .replace(/\b(mujhe|ko|ka|ki|ke|liye|hai|h|laga do|lagao|set karo|yaad dila dena|yaad dilana|yaad dilao|याद दिलाना|याद दिलाओ|याद दिला देना|रिमाइंडर लगा दो)\b/gi, "")
+        .replace(/^to\s+/i, "")
+        .trim();
+
+      if (rawClean.length >= 2) {
+        cleanTitle = rawClean.charAt(0).toUpperCase() + rawClean.slice(1);
+      }
+    }
+
+    // Check if time is missing
+    const needsTime = !explicitTime && !isInterval;
+    // Check if title is missing
+    const needsTitle = !cleanTitle || cleanTitle.trim().length < 2;
+
+    if (needsTime) {
+      const askTimeSpeech = isTomorrow
+        ? (locale.startsWith("hi") ? "कल किस समय याद दिलाऊँ?" : "What time should I remind you tomorrow?")
+        : (locale.startsWith("hi") ? "किस समय का रिमाइंडर लगाऊँ?" : "What time should I remind you?");
+
+      return {
+        type: "CREATE_REMINDER",
+        title: cleanTitle || "Reminder",
+        time: "08:00",
+        date: reminderDate,
+        repeat,
+        reminderType,
+        needsTime: true,
+        needsTitle: false,
+        confirmationMessage: askTimeSpeech,
+      };
+    }
+
+    if (needsTitle) {
+      const askTitleSpeech = locale.startsWith("hi")
+        ? "किस चीज़ का रिमाइंडर लगाना है?"
+        : "What should I remind you about?";
+
+      return {
+        type: "CREATE_REMINDER",
+        title: "",
+        time: explicitTime || "08:00",
+        date: reminderDate,
+        repeat,
+        reminderType,
+        needsTime: false,
+        needsTitle: true,
+        confirmationMessage: askTitleSpeech,
+      };
+    }
+
+    const effectiveTime = explicitTime || "08:00";
+    const confirmationSpeech = formatConfirmationSpeech(
+      {
+        id: "",
+        title: cleanTitle,
+        time: effectiveTime,
+        date: reminderDate,
+        repeat,
+        type: reminderType,
+        notes: extractedNotes || null,
+        active: true,
+      },
+      locale
+    );
+
     return {
       type: "CREATE_REMINDER",
       title: cleanTitle,
-      time,
+      time: effectiveTime,
       date: reminderDate,
+      repeat,
       notes: extractedNotes || undefined,
       reminderType,
-      confirmationMessage: msgFn(cleanTitle, time),
+      needsTime: false,
+      needsTitle: false,
+      confirmationMessage: confirmationSpeech,
     };
   }
 

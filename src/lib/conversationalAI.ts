@@ -4,6 +4,15 @@
 // ===========================================================================
 
 import type { MemoryBondStore } from "./memoryBondStore";
+import {
+  createVerifiedReminder,
+  getTodayReminders,
+  getNextReminder,
+  formatRemindersForSpeech,
+  formatNextReminderForSpeech,
+  formatConfirmationSpeech,
+} from "./reminderService";
+
 
 export interface ConversationTurn {
   role: "user" | "assistant";
@@ -210,6 +219,14 @@ export class ConversationalAIEngine {
 
   public resetDialogue(): void {
     this._dialogue = { stage: "idle", turnCount: 0 };
+  }
+
+  public setDialogueContext(partial: Partial<DialogueContext>): void {
+    this._dialogue = {
+      ...this._dialogue,
+      ...partial,
+      turnCount: this._dialogue.turnCount || 0,
+    };
   }
 
   public recordTurn(role: "user" | "assistant", text: string, locale: string) {
@@ -513,7 +530,7 @@ export class ConversationalAIEngine {
       // If user supplied both medicine & time in one response (e.g. "Crocin रात 8 बजे")
       if (explicitTime) {
         const title = extractCleanTitle(raw) || "Medicine";
-        store.addReminder({
+        const result = createVerifiedReminder(store, {
           title,
           time: explicitTime,
           date: null,
@@ -523,9 +540,17 @@ export class ConversationalAIEngine {
           active: true,
         });
 
-        // VERIFY reminder was saved to store
-        const isSaved = store.reminders.some((r) => r.time === explicitTime);
         this.resetDialogue();
+
+        if (!result.success || !result.reminder) {
+          return {
+            handled: true,
+            responseText:
+              lang === "hi"
+                ? "मैं यह रिमाइंडर सेव नहीं कर सका। कृपया दोबारा प्रयास करें।"
+                : "I couldn't save that reminder. Please try again.",
+          };
+        }
 
         const [hhStr] = explicitTime.split(":");
         const hhNum = parseInt(hhStr || "20", 10);
@@ -625,20 +650,29 @@ export class ConversationalAIEngine {
         const title = extractedTitle !== "Medicine" ? extractedTitle : this._dialogue.targetTitle || "Medicine";
         const remType = this._dialogue.reminderType || "medicine";
 
-        // ACTUALLY SAVE TO STORE AND VERIFY (Part 7)
-        store.addReminder({
+        // ACTUALLY SAVE TO STORE AND VERIFY REAL PERSISTENCE
+        const repeatMode = targetDate ? "none" : "daily";
+        const result = createVerifiedReminder(store, {
           title,
           time: explicitTime,
           date: targetDate,
-          repeat: "daily",
+          repeat: repeatMode,
           type: remType,
-          notes: "Created via Conversational Voice Assistant",
+          notes: "Created via Voice Assistant",
           active: true,
         });
 
-        // Verify save confirmation
-        const isVerified = store.reminders.some((r) => r.time === explicitTime);
         this.resetDialogue();
+
+        if (!result.success || !result.reminder) {
+          return {
+            handled: true,
+            responseText:
+              lang === "hi"
+                ? "मैं यह रिमाइंडर सेव नहीं कर सका। कृपया दोबारा प्रयास करें।"
+                : "I couldn't save that reminder. Please try again.",
+          };
+        }
 
         const [hhStr] = explicitTime.split(":");
         const hhNum = parseInt(hhStr || "20", 10);

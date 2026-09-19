@@ -137,6 +137,13 @@ export interface Reminder {
   notes: string | null;
   active: boolean;
   last_done?: string | null;
+  userId?: string;
+  category?: string;
+  enabled?: boolean;
+  completed?: boolean;
+  createdAt?: string;
+  source?: "voice" | "text" | "manual" | "caregiver";
+  timezone?: string;
 }
 
 export interface Appointment {
@@ -1702,10 +1709,21 @@ export function useMemoryBondStore() {
   }, []);
 
   // Reminders
-  const addReminder = useCallback((rem: Omit<Reminder, "id">) => {
-    const newRem: Reminder = { ...rem, id: `rem-${Date.now()}` };
+  const addReminder = useCallback((rem: Omit<Reminder, "id">): Reminder => {
+    const tz = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "Asia/Kolkata";
+    const newRem: Reminder = {
+      ...rem,
+      id: `rem-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      userId: rem.userId || getActiveUserId(),
+      createdAt: rem.createdAt || new Date().toISOString(),
+      source: rem.source || "manual",
+      active: rem.active !== undefined ? rem.active : true,
+      enabled: rem.enabled !== undefined ? rem.enabled : true,
+      timezone: rem.timezone || tz,
+    };
     enqueueOfflineAction("ADD_REMINDER", newRem);
     setReminders((prev) => [...prev, newRem]);
+    return newRem;
   }, [enqueueOfflineAction]);
 
   const updateReminder = useCallback((id: string, patch: Partial<Reminder>) => {

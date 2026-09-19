@@ -42,6 +42,11 @@ import {
   BARGE_IN_HINT_MSG,
 } from "@/lib/voiceParser";
 import { conversationalAI } from "@/lib/conversationalAI";
+import { createVerifiedReminder, getTodayReminders, getNextReminder } from "@/lib/reminderService";
+import { requestNotificationPermission } from "@/lib/notificationService";
+import type { Reminder } from "@/lib/memoryBondStore";
+import { extractExplicitTime } from "@/lib/voiceParser";
+
 import { resolveWorldKnowledge } from "@/lib/worldKnowledgeEngine";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { useI18n, LANGUAGES, NER_STATES, getLanguagesByState } from "@/lib/i18n";
@@ -103,6 +108,9 @@ export function VoiceAssistantModal({
   const [pendingIntent, setPendingIntent] = useState<VoiceIntent | null>(null);
   const [recognitionError, setRecognitionError] = useState<string | null>(null);
   const [conversationMode, setConversationMode] = useState<boolean>(true);
+  const [lastCreatedReminder, setLastCreatedReminder] = useState<Reminder | null>(null);
+  const silenceTimerRef = useRef<any>(null);
+
 
   // References to preserve synchronous state across recognition and event loop callbacks
   const isOpenRef = useRef(isOpen);
@@ -121,6 +129,11 @@ export function VoiceAssistantModal({
 
   useEffect(() => {
     isOpenRef.current = isOpen;
+    if (isOpen) {
+      // Request browser notification permission for real scheduled alerts
+      requestNotificationPermission().catch(() => {});
+      setLastCreatedReminder(null);
+    }
   }, [isOpen]);
 
   useEffect(() => {
@@ -228,6 +241,10 @@ export function VoiceAssistantModal({
       clearTimeout(listenTimeoutRef.current);
       listenTimeoutRef.current = null;
     }
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
     setVoiceState("interrupted");
     setTimeout(() => {
       setVoiceState("listening");
@@ -248,6 +265,10 @@ export function VoiceAssistantModal({
     if (listenTimeoutRef.current) {
       clearTimeout(listenTimeoutRef.current);
       listenTimeoutRef.current = null;
+    }
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
     }
     if (recognitionRef.current) {
       try {
@@ -274,6 +295,10 @@ export function VoiceAssistantModal({
       clearTimeout(listenTimeoutRef.current);
       listenTimeoutRef.current = null;
     }
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
     setSelectedVoiceUri(voiceUri);
     voiceManager.setSelectedVoice(voiceUri);
     setVoiceState("idle");
@@ -290,6 +315,10 @@ export function VoiceAssistantModal({
     if (listenTimeoutRef.current) {
       clearTimeout(listenTimeoutRef.current);
       listenTimeoutRef.current = null;
+    }
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
     }
     if (recognitionRef.current) {
       try {
@@ -335,6 +364,10 @@ export function VoiceAssistantModal({
       clearTimeout(listenTimeoutRef.current);
       listenTimeoutRef.current = null;
     }
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
 
     // 2. Stop microphone/listening if active
     if (recognitionRef.current) {
@@ -370,15 +403,10 @@ export function VoiceAssistantModal({
   };
 
   // -------------------------------------------------------------------------
-  // Start Listening (🔴 Listening...) with Barge-In Support & Accumulator
-  // (Requirements 4, 5, 10, 11)
+  // Start Listening (🔴 Listening...) with Barge-In Support & Robust Silence Management
   // -------------------------------------------------------------------------
   const startListening = (force = false) => {
     if (!isOpenRef.current) return;
-
-    if (!force && (isSpeakingRef.current || voiceManager.isAssistantSpeaking() || voiceState === "speaking")) {
-      return;
-    }
 
     // If force (user tapped mic during speech), halt TTS immediately
     if (isSpeakingRef.current || voiceManager.isAssistantSpeaking() || voiceState === "speaking") {
@@ -389,6 +417,10 @@ export function VoiceAssistantModal({
     if (listenTimeoutRef.current) {
       clearTimeout(listenTimeoutRef.current);
       listenTimeoutRef.current = null;
+    }
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
     }
 
     if (speechDebounceTimerRef.current) {
@@ -404,7 +436,7 @@ export function VoiceAssistantModal({
     if (!SpeechRecognition) {
       setVoiceState("error");
       setRecognitionError(
-        "Speech recognition is not supported in this browser. You can still type your questions naturally below."
+        "Microphone access is not supported in this browser. You can type your request naturally below."
       );
       return;
     }
@@ -414,6 +446,7 @@ export function VoiceAssistantModal({
         try {
           recognitionRef.current.abort();
         } catch {}
+        recognitionRef.current = null;
       }
 
       const recognition = new SpeechRecognition();
@@ -424,18 +457,31 @@ export function VoiceAssistantModal({
       recognition.maxAlternatives = 1;
 
       recognition.onstart = () => {
-        if (isSpeakingRef.current || voiceManager.isAssistantSpeaking()) {
-          try {
-            recognition.abort();
-          } catch {}
-          return;
-        }
         setVoiceState("listening");
+        setRecognitionError(null);
+
+        // 8-second silence timer to prevent permanently stuck microphone
+        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = setTimeout(() => {
+          if (recognitionRef.current && voiceState === "listening" && !speechAccumulatorRef.current.trim()) {
+            try {
+              recognitionRef.current.abort();
+            } catch {}
+            setVoiceState("idle");
+            setTranscript("");
+            const noHearing = currentLocaleRef.current.startsWith("hi")
+              ? "माफ़ कीजिए, मुझे कुछ सुनाई नहीं दिया। कृपया दोबारा बोलें।"
+              : "Sorry, I didn't hear anything. Tap to speak again.";
+            setRecognitionError(noHearing);
+          }
+        }, 8000);
       };
 
       recognition.onresult = (event: any) => {
-        if (isSpeakingRef.current || voiceManager.isAssistantSpeaking()) {
-          return;
+        // Cancel silence timer as soon as user speaks
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = null;
         }
 
         let interimText = "";
@@ -459,35 +505,48 @@ export function VoiceAssistantModal({
           setTranscript(liveText);
         }
 
-        // Cancel previous silence debounce timer whenever user keeps speaking
         if (speechDebounceTimerRef.current) {
           clearTimeout(speechDebounceTimerRef.current);
           speechDebounceTimerRef.current = null;
         }
 
-        // Wait 1200ms of quiet before submitting accumulated speech so elderly users speaking slowly are never cut off
+        // Wait 1000ms of quiet before submitting so natural speech isn't cut off
         if (speechAccumulatorRef.current.trim()) {
           speechDebounceTimerRef.current = setTimeout(() => {
             const clean = speechAccumulatorRef.current.trim();
             speechAccumulatorRef.current = "";
 
-            if (!clean) return;
+            if (!clean || voiceManager.isEcho(clean)) return;
 
-            if (voiceManager.isEcho(clean)) {
-              return;
-            }
+            try {
+              recognition.abort();
+            } catch {}
 
             processQuery(clean);
-          }, 1200);
+          }, 1000);
         }
       };
 
       recognition.onerror = (event: any) => {
         const errType = event?.error;
+        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        if (speechDebounceTimerRef.current) clearTimeout(speechDebounceTimerRef.current);
+
+        if (errType === "aborted") {
+          return;
+        }
+
+        if (errType === "not-allowed" || errType === "service-not-allowed") {
+          setVoiceState("error");
+          setRecognitionError(
+            "Microphone permission is blocked. Please enable microphone access in your browser or type your request below."
+          );
+          return;
+        }
+
         if (errType === "no-speech") {
           // If speech was accumulated before silence, process it now!
           if (speechAccumulatorRef.current.trim()) {
-            if (speechDebounceTimerRef.current) clearTimeout(speechDebounceTimerRef.current);
             const clean = speechAccumulatorRef.current.trim();
             speechAccumulatorRef.current = "";
             if (clean && !voiceManager.isEcho(clean)) {
@@ -496,46 +555,30 @@ export function VoiceAssistantModal({
             }
           }
 
-          if (
-            conversationMode &&
-            isOpenRef.current &&
-            isActiveSessionRef.current &&
-            !isThinkingRef.current &&
-            !isSpeakingRef.current &&
-            !voiceManager.isAssistantSpeaking()
-          ) {
-            if (listenTimeoutRef.current) clearTimeout(listenTimeoutRef.current);
-            listenTimeoutRef.current = setTimeout(() => {
-              if (
-                isOpenRef.current &&
-                isActiveSessionRef.current &&
-                !isThinkingRef.current &&
-                !isSpeakingRef.current &&
-                !voiceManager.isAssistantSpeaking()
-              ) {
-                startListening();
-              }
-            }, 300);
-          }
-          return;
-        }
-
-        if (errType === "aborted") {
-          return;
-        }
-
-        if (errType === "not-allowed") {
-          setVoiceState("error");
+          // Clean return to idle with helpful error message (prevents infinite loop!)
+          setVoiceState("idle");
           setRecognitionError(
-            "Microphone permission is blocked. Please enable microphone permission in your browser or type your question below."
+            currentLocaleRef.current.startsWith("hi")
+              ? "मैंने आपको नहीं सुना। कृपया माइक दबाकर दोबारा बोलें या नीचे लिखें।"
+              : "I didn't hear you. Please tap the microphone to try again or type below."
           );
           return;
         }
 
-        if (!isSpeakingRef.current && !voiceManager.isAssistantSpeaking()) {
+        if (errType === "network") {
           setVoiceState("error");
-          setRecognitionError("Sorry, I couldn't hear clearly. Please tap the microphone to retry.");
+          setRecognitionError("I'm having trouble connecting. Please check your internet or try again.");
+          return;
         }
+
+        if (errType === "audio-capture") {
+          setVoiceState("error");
+          setRecognitionError("Could not access microphone audio. Please check your microphone device.");
+          return;
+        }
+
+        setVoiceState("idle");
+        setRecognitionError("Sorry, I couldn't hear clearly. Please tap the microphone to retry.");
       };
 
       recognition.onend = () => {
@@ -548,29 +591,8 @@ export function VoiceAssistantModal({
           return;
         }
 
-        if (
-          conversationMode &&
-          isOpenRef.current &&
-          isActiveSessionRef.current &&
-          !isThinkingRef.current &&
-          !isSpeakingRef.current &&
-          !voiceManager.isAssistantSpeaking()
-        ) {
-          if (listenTimeoutRef.current) clearTimeout(listenTimeoutRef.current);
-          listenTimeoutRef.current = setTimeout(() => {
-            if (
-              isOpenRef.current &&
-              isActiveSessionRef.current &&
-              !isThinkingRef.current &&
-              !isSpeakingRef.current &&
-              !voiceManager.isAssistantSpeaking()
-            ) {
-              startListening();
-            }
-          }, 350);
-        } else if (!isThinkingRef.current && !isSpeakingRef.current && !voiceManager.isAssistantSpeaking()) {
-          setVoiceState("idle");
-        }
+        // Return to idle cleanly without loops
+        setVoiceState("idle");
       };
 
       recognition.start();
@@ -582,7 +604,6 @@ export function VoiceAssistantModal({
     }
   };
 
-  // -------------------------------------------------------------------------
   // Speak Answer (🔊 Speaking...) with Audio & Echo Guard
   // (Requirements 3, 4, 5, 6, 7)
   // -------------------------------------------------------------------------
@@ -604,6 +625,10 @@ export function VoiceAssistantModal({
     if (listenTimeoutRef.current) {
       clearTimeout(listenTimeoutRef.current);
       listenTimeoutRef.current = null;
+    }
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
     }
 
     // 2. Abort active speech recognition so mic never picks up assistant speech
@@ -631,8 +656,9 @@ export function VoiceAssistantModal({
         setVoiceState("finished");
         if (onFinish) onFinish();
 
-        // Continuous natural conversation: only schedule next turn AFTER all speech has finished
-        if (conversationMode && isOpenRef.current && isActiveSessionRef.current) {
+        // Only trigger continuous listening if a multi-turn dialogue question was asked (e.g. asking for missing time/topic)
+        const isFollowUpExpected = conversationalAI.getDialogueState().stage !== "idle";
+        if (isFollowUpExpected && isOpenRef.current && isActiveSessionRef.current) {
           if (listenTimeoutRef.current) clearTimeout(listenTimeoutRef.current);
           listenTimeoutRef.current = setTimeout(() => {
             if (
@@ -641,16 +667,17 @@ export function VoiceAssistantModal({
               !isThinkingRef.current &&
               !isSpeakingRef.current
             ) {
-              startListening();
+              startListening(true);
             }
-          }, 400);
+          }, 350);
         } else {
+          // Action completed or informative answer spoken: safely return to idle
           if (listenTimeoutRef.current) clearTimeout(listenTimeoutRef.current);
           listenTimeoutRef.current = setTimeout(() => {
             if (isOpenRef.current && !isSpeakingRef.current && !isThinkingRef.current) {
               setVoiceState("idle");
             }
-          }, 600);
+          }, 500);
         }
       },
       (ttsErr) => {
@@ -681,6 +708,10 @@ export function VoiceAssistantModal({
       clearTimeout(listenTimeoutRef.current);
       listenTimeoutRef.current = null;
     }
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
 
     const replayLocale =
       lastLocaleRef.current ||
@@ -691,8 +722,7 @@ export function VoiceAssistantModal({
   };
 
   // -------------------------------------------------------------------------
-  // Core Conversational AI Pipeline: STT -> Multi-Turn / World Knowledge -> TTS
-  // (Requirements 1-8: Multi-turn, World Facts, Honest Data, Continuous loop, No Raw JSON)
+  // Core Conversational AI Pipeline: STT -> Intent Engine -> Verified Central Action -> TTS
   // -------------------------------------------------------------------------
   const processQuery = async (queryText: string) => {
     const text = queryText.trim();
@@ -733,29 +763,96 @@ export function VoiceAssistantModal({
     let actionToExecute: string | null = null;
     let actionData: any = null;
 
-    // TIER 1: Real Conversational AI Engine with Store Memory & Pronoun Resolution
-    // Handles: "मेरी रात वाली दवाई कब है?", "वही वाली कितने दिन की बची है?", "कल मैंने क्या किया था?",
-    // "कल सुबह 8 बजे दवाई याद दिलाना", "मेरी आज की reminders दिखाओ"
-    try {
-      const dialogueResult = conversationalAI.handleMultiTurnDialogue(
-        text,
-        store,
-        detectedLocale,
-        extractTimeFromText
-      );
+    // STAGE 1: Check if multi-turn dialogue is already awaiting user input (e.g. asking for missing time)
+    const currentDialogue = conversationalAI.getDialogueState();
+    if (currentDialogue.stage !== "idle") {
+      try {
+        const dialogueResult = conversationalAI.handleMultiTurnDialogue(
+          text,
+          store,
+          detectedLocale,
+          extractExplicitTime
+        );
 
-      if (dialogueResult && dialogueResult.handled && dialogueResult.responseText) {
-        finalCleanText = cleanAIResponse(dialogueResult.responseText);
-        actionToExecute = dialogueResult.action || null;
-        actionData = dialogueResult.actionData;
+        if (dialogueResult && dialogueResult.handled && dialogueResult.responseText) {
+          finalCleanText = cleanAIResponse(dialogueResult.responseText);
+          actionToExecute = dialogueResult.action || null;
+          actionData = dialogueResult.actionData;
+        }
+      } catch (e) {
+        console.warn("Conversational dialogue error:", e);
       }
-    } catch (e) {
-      console.warn("Conversational dialogue error:", e);
     }
 
-    // TIER 2: World Knowledge & Live Fact Research Engine
-    // Handles: "भारत के प्रधानमंत्री कौन हैं?", "ऑस्ट्रेलिया के प्रधानमंत्री कौन हैं?", "कल मैच में कौन जीता?",
-    // "आज का मौसम कैसा है?", "रतन टाटा कौन हैं?", etc.
+    // STAGE 2: Direct Central Intent Parser (Parses Hindi, Hinglish, English natural commands)
+    if (!finalCleanText) {
+      const parsed = parseVoiceIntent(text, store, detectedLocale);
+
+      if (parsed.type === "CREATE_REMINDER") {
+        if (parsed.needsTime) {
+          // Missing time: preserve context and ask user
+          conversationalAI.setDialogueContext({
+            stage: "awaiting_reminder_time",
+            targetTitle: parsed.title,
+            targetDate: parsed.date,
+            reminderType: parsed.reminderType,
+          });
+          finalCleanText = parsed.confirmationMessage;
+        } else if (parsed.needsTitle) {
+          // Missing title: preserve context and ask user
+          conversationalAI.setDialogueContext({
+            stage: "awaiting_reminder_topic",
+            targetTime: parsed.time,
+            targetDate: parsed.date,
+            reminderType: parsed.reminderType,
+          });
+          finalCleanText = parsed.confirmationMessage;
+        } else {
+          // REAL PERSISTENT CREATION VIA CENTRAL REMINDER SERVICE
+          const result = createVerifiedReminder(store, {
+            title: parsed.title,
+            time: parsed.time,
+            date: parsed.date,
+            repeat: parsed.repeat || (parsed.date ? "none" : "daily"),
+            type: parsed.reminderType,
+            notes: parsed.notes,
+            source: "voice",
+          });
+
+          if (result.success && result.reminder) {
+            setLastCreatedReminder(result.reminder);
+            finalCleanText = parsed.confirmationMessage;
+            actionToExecute = "create_reminder";
+            actionData = result.reminder;
+          } else {
+            finalCleanText = detectedLocale.startsWith("hi")
+              ? "मैं यह रिमाइंडर सेव नहीं कर सका। कृपया दोबारा प्रयास करें।"
+              : "I couldn't save that reminder. Please try again.";
+          }
+        }
+      } else if (parsed.type === "SPEAK_REMINDERS") {
+        finalCleanText = parsed.message;
+      } else if (parsed.type === "QUERY_NEXT_REMINDER") {
+        finalCleanText = parsed.message;
+      } else if (parsed.type === "TAKE_MEDICINE") {
+        const medId = parsed.medicineId || store.medicines[0]?.id;
+        if (medId) {
+          store.markMedicineTaken(medId, "taken");
+        }
+        finalCleanText = parsed.confirmationMessage;
+        actionToExecute = "take_medicine";
+      } else if (parsed.type === "NAVIGATE") {
+        finalCleanText = parsed.confirmationMessage;
+        actionToExecute = "navigate";
+        actionData = parsed.targetView;
+      } else if (parsed.type === "ANSWER" || parsed.type === "QUERY_MEDICINE") {
+        finalCleanText = parsed.message;
+      } else if (parsed.type === "CONFIRM_ACTION" || parsed.type === "CANCEL_ACTION") {
+        finalCleanText = parsed.confirmationMessage;
+      }
+    }
+
+    // STAGE 3: World Knowledge Fact Engine
     if (!finalCleanText) {
       try {
         const worldFact = await resolveWorldKnowledge(text, detectedLocale);
@@ -767,8 +864,7 @@ export function VoiceAssistantModal({
       }
     }
 
-    // TIER 3: Direct App Action Intent Matching
-    // Handles: "Memory game शुरू करो", "मेरी medicines दिखाओ"
+    // STAGE 4: Direct App Action Intent Matching
     if (!finalCleanText) {
       const lower = text.toLowerCase();
       if (
@@ -781,8 +877,6 @@ export function VoiceAssistantModal({
         actionToExecute = "navigate_games";
         finalCleanText = detectedLocale.startsWith("hi")
           ? "मैं आपके लिए कॉग्निटिव मेमोरी गेम्स शुरू कर रहा हूँ। चलिए खेलना शुरू करते हैं!"
-          : detectedLocale.startsWith("gu")
-          ? "હું તમારા માટે મેમરી ગેમ્સ શરૂ કરી રહ્યો છું. ચાલો રમીએ!"
           : "Opening your Cognitive Memory Games now!";
       } else if (
         (lower.includes("medicine") || lower.includes("dawa") || lower.includes("दवाई") || lower.includes("દવા")) &&
@@ -792,13 +886,11 @@ export function VoiceAssistantModal({
         const medList = store.medicines.map((m) => `${m.name} (${m.dosage})`).join(", ");
         finalCleanText = detectedLocale.startsWith("hi")
           ? `आपकी दर्ज दवाएं हैं: ${medList || "वर्तमान में कोई दवा दर्ज नहीं है"}।`
-          : detectedLocale.startsWith("gu")
-          ? `તમારી નોંધાયેલી દવાઓ છે: ${medList || "હાલમાં કોઈ દવા નોંધાયેલી નથી"}.`
           : `Your scheduled medicines are: ${medList || "No medicines recorded"}.`;
       }
     }
 
-    // TIER 4: Lovable AI Gateway Cloud Model (With history & local fallback)
+    // STAGE 5: Cloud AI / Local Companion Engine Fallback
     if (!finalCleanText) {
       const previousTurns = updatedWithUser.slice(-8).map((m) => ({
         role: m.role,
@@ -830,28 +922,24 @@ export function VoiceAssistantModal({
         });
 
         const aiResponse: any = await Promise.race([aiPromise, timeoutPromise]);
-
         if (aiResponse?.reply) {
           finalCleanText = cleanAIResponse(aiResponse.reply);
         }
       } catch {
-        // Natural companion response fallback from Conversational Engine
         finalCleanText = cleanAIResponse(
           conversationalAI.generateConversationalReply(text, detectedLocale, store)
         );
       }
     }
 
-    // Guarantee non-empty clean response
+    // Guarantee clean non-empty response
     if (!finalCleanText || finalCleanText.trim().length === 0) {
       finalCleanText = cleanAIResponse(
         conversationalAI.generateConversationalReply(text, detectedLocale, store)
       );
     }
 
-    // CRITICAL (Requirement 6): Strip ANY raw JSON or technical format from user view
     finalCleanText = cleanAIResponse(finalCleanText);
-
     isThinkingRef.current = false;
 
     // Record turn in Conversational AI dialogue memory
@@ -870,7 +958,7 @@ export function VoiceAssistantModal({
     setLastCleanAIResponse(finalCleanText);
     lastLocaleRef.current = detectedLocale;
 
-    // Append Assistant Message to chat (clean text only, NEVER raw JSON)
+    // Append Assistant Message to chat
     const assistantMsg: ChatMessage = {
       id: "a_" + Date.now(),
       role: "assistant",
@@ -896,13 +984,14 @@ export function VoiceAssistantModal({
       onNavigate?.("games");
     } else if (actionToExecute === "navigate_medicines") {
       onNavigate?.("medicines");
+    } else if (actionToExecute === "navigate" && typeof actionData === "string") {
+      onNavigate?.(actionData);
     }
 
-    // Speak the response in the same detected language
+    // Speak the response
     speakAIAnswer(finalCleanText, detectedLocale);
   };
 
-  // -------------------------------------------------------------------------
   // Care Action Confirmations (Take Medicine, Reminders, Appointments, Games)
   // -------------------------------------------------------------------------
   const handleConfirmIntent = () => {
@@ -1197,7 +1286,46 @@ export function VoiceAssistantModal({
             )}
           </div>
 
+          {/* Verified Real Reminder Creation Card */}
+          {lastCreatedReminder && (
+            <div className="w-full rounded-2xl border-2 border-emerald-500/50 bg-emerald-500/10 p-3.5 sm:p-4 flex items-center justify-between gap-3 shadow-md animate-in fade-in zoom-in-95 duration-200">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center font-black text-lg shrink-0 shadow-xs">
+                  ✓
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded-md">
+                      {lastCreatedReminder.repeat === "daily" ? "Daily Reminder" : lastCreatedReminder.repeat === "interval" ? "Hydration Schedule" : "Scheduled"}
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-600">Verified in Reminders</span>
+                  </div>
+                  <h4 className="text-sm sm:text-base font-black text-foreground truncate mt-0.5">
+                    {lastCreatedReminder.title}
+                  </h4>
+                  <p className="text-xs text-muted-foreground font-medium">
+                    ⏰ {lastCreatedReminder.date ? `${lastCreatedReminder.date} at ` : ""}{lastCreatedReminder.time}
+                    {lastCreatedReminder.notes ? ` • ${lastCreatedReminder.notes}` : ""}
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setLastCreatedReminder(null);
+                  if (onNavigate) onNavigate("reminders");
+                  onClose();
+                }}
+                className="rounded-xl font-black text-xs border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/15 shrink-0"
+              >
+                View in Reminders
+              </Button>
+            </div>
+          )}
+
           {/* Explicit State Indicator Label */}
+
           <div className="flex items-center justify-center gap-2">
             <span
               className={`w-3 h-3 rounded-full ${
