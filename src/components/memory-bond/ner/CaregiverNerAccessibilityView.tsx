@@ -34,7 +34,6 @@ import { nerApiService } from "@/lib/ner/nerApiService";
 import { NerSmartMap } from "./NerSmartMap";
 import {
   searchPlacesNominatim,
-  searchGeocodingOSM,
   calculateRouteOSRM,
   fetchLiveWeatherOpenMeteo,
   searchNearbyEmergencyFacilities,

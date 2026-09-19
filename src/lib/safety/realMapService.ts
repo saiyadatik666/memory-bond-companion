@@ -149,8 +149,17 @@ export async function searchPlacesNominatim(
   }
 }
 
-// Export alias for geocoding
-export const searchGeocodingOSM = searchPlacesNominatim;
+// ---------------------------------------------------------------------------
+// Real Geocoding & Place Search (OpenStreetMap Nominatim)
+// Exported as both searchPlacesNominatim and searchGeocodingOSM
+// ---------------------------------------------------------------------------
+export async function searchGeocodingOSM(
+  query: string,
+  nearLat?: number,
+  nearLng?: number
+): Promise<PlaceSearchResult[]> {
+  return searchPlacesNominatim(query, nearLat, nearLng);
+}
 
 // ---------------------------------------------------------------------------
 // 3. Real Driving Route Calculation (OSRM Driving Engine)
