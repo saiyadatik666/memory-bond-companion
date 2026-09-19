@@ -40,7 +40,6 @@ import { Footer } from "./Footer";
 import { FloatingAssistantBubble } from "./FloatingAssistantBubble";
 import { MemoryStoryModal } from "./MemoryStoryModal";
 import { SafeRouteErrorBoundary } from "./SafeRouteErrorBoundary";
-import { DemoControlBar } from "./DemoControlBar";
 
 export function MemoryBondApp() {
   const store = useMemoryBondStore();
@@ -339,23 +338,6 @@ export function MemoryBondApp() {
           onNavigate={handleNavigate}
           onSignOut={handleSignOut}
           onOpenSos={handleOpenSos}
-        />
-
-        {/* Evaluator Demo Floating Control Bar (Section 39 & 52) */}
-        <DemoControlBar
-          store={store}
-          currentRole={currentRole}
-          currentTab={currentTab}
-          onSelectRole={(role) => {
-            store.setRole(role);
-            store.updateProfile({
-              role,
-              full_name: role === "senior" ? "Meena Patel" : "Priya Patel",
-            });
-            const defaultTab = getDefaultTabForRole(role);
-            handleNavigate(defaultTab);
-          }}
-          onNavigate={handleNavigate}
         />
 
         {/* Main Responsive Body Canvas */}
