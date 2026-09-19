@@ -1654,21 +1654,34 @@ export class ConversationalAIEngine {
     }
 
     // =========================================================================
-    // 15. MEDICINE REMINDER TIME COLLECTION (Follow-up)
+    // 15. MEDICINE REMINDER TIME COLLECTION (Follow-up) — uses verified service
     // =========================================================================
     if (this._dialogue.stage === "awaiting_reminder_time") {
-      const time = extractedTimeFn(raw);
-      const targetDate =
-        this._dialogue.targetDate ||
-        new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-      const title = this._dialogue.topic || "Morning Medicine";
+      const explicitTime = extractedTimeFn(raw);
+      const title = this._dialogue.topic || this._dialogue.targetTitle || "Medicine";
       const remType = this._dialogue.reminderType || "medicine";
+      const targetDate = this._dialogue.targetDate || null;
 
-      store.addReminder({
+      if (!explicitTime) {
+        // User didn't say a recognizable time — ask again
+        return {
+          handled: true,
+          responseText:
+            lang === "hi"
+              ? "कृपया समय स्पष्ट रूप से बताएं, जैसे: रात 8 बजे या सुबह 8:30 बजे।"
+              : lang === "gu"
+              ? "કૃપા કરીને સ્પષ્ટ સમય કહો, જેમ કે: રાત્રે 8 વાગ્યે કે સવારે 8:30 વાગ્યે."
+              : "Please tell me the time — for example: 8 PM or 8:30 AM.",
+        };
+      }
+
+      // VERIFIED PERSISTENT CREATION via central reminder service
+      const repeatMode: "none" | "daily" = targetDate ? "none" : "daily";
+      const result = createVerifiedReminder(store, {
         title,
-        time,
+        time: explicitTime,
         date: targetDate,
-        repeat: "daily",
+        repeat: repeatMode,
         type: remType,
         notes: "Created via Memory Bond conversational dialogue context",
         active: true,
@@ -1676,20 +1689,38 @@ export class ConversationalAIEngine {
 
       this.resetDialogue();
 
+      if (!result.success || !result.reminder) {
+        return {
+          handled: true,
+          responseText:
+            lang === "hi"
+              ? "मैं यह रिमाइंडर सेव नहीं कर सका। कृपया दोबारा प्रयास करें।"
+              : "I couldn't save that reminder. Please try again.",
+        };
+      }
+
+      const [hhStr] = explicitTime.split(":");
+      const hhNum = parseInt(hhStr || "8", 10);
+      const isNight = hhNum >= 18;
+      const isMorn = hhNum < 12 && hhNum >= 4;
+      const disp12 = hhNum % 12 === 0 ? 12 : hhNum % 12;
+      const timeHi = isNight ? `रात ${disp12} बजे` : isMorn ? `सुबह ${disp12} बजे` : `${disp12} बजे`;
+      const timeGu = isNight ? `રાત્રે ${disp12} વાગ્યે` : isMorn ? `સવારે ${disp12} વાગ્યે` : `${disp12} વાગ્યે`;
+
       const timeConfirms: Record<string, string> = {
-        hi: `ठीक है। मैंने ${time} बजे दवा का रिमाइंडर सेट कर दिया है। मैं आपको समय पर याद दिलाऊँगा।`,
-        gu: `ઠીક છે. મેં ${time} વાગ્યે દવા માટે રિમાઇન્ડર ગોઠવી દીધું છે.`,
-        en: `Alright. I have set your medicine reminder for ${time}. I will remind you on time.`,
-        bn: `ঠিক আছে। আমি ${time} টায় ওষুধের জন্য রিমাইন্ডার সেট করে দিয়েছি।`,
-        as: `ঠিক আছে। মই ${time} বজাত ঔষধৰ বাবে সংকেত সংৰক্ষণ কৰিলোঁ।`,
-        mr: `ठीक आहे. मी ${time} वाजता औषधासाठी आठवण सेट केली आहे.`,
+        hi: `मैंने ${timeHi} ${title} का रिमाइंडर सेट कर दिया है। मैं आपको समय पर याद दिलाऊँगा।`,
+        gu: `મેં ${timeGu} ${title}નું રિમાઇન્ડર ગોઠવી દીધું છે. હું સમયસર યાદ કરાવીશ.`,
+        en: `Done! I've set your reminder for "${title}" at ${explicitTime}${targetDate ? " on " + targetDate : ""}. I'll remind you on time.`,
+        bn: `আমি ${explicitTime} টায় ${title} এর রিমাইন্ডার সেট করে দিয়েছি।`,
+        as: `মই ${explicitTime} বজাত ${title}ৰ বাবে সংকেত সংৰক্ষণ কৰিলোঁ।`,
+        mr: `मी ${explicitTime} वाजता ${title} ची आठवण सेट केली आहे.`,
       };
 
       return {
         handled: true,
         responseText: timeConfirms[lang] || timeConfirms["en"],
         action: "create_reminder",
-        actionData: { title, time, date: targetDate },
+        actionData: { title, time: explicitTime, date: targetDate },
       };
     }
 

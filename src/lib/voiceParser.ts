@@ -1,4 +1,4 @@
-import type { MemoryBondStore } from "./memoryBondStore";
+﻿import type { MemoryBondStore } from "./memoryBondStore";
 import { conversationalAI } from "./conversationalAI";
 import { voiceManager, getBestMatchingVoice, cleanAIResponse } from "./voiceProvider";
 import { isWorldKnowledgeQuery, resolveWorldKnowledge, resolveVerifiedFact } from "./worldKnowledgeEngine";
@@ -143,24 +143,23 @@ const NUMBER_WORDS: Record<string, number> = {
   "दस": 10, "দশ": 10, "દસ": 10, "দहा": 10, "ten": 10,
   "नौ": 9, "নয়": 9, "નવ": 9, "नऊ": 9, "nine": 9,
   "आठ": 8, "আট": 8, "આઠ": 8, "eight": 8,
-  "सात": 7, "সাত": 7, "સાત": 7, "seven": 7,
+  "सात": 7, "সাত": 7, "સাત": 7, "seven": 7,
   "छह": 6, "छः": 6, "ছয়": 6, "છ": 6, "सहा": 6, "six": 6,
   "पांच": 5, "पाँच": 5, "পাঁচ": 5, "પાંચ": 5, "पाच": 5, "five": 5,
   "चार": 4, "চাৰি": 4, "চার": 4, "ચાર": 4, "four": 4,
   "तीन": 3, "তিনি": 3, "তিন": 3, "ત્રણ": 3, "three": 3,
   "दो": 2, "দুই": 2, "બે": 2, "दोन": 2, "two": 2,
-  "एक": 1, "এক": 1, "એક": 1, "one": 1,
+  "एक": 1, "এক": 1, "એক": 1, "one": 1,
   "ग्यारह": 11, "এঘাৰ": 11, "এগারো": 11, "અગિયાર": 11, "अकरा": 11, "eleven": 11,
   "बारह": 12, "বাৰ": 12, "বারো": 12, "બાર": 12, "बारा": 12, "twelve": 12,
 };
 
-// Time extractor supporting Indian natural speech (Hindi, Gujarati, English, regional terms)
-export function extractTime(text: string): string {
+// Time extractor — returns null when no recognizable time is found.
+export function extractTime(text: string): string | null {
   const norm = normalizeNumerals(text);
   const t = norm.toLowerCase();
-  
-  // Format: 8:30 AM / 8.30 PM / 8:30
-  const m1 = t.match(/(\d{1,2})[:.](\d{2})\s*(am|pm)?/);
+
+  const m1 = t.match(/(\d{1,2})[:](\d{2})\s*(am|pm)?/);
   if (m1 && m1[1] && m1[2]) {
     let h = parseInt(m1[1], 10);
     const min = m1[2];
@@ -170,52 +169,51 @@ export function extractTime(text: string): string {
     return `${h.toString().padStart(2, "0")}:${min}`;
   }
 
-  // Format: 8 AM / 8 PM / 8 baje / 8 વાગ્યે / 8 বজাত / 8 वाजता
-  const m2 = t.match(/(\d{1,2})\s*(am|pm|baje|बजे|বজাত|টায়|વાગ્યે|વાગે|वाजता|மணிக்கு|గంటలకు|ಗಂಟೆಗೆ|മണിക്ക്|ਵਜੇ|ଟାରେ)?/);
-  if (m2 && m2[1]) {
+  const m2 = t.match(/\b(\d{1,2})\s*(am|pm|baje|बजे|বজাত|টায়|વાગ્યે|વાગે|वाजता|o'clock)\b/i);
+  if (m2 && m2[1] && m2[2]) {
     let h = parseInt(m2[1], 10);
+    const marker = (m2[2] || "").toLowerCase();
     if (h >= 1 && h <= 12) {
-      const isMorning = t.includes("morning") || t.includes("subah") || t.includes("सुबह") || t.includes("સવારે") || t.includes("savare") || t.includes("সকাল") || t.includes("পুৱা") || t.includes("सकाळी") || t.includes("am");
-      const isEvening = t.includes("evening") || t.includes("shaam") || t.includes("शाम") || t.includes("સાંજે") || t.includes("saanje") || t.includes("সন্ধ্যা") || t.includes("संध्याकाळी") || t.includes("pm");
-      const isNight = t.includes("night") || t.includes("raat") || t.includes("रात") || t.includes("રાત્રે") || t.includes("રાત") || t.includes("राती") || t.includes("রাত্রে");
-      const isAfternoon = t.includes("afternoon") || t.includes("dopahar") || t.includes("दोपहर") || t.includes("બપોરે") || t.includes("દુપારી") || t.includes("দুপুর");
-
-      if ((isEvening || isNight || isAfternoon) && h < 12) {
-        h += 12;
-      }
+      const isPm = marker === "pm" ||
+        t.includes("evening") || t.includes("shaam") || t.includes("शाम") ||
+        t.includes("night") || t.includes("raat") || t.includes("रात") ||
+        t.includes("dopahar") || t.includes("दोपहर") || t.includes("afternoon");
+      if (isPm && h < 12) h += 12;
+      if (marker === "am" && h === 12) h = 0;
       return `${h.toString().padStart(2, "0")}:00`;
     }
   }
 
-  // Spoken number words check e.g. "દસ વાગ્યે", "આઠ વાગ્યે", "दस बजे", "सुबह आठ बजे", "eight am"
   for (const [word, num] of Object.entries(NUMBER_WORDS)) {
-    if (t.includes(word)) {
-      const isPm = t.includes("pm") || t.includes("shaam") || t.includes("शाम") || t.includes("સાંજ") || t.includes("રાત") || t.includes("raat") || t.includes("evening") || t.includes("night") || t.includes("બપોર");
+    if (t.includes(word) &&
+      (t.includes("baje") || t.includes("बजे") || t.includes("am") || t.includes("pm") ||
+       t.includes("o'clock") || t.includes("বজাত") || t.includes("વાગ્યે"))) {
+      const isPm = t.includes("pm") || t.includes("shaam") || t.includes("शाम") ||
+        t.includes("night") || t.includes("raat") || t.includes("रात") ||
+        t.includes("evening") || t.includes("afternoon");
       const h = isPm && num < 12 ? num + 12 : num;
       return `${h.toString().padStart(2, "0")}:00`;
     }
   }
 
-  // Pure number like "8" when user mentions time
-  const m3 = t.match(/\b(\d{1,2})\b/);
+  const m3 = t.match(/\bat\s+(\d{1,2})(?!\d)\b/i);
   if (m3 && m3[1]) {
-    const num = parseInt(m3[1], 10);
-    if (num >= 1 && num <= 12) {
-      const isPm = t.includes("pm") || t.includes("shaam") || t.includes("સાંજ") || t.includes("રાત") || t.includes("raat") || t.includes("evening") || t.includes("night") || t.includes("બપોર");
-      const h = isPm && num < 12 ? num + 12 : num;
+    let h = parseInt(m3[1], 10);
+    if (h >= 1 && h <= 12) {
+      const isPm = t.includes("pm") || t.includes("evening") || t.includes("shaam") ||
+        t.includes("night") || t.includes("raat") || t.includes("afternoon");
+      if (isPm && h < 12) h += 12;
       return `${h.toString().padStart(2, "0")}:00`;
     }
   }
 
-  // Natural colloquial terms
   if (t.includes("raat") || t.includes("night") || t.includes("tonight") || t.includes("રાત") || t.includes("राती")) return "20:30";
-  if (t.includes("morning") || t.includes("subah") || t.includes("savare") || t.includes("સવાર") || t.includes("પુৱা") || t.includes("সকাল") || t.includes("सकाळ")) return "08:30";
+  if (t.includes("morning") || t.includes("subah") || t.includes("savare") || t.includes("સવાર") || t.includes("সকাল") || t.includes("सकाळ")) return "08:30";
   if (t.includes("afternoon") || t.includes("dopahar") || t.includes("બપોર") || t.includes("दुपारी") || t.includes("দুপুর")) return "13:00";
   if (t.includes("evening") || t.includes("shaam") || t.includes("સાંજ") || t.includes("সন্ধ্যা") || t.includes("संध्याकाळ")) return "17:30";
 
-  return "08:30";
+  return null;
 }
-
 /**
  * Extracts explicit time mentioned by user.
  * Returns null if no explicit time was spoken (preventing silent arbitrary defaulting).
@@ -821,30 +819,23 @@ export function parseVoiceIntent(
     lower.includes("কোথায়") ||
     lower.includes("my medicine is at") ||
     lower.includes("medicine is at 8") ||
-    lower.includes("દવા 8 વાગ્યે") ||
-    lower.includes("दवा 8 बजे") ||
     lower.includes("sunita") ||
     lower.includes("aarav") ||
     lower.includes("rajesh") ||
     lower.includes("सुनीता") ||
-    lower.includes("સુનીતા");
+    lower.includes("Sunita") ||
+    lower.includes("Aarav") ||
+    lower.includes("Rajesh");
 
   if (isQuestionOrMemory) {
     const conversationalReply = conversationalAI.generateConversationalReply(text, locale, store);
     if (
-      conversationalReply.includes("દવા") ||
       conversationalReply.includes("दवा") ||
       conversationalReply.includes("medicine") ||
-      conversationalReply.includes("ঔষধ") ||
-      conversationalReply.includes("યાદો") ||
-      conversationalReply.includes("यादों") ||
-      conversationalReply.includes("Memory Bank") ||
-      conversationalReply.includes("સુનિતા") ||
-      conversationalReply.includes("सुनीता") ||
+      conversationalReply.includes("Memory Bond") ||
       conversationalReply.includes("Sunita") ||
       conversationalReply.includes("Aarav") ||
-      conversationalReply.includes("Rajesh") ||
-      conversationalReply.includes("Memory Bond")
+      conversationalReply.includes("Rajesh")
     ) {
       return {
         type: "ANSWER",
@@ -1236,7 +1227,7 @@ export function parseVoiceIntent(
     lower.includes("डॉक्टर") ||
     lower.includes("अपॉइंटमेंट")
   ) {
-    const time = extractTime(text);
+    const time = extractExplicitTime(text) || "10:00";
     const isTomorrow =
       lower.includes("tomorrow") ||
       lower.includes("कल") ||
