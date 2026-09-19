@@ -29,6 +29,57 @@ export interface LocationState {
   source: string;
 }
 
+// ---------------------------------------------------------------------------
+// Distinct Location Architecture (Requirement 1 & 18)
+// CURRENT LIVE DEVICE LOCATION and USER-SELECTED MAP LOCATION MUST NEVER MIX
+// ---------------------------------------------------------------------------
+
+export interface CurrentLocationState {
+  lat: number;
+  lng: number;
+  accuracyMeters: number | null;
+  timestamp: string;
+}
+
+export interface SelectedLocationState {
+  lat: number;
+  lng: number;
+  name: string;
+  address: string;
+  type: string;
+  category?: string;
+  selectedAt: string;
+}
+
+export type NearbyCategoryType =
+  | "hotel"
+  | "hospital"
+  | "pharmacy"
+  | "restaurant"
+  | "fuel"
+  | "station"
+  | "bus"
+  | "atm"
+  | "police"
+  | "shop"
+  | "worship"
+  | "parking"
+  | "emergency";
+
+export interface NearbyPlace {
+  id: string;
+  name: string;
+  category: NearbyCategoryType;
+  categoryLabel: string;
+  lat: number;
+  lng: number;
+  distanceKm: number;
+  address: string;
+  phone?: string | null;
+  isOpen24Hours?: boolean;
+  source: string;
+}
+
 export interface PlaceSearchResult {
   id: string;
   displayName: string;

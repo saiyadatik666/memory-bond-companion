@@ -28,12 +28,14 @@ import {
   searchNearbyEmergencyFacilities,
   analyzeRoadSafety,
   searchPlacesNominatim,
+  sanitizeSearchQuery,
   DEFAULT_NER_CENTER,
 } from "@/lib/safety/realMapService";
 import { RealInteractiveMap } from "@/components/memory-bond/safety/RealInteractiveMap";
 import { LocationPermissionModal } from "@/components/memory-bond/safety/LocationPermissionModal";
 import type {
   LocationState,
+  SelectedLocationState,
   RealRouteResult,
   RealWeatherResult,
   EmergencyFacility,
@@ -56,7 +58,7 @@ export function SeniorNerAccessibilityView({
 }: SeniorNerAccessibilityViewProps) {
   const { t, speechLocale } = useI18n();
 
-  // Real Geolocation State
+  // A) Current Live Device Location State (Requirement 1, 2, 18)
   const [locationState, setLocationState] = useState<LocationState>({
     coords: null,
     accuracyMeters: null,
@@ -65,8 +67,12 @@ export function SeniorNerAccessibilityView({
     lastUpdated: null,
     isTrackingActive: false,
     isSharingEnabled: false, // Strict Privacy Default = OFF
-    source: "Device GPS",
+    source: "Device GPS Telemetry",
   });
+
+  // B) User-Selected Map Location State (Requirement 1, 3, 4, 18)
+  // Stored completely independently from locationState. GPS updates NEVER overwrite this.
+  const [selectedLocation, setSelectedLocation] = useState<SelectedLocationState | null>(null);
 
   const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
   const [isPermissionDenied, setIsPermissionDenied] = useState(false);
@@ -104,6 +110,7 @@ export function SeniorNerAccessibilityView({
         const accuracy = pos.coords.accuracy;
         const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
+        // Update ONLY currentLocation. Notice selectedLocation is untouched! (Requirement 2 & 3)
         setLocationState({
           coords,
           accuracyMeters: accuracy,
@@ -130,53 +137,109 @@ export function SeniorNerAccessibilityView({
     );
   };
 
-  // 1. CHECK ROAD: Real road & weather safety analysis
+  // 1. CHECK ROAD: Real road & weather safety analysis (Requirement 4 & 6)
+  // Uses selectedLocation if user selected one; otherwise checks immediate corridor around user GPS.
   const handleCheckRoad = async () => {
     setActiveModal("check");
     setIsLoading(true);
     const userPos = locationState.coords || DEFAULT_NER_CENTER;
-    const destPos = { lat: userPos.lat + 0.3, lng: userPos.lng + 0.3 }; // immediate corridor
-    const analysis = await analyzeRoadSafety(userPos, destPos, "Nearby Highway Corridor");
-    setRoadAnalysis(analysis);
 
-    const spoken = `${analysis.headline}. ${analysis.details}`;
-    setStatusMessage(spoken);
-    speakMessage(spoken);
+    if (selectedLocation) {
+      const targetPos = { lat: selectedLocation.lat, lng: selectedLocation.lng };
+      const targetName = selectedLocation.name;
+      const analysis = await analyzeRoadSafety(userPos, targetPos, targetName);
+      setRoadAnalysis(analysis);
+
+      const spoken = `Inspecting road toward ${targetName}. ${analysis.headline}. ${analysis.details}`;
+      setStatusMessage(spoken);
+      speakMessage(spoken);
+    } else {
+      const destPos = { lat: userPos.lat + 0.15, lng: userPos.lng + 0.15 };
+      const analysis = await analyzeRoadSafety(userPos, destPos, "Immediate Travel Corridor");
+      setRoadAnalysis(analysis);
+
+      const spoken = `${analysis.headline}. ${analysis.details}`;
+      setStatusMessage(spoken);
+      speakMessage(spoken);
+    }
     setIsLoading(false);
   };
 
-  // 2. GET ROUTE HELP: Real OSRM route calculation
-  const handleGetRouteHelp = async (customDest?: string) => {
+  // 2. GET ROUTE HELP: Real OSRM route calculation (Requirement 5 & 7)
+  // ORIGIN = Current Live Location (locationState.coords)
+  // DESTINATION = Selected Map Location (selectedLocation)
+  const handleGetRouteHelp = async (customDest?: string | SelectedLocationState) => {
     setActiveModal("route");
     setIsLoading(true);
-    const userPos = locationState.coords || DEFAULT_NER_CENTER;
+    const originPos = locationState.coords || DEFAULT_NER_CENTER;
+    let targetDest: { lat: number; lng: number; name: string } | null = null;
 
-    const targetQuery = customDest || destinationQuery || "Shillong, Meghalaya";
-    const results = await searchPlacesNominatim(targetQuery, userPos.lat, userPos.lng);
+    if (typeof customDest === "object" && customDest !== null) {
+      targetDest = { lat: customDest.lat, lng: customDest.lng, name: customDest.name };
+      setSelectedLocation(customDest);
+    } else if (typeof customDest === "string" && customDest.trim()) {
+      const cleanQ = sanitizeSearchQuery(customDest);
+      if (cleanQ) {
+        const results = await searchPlacesNominatim(cleanQ, originPos.lat, originPos.lng);
+        if (results.length > 0) {
+          const first = results[0];
+          targetDest = { lat: first.lat, lng: first.lng, name: first.name };
+          const newLoc: SelectedLocationState = {
+            lat: first.lat,
+            lng: first.lng,
+            name: first.name,
+            address: first.displayName,
+            type: first.category || "Search Result",
+            selectedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          };
+          setSelectedLocation(newLoc);
+        }
+      }
+    } else if (selectedLocation) {
+      targetDest = { lat: selectedLocation.lat, lng: selectedLocation.lng, name: selectedLocation.name };
+    } else if (destinationQuery.trim()) {
+      const cleanQ = sanitizeSearchQuery(destinationQuery);
+      if (cleanQ) {
+        const results = await searchPlacesNominatim(cleanQ, originPos.lat, originPos.lng);
+        if (results.length > 0) {
+          const first = results[0];
+          targetDest = { lat: first.lat, lng: first.lng, name: first.name };
+          const newLoc: SelectedLocationState = {
+            lat: first.lat,
+            lng: first.lng,
+            name: first.name,
+            address: first.displayName,
+            type: first.category || "Search Result",
+            selectedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          };
+          setSelectedLocation(newLoc);
+        }
+      }
+    }
 
-    if (results.length === 0) {
-      const msg = `Could not locate destination "${targetQuery}". Please check the spelling or pick a nearby hospital.`;
+    if (!targetDest) {
+      const msg = "Please search or select a destination on the map below to calculate route guidance.";
       setStatusMessage(msg);
       speakMessage(msg);
       setIsLoading(false);
       return;
     }
 
-    const dest = results[0];
+    const originName = locationState.coords ? "My Current Location" : "Regional Center";
     const route = await calculateRouteOSRM(
-      userPos,
-      { lat: dest.lat, lng: dest.lng },
-      "My Location",
-      dest.name
+      originPos,
+      { lat: targetDest.lat, lng: targetDest.lng },
+      originName,
+      targetDest.name
     );
 
     if (route) {
       setActiveRoute(route);
-      const spoken = `Route calculated to ${dest.name}. Distance is ${route.distanceKm} kilometers, estimated driving time is ${route.durationFormatted}.`;
+      const spoken = `Route calculated from ${route.originName} to ${route.destinationName}. Distance is ${route.distanceKm} kilometers, estimated driving time is ${route.durationFormatted}.`;
       setStatusMessage(spoken);
       speakMessage(spoken);
     } else {
-      const msg = "Route calculation temporarily unavailable for this corridor. No verified road connection found.";
+      const msg = `Route calculation temporarily unavailable between current location and ${targetDest.name}. No verified road path found in OpenStreetMap.`;
       setStatusMessage(msg);
       speakMessage(msg);
     }
@@ -287,6 +350,77 @@ export function SeniorNerAccessibilityView({
             <span>Read Aloud</span>
           </Button>
         </div>
+      </div>
+
+      {/* Location Separation Context Status Strip (Requirement 1, 2, 3, 4, 18) */}
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-border shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Current Live GPS Location State */}
+          <div className="flex items-center gap-2">
+            <span className="flex h-2.5 w-2.5 relative">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${locationState.coords ? "bg-emerald-400" : "bg-amber-400"}`} />
+              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${locationState.coords ? "bg-emerald-500" : "bg-amber-500"}`} />
+            </span>
+            <span className="font-bold text-muted-foreground">Live GPS Origin:</span>
+            {locationState.coords ? (
+              <span className="font-black text-foreground">
+                {locationState.coords.lat.toFixed(4)}°N, {locationState.coords.lng.toFixed(4)}°E
+                <span className="ml-1 text-[11px] text-muted-foreground font-semibold">
+                  (±{Math.round(locationState.accuracyMeters || 10)}m)
+                </span>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsPermissionModalOpen(true)}
+                className="font-black text-primary hover:underline cursor-pointer"
+              >
+                Tap to enable GPS
+              </button>
+            )}
+          </div>
+
+          <div className="hidden sm:block h-3.5 w-px bg-border" />
+
+          {/* User-Selected Map Location State */}
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-rose-500 shrink-0" />
+            <span className="font-bold text-muted-foreground">Selected Destination:</span>
+            {selectedLocation ? (
+              <div className="flex items-center gap-1.5">
+                <span className="font-black text-rose-700 dark:text-rose-400 max-w-[200px] truncate" title={selectedLocation.name}>
+                  {selectedLocation.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedLocation(null);
+                    setActiveRoute(null);
+                  }}
+                  title="Clear selected destination"
+                  className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-muted hover:bg-muted/80 text-muted-foreground cursor-pointer"
+                >
+                  ✕ Clear
+                </button>
+              </div>
+            ) : (
+              <span className="font-medium text-muted-foreground italic">
+                None (Tap any point on map or search)
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Action hint */}
+        {selectedLocation && (
+          <Button
+            size="sm"
+            onClick={() => handleGetRouteHelp(selectedLocation)}
+            className="h-7 text-xs font-black px-3 rounded-xl bg-primary text-white cursor-pointer ml-auto"
+          >
+            Route to Selected ➔
+          </Button>
+        )}
       </div>
 
       {/* 2. FOUR VERY LARGE TOUCH BUTTONS (Requirement 17) */}
@@ -546,20 +680,37 @@ export function SeniorNerAccessibilityView({
           initialZoom={locationState.coords ? 13 : 11}
           locationState={locationState}
           onCenterOnLocation={() => {
-            if (locationState.coords) {
-              // Location already active
-            } else {
+            if (!locationState.coords) {
               setIsPermissionModalOpen(true);
             }
+          }}
+          selectedLocation={selectedLocation}
+          onSelectLocation={(loc) => {
+            setSelectedLocation(loc);
+            setDestinationQuery(loc.name);
+          }}
+          onClearSelectedLocation={() => {
+            setSelectedLocation(null);
+            setActiveRoute(null);
+          }}
+          onRequestRouteFromCurrent={(dest) => {
+            handleGetRouteHelp(dest);
           }}
           activeRoute={activeRoute}
           facilities={facilities}
           isSeniorMode={true}
           onSelectDestination={(dest, name) => {
-            const userPos = locationState.coords || DEFAULT_NER_CENTER;
-            calculateRouteOSRM(userPos, dest, "My Location", name).then((r) => {
-              if (r) setActiveRoute(r);
-            });
+            const loc: SelectedLocationState = {
+              lat: dest.lat,
+              lng: dest.lng,
+              name,
+              address: `Coordinates: ${dest.lat.toFixed(4)}°N, ${dest.lng.toFixed(4)}°E`,
+              type: "Selected Location",
+              selectedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            };
+            setSelectedLocation(loc);
+            setDestinationQuery(name);
+            handleGetRouteHelp(loc);
           }}
         />
       </div>

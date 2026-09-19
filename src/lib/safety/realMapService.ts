@@ -22,6 +22,8 @@ import type {
   RoadStatusAnalysis,
   WeatherWarning,
   DailyForecast,
+  NearbyCategoryType,
+  NearbyPlace,
 } from "@/types/realSafetyMap";
 
 // Default regional center for North Eastern Region (Guwahati, Assam)
@@ -484,5 +486,137 @@ export async function analyzeRoadSafety(
     weatherNotice: weather ? `${weather.condition}, ${weather.temperatureC}°C, Wind ${weather.windSpeedKmh} km/h` : undefined,
     source: "Verified Regional Road & Meteorological Network",
     lastUpdated: now,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 7. Search Bug Prevention & Query Sanitizer (Requirement 10)
+// Prevents voice transcripts, weather strings, or accidental concatenation
+// ---------------------------------------------------------------------------
+
+export function sanitizeSearchQuery(raw: string): string {
+  if (!raw) return "";
+  const cleaned = raw.trim();
+
+  // Strip weather responses or numeric weather summaries
+  if (
+    /degree|celsius|fahrenheit|humidity|wind speed|precipitation|rainfall|rain warning|forecast/i.test(cleaned) ||
+    /मौसम|तापमान|बारिश|हवा|डिग्री|सेंटीग्रेड|বৃষ্টি|বতৰ/i.test(cleaned)
+  ) {
+    return "";
+  }
+
+  // Strip conversational voice filler phrases
+  const stripped = cleaned
+    .replace(/^(search for|search|find|take me to|navigate to|go to|show me|locate)\s+/i, "")
+    .trim();
+
+  return stripped;
+}
+
+// ---------------------------------------------------------------------------
+// 8. Hotels and Real Nearby Places (OpenStreetMap Nominatim / POI Engine)
+// FREE OpenStreetMap data only (Requirement 12)
+// ---------------------------------------------------------------------------
+
+const NEARBY_CATEGORY_MAP: Record<
+  NearbyCategoryType,
+  { query: string; label: string; amenity?: string }
+> = {
+  hotel: { query: "hotel", label: "Hotel / Lodging" },
+  hospital: { query: "hospital", label: "Hospital / Healthcare" },
+  pharmacy: { query: "pharmacy", label: "Pharmacy / Medical Store" },
+  restaurant: { query: "restaurant", label: "Restaurant / Food" },
+  fuel: { query: "petrol pump", label: "Petrol Pump" },
+  station: { query: "railway station", label: "Railway Station" },
+  bus: { query: "bus station", label: "Bus Terminal / Stop" },
+  atm: { query: "atm", label: "ATM / Cash" },
+  police: { query: "police station", label: "Police Station" },
+  shop: { query: "supermarket", label: "Supermarket / Market" },
+  worship: { query: "place of worship", label: "Place of Worship" },
+  parking: { query: "parking", label: "Parking Space" },
+  emergency: { query: "emergency", label: "Emergency Services" },
+};
+
+// In-memory cache to respect free OSM rate limits
+const nearbyCache = new Map<string, { timestamp: number; data: NearbyPlace[] }>();
+const CACHE_TTL_MS = 60 * 1000; // 1 minute cache
+
+export async function searchNearbyPOIs(
+  lat: number,
+  lng: number,
+  category: NearbyCategoryType
+): Promise<NearbyPlace[]> {
+  const meta = NEARBY_CATEGORY_MAP[category] || { query: category, label: category };
+  const cacheKey = `${lat.toFixed(2)},${lng.toFixed(2)}-${category}`;
+
+  const cached = nearbyCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  try {
+    const delta = 0.35; // approx 35-40 km bounding box
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+      meta.query
+    )}&bounded=1&viewbox=${lng - delta},${lat + delta},${lng + delta},${lat - delta}&limit=12&addressdetails=1`;
+
+    const res = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "MemoryBond-NearbyEngine/1.0",
+      },
+    });
+
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    if (!Array.isArray(data)) return [];
+
+    const places: NearbyPlace[] = data.map((item: any) => {
+      const itemLat = parseFloat(item.lat);
+      const itemLng = parseFloat(item.lon);
+      const distKm = calculateDistanceKm({ lat, lng }, { lat: itemLat, lng: itemLng });
+      const phone = item.extratags?.phone || item.extratags?.["contact:phone"] || null;
+
+      return {
+        id: String(item.place_id),
+        name: item.name || item.display_name.split(",")[0],
+        category,
+        categoryLabel: meta.label,
+        lat: itemLat,
+        lng: itemLng,
+        distanceKm: distKm,
+        address: item.display_name,
+        phone,
+        isOpen24Hours: item.extratags?.opening_hours === "24/7",
+        source: "OpenStreetMap Free Verified POI Directory",
+      };
+    });
+
+    places.sort((a, b) => a.distanceKm - b.distanceKm);
+    nearbyCache.set(cacheKey, { timestamp: Date.now(), data: places });
+    return places;
+  } catch (err) {
+    console.warn("[RealMap] Nearby POI search failed:", err);
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 9. Honest Traffic Status (Requirement 11)
+// Never fabricates fake traffic colors or speeds
+// ---------------------------------------------------------------------------
+
+export function getTrafficNotice(): {
+  status: string;
+  notice: string;
+  isRealTimeFeedConnected: boolean;
+} {
+  return {
+    status: "UNAVAILABLE",
+    notice:
+      "Live real-time municipal telematics sensor stream is currently not connected for this corridor. OpenStreetMap standard road geometry and statutory speed limits apply.",
+    isRealTimeFeedConnected: false,
   };
 }

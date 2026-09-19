@@ -18,6 +18,14 @@ import {
   Car,
   CloudRain,
   Radio,
+  Building2,
+  Utensils,
+  Fuel,
+  Train,
+  CircleDollarSign,
+  ShoppingBag,
+  Target,
+  Crosshair,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,8 +35,12 @@ import {
   getTileUrl,
   calculateDistanceKm,
   searchPlacesNominatim,
+  searchGeocodingOSM,
   calculateRouteOSRM,
   fetchLiveWeatherOpenMeteo,
+  searchNearbyPOIs,
+  sanitizeSearchQuery,
+  getTrafficNotice,
   DEFAULT_NER_CENTER,
   TILE_SIZE,
 } from "@/lib/safety/realMapService";
@@ -40,6 +52,9 @@ import type {
   RealWeatherResult,
   EmergencyFacility,
   LocationState,
+  SelectedLocationState,
+  NearbyCategoryType,
+  NearbyPlace,
 } from "@/types/realSafetyMap";
 
 interface RealInteractiveMapProps {
@@ -48,7 +63,11 @@ interface RealInteractiveMapProps {
   locationState: LocationState;
   onCenterOnLocation: () => void;
   activeRoute?: RealRouteResult | null;
+  selectedLocation?: SelectedLocationState | null;
+  onSelectLocation?: (loc: SelectedLocationState) => void;
+  onClearSelectedLocation?: () => void;
   onSelectDestination?: (dest: LatLng, name: string) => void;
+  onRequestRouteFromCurrent?: (dest: SelectedLocationState) => void;
   facilities?: EmergencyFacility[];
   isSeniorMode?: boolean;
   className?: string;
@@ -60,29 +79,50 @@ export function RealInteractiveMap({
   locationState,
   onCenterOnLocation,
   activeRoute,
+  selectedLocation: externalSelectedLocation,
+  onSelectLocation,
+  onClearSelectedLocation,
   onSelectDestination,
+  onRequestRouteFromCurrent,
   facilities = [],
   isSeniorMode = false,
   className = "",
 }: RealInteractiveMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Map state
+  // Map viewport state
   const [center, setCenter] = useState<LatLng>(initialCenter);
   const [zoom, setZoom] = useState<number>(initialZoom);
   const [mapMode, setMapMode] = useState<MapStyleMode>("ROAD");
   const [dimensions, setDimensions] = useState({ width: 800, height: 500 });
 
-  // Dragging state
+  // Separate Internal Selected Location state fallback (Requirement 1, 2, 3)
+  const [internalSelectedLocation, setInternalSelectedLocation] =
+    useState<SelectedLocationState | null>(null);
+  const activeSelectedLoc =
+    externalSelectedLocation !== undefined
+      ? externalSelectedLocation
+      : internalSelectedLocation;
+
+  // Dragging & Click discrimination
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ x: number; y: number; center: LatLng } | null>(null);
+  const dragDistanceRef = useRef(0);
 
-  // Search state
+  // Clean Search state (Requirement 10)
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<PlaceSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
-  const [selectedPlace, setSelectedPlace] = useState<PlaceSearchResult | null>(null);
+
+  // Nearby POI state (Requirement 12)
+  const [activeNearbyCategory, setActiveNearbyCategory] =
+    useState<NearbyCategoryType | null>(null);
+  const [nearbyPlaces, setNearbyPlaces] = useState<NearbyPlace[]>([]);
+  const [isLoadingNearby, setIsLoadingNearby] = useState(false);
+
+  // Traffic modal state (Requirement 11)
+  const [trafficModalOpen, setTrafficModalOpen] = useState(false);
 
   // Selected Pin Bottom Sheet
   const [activePin, setActivePin] = useState<{
@@ -92,6 +132,8 @@ export function RealInteractiveMap({
     lng: number;
     address?: string;
     phone?: string | null;
+    isCurrentLocation?: boolean;
+    isSelectedLocation?: boolean;
   } | null>(null);
 
   // Update container dimensions on resize
@@ -109,12 +151,19 @@ export function RealInteractiveMap({
     return () => window.removeEventListener("resize", updateSize);
   }, []);
 
-  // Sync center when user's location is acquired
+  // Center on GPS initially only if no destination is already selected
+  const hasCenteredInitialRef = useRef(false);
   useEffect(() => {
-    if (locationState.coords && locationState.permissionStatus === "granted") {
+    if (
+      locationState.coords &&
+      locationState.permissionStatus === "granted" &&
+      !hasCenteredInitialRef.current &&
+      !activeSelectedLoc
+    ) {
       setCenter(locationState.coords);
+      hasCenteredInitialRef.current = true;
     }
-  }, [locationState.coords]);
+  }, [locationState.coords, locationState.permissionStatus, activeSelectedLoc]);
 
   // Center on active route if provided
   useEffect(() => {
@@ -125,10 +174,22 @@ export function RealInteractiveMap({
     }
   }, [activeRoute]);
 
-  // Handle Dragging
+  // When external selected location changes, smoothly re-center camera on it (Requirement 14)
+  useEffect(() => {
+    if (externalSelectedLocation) {
+      setCenter({
+        lat: externalSelectedLocation.lat,
+        lng: externalSelectedLocation.lng,
+      });
+      setZoom((prev) => Math.max(prev, 12));
+    }
+  }, [externalSelectedLocation?.lat, externalSelectedLocation?.lng]);
+
+  // Dragging handlers
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button !== 0) return; // Only left click
+    if (e.button !== 0) return;
     setIsDragging(true);
+    dragDistanceRef.current = 0;
     dragStartRef.current = {
       x: e.clientX,
       y: e.clientY,
@@ -140,25 +201,71 @@ export function RealInteractiveMap({
     if (!isDragging || !dragStartRef.current) return;
     const dx = e.clientX - dragStartRef.current.x;
     const dy = e.clientY - dragStartRef.current.y;
+    dragDistanceRef.current += Math.abs(dx) + Math.abs(dy);
 
-    // Convert pixel delta back to LatLng delta
-    const currentPixel = latLngToPixel(dragStartRef.current.center.lat, dragStartRef.current.center.lng, zoom);
+    const currentPixel = latLngToPixel(
+      dragStartRef.current.center.lat,
+      dragStartRef.current.center.lng,
+      zoom
+    );
     const newPixel = { x: currentPixel.x - dx, y: currentPixel.y - dy };
     const newCenter = pixelToLatLng(newPixel.x, newPixel.y, zoom);
     setCenter(newCenter);
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e: React.MouseEvent) => {
+    const wasClick = dragDistanceRef.current < 6;
     setIsDragging(false);
     dragStartRef.current = null;
+
+    // Handle map tap to set selected location (Requirement 3)
+    if (wasClick && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+
+      // Ignore clicks on floating toolbars and buttons
+      if (clickY < 110 || clickX > dimensions.width - 70) return;
+
+      const centerPixel = latLngToPixel(center.lat, center.lng, zoom);
+      const clickedPixel = {
+        x: centerPixel.x - dimensions.width / 2 + clickX,
+        y: centerPixel.y - dimensions.height / 2 + clickY,
+      };
+      const clickedCoord = pixelToLatLng(clickedPixel.x, clickedPixel.y, zoom);
+
+      const newLoc: SelectedLocationState = {
+        lat: Number(clickedCoord.lat.toFixed(5)),
+        lng: Number(clickedCoord.lng.toFixed(5)),
+        name: `Location (${clickedCoord.lat.toFixed(4)}, ${clickedCoord.lng.toFixed(4)})`,
+        address: `Map point: ${clickedCoord.lat.toFixed(4)}°N, ${clickedCoord.lng.toFixed(4)}°E`,
+        type: "User-Selected Map Location",
+        selectedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+
+      setInternalSelectedLocation(newLoc);
+      onSelectLocation?.(newLoc);
+      onSelectDestination?.({ lat: newLoc.lat, lng: newLoc.lng }, newLoc.name);
+
+      setActivePin({
+        title: newLoc.name,
+        type: "Selected Location",
+        lat: newLoc.lat,
+        lng: newLoc.lng,
+        address: newLoc.address,
+        isSelectedLocation: true,
+      });
+    }
   };
 
-  // Touch handlers for mobile
+  // Touch handlers for mobile devices
   const touchStartRef = useRef<{ x: number; y: number; center: LatLng } | null>(null);
+  const touchDistanceRef = useRef(0);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 1) {
       const touch = e.touches[0];
+      touchDistanceRef.current = 0;
       touchStartRef.current = {
         x: touch.clientX,
         y: touch.clientY,
@@ -172,26 +279,67 @@ export function RealInteractiveMap({
       const touch = e.touches[0];
       const dx = touch.clientX - touchStartRef.current.x;
       const dy = touch.clientY - touchStartRef.current.y;
+      touchDistanceRef.current += Math.abs(dx) + Math.abs(dy);
 
-      const currentPixel = latLngToPixel(touchStartRef.current.center.lat, touchStartRef.current.center.lng, zoom);
+      const currentPixel = latLngToPixel(
+        touchStartRef.current.center.lat,
+        touchStartRef.current.center.lng,
+        zoom
+      );
       const newPixel = { x: currentPixel.x - dx, y: currentPixel.y - dy };
       const newCenter = pixelToLatLng(newPixel.x, newPixel.y, zoom);
       setCenter(newCenter);
     }
   };
 
-  // Zoom helpers
-  const zoomIn = () => setZoom((z) => Math.min(z + 1, 18));
-  const zoomOut = () => setZoom((z) => Math.max(z - 1, 4));
-
-  // Wheel zoom handler
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    if (e.deltaY < 0) zoomIn();
-    else zoomOut();
+  const handleTouchEnd = () => {
+    touchStartRef.current = null;
   };
 
-  // Calculate Visible Tiles using Web Mercator math
+  // Zoom controls
+  const zoomIn = () => setZoom((z) => Math.min(18, z + 1));
+  const zoomOut = () => setZoom((z) => Math.max(3, z - 1));
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    if (e.deltaY < 0) {
+      zoomIn();
+    } else {
+      zoomOut();
+    }
+  };
+
+  // Center camera on user's current live GPS (Requirement 14)
+  const handleCenterOnCurrentLocation = () => {
+    if (locationState.coords) {
+      setCenter(locationState.coords);
+      setZoom((z) => Math.max(z, 13));
+    }
+    onCenterOnLocation();
+  };
+
+  // Center camera on user-selected location (Requirement 14)
+  const handleCenterOnSelectedLocation = () => {
+    if (activeSelectedLoc) {
+      setCenter({ lat: activeSelectedLoc.lat, lng: activeSelectedLoc.lng });
+      setZoom((z) => Math.max(z, 13));
+    }
+  };
+
+  // Project any LatLng to screen coordinates
+  const projectToScreen = useCallback(
+    (lat: number, lng: number) => {
+      const centerPx = latLngToPixel(center.lat, center.lng, zoom);
+      const targetPx = latLngToPixel(lat, lng, zoom);
+      return {
+        x: targetPx.x - centerPx.x + dimensions.width / 2,
+        y: targetPx.y - centerPx.y + dimensions.height / 2,
+      };
+    },
+    [center, zoom, dimensions]
+  );
+
+  // Compute visible slippy tiles
   const visibleTiles = useMemo(() => {
     const centerPx = latLngToPixel(center.lat, center.lng, zoom);
     const halfW = dimensions.width / 2;
@@ -207,7 +355,7 @@ export function RealInteractiveMap({
 
     for (let x = minX; x <= maxX; x++) {
       for (let y = minY; y <= maxY; y++) {
-        if (y < 0 || y >= maxTile) continue; // Y coordinates are bounded
+        if (y < 0 || y >= maxTile) continue;
         const wrappedX = ((x % maxTile) + maxTile) % maxTile;
 
         const tileLeft = x * TILE_SIZE - centerPx.x + halfW;
@@ -228,41 +376,94 @@ export function RealInteractiveMap({
     return tiles;
   }, [center, zoom, dimensions, mapMode]);
 
-  // Project any LatLng to screen coordinates
-  const projectToScreen = useCallback(
-    (lat: number, lng: number) => {
-      const centerPx = latLngToPixel(center.lat, center.lng, zoom);
-      const targetPx = latLngToPixel(lat, lng, zoom);
-      return {
-        x: targetPx.x - centerPx.x + dimensions.width / 2,
-        y: targetPx.y - centerPx.y + dimensions.height / 2,
-      };
-    },
-    [center, zoom, dimensions]
-  );
-
-  // Search input handler
+  // Clean Search handler (Requirement 9 & 10)
   const handleSearchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchQuery.trim()) return;
+    const cleanQ = sanitizeSearchQuery(searchQuery);
+    if (!cleanQ || cleanQ.length < 2) return;
+
     setIsSearching(true);
-    const results = await searchPlacesNominatim(searchQuery, center.lat, center.lng);
+    const results = await searchPlacesNominatim(cleanQ, center.lat, center.lng);
     setSearchResults(results);
     setIsSearching(false);
     setShowSearchDropdown(true);
   };
 
+  // Selecting a search result sets selectedLocation (Requirement 3 & 9)
   const handleSelectSearchResult = (place: PlaceSearchResult) => {
+    const newLoc: SelectedLocationState = {
+      lat: place.lat,
+      lng: place.lng,
+      name: place.name,
+      address: place.displayName,
+      type: place.category || "Search Result",
+      selectedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+
+    setInternalSelectedLocation(newLoc);
+    onSelectLocation?.(newLoc);
+    onSelectDestination?.({ lat: place.lat, lng: place.lng }, place.name);
+
     setCenter({ lat: place.lat, lng: place.lng });
     setZoom(13);
-    setSelectedPlace(place);
     setShowSearchDropdown(false);
+
     setActivePin({
       title: place.name,
-      type: place.category || "Search Result",
+      type: place.category || "Selected Destination",
       lat: place.lat,
       lng: place.lng,
       address: place.displayName,
+      isSelectedLocation: true,
+    });
+  };
+
+  // Nearby Category selection (Requirement 12)
+  const handleToggleNearbyCategory = async (cat: NearbyCategoryType) => {
+    if (activeNearbyCategory === cat) {
+      setActiveNearbyCategory(null);
+      setNearbyPlaces([]);
+      return;
+    }
+
+    setActiveNearbyCategory(cat);
+    setIsLoadingNearby(true);
+
+    // Query around selected location if active, otherwise user GPS, otherwise map center
+    const targetLat = activeSelectedLoc?.lat ?? locationState.coords?.lat ?? center.lat;
+    const targetLng = activeSelectedLoc?.lng ?? locationState.coords?.lng ?? center.lng;
+
+    const places = await searchNearbyPOIs(targetLat, targetLng, cat);
+    setNearbyPlaces(places);
+    setIsLoadingNearby(false);
+  };
+
+  // Selecting a nearby POI sets it as selectedLocation (Requirement 12)
+  const handleSelectNearbyPlace = (poi: NearbyPlace) => {
+    const newLoc: SelectedLocationState = {
+      lat: poi.lat,
+      lng: poi.lng,
+      name: poi.name,
+      address: poi.address,
+      type: poi.categoryLabel,
+      selectedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+
+    setInternalSelectedLocation(newLoc);
+    onSelectLocation?.(newLoc);
+    onSelectDestination?.({ lat: poi.lat, lng: poi.lng }, poi.name);
+
+    setCenter({ lat: poi.lat, lng: poi.lng });
+    setZoom(14);
+
+    setActivePin({
+      title: poi.name,
+      type: poi.categoryLabel,
+      lat: poi.lat,
+      lng: poi.lng,
+      address: poi.address,
+      phone: poi.phone,
+      isSelectedLocation: true,
     });
   };
 
@@ -280,13 +481,14 @@ export function RealInteractiveMap({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full h-[520px] sm:h-[600px] rounded-3xl overflow-hidden select-none border border-border bg-slate-900 shadow-lg ${className}`}
+      className={`relative w-full h-[540px] sm:h-[620px] rounded-3xl overflow-hidden select-none border border-border bg-slate-900 shadow-lg ${className}`}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+      onMouseLeave={() => setIsDragging(false)}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       onWheel={handleWheel}
       style={{ cursor: isDragging ? "grabbing" : "grab" }}
     >
@@ -304,7 +506,6 @@ export function RealInteractiveMap({
               transform: `translate3d(${tile.left}px, ${tile.top}px, 0)`,
             }}
             onError={(e) => {
-              // Graceful fallback for occasional tile failure
               (e.target as HTMLImageElement).style.opacity = "0.2";
             }}
           />
@@ -314,7 +515,6 @@ export function RealInteractiveMap({
       {/* 2. Route Polyline SVG Overlay */}
       {routeSvgPath && (
         <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
-          {/* Route casing for contrast */}
           <path
             d={routeSvgPath}
             fill="none"
@@ -324,7 +524,6 @@ export function RealInteractiveMap({
             strokeLinejoin="round"
             opacity={0.6}
           />
-          {/* Route primary line */}
           <path
             d={routeSvgPath}
             fill="none"
@@ -336,14 +535,20 @@ export function RealInteractiveMap({
         </svg>
       )}
 
-      {/* 3. Real Markers Overlay */}
+      {/* 3. Real Markers Overlay (Distinct Location Separation) */}
       <div className="absolute inset-0 pointer-events-none z-20">
-        {/* User Current Location Marker */}
+        {/* A) Current Live Location Marker (Blue Pulsing Marker) */}
         {locationState.coords && (
           (() => {
-            const pt = projectToScreen(locationState.coords.lat, locationState.coords.lng);
+            const pt = projectToScreen(
+              locationState.coords.lat,
+              locationState.coords.lng
+            );
             const isVisible =
-              pt.x >= -30 && pt.x <= dimensions.width + 30 && pt.y >= -30 && pt.y <= dimensions.height + 30;
+              pt.x >= -40 &&
+              pt.x <= dimensions.width + 40 &&
+              pt.y >= -40 &&
+              pt.y <= dimensions.height + 40;
             if (!isVisible) return null;
 
             return (
@@ -352,19 +557,23 @@ export function RealInteractiveMap({
                 style={{
                   transform: `translate3d(${pt.x - 14}px, ${pt.y - 14}px, 0)`,
                 }}
-                onClick={() =>
+                onClick={(e) => {
+                  e.stopPropagation();
                   setActivePin({
-                    title: "My Current Position",
-                    type: "Current Location",
+                    title: "My Current Live Position",
+                    type: "Current Location (Device GPS)",
                     lat: locationState.coords!.lat,
                     lng: locationState.coords!.lng,
                     address: locationState.isAccuracyLimited
-                      ? "Location accuracy is limited."
-                      : `GPS Accuracy: ±${Math.round(locationState.accuracyMeters || 10)} meters`,
-                  })
-                }
+                      ? "GPS accuracy is limited."
+                      : `GPS Accuracy: ±${Math.round(
+                          locationState.accuracyMeters || 10
+                        )}m | Updated: ${locationState.lastUpdated || "Live"}`,
+                    isCurrentLocation: true,
+                  });
+                }}
               >
-                <div className="relative flex items-center justify-center w-7 h-7">
+                <div className="relative flex items-center justify-center w-7 h-7 group">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-5 w-5 bg-sky-500 border-2 border-white shadow-md shadow-sky-500/50 items-center justify-center text-[10px]">
                     📍
@@ -375,72 +584,104 @@ export function RealInteractiveMap({
           })()
         )}
 
-        {/* Searched Place Pin */}
-        {selectedPlace && (
+        {/* B) User-Selected Map Location Marker (Red Pin with Label) */}
+        {activeSelectedLoc && (
           (() => {
-            const pt = projectToScreen(selectedPlace.lat, selectedPlace.lng);
+            const pt = projectToScreen(
+              activeSelectedLoc.lat,
+              activeSelectedLoc.lng
+            );
+            const isVisible =
+              pt.x >= -60 &&
+              pt.x <= dimensions.width + 60 &&
+              pt.y >= -60 &&
+              pt.y <= dimensions.height + 60;
+            if (!isVisible) return null;
+
             return (
               <div
-                className="absolute pointer-events-auto cursor-pointer"
+                className="absolute pointer-events-auto cursor-pointer flex flex-col items-center"
                 style={{
-                  transform: `translate3d(${pt.x - 14}px, ${pt.y - 32}px, 0)`,
+                  transform: `translate3d(${pt.x - 16}px, ${pt.y - 36}px, 0)`,
                 }}
-                onClick={() =>
+                onClick={(e) => {
+                  e.stopPropagation();
                   setActivePin({
-                    title: selectedPlace.name,
-                    type: selectedPlace.category || "Search Result",
-                    lat: selectedPlace.lat,
-                    lng: selectedPlace.lng,
-                    address: selectedPlace.displayName,
-                  })
-                }
+                    title: activeSelectedLoc.name,
+                    type: activeSelectedLoc.type || "Selected Destination",
+                    lat: activeSelectedLoc.lat,
+                    lng: activeSelectedLoc.lng,
+                    address: activeSelectedLoc.address,
+                    isSelectedLocation: true,
+                  });
+                }}
               >
-                <div className="w-8 h-8 rounded-full bg-rose-600 text-white flex items-center justify-center text-sm shadow-lg border-2 border-white">
-                  📍
+                <div className="w-8 h-8 rounded-full bg-rose-600 text-white flex items-center justify-center text-sm shadow-xl border-2 border-white animate-bounce-short">
+                  🎯
                 </div>
               </div>
             );
           })()
         )}
 
-        {/* Active Route Origin & Destination Markers */}
-        {activeRoute && (
-          <>
-            {(() => {
-              const pt = projectToScreen(activeRoute.origin.lat, activeRoute.origin.lng);
-              return (
-                <div
-                  className="absolute pointer-events-auto cursor-pointer"
-                  style={{ transform: `translate3d(${pt.x - 12}px, ${pt.y - 28}px, 0)` }}
-                >
-                  <div className="px-2 py-0.5 rounded-lg bg-emerald-600 text-white font-black text-[10px] shadow border border-white">
-                    Start
-                  </div>
-                </div>
-              );
-            })()}
+        {/* C) Nearby POI Places Markers */}
+        {nearbyPlaces.map((poi) => {
+          const pt = projectToScreen(poi.lat, poi.lng);
+          const isVisible =
+            pt.x >= -30 &&
+            pt.x <= dimensions.width + 30 &&
+            pt.y >= -30 &&
+            pt.y <= dimensions.height + 30;
+          if (!isVisible) return null;
 
-            {(() => {
-              const pt = projectToScreen(activeRoute.destination.lat, activeRoute.destination.lng);
-              return (
-                <div
-                  className="absolute pointer-events-auto cursor-pointer"
-                  style={{ transform: `translate3d(${pt.x - 12}px, ${pt.y - 28}px, 0)` }}
-                >
-                  <div className="px-2 py-0.5 rounded-lg bg-rose-600 text-white font-black text-[10px] shadow border border-white">
-                    Destination
-                  </div>
-                </div>
-              );
-            })()}
-          </>
-        )}
+          const icon =
+            poi.category === "hotel"
+              ? "🏨"
+              : poi.category === "hospital"
+              ? "🏥"
+              : poi.category === "pharmacy"
+              ? "💊"
+              : poi.category === "restaurant"
+              ? "🍽️"
+              : poi.category === "fuel"
+              ? "⛽"
+              : poi.category === "station"
+              ? "🚆"
+              : poi.category === "atm"
+              ? "🏧"
+              : poi.category === "police"
+              ? "🚓"
+              : poi.category === "shop"
+              ? "🛒"
+              : "📍";
 
-        {/* Nearby Emergency Facilities Markers */}
+          return (
+            <div
+              key={poi.id}
+              className="absolute pointer-events-auto cursor-pointer group"
+              style={{
+                transform: `translate3d(${pt.x - 13}px, ${pt.y - 13}px, 0)`,
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSelectNearbyPlace(poi);
+              }}
+            >
+              <div className="w-7 h-7 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs shadow-md border-2 border-white group-hover:scale-125 transition-transform">
+                {icon}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* D) Emergency Facilities Markers */}
         {facilities.map((fac) => {
           const pt = projectToScreen(fac.lat, fac.lng);
           const isVisible =
-            pt.x >= -30 && pt.x <= dimensions.width + 30 && pt.y >= -30 && pt.y <= dimensions.height + 30;
+            pt.x >= -30 &&
+            pt.x <= dimensions.width + 30 &&
+            pt.y >= -30 &&
+            pt.y <= dimensions.height + 30;
           if (!isVisible) return null;
 
           return (
@@ -450,16 +691,17 @@ export function RealInteractiveMap({
               style={{
                 transform: `translate3d(${pt.x - 14}px, ${pt.y - 14}px, 0)`,
               }}
-              onClick={() =>
+              onClick={(e) => {
+                e.stopPropagation();
                 setActivePin({
                   title: fac.name,
-                  type: fac.type === "hospital" ? "Hospital / Medical Center" : fac.type,
+                  type: fac.type === "hospital" ? "Hospital" : fac.type,
                   lat: fac.lat,
                   lng: fac.lng,
                   address: `${fac.address} (${fac.distanceKm} km away)`,
                   phone: fac.phone,
-                })
-              }
+                });
+              }}
             >
               <div className="w-7 h-7 rounded-full bg-rose-600 text-white flex items-center justify-center text-xs shadow-md border-2 border-white group-hover:scale-115 transition-transform">
                 🏥
@@ -467,10 +709,54 @@ export function RealInteractiveMap({
             </div>
           );
         })}
+
+        {/* E) Active Route Endpoints */}
+        {activeRoute && (
+          <>
+            {(() => {
+              const pt = projectToScreen(
+                activeRoute.origin.lat,
+                activeRoute.origin.lng
+              );
+              return (
+                <div
+                  className="absolute pointer-events-auto cursor-pointer"
+                  style={{
+                    transform: `translate3d(${pt.x - 14}px, ${pt.y - 28}px, 0)`,
+                  }}
+                >
+                  <div className="px-2 py-0.5 rounded-lg bg-emerald-600 text-white font-black text-[10px] shadow border border-white">
+                    Start
+                  </div>
+                </div>
+              );
+            })()}
+
+            {(() => {
+              const pt = projectToScreen(
+                activeRoute.destination.lat,
+                activeRoute.destination.lng
+              );
+              return (
+                <div
+                  className="absolute pointer-events-auto cursor-pointer"
+                  style={{
+                    transform: `translate3d(${pt.x - 16}px, ${pt.y - 28}px, 0)`,
+                  }}
+                >
+                  <div className="px-2 py-0.5 rounded-lg bg-rose-600 text-white font-black text-[10px] shadow border border-white">
+                    End
+                  </div>
+                </div>
+              );
+            })()}
+          </>
+        )}
       </div>
 
-      {/* 4. Top Real Search Bar */}
-      <div className="absolute top-3 left-3 right-3 sm:right-auto sm:w-96 z-30 pointer-events-auto">
+      {/* 4. Top Controls: Clean Search Bar & Location Context Banner */}
+      <div className="absolute top-3 left-3 right-3 sm:right-auto sm:w-[420px] z-30 pointer-events-auto space-y-2">
+        {/* Search Input Form */}
         <form onSubmit={handleSearchSubmit} className="relative">
           <div className="flex items-center rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-border shadow-md px-3 py-1.5 gap-2">
             <Search className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -489,7 +775,7 @@ export function RealInteractiveMap({
                   setSearchResults([]);
                   setShowSearchDropdown(false);
                 }}
-                className="text-muted-foreground hover:text-foreground text-xs font-bold px-1"
+                className="text-muted-foreground hover:text-foreground text-xs font-bold px-1 cursor-pointer"
               >
                 ✕
               </button>
@@ -498,7 +784,7 @@ export function RealInteractiveMap({
 
           {/* Search Results Dropdown */}
           {showSearchDropdown && searchResults.length > 0 && (
-            <div className="absolute top-12 left-0 right-0 rounded-2xl bg-white dark:bg-slate-900 border border-border shadow-xl p-2 max-h-60 overflow-y-auto space-y-1 text-xs">
+            <div className="absolute top-12 left-0 right-0 rounded-2xl bg-white dark:bg-slate-900 border border-border shadow-xl p-2 max-h-60 overflow-y-auto space-y-1 text-xs z-50">
               {searchResults.map((res) => (
                 <button
                   key={res.id}
@@ -508,17 +794,94 @@ export function RealInteractiveMap({
                 >
                   <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                   <div className="min-w-0">
-                    <div className="font-black text-foreground truncate">{res.name}</div>
-                    <div className="text-[11px] text-muted-foreground truncate">{res.displayName}</div>
+                    <div className="font-black text-foreground truncate">
+                      {res.name}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      {res.displayName}
+                    </div>
                   </div>
                 </button>
               ))}
             </div>
           )}
         </form>
+
+        {/* Horizontal Quick Nearby POIs Chips (Requirement 12) */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+          {[
+            { id: "hotel", label: "Hotels", icon: "🏨" },
+            { id: "hospital", label: "Hospitals", icon: "🏥" },
+            { id: "pharmacy", label: "Pharmacies", icon: "💊" },
+            { id: "restaurant", label: "Food", icon: "🍽️" },
+            { id: "fuel", label: "Petrol", icon: "⛽" },
+            { id: "station", label: "Railway", icon: "🚆" },
+            { id: "atm", label: "ATMs", icon: "🏧" },
+            { id: "police", label: "Police", icon: "🚓" },
+            { id: "shop", label: "Shops", icon: "🛒" },
+          ].map((cat) => {
+            const isActive = activeNearbyCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() =>
+                  handleToggleNearbyCategory(cat.id as NearbyCategoryType)
+                }
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-black whitespace-nowrap shadow-xs transition-all cursor-pointer ${
+                  isActive
+                    ? "bg-amber-600 text-white scale-102"
+                    : "bg-white/90 dark:bg-slate-900/90 text-foreground hover:bg-white border border-border/80"
+                }`}
+              >
+                <span>{cat.icon}</span>
+                <span>{cat.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Selected Destination Active Banner */}
+        {activeSelectedLoc && (
+          <div className="flex items-center justify-between p-2 px-3 rounded-2xl bg-rose-50/95 dark:bg-rose-950/90 border border-rose-200 text-xs shadow-md">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-sm shrink-0">🎯</span>
+              <div className="truncate">
+                <span className="font-black text-rose-950 dark:text-rose-100">
+                  Selected Destination:{" "}
+                </span>
+                <span className="font-bold text-rose-800 dark:text-rose-200">
+                  {activeSelectedLoc.name}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={handleCenterOnSelectedLocation}
+                title="Center on this destination"
+                className="px-2 py-0.5 rounded-lg bg-rose-200 text-rose-900 text-[10px] font-black uppercase cursor-pointer hover:bg-rose-300"
+              >
+                View
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setInternalSelectedLocation(null);
+                  onClearSelectedLocation?.();
+                  setActivePin(null);
+                }}
+                className="p-1 text-rose-700 hover:text-rose-950 font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* 5. Senior-Friendly Controls Toolbar (Large buttons on Right) */}
+      {/* 5. Senior-Friendly Right Controls Toolbar */}
       <div className="absolute right-3 top-3 sm:top-auto sm:bottom-8 z-30 flex flex-col gap-2 pointer-events-auto">
         {/* Zoom Controls */}
         <div className="flex flex-col rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-border shadow-md overflow-hidden">
@@ -540,14 +903,36 @@ export function RealInteractiveMap({
           </button>
         </div>
 
-        {/* My Location Button */}
+        {/* My Current Live Location Button (Requirement 2 & 14) */}
         <button
           type="button"
-          onClick={onCenterOnLocation}
-          title="Center on my current location"
+          onClick={handleCenterOnCurrentLocation}
+          title="Center on my current live location"
           className="w-11 h-11 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-border shadow-md flex items-center justify-center text-primary hover:bg-sky-50 dark:hover:bg-sky-950 transition-colors cursor-pointer"
         >
           <Navigation className="h-5 w-5 fill-primary/20" />
+        </button>
+
+        {/* Center on Selected Destination Button (Requirement 14) */}
+        {activeSelectedLoc && (
+          <button
+            type="button"
+            onClick={handleCenterOnSelectedLocation}
+            title="Center on selected destination"
+            className="w-11 h-11 rounded-2xl bg-rose-50 text-rose-700 border-2 border-rose-300 shadow-md flex items-center justify-center hover:bg-rose-100 transition-colors cursor-pointer animate-pulse"
+          >
+            <Target className="h-5 w-5" />
+          </button>
+        )}
+
+        {/* Honest Traffic Notice Toggle (Requirement 11) */}
+        <button
+          type="button"
+          onClick={() => setTrafficModalOpen((prev) => !prev)}
+          title="Traffic Information"
+          className="w-11 h-11 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-border shadow-md flex items-center justify-center text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950 transition-colors cursor-pointer"
+        >
+          <Car className="h-5 w-5" />
         </button>
 
         {/* Map Style Switcher (Road / Satellite / Terrain) */}
@@ -569,7 +954,32 @@ export function RealInteractiveMap({
         </div>
       </div>
 
-      {/* 6. Active Pin Information Bottom Sheet */}
+      {/* 6. Honest Traffic Notice Banner (Requirement 11) */}
+      {trafficModalOpen && (
+        <div className="absolute top-28 right-3 max-w-xs z-40 p-3.5 rounded-2xl bg-amber-50 text-amber-950 border border-amber-300 shadow-xl text-xs space-y-2 pointer-events-auto animate-in fade-in">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-1.5 font-black text-amber-900">
+              <Car className="h-4 w-4 text-amber-700" />
+              <span>Live Traffic Layer Status</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setTrafficModalOpen(false)}
+              className="text-amber-800 font-bold p-0.5 cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+          <p className="text-[11px] font-medium leading-relaxed text-amber-900">
+            {getTrafficNotice().notice}
+          </p>
+          <div className="text-[10px] font-bold text-amber-700 uppercase">
+            Data Source: OpenStreetMap Standard Geometry
+          </div>
+        </div>
+      )}
+
+      {/* 7. Active Pin Bottom Sheet (Clean Action Center) */}
       {activePin && (
         <div className="absolute bottom-3 left-3 right-3 sm:right-auto sm:max-w-md z-40 rounded-3xl bg-white/98 dark:bg-slate-900/98 backdrop-blur-md border border-border p-4 sm:p-5 shadow-2xl space-y-3 pointer-events-auto animate-in fade-in slide-in-from-bottom-2">
           <div className="flex items-start justify-between gap-2">
@@ -596,21 +1006,67 @@ export function RealInteractiveMap({
           </div>
 
           <div className="flex flex-wrap items-center gap-2 pt-1">
-            {onSelectDestination && (
+            {/* Get Route From Current Live Location (Requirement 5 & 7) */}
+            {!activePin.isCurrentLocation && (
               <Button
                 size="sm"
                 onClick={() => {
-                  onSelectDestination({ lat: activePin.lat, lng: activePin.lng }, activePin.title);
+                  const destLoc: SelectedLocationState = {
+                    lat: activePin.lat,
+                    lng: activePin.lng,
+                    name: activePin.title,
+                    address: activePin.address || "",
+                    type: activePin.type,
+                    selectedAt: new Date().toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }),
+                  };
+                  setInternalSelectedLocation(destLoc);
+                  onSelectLocation?.(destLoc);
+                  onSelectDestination?.(
+                    { lat: activePin.lat, lng: activePin.lng },
+                    activePin.title
+                  );
+                  onRequestRouteFromCurrent?.(destLoc);
                   setActivePin(null);
                 }}
                 className="rounded-xl font-bold text-xs gap-1.5 bg-primary text-white cursor-pointer"
               >
                 <Compass className="h-3.5 w-3.5" />
-                <span>Get Route</span>
+                <span>Route From My Location</span>
               </Button>
             )}
 
-            {activePin.phone ? (
+            {/* Set as Destination without routing yet */}
+            {!activePin.isCurrentLocation && !activePin.isSelectedLocation && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const destLoc: SelectedLocationState = {
+                    lat: activePin.lat,
+                    lng: activePin.lng,
+                    name: activePin.title,
+                    address: activePin.address || "",
+                    type: activePin.type,
+                    selectedAt: new Date().toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }),
+                  };
+                  setInternalSelectedLocation(destLoc);
+                  onSelectLocation?.(destLoc);
+                  setActivePin(null);
+                }}
+                className="rounded-xl font-bold text-xs gap-1 cursor-pointer border-rose-300 text-rose-800"
+              >
+                <Target className="h-3.5 w-3.5" />
+                <span>Select Place</span>
+              </Button>
+            )}
+
+            {activePin.phone && (
               <a
                 href={`tel:${activePin.phone}`}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 text-xs font-bold hover:bg-emerald-100 transition-colors"
@@ -618,16 +1074,12 @@ export function RealInteractiveMap({
                 <Phone className="h-3.5 w-3.5" />
                 <span>Call: {activePin.phone}</span>
               </a>
-            ) : (
-              <span className="text-[11px] text-muted-foreground italic">
-                Phone not publicly listed
-              </span>
             )}
           </div>
         </div>
       )}
 
-      {/* 7. Bottom Legal Attribution (Mandatory for OpenStreetMap & Esri) */}
+      {/* 8. Bottom Legal Attribution (Mandatory for OpenStreetMap & Esri) */}
       <div className="absolute bottom-1 left-3 z-20 pointer-events-none text-[10px] text-black/70 dark:text-white/70 bg-white/70 dark:bg-black/70 px-2 py-0.5 rounded-md backdrop-blur-xs font-medium">
         © OpenStreetMap contributors • Esri • OpenTopoMap
       </div>

@@ -13,9 +13,11 @@ import { LocationPermissionModal } from "@/components/memory-bond/safety/Locatio
 import {
   searchNearbyEmergencyFacilities,
   DEFAULT_NER_CENTER,
+  calculateRouteOSRM,
 } from "@/lib/safety/realMapService";
 import type {
   LocationState,
+  SelectedLocationState,
   RealRouteResult,
   EmergencyFacility,
   LatLng,
@@ -37,7 +39,7 @@ export function NerSmartMap({
   isSeniorMode = false,
   onSelectRoute,
 }: NerSmartMapProps) {
-  // Real Geolocation State
+  // A) Current Live Device Location (Requirement 1, 2, 18)
   const [locationState, setLocationState] = useState<LocationState>({
     coords: null,
     accuracyMeters: null,
@@ -49,10 +51,28 @@ export function NerSmartMap({
     source: "Browser HTML5 Geolocation API",
   });
 
+  // B) User-Selected Location State (Requirement 1, 3, 4, 18)
+  const [selectedLocation, setSelectedLocation] = useState<SelectedLocationState | null>(null);
+
   const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
   const [isPermissionDenied, setIsPermissionDenied] = useState(false);
   const [facilities, setFacilities] = useState<EmergencyFacility[]>([]);
   const [activeRoute, setActiveRoute] = useState<RealRouteResult | null>(null);
+
+  const routeFromCurrentToDestination = (dest: { lat: number; lng: number; name: string }) => {
+    const origin = locationState.coords || DEFAULT_NER_CENTER;
+    calculateRouteOSRM(
+      origin,
+      { lat: dest.lat, lng: dest.lng },
+      locationState.coords ? "My Location" : "Regional Center",
+      dest.name
+    ).then((r) => {
+      if (r) {
+        setActiveRoute(r);
+        onSelectRoute?.(r);
+      }
+    });
+  };
 
   // Request real location from device
   const requestLocation = () => {
@@ -176,28 +196,35 @@ export function NerSmartMap({
           initialZoom={locationState.coords ? 13 : 10}
           locationState={locationState}
           onCenterOnLocation={() => {
-            if (locationState.coords) {
-              // Location already present
-            } else {
+            if (!locationState.coords) {
               setIsPermissionModalOpen(true);
             }
+          }}
+          selectedLocation={selectedLocation}
+          onSelectLocation={(loc) => {
+            setSelectedLocation(loc);
+          }}
+          onClearSelectedLocation={() => {
+            setSelectedLocation(null);
+            setActiveRoute(null);
+          }}
+          onRequestRouteFromCurrent={(dest) => {
+            routeFromCurrentToDestination({ lat: dest.lat, lng: dest.lng, name: dest.name });
           }}
           activeRoute={activeRoute}
           facilities={facilities}
           isSeniorMode={isSeniorMode}
           onSelectDestination={(dest, name) => {
-            if (locationState.coords) {
-              import("@/lib/safety/realMapService").then(({ calculateRouteOSRM }) => {
-                calculateRouteOSRM(locationState.coords!, dest, "My Location", name).then((r) => {
-                  if (r) {
-                    setActiveRoute(r);
-                    onSelectRoute?.(r);
-                  }
-                });
-              });
-            } else {
-              setIsPermissionModalOpen(true);
-            }
+            const newLoc: SelectedLocationState = {
+              lat: dest.lat,
+              lng: dest.lng,
+              name,
+              address: `Coordinates: ${dest.lat.toFixed(4)}°N, ${dest.lng.toFixed(4)}°E`,
+              type: "Selected Destination",
+              selectedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            };
+            setSelectedLocation(newLoc);
+            routeFromCurrentToDestination(newLoc);
           }}
         />
       </div>
