@@ -53,7 +53,7 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState<boolean>(false);
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
-  const [activeTab, setActiveTab] = useState<"all" | "today" | "upcoming" | "completed">("today");
+  const [activeTab, setActiveTab] = useState<"all" | "today" | "upcoming" | "completed">("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
 
   // Form State
@@ -147,11 +147,7 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
 
       if (result.success && result.reminder) {
         speakText(parsed.confirmationMessage, speechLocale);
-        if (parsed.date === tomorrowStr) {
-          setActiveTab("upcoming");
-        } else {
-          setActiveTab("today");
-        }
+        setActiveTab("all");
       }
     } else {
       createVerifiedReminder(store, {

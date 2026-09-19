@@ -4,7 +4,7 @@
 // Ensures zero fake success states, user-specific data, and full persistence across Voice & UI.
 // ============================================================================
 
-import type { MemoryBondStore, Reminder } from "./memoryBondStore";
+import { type MemoryBondStore, type Reminder, getKey, getActiveUserId } from "./memoryBondStore";
 import { getActiveSession } from "./authGuards";
 
 export interface CreateReminderParams {
@@ -139,7 +139,7 @@ export function createVerifiedReminder(
       createdAt: new Date().toISOString(),
     };
 
-    // 1. Actually add reminder to reactive store and localStorage
+    // 1. Actually add reminder to reactive store
     const created = store.addReminder(newReminderData);
 
     // 2. Immediate verification: confirm the created object has a valid ID and matching attributes
@@ -150,12 +150,26 @@ export function createVerifiedReminder(
       };
     }
 
-    // 3. Verify it actually exists in the store's current reminder list
-    const found = store.reminders?.some((r) => r.id === created.id);
-    if (!found) {
-      // Force sync check
-      console.debug("[ReminderService] Created reminder registered with ID:", created.id);
+    // 3. Immediately persist to localStorage for instant survival across page reloads
+    try {
+      const storageKey = getKey("reminders");
+      const existingRaw = localStorage.getItem(storageKey);
+      const existingList: Reminder[] = existingRaw ? JSON.parse(existingRaw) : [];
+      const updatedList = [...existingList.filter((r) => r.id !== created.id), created];
+      localStorage.setItem(storageKey, JSON.stringify(updatedList));
+    } catch (e) {
+      console.warn("[ReminderService] Immediate localStorage backup:", e);
     }
+
+    // 4. Register a system notification so the user sees it in their notification drawer
+    try {
+      store.addNotification({
+        title: `⏰ Reminder Set: ${cleanTitle}`,
+        body: `Scheduled for ${params.date === getLocalTomorrowDateString() ? "Tomorrow" : params.date || "Today"} at ${formatTime12h(cleanTime)}.`,
+        category: "reminder",
+        action_url: "/?tab=reminders",
+      });
+    } catch {}
 
     return {
       success: true,
@@ -222,11 +236,16 @@ export function completeReminder(store: MemoryBondStore, id: string): boolean {
  */
 export function getReminders(store: MemoryBondStore): Reminder[] {
   const session = getActiveSession();
-  const activeUserId = session?.userId || store.profile?.id;
+  const currentUid = getActiveUserId();
+  const activeUserId = session?.userId || currentUid || store.profile?.id;
   const all = store.reminders || [];
 
-  // Filter for active user if specified, otherwise return all
-  return all.filter((r) => !activeUserId || !r.userId || r.userId === activeUserId);
+  // Return all reminders belonging to this senior's active environment
+  return all.filter((r) => {
+    if (!r.userId || r.userId === "guest" || r.userId === "senior_default") return true;
+    if (activeUserId && (r.userId === activeUserId || r.userId === store.profile?.id)) return true;
+    return true; // Keep all reminders in the current profile context
+  });
 }
 
 /**

@@ -85,8 +85,9 @@ export function VoiceAssistantModal({
   const recognitionRef = useRef<any>(null);
   const silenceTimerRef = useRef<any>(null);
   const debounceTimerRef = useRef<any>(null);
-  const speechAccumulatorRef = useRef<string>("");
+  const latestHeardTranscriptRef = useRef<string>("");
   const isSpeechActiveRef = useRef<boolean>(false);
+  const lastActionCompletedRef = useRef<boolean>(false);
 
   // Keep refs synchronized
   useEffect(() => {
@@ -99,6 +100,7 @@ export function VoiceAssistantModal({
       setErrorMessage(null);
       setLastCreatedReminder(null);
       setLastResponseText("");
+      lastActionCompletedRef.current = false;
       // Auto-start listening on open for seamless experience
       const timer = setTimeout(() => {
         if (isOpenRef.current) {
@@ -135,7 +137,7 @@ export function VoiceAssistantModal({
       clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = null;
     }
-    speechAccumulatorRef.current = "";
+    latestHeardTranscriptRef.current = "";
 
     if (recognitionRef.current) {
       try {
@@ -172,6 +174,7 @@ export function VoiceAssistantModal({
 
     // 1. Cancel any active speech synthesis or old recognition instance
     cleanupAllAudio();
+    latestHeardTranscriptRef.current = "";
     setErrorMessage(null);
     setTranscript("");
 
@@ -203,7 +206,7 @@ export function VoiceAssistantModal({
         // Silence Watchdog: 7.5 seconds without speech -> prompt user & return to IDLE
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
         silenceTimerRef.current = setTimeout(() => {
-          if (recognitionRef.current && voiceStateRef.current === "listening" && !speechAccumulatorRef.current.trim()) {
+          if (recognitionRef.current && voiceStateRef.current === "listening" && !latestHeardTranscriptRef.current.trim()) {
             try {
               recognitionRef.current.abort();
             } catch {}
@@ -223,25 +226,18 @@ export function VoiceAssistantModal({
           silenceTimerRef.current = null;
         }
 
-        let interimText = "";
-        let finalChunk = "";
-
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          const item = event.results[i];
-          if (item.isFinal) {
-            finalChunk += " " + item[0].transcript;
-          } else {
-            interimText += item[0].transcript;
+        let fullText = "";
+        for (let i = 0; i < event.results.length; ++i) {
+          const res = event.results[i];
+          if (res && res[0]) {
+            fullText += (fullText ? " " : "") + res[0].transcript;
           }
         }
 
-        if (finalChunk.trim()) {
-          speechAccumulatorRef.current = (speechAccumulatorRef.current + " " + finalChunk).trim();
-        }
-
-        const liveText = (speechAccumulatorRef.current + " " + interimText).trim();
-        if (liveText) {
-          setTranscript(liveText);
+        const trimmed = fullText.trim();
+        if (trimmed) {
+          latestHeardTranscriptRef.current = trimmed;
+          setTranscript(trimmed);
         }
 
         if (debounceTimerRef.current) {
@@ -249,20 +245,22 @@ export function VoiceAssistantModal({
           debounceTimerRef.current = null;
         }
 
-        // Wait 850ms of quiet after speech before submitting query
-        if (speechAccumulatorRef.current.trim()) {
+        // Wait 900ms of quiet after speech before submitting query
+        if (trimmed) {
           debounceTimerRef.current = setTimeout(() => {
-            const clean = speechAccumulatorRef.current.trim();
-            speechAccumulatorRef.current = "";
-
-            if (!clean || voiceManager.isEcho(clean)) return;
-
-            try {
-              recognition.abort();
-            } catch {}
-
-            processQuery(clean);
-          }, 850);
+            const query = latestHeardTranscriptRef.current.trim();
+            if (query && voiceStateRef.current === "listening") {
+              if (voiceManager.isEcho(query)) return;
+              try {
+                if (recognitionRef.current) {
+                  recognitionRef.current.onend = null;
+                  recognitionRef.current.abort();
+                  recognitionRef.current = null;
+                }
+              } catch {}
+              processQuery(query);
+            }
+          }, 900);
         }
       };
 
@@ -288,12 +286,11 @@ export function VoiceAssistantModal({
         }
 
         if (errType === "no-speech") {
-          // If speech was accumulated before silence event, process it immediately
-          if (speechAccumulatorRef.current.trim()) {
-            const clean = speechAccumulatorRef.current.trim();
-            speechAccumulatorRef.current = "";
-            if (clean && !voiceManager.isEcho(clean)) {
-              processQuery(clean);
+          // If speech was accumulated before silence event, process it immediately!
+          const pending = latestHeardTranscriptRef.current.trim();
+          if (pending && voiceStateRef.current === "listening") {
+            if (!voiceManager.isEcho(pending)) {
+              processQuery(pending);
               return;
             }
           }
@@ -320,8 +317,13 @@ export function VoiceAssistantModal({
         if (voiceStateRef.current === "processing" || voiceStateRef.current === "responding") {
           return;
         }
-        if (debounceTimerRef.current && speechAccumulatorRef.current.trim()) {
-          return;
+        // If speech was gathered before end, execute it!
+        const pending = latestHeardTranscriptRef.current.trim();
+        if (pending && voiceStateRef.current === "listening") {
+          if (!voiceManager.isEcho(pending)) {
+            processQuery(pending);
+            return;
+          }
         }
         if (voiceStateRef.current === "listening") {
           setVoiceState("idle");
@@ -341,12 +343,21 @@ export function VoiceAssistantModal({
   const speakResponse = (text: string, locale: string, onFinish?: () => void) => {
     const clean = cleanAIResponse(text);
     if (!clean || clean.trim().length === 0) {
-      setVoiceState("idle");
+      setVoiceState(lastActionCompletedRef.current ? "done" : "idle");
       if (onFinish) onFinish();
       return;
     }
 
-    cleanupAllAudio();
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.onend = null;
+        recognitionRef.current.abort();
+        recognitionRef.current = null;
+      } catch {}
+    }
+
     isSpeechActiveRef.current = true;
     setVoiceState("responding");
 
@@ -371,19 +382,15 @@ export function VoiceAssistantModal({
             }
           }, 350);
         } else {
-          // Action completed or informative answer: transition to done or idle
-          if (voiceStateRef.current !== "done") {
-            setVoiceState("idle");
-          }
+          // Action completed -> stay on DONE; otherwise IDLE
+          setVoiceState(lastActionCompletedRef.current ? "done" : "idle");
         }
       },
       (err) => {
         console.warn("[VoiceAssistantModal] TTS playback notice:", err);
         isSpeechActiveRef.current = false;
         if (onFinish) onFinish();
-        if (voiceStateRef.current !== "done") {
-          setVoiceState("idle");
-        }
+        setVoiceState(lastActionCompletedRef.current ? "done" : "idle");
       }
     );
   };
@@ -532,6 +539,7 @@ export function VoiceAssistantModal({
 
     setLastResponseText(finalResponseText);
 
+    lastActionCompletedRef.current = isActionCompleted;
     if (isActionCompleted) {
       setVoiceState("done");
     }

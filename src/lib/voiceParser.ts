@@ -306,6 +306,15 @@ export function extractExplicitTime(text: string): string | null {
     }
   }
 
+  // 4b. Standalone single number: e.g. "8", "9", "7" (common when responding to "What time?")
+  const mSolo = t.match(/^\s*(\d{1,2})\s*$/);
+  if (mSolo && mSolo[1]) {
+    let h = parseInt(mSolo[1], 10);
+    if (h >= 1 && h <= 12) {
+      return `${h.toString().padStart(2, "0")}:00`;
+    }
+  }
+
   // 5. Hindi number words with baje/बजे or am/pm
   for (const [word, num] of Object.entries(NUMBER_WORDS)) {
     if (
