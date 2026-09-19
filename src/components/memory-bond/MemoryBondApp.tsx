@@ -369,7 +369,7 @@ export function MemoryBondApp() {
   return (
     <SafeRouteErrorBoundary>
       <div
-        className={`min-h-screen overflow-x-clip bg-background text-foreground flex flex-col justify-between ${fontClass} ${
+        className={`min-h-screen overflow-x-clip bg-background text-foreground flex flex-col ${fontClass} ${
           store.profile.high_contrast ? "high-contrast contrast-boost" : ""
         } ${store.profile.reduced_motion ? "reduced-motion" : ""}`}
       >

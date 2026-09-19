@@ -21,6 +21,7 @@ import {
   MessageSquare,
   Heart,
   ShieldCheck,
+  BookOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
@@ -355,52 +356,126 @@ export function SeniorHome({
       </div>
 
       {/* ===================================================================== */}
-      {/* 6. FAMILY CARD (Section 6 & 23: Priya sent you a message ❤️)          */}
+      {/* 5. QUICK ACCESS (Sections 2, 3, 4, 5, 6, 7: Your Everyday Features)   */}
       {/* ===================================================================== */}
-      <div className="rounded-3xl bg-white border border-rose-200/90 p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-11 h-11 rounded-2xl bg-rose-500/15 text-rose-600 flex items-center justify-center text-xl shrink-0">
-            ❤️
-          </div>
-          <div className="min-w-0">
-            <div className="text-xs font-black uppercase tracking-wider text-rose-600">Family</div>
-            <h4 className="text-sm sm:text-base font-black text-[#0F243E] truncate">
-              Priya sent you a message ❤️
-            </h4>
-            <p className="text-xs text-[#5B728D] truncate">
-              "Thinking of you Ma, see you this evening!"
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between px-0.5">
+          <div>
+            <h3 className="text-base sm:text-lg font-black text-[#0F243E] tracking-tight flex items-center gap-1.5">
+              <span>Quick Access</span>
+              <Sparkles className="h-4 w-4 text-amber-500" />
+            </h3>
+            <p className="text-xs sm:text-sm font-semibold text-[#5B728D]">
+              Your everyday features
             </p>
           </div>
         </div>
 
-        <div className="w-full sm:w-auto flex items-center gap-2 pt-1 sm:pt-0 shrink-0">
-          <a
-            href="tel:+919876543210"
-            className="flex-1 sm:flex-none h-10 px-4 rounded-xl bg-primary text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-2xs hover:bg-primary/90"
-            title="Call Priya"
+        {/* 2x2 Grid on Mobile, 4-in-a-row on Desktop */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
+          {/* Card 1: 🧠 Play Games */}
+          <button
+            type="button"
+            onClick={() => onNavigate("games")}
+            className="group p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border border-[#E2EAF5] hover:border-purple-300 hover:bg-purple-50/30 text-left transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-98 flex flex-col justify-between min-h-[96px] sm:min-h-[104px]"
           >
-            <Phone className="h-3.5 w-3.5" />
-            <span>Call</span>
-          </a>
+            <div className="flex items-center justify-between w-full">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 transition-transform">
+                🧠
+              </div>
+              <ChevronRight className="h-4 w-4 text-[#829AB1]/60 group-hover:text-purple-600 group-hover:translate-x-0.5 transition-all" />
+            </div>
+            <div className="mt-2 min-w-0">
+              <div className="text-xs sm:text-sm font-black text-[#0F243E] group-hover:text-purple-900 truncate">
+                Play Games
+              </div>
+              <div className="text-[10px] sm:text-xs font-semibold text-[#5B728D] truncate">
+                Memory & puzzles
+              </div>
+            </div>
+          </button>
+
+          {/* Card 2: 💊 My Reminders */}
+          <button
+            type="button"
+            onClick={() => onNavigate("reminders")}
+            className="group p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border border-[#E2EAF5] hover:border-teal-300 hover:bg-teal-50/30 text-left transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-98 flex flex-col justify-between min-h-[96px] sm:min-h-[104px]"
+          >
+            <div className="flex items-center justify-between w-full">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 transition-transform">
+                💊
+              </div>
+              <ChevronRight className="h-4 w-4 text-[#829AB1]/60 group-hover:text-teal-600 group-hover:translate-x-0.5 transition-all" />
+            </div>
+            <div className="mt-2 min-w-0">
+              <div className="text-xs sm:text-sm font-black text-[#0F243E] group-hover:text-teal-900 truncate">
+                My Reminders
+              </div>
+              <div className="text-[10px] sm:text-xs font-semibold text-[#5B728D] truncate">
+                Medicines & tasks
+              </div>
+            </div>
+          </button>
+
+          {/* Card 3: ❤️ Family */}
           <button
             type="button"
             onClick={() => onNavigate("family_tree")}
-            className="flex-1 sm:flex-none h-10 px-4 rounded-xl bg-[#F0F5FA] hover:bg-[#E2EAF5] text-[#0F243E] font-bold text-xs flex items-center justify-center gap-1.5 border border-[#E2EAF5] cursor-pointer"
+            className="group p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border border-[#E2EAF5] hover:border-rose-300 hover:bg-rose-50/30 text-left transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-98 flex flex-col justify-between min-h-[96px] sm:min-h-[104px]"
           >
-            <MessageSquare className="h-3.5 w-3.5 text-[#1E6FD9]" />
-            <span>View</span>
+            <div className="flex items-center justify-between w-full">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 transition-transform">
+                ❤️
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 hidden sm:inline">
+                  Priya ❤️
+                </span>
+                <ChevronRight className="h-4 w-4 text-[#829AB1]/60 group-hover:text-rose-600 group-hover:translate-x-0.5 transition-all" />
+              </div>
+            </div>
+            <div className="mt-2 min-w-0">
+              <div className="text-xs sm:text-sm font-black text-[#0F243E] group-hover:text-rose-900 truncate">
+                Family
+              </div>
+              <div className="text-[10px] sm:text-xs font-semibold text-[#5B728D] truncate">
+                Connect with loved ones
+              </div>
+            </div>
+          </button>
+
+          {/* Card 4: 📖 Memory Journal */}
+          <button
+            type="button"
+            onClick={() => onNavigate("journal")}
+            className="group p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border border-[#E2EAF5] hover:border-amber-300 hover:bg-amber-50/30 text-left transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-98 flex flex-col justify-between min-h-[96px] sm:min-h-[104px]"
+          >
+            <div className="flex items-center justify-between w-full">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 transition-transform">
+                📖
+              </div>
+              <ChevronRight className="h-4 w-4 text-[#829AB1]/60 group-hover:text-amber-700 group-hover:translate-x-0.5 transition-all" />
+            </div>
+            <div className="mt-2 min-w-0">
+              <div className="text-xs sm:text-sm font-black text-[#0F243E] group-hover:text-amber-950 truncate">
+                Memory Journal
+              </div>
+              <div className="text-[10px] sm:text-xs font-semibold text-[#5B728D] truncate">
+                Today's memories
+              </div>
+            </div>
           </button>
         </div>
       </div>
 
       {/* ===================================================================== */}
-      {/* 7. MOOD CHECK-IN (Section 23: How are you feeling today?)             */}
+      {/* 6. MOOD CHECK-IN (Section 8: How are you feeling today? ❤️)           */}
       {/* ===================================================================== */}
       <div className="rounded-3xl bg-white border border-[#E2EAF5] p-4 sm:p-5 shadow-2xs space-y-2.5">
         <div className="flex items-center justify-between">
           <h3 className="text-sm sm:text-base font-black text-[#0F243E] flex items-center gap-1.5">
             <span>How are you feeling today?</span>
-            <span>🌸</span>
+            <span className="text-rose-500">❤️</span>
           </h3>
           {moodSavedToast && (
             <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 animate-in fade-in">
@@ -409,7 +484,7 @@ export function SeniorHome({
           )}
         </div>
 
-        <div className="grid grid-cols-5 gap-2">
+        <div className="grid grid-cols-5 gap-1.5 sm:gap-2.5">
           {MOOD_OPTIONS.map((opt) => {
             const isSelected = store.todaysMood === opt.id;
             return (
@@ -417,14 +492,14 @@ export function SeniorHome({
                 key={opt.id}
                 type="button"
                 onClick={() => handleSelectMood(opt.id)}
-                className={`p-2.5 sm:p-3 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 active:scale-95 ${
+                className={`p-2 sm:p-3 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 active:scale-95 min-h-[64px] sm:min-h-[72px] ${
                   isSelected
                     ? "bg-amber-50 border-amber-400 ring-2 ring-amber-300/40 shadow-xs"
                     : "bg-[#F8FAFD] border-[#E2EAF5] hover:bg-[#F0F5FB]"
                 }`}
               >
                 <span className="text-2xl sm:text-3xl">{opt.emoji}</span>
-                <span className={`text-[11px] font-bold truncate ${isSelected ? "text-amber-950 font-black" : "text-[#5B728D]"}`}>
+                <span className={`text-[11px] sm:text-xs font-bold truncate ${isSelected ? "text-amber-950 font-black" : "text-[#5B728D]"}`}>
                   {opt.label}
                 </span>
               </button>
