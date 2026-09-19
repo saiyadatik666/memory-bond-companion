@@ -44,6 +44,7 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
   const [isAddOpen, setIsAddOpen] = useState<boolean>(false);
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
   const [activeTab, setActiveTab] = useState<"today" | "upcoming" | "completed">("today");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
 
   // Form State
   const [title, setTitle] = useState<string>("");
@@ -302,6 +303,30 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
         </div>
       </div>
 
+      {/* SECTION 22: MOBILE DEDICATED REMINDER SECTIONS (Medicines, Hydration, Appointments, Daily Routine) */}
+      <div className="flex flex-wrap items-center gap-2">
+        {[
+          { id: "all", label: "All Reminders" },
+          { id: "medicine", label: "💊 Medicines" },
+          { id: "hydration", label: "💧 Hydration" },
+          { id: "appointment", label: "📅 Appointments" },
+          { id: "routine", label: "🕐 Daily Routine" },
+        ].map((cat) => (
+          <button
+            key={cat.id}
+            type="button"
+            onClick={() => setTypeFilter(cat.id)}
+            className={`px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+              typeFilter === cat.id
+                ? "bg-primary text-primary-foreground shadow-xs"
+                : "bg-card border border-border text-foreground/80 hover:border-primary/50"
+            }`}
+          >
+            {cat.label}
+          </button>
+        ))}
+      </div>
+
       {/* NATURAL LANGUAGE AI REMINDER INPUT BAR (Section 5) */}
       <div className="rounded-3xl border-2 border-primary/30 bg-primary/5 p-5 shadow-sm space-y-3">
         <div className="flex items-center gap-2 text-primary font-bold text-sm">
@@ -382,12 +407,21 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
       {/* Reminders List */}
       <div className="space-y-4">
         {(() => {
-          const currentList =
+          const rawList =
             activeTab === "today"
               ? todayReminders
               : activeTab === "upcoming"
               ? upcomingReminders
               : completedReminders;
+
+          const currentList = rawList.filter((r) => {
+            if (typeFilter === "all") return true;
+            if (typeFilter === "medicine") return r.type === "medicine";
+            if (typeFilter === "hydration") return r.type === "hydration";
+            if (typeFilter === "appointment") return r.type === "appointment";
+            if (typeFilter === "routine") return r.type === "routine" || r.type === "walking" || r.type === "meal";
+            return true;
+          });
 
           if (currentList.length === 0) {
             return (

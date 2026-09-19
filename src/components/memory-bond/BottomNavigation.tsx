@@ -26,21 +26,19 @@ export function BottomNavigation({
 }) {
   const { t } = useI18n();
 
-  // Mobile Bottom Navigation: Section 35 Senior Navigation (Home, Games, Reminders, Family, Voice)
+  // Exactly 4 primary senior destinations as required in Section 13
   const seniorTabs = [
     { id: "home", label: t("home") || "Home", icon: Home },
     { id: "games", label: t("games") || "Games", icon: Gamepad2 },
     { id: "reminders", label: t("reminders") || "Reminders", icon: Pill },
     { id: "family_tree", label: t("family") || "Family", icon: Users },
-    { id: "voice", label: t("qaVoiceAi") || "Voice", icon: Mic, isVoiceAction: true },
   ];
 
   const caregiverTabs = [
     { id: "caregiver", label: t("caregiverDashboard") || "Dashboard", icon: Home },
     { id: "medicines", label: t("medicines") || "Medicines", icon: Pill },
     { id: "appointments", label: t("appointments") || "Appointments", icon: Calendar },
-    { id: "family", label: t("family") || "Family", icon: Users },
-    { id: "settings", label: t("settings") || "Settings", icon: Settings },
+    { id: "family", label: t("family") || "Care Network", icon: Users },
   ];
 
   const tabs = role === "caregiver" ? caregiverTabs : seniorTabs;
@@ -48,44 +46,36 @@ export function BottomNavigation({
   return (
     <nav
       aria-label="Mobile Navigation"
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-[#E8EEF5] shadow-[0_-4px_20px_rgba(15,36,62,0.04)] pb-[env(safe-area-inset-bottom,0px)]"
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-[#E8EEF5] shadow-[0_-4px_24px_rgba(15,36,62,0.06)] pb-[env(safe-area-inset-bottom,0px)]"
     >
-      <div className="max-w-md mx-auto flex items-center justify-around py-1.5 px-2">
+      <div className="max-w-md mx-auto flex items-center justify-around h-[62px] px-2">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = currentTab === tab.id;
-
-          const handleClick = () => {
-            if (tab.isVoiceAction && onOpenVoice) {
-              onOpenVoice();
-            } else {
-              onSelectTab(tab.id);
-            }
-          };
 
           return (
             <button
               key={tab.id}
               type="button"
-              onClick={handleClick}
-              className={`flex flex-col items-center justify-center gap-0.5 py-1 px-2 rounded-2xl transition-all duration-200 cursor-pointer min-w-0 flex-1 select-none ${
+              onClick={() => onSelectTab(tab.id)}
+              className={`flex flex-col items-center justify-center gap-1 py-1.5 px-2 rounded-2xl transition-all duration-150 cursor-pointer min-w-0 flex-1 select-none min-h-[48px] active:scale-95 ${
                 isActive
                   ? "text-[#1E6FD9] font-black"
                   : "text-[#627D98] hover:text-[#0F243E] font-bold"
               }`}
+              aria-label={tab.label}
+              aria-current={isActive ? "page" : undefined}
             >
               <div
-                className={`p-1.5 rounded-xl transition-all duration-200 ${
+                className={`p-1.5 rounded-xl transition-all duration-150 ${
                   isActive
                     ? "bg-[#E6F0FC] text-[#1E6FD9] scale-105"
-                    : tab.isVoiceAction
-                    ? "bg-[#E0F2FE] text-[#0284C7]"
                     : "text-[#627D98]"
                 }`}
               >
-                <Icon className={`h-5 w-5 ${tab.isVoiceAction ? "animate-pulse" : ""}`} />
+                <Icon className="h-5 w-5" />
               </div>
-              <span className="text-[11px] truncate font-black tracking-tight">
+              <span className="text-[11px] truncate font-extrabold tracking-tight">
                 {tab.label}
               </span>
             </button>

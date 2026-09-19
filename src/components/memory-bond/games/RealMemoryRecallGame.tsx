@@ -178,7 +178,7 @@ export function RealMemoryRecallGame({
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto rounded-3xl bg-white border border-[#E2EAF5] shadow-xl p-6 sm:p-10 select-none animate-in fade-in duration-300">
+    <div className="w-full max-w-2xl mx-auto rounded-3xl bg-white border border-[#E2EAF5] shadow-xl p-4 sm:p-8 select-none animate-in fade-in duration-300 box-border">
       {/* =================================================================== */}
       {/* STAGE 1: MEMORIZE (Section 12: Show 4 objects for several seconds) */}
       {/* =================================================================== */}
@@ -307,76 +307,62 @@ export function RealMemoryRecallGame({
               🎉
             </div>
             <h2 className="text-3xl sm:text-4xl font-black text-[#0F243E] font-display">
-              Great job! 🎉
+              Great job, Meena! 🎉
             </h2>
             <p className="text-sm font-semibold text-[#5B728D]">
-              Activity completed successfully. Your real interaction results are recorded below:
+              Activity completed successfully.
             </p>
           </div>
 
-          {/* 3 Metric Summary Badges (Section 15: Score, Correct, Response Time) */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="p-4 rounded-2xl bg-purple-50 border border-purple-200">
+          {/* 3 Metric Summary Badges (Section 21: Accuracy, Correct, Seconds) */}
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="p-3 sm:p-4 rounded-2xl bg-purple-50 border border-purple-200">
               <div className="text-2xl sm:text-3xl font-black text-purple-700 font-display">
                 {resultData.accuracy}%
               </div>
-              <div className="text-xs font-bold text-purple-900 mt-0.5">Score</div>
+              <div className="text-xs font-bold text-purple-900 mt-0.5">Accuracy</div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-teal-50 border border-teal-200">
+            <div className="p-3 sm:p-4 rounded-2xl bg-teal-50 border border-teal-200">
               <div className="text-2xl sm:text-3xl font-black text-teal-700 font-display">
                 {resultData.correctCount} / 4
               </div>
               <div className="text-xs font-bold text-teal-900 mt-0.5">Correct</div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-sky-50 border border-sky-200">
+            <div className="p-3 sm:p-4 rounded-2xl bg-sky-50 border border-sky-200">
               <div className="text-2xl sm:text-3xl font-black text-sky-700 font-display">
                 {resultData.responseSeconds}s
               </div>
-              <div className="text-xs font-bold text-sky-900 mt-0.5">Response Time</div>
+              <div className="text-xs font-bold text-sky-900 mt-0.5">Time</div>
             </div>
           </div>
 
           {/* TRANSPARENT AI ACTIVITY ADJUSTMENT (Section 14 Core Requirement) */}
-          <div className="p-5 rounded-3xl bg-[#F0F7FF] border-2 border-[#BAE6FD] text-left space-y-3">
+          <div className="p-4 sm:p-5 rounded-3xl bg-[#F0F7FF] border-2 border-[#BAE6FD] text-left space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
                 <Sparkles className="h-4 w-4" />
-                <span>AI Activity Adjustment</span>
-              </div>
-              <span className="text-xs font-bold text-muted-foreground">
-                Non-diagnostic engagement adaptation
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 text-center py-1 border-y border-[#D0E2FF]/60">
-              <div>
-                <div className="text-xs font-bold text-[#5B728D]">Previous Performance</div>
-                <div className="text-xl font-black text-[#0F243E]">{previousAccuracy}%</div>
-              </div>
-              <div>
-                <div className="text-xs font-bold text-[#5B728D]">Current Performance</div>
-                <div className="text-xl font-black text-primary">{resultData.accuracy}%</div>
+                <span>AI Activity Feedback</span>
               </div>
             </div>
 
-            <div className="text-xs sm:text-sm font-bold text-[#0F243E] flex items-start gap-2 pt-1">
+            <div className="text-xs sm:text-sm font-bold text-[#0F243E] flex items-start gap-2 pt-0.5">
               <TrendingUp className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-              <span>AI Recommendation: “{resultData.adjustmentText}”</span>
+              <span>{resultData.adjustmentText}</span>
             </div>
           </div>
 
-          {/* Action Buttons (Section 15: Play Another / Back to Home) */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+          {/* Action Buttons (Section 21: Continue / Back Home) */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2.5 sm:gap-3 pt-1">
             {onPlayAnother && (
               <Button
                 size="lg"
                 onClick={onPlayAnother}
-                className="w-full sm:w-auto h-13 px-7 rounded-2xl font-black text-sm bg-primary hover:bg-primary/90 text-white shadow-md cursor-pointer"
+                className="w-full sm:w-auto h-13 px-8 rounded-2xl font-black text-base bg-primary hover:bg-primary/90 text-white shadow-md cursor-pointer"
               >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                <span>Play Another Activity</span>
+                <span>Continue</span>
+                <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             )}
 
@@ -385,9 +371,9 @@ export function RealMemoryRecallGame({
                 variant="outline"
                 size="lg"
                 onClick={onBackToHome}
-                className="w-full sm:w-auto h-13 px-7 rounded-2xl font-black text-sm cursor-pointer"
+                className="w-full sm:w-auto h-13 px-8 rounded-2xl font-black text-base text-[#486581] border-[#E2EAF5] hover:bg-[#F4F8FD] cursor-pointer"
               >
-                <span>Back to Home</span>
+                <span>Back Home</span>
               </Button>
             )}
           </div>

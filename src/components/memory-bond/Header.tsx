@@ -158,10 +158,10 @@ export function Header({
     <>
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E8EEF5] transition-colors select-none shadow-[0_1px_4px_rgba(15,36,62,0.03)]">
         {/* ==================================================================== */}
-        {/* ROW 1: PRIMARY TOP BAR (Logo + Branding + Search + Controls)         */}
+        {/* ROW 1: PRIMARY TOP BAR (Logo + Branding + Profile / Controls)        */}
         {/* ==================================================================== */}
-        <div className="max-w-[1600px] mx-auto px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-4 md:gap-6">
-          {/* Left: Memory Bond Logo + Brand Name (Preserved on ALL screen widths) */}
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-4 md:gap-6">
+          {/* Left: Memory Bond Logo + Brand Name */}
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
@@ -169,31 +169,29 @@ export function Header({
               className="flex items-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 rounded-xl p-0.5 transition-transform active:scale-98 text-left"
               aria-label="Memory Bond Home"
             >
-              {/* Official Icon Emblem */}
               <img
                 src="/images/brand/logo_icon.png"
                 alt="Memory Bond"
-                className="h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 object-contain shrink-0 drop-shadow-2xs"
+                className="h-8 w-8 sm:h-9 sm:w-9 object-contain shrink-0 drop-shadow-2xs"
               />
-              {/* Brand Wordmark: "Memory Bond" strictly in English across all viewports */}
               <div className="flex flex-col leading-none">
-                <span className="font-extrabold text-[15px] sm:text-lg md:text-xl tracking-tight text-[#0F243E]">
+                <span className="font-black text-base sm:text-lg md:text-xl tracking-tight text-[#0F243E]">
                   Memory Bond
                 </span>
-                <span className="text-[9.5px] sm:text-[11px] font-bold text-[#5B728D] tracking-wide mt-0.5 hidden sm:inline">
+                <span className="text-[10px] sm:text-[11px] font-bold text-[#5B728D] tracking-wide mt-0.5 hidden sm:inline">
                   Healthcare & Family Companion
                 </span>
               </div>
             </button>
 
-            {/* Role indicator pill badge (Caregiver vs Senior) */}
+            {/* Desktop Role Badge (Caregiver vs Senior) — Hidden on mobile as per requirement */}
             <div className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wide bg-[#EBF3FC] text-[#1E6FD9] border border-[#D0E2FF] ml-1 shrink-0">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>{role === "caregiver" ? t("iAmCaregiver") || "Caregiver" : t("iAmSenior") || "Senior"}</span>
             </div>
           </div>
 
-          {/* Center: Search Bar (Desktop & Tablet: sm+) */}
+          {/* Center: Search Bar (Desktop & Tablet: sm+ only — removed from mobile home screen) */}
           <form
             onSubmit={handleSearch}
             className="relative flex-1 min-w-[180px] max-w-xs md:max-w-md lg:max-w-lg hidden sm:flex items-center mx-2"
@@ -222,23 +220,36 @@ export function Header({
             </div>
           </form>
 
-          {/* Right Tools & Controls */}
+          {/* Right Tools & Profile Control */}
           <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 ml-auto shrink-0">
+            {/* Offline indicator: compact pill when offline, unobtrusive sync dot when online */}
+            {(!store.isOnline || store.offlineModeForced) ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black bg-amber-100 text-amber-900 border border-amber-300">
+                <span>📶</span>
+                <span className="hidden xs:inline">Offline</span>
+              </span>
+            ) : (
+              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <Check className="h-3 w-3" />
+                <span>Synced</span>
+              </span>
+            )}
+
             {/* Language Selector Dropdown (Pan-India & NER languages) */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8 sm:h-9 md:h-10 px-2.5 sm:px-3 rounded-full border-[#BAE6FD] bg-[#F0F9FF] hover:bg-[#E0F2FE] text-[#0369A1] font-black text-xs sm:text-sm gap-1.5 shadow-2xs cursor-pointer focus-visible:ring-2 focus-visible:ring-[#0284C7] shrink-0 transition-all"
+                  className="h-8 sm:h-9 md:h-10 px-2 sm:px-3 rounded-full border-[#BAE6FD] bg-[#F0F9FF] hover:bg-[#E0F2FE] text-[#0369A1] font-black text-xs sm:text-sm gap-1.5 shadow-2xs cursor-pointer focus-visible:ring-2 focus-visible:ring-[#0284C7] shrink-0 transition-all"
                   aria-label="Choose Language"
                   title={`Language: ${currentLangObj.native} (${currentLangObj.label})`}
                 >
                   <Globe className="h-4 w-4 text-[#0284C7] shrink-0" />
-                  <span className="font-bold truncate max-w-[70px] sm:max-w-[90px] md:max-w-[120px]">
+                  <span className="font-bold truncate max-w-[65px] sm:max-w-[90px] md:max-w-[120px]">
                     {currentLangObj.native}
                   </span>
-                  <ChevronDown className="h-3 w-3 text-[#0284C7] shrink-0 opacity-70" />
+                  <ChevronDown className="h-3 w-3 text-[#0284C7] shrink-0 opacity-70 hidden xs:inline" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -327,13 +338,13 @@ export function Header({
               )}
             </button>
 
-            {/* Profile / Account Menu (Desktop & Tablet: sm+) */}
+            {/* Profile Button [ 👤 Profile ] — Opens Profile & Settings Menu with Role Switcher */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="hidden sm:flex h-8 sm:h-9 md:h-10 pl-1 pr-1.5 sm:pr-3 rounded-full border border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] items-center gap-1.5 sm:gap-2 transition-colors shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E6FD9] shrink-0"
-                  aria-label="User Account"
+                  className="h-8 sm:h-9 md:h-10 pl-1 pr-1.5 sm:pr-3 rounded-full border border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] flex items-center gap-1.5 sm:gap-2 transition-colors shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E6FD9] shrink-0"
+                  aria-label="User Profile and Role Switcher"
                 >
                   <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full overflow-hidden shrink-0 border border-[#D0E2FF] bg-[#EBF3FC]">
                     <img
@@ -342,47 +353,119 @@ export function Header({
                       className="w-full h-full object-cover object-top"
                     />
                   </div>
-                  <span className="hidden lg:inline text-xs sm:text-sm font-bold text-[#0F243E] max-w-[110px] truncate">
+                  <span className="hidden sm:inline text-xs sm:text-sm font-bold text-[#0F243E] max-w-[100px] truncate">
                     {firstName}
                   </span>
-                  <ChevronDown className="h-3 w-3 text-[#829AB1] shrink-0 hidden sm:inline" />
+                  <ChevronDown className="h-3 w-3 text-[#829AB1] shrink-0 opacity-80" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="w-56 rounded-2xl p-2 bg-white border-[#E2EAF5] shadow-xl space-y-1 z-50"
+                className="w-64 sm:w-72 rounded-2xl p-2.5 bg-white border-[#E2EAF5] shadow-xl space-y-2 z-50 animate-in fade-in zoom-in-95"
               >
-                <div className="px-3 py-2 border-b border-[#EDF2F7]">
+                {/* Profile Information Header */}
+                <div className="px-3 py-2 bg-[#F8FAFD] rounded-xl border border-[#EDF2F7]">
                   <div className="font-black text-sm text-[#0F243E] truncate">
                     {userDisplayName}
                   </div>
                   <div className="text-[11px] font-bold text-[#1E6FD9] uppercase tracking-wider mt-0.5">
-                    {role === "caregiver" ? t("iAmCaregiver") || "Caregiver" : t("iAmSenior") || "Senior"}
+                    {role === "caregiver" ? "Caregiver Mode (Priya)" : "Senior Mode (Meena)"}
                   </div>
                 </div>
 
+                {/* ROLE SWITCHER INSIDE PROFILE MENU (Section 4 & 24) */}
+                <div className="p-2 bg-[#EBF3FC]/60 rounded-xl border border-[#D0E2FF] space-y-1.5">
+                  <div className="text-[10px] font-extrabold text-[#1E6FD9] uppercase tracking-wider px-1">
+                    Switch Mode / Role
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        store.setRole("senior");
+                        store.updateProfile({ role: "senior", full_name: "Meena Patel" });
+                        try {
+                          localStorage.setItem("mb_active_session", JSON.stringify({
+                            userId: "sr-1",
+                            role: "senior",
+                            fullName: "Meena Patel",
+                            email: "meena@memorybond.org"
+                          }));
+                        } catch {}
+                        onNavigate("home");
+                      }}
+                      className={`py-2 px-2 rounded-lg text-xs font-black transition-all text-center cursor-pointer ${
+                        role === "senior"
+                          ? "bg-[#1E6FD9] text-white shadow-xs"
+                          : "bg-white text-[#0F243E] border border-[#E2EAF5] hover:bg-[#F4F8FD]"
+                      }`}
+                    >
+                      👵 Senior Mode
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        store.setRole("caregiver");
+                        store.updateProfile({ role: "caregiver", full_name: "Priya Patel" });
+                        try {
+                          localStorage.setItem("mb_active_session", JSON.stringify({
+                            userId: "cg-1",
+                            role: "caregiver",
+                            fullName: "Priya Patel",
+                            email: "priya@memorybond.org"
+                          }));
+                        } catch {}
+                        onNavigate("caregiver");
+                      }}
+                      className={`py-2 px-2 rounded-lg text-xs font-black transition-all text-center cursor-pointer ${
+                        role === "caregiver"
+                          ? "bg-[#1E6FD9] text-white shadow-xs"
+                          : "bg-white text-[#0F243E] border border-[#E2EAF5] hover:bg-[#F4F8FD]"
+                      }`}
+                    >
+                      🛡️ Caregiver
+                    </button>
+                  </div>
+                </div>
+
+                <DropdownMenuSeparator />
+
+                {/* Profile Links & Settings */}
                 <DropdownMenuItem
                   onClick={() => onNavigate("settings")}
-                  className="rounded-xl text-xs font-semibold cursor-pointer py-2 px-3 hover:bg-[#F4F8FD] text-[#0F243E] flex items-center gap-2"
+                  className="rounded-xl text-xs font-bold cursor-pointer py-2 px-3 hover:bg-[#F4F8FD] text-[#0F243E] flex items-center gap-2.5"
                 >
                   <Settings className="h-4 w-4 text-[#627D98]" />
-                  <span>{t("settings") || "Settings"}</span>
+                  <span>{t("settings") || "Settings & Accessibility"}</span>
                 </DropdownMenuItem>
 
+                {onOpenSos && (
+                  <DropdownMenuItem
+                    onClick={onOpenSos}
+                    className="rounded-xl text-xs font-bold text-rose-600 focus:bg-rose-50 hover:bg-rose-50 cursor-pointer py-2 px-3 flex items-center gap-2.5"
+                  >
+                    <AlertOctagon className="h-4 w-4 text-rose-600" />
+                    <span>Emergency SOS Contacts</span>
+                  </DropdownMenuItem>
+                )}
 
                 {onSignOut && (
-                  <DropdownMenuItem
-                    onClick={onSignOut}
-                    className="rounded-xl text-xs font-bold text-[#DC2626] focus:bg-[#FEE2E2] cursor-pointer py-2 px-3 flex items-center gap-2"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    <span>{t("signOut") || "Sign Out"}</span>
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={onSignOut}
+                      className="rounded-xl text-xs font-bold text-[#DC2626] focus:bg-[#FEE2E2] cursor-pointer py-2 px-3 flex items-center gap-2.5"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      <span>{t("signOut") || "Sign Out"}</span>
+                    </DropdownMenuItem>
+                  </>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Mobile Hamburger Menu Button (Mobile & Tablet: lg:hidden) */}
+            {/* Mobile Navigation Drawer Toggle */}
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(true)}
@@ -393,34 +476,6 @@ export function Header({
               <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
           </div>
-        </div>
-
-        {/* ==================================================================== */}
-        {/* ROW 2 (MOBILE ONLY): FULL-WIDTH RESPONSIVE SEARCH INPUT               */}
-        {/* ==================================================================== */}
-        <div className="sm:hidden px-3 pb-2 pt-0.5 border-t border-[#F0F4FA]">
-          <form onSubmit={handleSearch} className="relative w-full flex items-center">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#829AB1] pointer-events-none" />
-            <input
-              ref={mobileSearchInputRef}
-              type="search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search anything..."
-              aria-label="Search activities, medicines, family or voice topics"
-              className="w-full h-9 pl-9 pr-8 rounded-full bg-[#F4F8FD] border border-[#E2EAF5] text-xs font-semibold text-[#0F243E] placeholder-[#829AB1] focus:outline-none focus:border-[#1E6FD9] focus:bg-white focus:ring-2 focus:ring-[#1E6FD9]/15 transition-all shadow-xs"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#829AB1] hover:text-[#0F243E] p-1 cursor-pointer"
-                aria-label="Clear search input"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </form>
         </div>
 
         {/* ==================================================================== */}

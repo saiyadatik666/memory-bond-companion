@@ -60,6 +60,7 @@ export function CaregiverDashboard({
   const [isReportOpen, setIsReportOpen] = useState<boolean>(false);
   const [alertCategoryFilter, setAlertCategoryFilter] = useState<string>("all");
   const [trendTab, setTrendTab] = useState<"daily" | "weekly" | "monthly">("weekly");
+  const [chartCategory, setChartCategory] = useState<"overall" | "memory" | "attention" | "pattern">("overall");
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
 
   // Caregiver Unique Connection Identity
@@ -135,80 +136,82 @@ export function CaregiverDashboard({
     };
 
   return (
-    <div className="space-y-6">
-      {/* SECTION 26: GOOD MORNING, PRIYA & FAMILY OVERVIEW */}
-      <div className="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50/80 via-white to-white p-6 sm:p-8 shadow-xs space-y-5">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="space-y-6 max-w-full overflow-x-hidden box-border">
+      {/* SECTION 25: CAREGIVER HOME — MEENA PATEL TODAY'S OVERVIEW */}
+      <div className="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50/80 via-white to-white p-5 sm:p-7 shadow-xs space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-2xl">👋</span>
-              <h2 className="text-2xl sm:text-3xl font-black text-foreground font-display">
-                Good Morning, Priya
-              </h2>
+              <span className="text-xs font-black uppercase tracking-wider text-[#1E6FD9] bg-[#EBF3FC] px-3 py-1 rounded-full border border-[#D0E2FF]">
+                Caregiver Home
+              </span>
             </div>
-            <p className="text-base font-black text-primary mt-1">
-              Family Overview
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Active caregiver oversight for elderly family members across the North Eastern Region
+            <h2 className="text-2xl sm:text-3xl font-black text-foreground font-display mt-1.5">
+              Meena Patel
+            </h2>
+            <p className="text-sm font-bold text-muted-foreground mt-0.5">
+              Today's Overview
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               onClick={() => setIsReportOpen(true)}
               variant="outline"
-              className="rounded-2xl font-bold text-xs h-11 gap-2 border-primary/30 text-primary hover:bg-primary/10 shadow-xs cursor-pointer"
+              className="rounded-2xl font-bold text-xs h-10 gap-2 border-primary/30 text-primary hover:bg-primary/10 shadow-xs cursor-pointer"
             >
               <FileText className="h-4 w-4" /> Weekly Summary Report
             </Button>
-            <div className="px-3.5 py-2 rounded-2xl bg-card border border-border shadow-xs flex items-center gap-2 text-xs font-black">
+            <div className="px-3 py-2 rounded-2xl bg-card border border-border shadow-xs flex items-center gap-2 text-xs font-black">
               <Users className="h-4 w-4 text-primary" />
-              <span>Assigned Seniors:</span>
-              <span className="text-primary text-base font-black">{assignedSeniors.length || 5}</span>
+              <span>Assigned:</span>
+              <span className="text-primary text-sm font-black">{assignedSeniors.length || 5}</span>
             </div>
           </div>
         </div>
 
-        {/* Section 26: 4 Live Metric Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-3 border-t border-border">
-          <div className="rounded-2xl border-2 border-primary/30 bg-card p-4 space-y-1 shadow-xs">
+        {/* Section 25: 4 Live Metric Cards (Activity 82%, Medicine 3/3, Hydration 5/8, Alerts 2) */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pt-2 border-t border-border">
+          <div className="rounded-2xl border-2 border-primary/30 bg-card p-3.5 sm:p-4 space-y-1 shadow-xs">
             <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
-              <span>Cognitive Activity</span>
-              <span className="text-lg">🧠</span>
+              <span>Activity</span>
+              <span className="text-base sm:text-lg">🧠</span>
             </div>
-            <div className="text-3xl font-black text-primary">
+            <div className="text-2xl sm:text-3xl font-black text-primary">
               {store.cognitiveScore?.overall ? `${store.cognitiveScore.overall}%` : "82%"}
             </div>
-            <div className="text-[11px] text-muted-foreground font-semibold">Active performance rate</div>
+            <div className="text-[11px] text-muted-foreground font-semibold">Cognitive score</div>
           </div>
-          <div className="rounded-2xl border-2 border-emerald-500/30 bg-card p-4 space-y-1 shadow-xs">
+
+          <div className="rounded-2xl border-2 border-emerald-500/30 bg-card p-3.5 sm:p-4 space-y-1 shadow-xs">
             <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
               <span>Medicine</span>
-              <span className="text-lg">💊</span>
+              <span className="text-base sm:text-lg">💊</span>
             </div>
-            <div className="text-3xl font-black text-emerald-600 dark:text-emerald-400">3 / 3</div>
-            <div className="text-[11px] text-muted-foreground font-semibold">All daily doses confirmed</div>
+            <div className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400">3 / 3</div>
+            <div className="text-[11px] text-muted-foreground font-semibold">Doses confirmed</div>
           </div>
-          <div className="rounded-2xl border-2 border-sky-500/30 bg-card p-4 space-y-1 shadow-xs">
+
+          <div className="rounded-2xl border-2 border-sky-500/30 bg-card p-3.5 sm:p-4 space-y-1 shadow-xs">
             <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
               <span>Hydration</span>
-              <span className="text-lg">💧</span>
+              <span className="text-base sm:text-lg">💧</span>
             </div>
-            <div className="text-3xl font-black text-sky-600 dark:text-sky-400">
+            <div className="text-2xl sm:text-3xl font-black text-sky-600 dark:text-sky-400">
               {store.hydrationGlasses || 5} / {store.hydrationTarget || 8}
             </div>
-            <div className="text-[11px] text-muted-foreground font-semibold">Glasses logged today</div>
+            <div className="text-[11px] text-muted-foreground font-semibold">Glasses logged</div>
           </div>
-          <div className="rounded-2xl border-2 border-amber-500/30 bg-card p-4 space-y-1 shadow-xs">
+
+          <div className="rounded-2xl border-2 border-rose-500/30 bg-card p-3.5 sm:p-4 space-y-1 shadow-xs">
             <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
-              <span>Activities</span>
-              <span className="text-lg">🧩</span>
+              <span>Alerts</span>
+              <span className="text-base sm:text-lg">🔔</span>
             </div>
-            <div className="text-3xl font-black text-amber-600 dark:text-amber-400">
-              {routinesDone || 4} / {store.routines.length || 5}
+            <div className="text-2xl sm:text-3xl font-black text-rose-600">
+              {store.alerts.filter((a) => !a.resolved).length || 2}
             </div>
-            <div className="text-[11px] text-muted-foreground font-semibold">Routine tasks done</div>
+            <div className="text-[11px] text-muted-foreground font-semibold">Pending review</div>
           </div>
         </div>
 
@@ -1020,25 +1023,26 @@ export function CaregiverDashboard({
         </div>
       </div>
 
-      {/* HISTORICAL COGNITIVE ENGAGEMENT TRENDS (Requirement 6 & 16) */}
-      <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-sm space-y-4">
+      {/* SECTION 26: CAREGIVER MOBILE ANALYTICS (Single Focused Chart + Category Tabs) */}
+      <div className="rounded-3xl border-2 border-border bg-card p-5 sm:p-6 shadow-sm space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-lg sm:text-xl font-black text-foreground flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" /> {t("historicalPerformanceTrends") || "Historical Performance Trends"}
+            <h3 className="text-base sm:text-xl font-black text-foreground flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <span>Cognitive Activity</span>
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {t("trendsDesc") || "Non-diagnostic cognitive engagement trends across daily, weekly, and monthly activity windows."}
+              Engagement trend across {trendTab} activity sessions
             </p>
           </div>
 
-          {/* Timeframe selector tabs */}
-          <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-secondary border border-border">
+          {/* Timeframe selector tabs [ Week ▼ ] */}
+          <div className="flex items-center gap-1 p-1 rounded-2xl bg-secondary border border-border">
             {(["daily", "weekly", "monthly"] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setTrendTab(tab)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-black capitalize transition-all cursor-pointer ${
+                className={`px-3 py-1 rounded-xl text-xs font-black capitalize transition-all cursor-pointer ${
                   trendTab === tab
                     ? "bg-card text-foreground shadow-xs scale-105"
                     : "text-muted-foreground hover:text-foreground"
@@ -1050,33 +1054,67 @@ export function CaregiverDashboard({
           </div>
         </div>
 
-        {/* Dynamic Trend Points Table / Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
-          {(typeof store.getCognitiveTrends === "function" ? store.getCognitiveTrends(trendTab) : []).map((point, idx) => (
-            <div key={idx} className="rounded-2xl border border-border bg-secondary/30 p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-muted-foreground">{point.period}</span>
-                <span className="text-xs font-black px-2 py-0.5 rounded-full bg-primary/15 text-primary">
-                  {point.sessionCount} {t("sessions") || "sessions"}
-                </span>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-foreground">{point.overall}</span>
-                <span className="text-xs text-muted-foreground font-semibold">/ 100 CES</span>
-              </div>
-              <div className="grid grid-cols-2 gap-1.5 text-[11px] font-semibold text-muted-foreground pt-1 border-t border-border/50">
-                <div>{t("memoryLabel") || "Memory"}: <span className="text-foreground font-bold">{point.memory}</span></div>
-                <div>{t("attentionLabel") || "Attention"}: <span className="text-foreground font-bold">{point.attention}</span></div>
-                <div>{t("recognitionLabel") || "Recognition"}: <span className="text-foreground font-bold">{point.recognition}</span></div>
-                <div>{t("recallLabel") || "Recall"}: <span className="text-foreground font-bold">{point.recall}</span></div>
-              </div>
-            </div>
+        {/* Section 26 Segmented Metric Category Tabs (Below title: Memory, Attention, Pattern) */}
+        <div className="flex items-center gap-1.5 p-1 bg-secondary/60 rounded-2xl overflow-x-auto no-scrollbar">
+          {[
+            { id: "overall", label: "Overall" },
+            { id: "memory", label: "🧠 Memory" },
+            { id: "attention", label: "🎯 Attention" },
+            { id: "pattern", label: "🔷 Pattern" },
+          ].map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => setChartCategory(cat.id as any)}
+              className={`flex-1 min-w-[75px] py-1.5 px-2 rounded-xl text-xs font-black text-center transition-all cursor-pointer ${
+                chartCategory === cat.id
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {cat.label}
+            </button>
           ))}
         </div>
 
-        {/* Disclaimer footer */}
+        {/* Focused Chart Display (Horizontally contained, never overflows page) */}
+        <div className="w-full overflow-x-auto no-scrollbar pt-1">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 min-w-full">
+            {(typeof store.getCognitiveTrends === "function" ? store.getCognitiveTrends(trendTab) : []).map((point, idx) => {
+              const displayVal =
+                chartCategory === "memory"
+                  ? point.memory
+                  : chartCategory === "attention"
+                  ? point.attention
+                  : chartCategory === "pattern"
+                  ? point.recognition
+                  : point.overall;
+
+              return (
+                <div key={idx} className="rounded-2xl border border-border bg-secondary/30 p-3.5 space-y-1.5">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground font-bold">
+                    <span>{point.period}</span>
+                    <span className="text-[10px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                      {point.sessionCount} ses
+                    </span>
+                  </div>
+                  <div className="text-2xl font-black text-foreground">
+                    {displayVal}%
+                  </div>
+                  {/* Visual micro bar */}
+                  <div className="w-full bg-border/60 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-primary h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.min(100, Math.max(10, displayVal))}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         <p className="text-[11px] text-muted-foreground italic border-t border-border/60 pt-2">
-          {t("cognitiveTrendDisclaimer") || "Note: Cognitive Engagement Scores reflect activity participation, reaction speed, and memory exercise consistency. They are strictly non-diagnostic wellness indicators."}
+          {t("cognitiveTrendDisclaimer") || "Note: Cognitive Activity scores reflect companion engagement and memory exercise consistency."}
         </p>
       </div>
 

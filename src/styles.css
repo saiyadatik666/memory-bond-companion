@@ -400,3 +400,24 @@
   scrollbar-width: none;  /* Firefox */
 }
 
+/* Zero horizontal overflow & safe-area containment (Section 14 & 15) */
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  -webkit-text-size-adjust: 100%;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* Safe area padding utilities for mobile phone gesture bars */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.mb-safe {
+  margin-bottom: env(safe-area-inset-bottom, 0px);
+}
+

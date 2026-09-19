@@ -1217,8 +1217,47 @@ export function CognitiveGamesHub({
             </div>
           </div>
 
-          {/* Games Grid (All Games with Section 11 Card Layout: icon, name, description, duration, difficulty, Start button) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+          {/* MOBILE VIEW: Dedicated clean vertical list (Section 19: icon, title, description, duration, [ Start ]) */}
+          <div className="flex flex-col gap-3 sm:hidden">
+            {games
+              .filter((g) => selectedCategory === "all" || g.category === selectedCategory)
+              .map((g) => {
+                const Icon = g.icon;
+                return (
+                  <div
+                    key={g.id}
+                    className="rounded-3xl border-2 border-border/80 bg-card p-4 text-left shadow-xs flex flex-col gap-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center shrink-0 shadow-2xs ${g.color}`}>
+                        <Icon className="h-6 w-6" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-1.5">
+                          <h3 className="text-base font-black text-foreground truncate">{g.title}</h3>
+                          <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-secondary text-muted-foreground shrink-0">
+                            {g.duration}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                          {g.description}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => handleSelectGame(g.id)}
+                      className="w-full h-12 rounded-2xl font-black text-sm shadow-xs bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                    >
+                      <span>Start</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                );
+              })}
+          </div>
+
+          {/* TABLET & DESKTOP VIEW: Multi-Column Grid */}
+          <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
             {games
               .filter((g) => selectedCategory === "all" || g.category === selectedCategory)
               .map((g) => {
