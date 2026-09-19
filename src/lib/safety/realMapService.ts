@@ -149,6 +149,9 @@ export async function searchPlacesNominatim(
   }
 }
 
+// Export alias for geocoding
+export const searchGeocodingOSM = searchPlacesNominatim;
+
 // ---------------------------------------------------------------------------
 // 3. Real Driving Route Calculation (OSRM Driving Engine)
 // ---------------------------------------------------------------------------

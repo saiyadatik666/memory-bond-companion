@@ -33,6 +33,7 @@ import { useI18n } from "@/lib/i18n";
 import { nerApiService } from "@/lib/ner/nerApiService";
 import { NerSmartMap } from "./NerSmartMap";
 import {
+  searchPlacesNominatim,
   searchGeocodingOSM,
   calculateRouteOSRM,
   fetchLiveWeatherOpenMeteo,
@@ -41,6 +42,7 @@ import {
 } from "@/lib/safety/realMapService";
 import type {
   RealRouteResult,
+  RealWeatherResult,
   LiveWeatherObservation,
   EmergencyFacility,
   LatLng,
@@ -186,12 +188,16 @@ export function CaregiverNerAccessibilityView({
     setRealRouteError(null);
     try {
       const [startGeocodes, destGeocodes] = await Promise.all([
-        searchGeocodingOSM(startInput),
-        searchGeocodingOSM(destInput),
+        searchPlacesNominatim(startInput),
+        searchPlacesNominatim(destInput),
       ]);
 
-      const startCoord = startGeocodes[0]?.coords || { lat: 26.1445, lng: 91.7362 };
-      const destCoord = destGeocodes[0]?.coords || { lat: 24.8333, lng: 92.7789 };
+      const startCoord: LatLng = startGeocodes[0]
+        ? { lat: startGeocodes[0].lat, lng: startGeocodes[0].lng }
+        : { lat: 26.1445, lng: 91.7362 };
+      const destCoord: LatLng = destGeocodes[0]
+        ? { lat: destGeocodes[0].lat, lng: destGeocodes[0].lng }
+        : { lat: 24.8333, lng: 92.7789 };
 
       const calculated = await calculateRouteOSRM(startCoord, destCoord);
       if (calculated) {
@@ -1771,7 +1777,7 @@ export function CaregiverNerAccessibilityView({
                 <div className="grid grid-cols-2 gap-2 p-3 rounded-2xl bg-muted/30 text-center font-bold text-xs">
                   <div>
                     <div className="text-[10px] text-muted-foreground uppercase">Humidity</div>
-                    <div className="text-base text-foreground">{liveWeather.humidityPercent}%</div>
+                    <div className="text-base text-foreground">{liveWeather.relativeHumidity}%</div>
                   </div>
                   <div>
                     <div className="text-[10px] text-muted-foreground uppercase">Wind Speed</div>
@@ -1813,24 +1819,24 @@ export function CaregiverNerAccessibilityView({
                       <div className="text-[11px] font-black text-foreground">{f.date}</div>
                       <div className="text-xs font-bold text-sky-600 truncate">{f.condition}</div>
                       <div className="text-sm font-black text-foreground">
-                        {f.maxTempC}° / {f.minTempC}°
+                        {f.tempMaxC}° / {f.tempMinC}°
                       </div>
                       <div className="text-[10px] font-bold text-muted-foreground">
-                        Rain: {f.precipitationMm}mm
+                        Rain: {f.precipitationSumMm}mm
                       </div>
                     </div>
                   ))}
                 </div>
 
-                {liveWeather.warnings.length > 0 ? (
+                {liveWeather.activeWarnings && liveWeather.activeWarnings.length > 0 ? (
                   <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 text-amber-900 dark:text-amber-200 text-xs space-y-1 font-bold">
                     <div className="flex items-center gap-1.5">
                       <AlertTriangle className="h-4 w-4 text-amber-600" />
                       <span>Official Severe Alert Published</span>
                     </div>
-                    {liveWeather.warnings.map((w, idx) => (
+                    {liveWeather.activeWarnings.map((w, idx) => (
                       <div key={idx} className="font-semibold text-[11px]">
-                        • {w.headline}: {w.description} (Valid: {w.validUntil})
+                        • {w.title}: {w.description} (Valid until: {w.validTo})
                       </div>
                     ))}
                   </div>

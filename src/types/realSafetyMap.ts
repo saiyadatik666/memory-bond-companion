@@ -99,6 +99,8 @@ export interface RealWeatherResult {
   lastUpdated: string;
 }
 
+export type LiveWeatherObservation = RealWeatherResult;
+
 export interface EmergencyFacility {
   id: string;
   name: string;
