@@ -302,7 +302,7 @@ export const SENIOR_INTERESTS_LIST: SeniorInterest[] = [
   },
   {
     id: "family",
-    icon: "👨‍👩‍👧",
+    icon: "👨‍👩‍👧‍👦",
     labels: {
       en: "Family & Relationships",
       hi: "परिवार और यादें",

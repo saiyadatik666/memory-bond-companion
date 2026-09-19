@@ -5,18 +5,6 @@ import {
   Check,
   Sparkles,
   AlertCircle,
-  Music,
-  Sprout,
-  BookOpen,
-  Puzzle,
-  Sun,
-  Utensils,
-  Landmark,
-  Users,
-  Film,
-  Newspaper,
-  Footprints,
-  ShoppingBag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MemoryBondLogo } from "./MemoryBondLogo";
@@ -28,20 +16,71 @@ import {
   getLocalizedInterest,
 } from "@/lib/seniorInterestsData";
 
-// Icon mapping using consistent Lucide icons
-const INTEREST_LUCIDE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  music: Music,
-  gardening: Sprout,
-  stories: BookOpen,
-  games: Puzzle,
-  yoga: Sun,
-  cooking: Utensils,
-  culture: Landmark,
-  family: Users,
-  movies: Film,
-  news: Newspaper,
-  walking: Footprints,
-  shopping: ShoppingBag,
+// Friendly, colorful emoji configuration with subtle soft pastel circular containers
+const INTEREST_EMOJI_CONFIG: Record<
+  string,
+  { emoji: string; bgClass: string; borderClass: string }
+> = {
+  music: {
+    emoji: "🎵",
+    bgClass: "bg-purple-50/80",
+    borderClass: "border-purple-100/80",
+  },
+  gardening: {
+    emoji: "🌱",
+    bgClass: "bg-emerald-50/80",
+    borderClass: "border-emerald-100/80",
+  },
+  stories: {
+    emoji: "📖",
+    bgClass: "bg-amber-50/80",
+    borderClass: "border-amber-100/80",
+  },
+  games: {
+    emoji: "🧩",
+    bgClass: "bg-indigo-50/80",
+    borderClass: "border-indigo-100/80",
+  },
+  yoga: {
+    emoji: "🧘",
+    bgClass: "bg-teal-50/80",
+    borderClass: "border-teal-100/80",
+  },
+  cooking: {
+    emoji: "🍳",
+    bgClass: "bg-orange-50/80",
+    borderClass: "border-orange-100/80",
+  },
+  culture: {
+    emoji: "🛕",
+    bgClass: "bg-rose-50/80",
+    borderClass: "border-rose-100/80",
+  },
+  family: {
+    emoji: "👨‍👩‍👧‍👦",
+    bgClass: "bg-pink-50/80",
+    borderClass: "border-pink-100/80",
+  },
+  movies: {
+    emoji: "🎬",
+    bgClass: "bg-slate-100/80",
+    borderClass: "border-slate-200/80",
+  },
+  news: {
+    emoji: "📰",
+    bgClass: "bg-sky-50/80",
+    borderClass: "border-sky-100/80",
+  },
+  walking: {
+    emoji: "🚶",
+    bgClass: "bg-lime-50/80",
+    borderClass: "border-lime-100/80",
+  },
+  shopping: {
+    emoji: "🛍️",
+    bgClass: "bg-fuchsia-50/80",
+    borderClass: "border-fuchsia-100/80",
+  },
 };
 
 interface SeniorInterestsScreenProps {
@@ -211,7 +250,11 @@ export function SeniorInterestsScreen({
           {SENIOR_INTERESTS_LIST.map((interest) => {
             const isSelected = selectedInterests.includes(interest.id);
             const { label, desc } = getLocalizedInterest(interest, lang, parentFallback);
-            const IconComponent = INTEREST_LUCIDE_ICONS[interest.id] || Sparkles;
+            const emojiConfig = INTEREST_EMOJI_CONFIG[interest.id] || {
+              emoji: interest.icon || "✨",
+              bgClass: "bg-sky-50/80",
+              borderClass: "border-sky-100/80",
+            };
 
             return (
               <button
@@ -233,17 +276,19 @@ export function SeniorInterestsScreen({
                     : "border-[#E2EAF5] bg-white hover:border-sky-300/80 hover:bg-slate-50/60 shadow-2xs"
                 }`}
               >
-                {/* Top Row: Circular Icon Container + Selection Check Indicator */}
+                {/* Top Row: Subtle Pastel Circular Emoji Container + Selection Check Indicator */}
                 <div className="flex items-center justify-between w-full">
                   <div
-                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${
-                      isSelected
-                        ? "bg-primary text-white shadow-2xs"
-                        : "bg-sky-50 text-sky-700 border border-sky-100"
-                    }`}
+                    className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center shrink-0 border transition-transform group-hover:scale-105 select-none ${emojiConfig.bgClass} ${emojiConfig.borderClass}`}
                     aria-hidden="true"
                   >
-                    <IconComponent className="h-4 w-4 sm:h-5 sm:w-5 stroke-[2.2]" />
+                    <span
+                      className="text-[24px] sm:text-[26px] md:text-[28px] leading-none select-none filter-none"
+                      role="img"
+                      aria-label={label}
+                    >
+                      {emojiConfig.emoji}
+                    </span>
                   </div>
 
                   {/* Elegant Selection Check Circle Indicator */}
@@ -307,4 +352,3 @@ export function SeniorInterestsScreen({
     </div>
   );
 }
-
