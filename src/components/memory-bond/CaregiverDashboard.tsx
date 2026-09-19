@@ -259,6 +259,60 @@ export function CaregiverDashboard({
         </div>
       </div>
 
+      {/* SECTION 1: NEW MAIN MODULE - NER ACCESSIBILITY & SMART LOGISTICS */}
+      <div className="rounded-3xl border-2 border-sky-300 bg-gradient-to-r from-sky-50 via-white to-blue-50/50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 p-6 sm:p-7 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-sky-600 text-white flex items-center justify-center text-3xl shadow-md shadow-sky-600/25 shrink-0">
+              🗺️
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-wider text-sky-800 bg-sky-100 dark:bg-sky-950 px-3 py-1 rounded-full border border-sky-200">
+                  New Major Module
+                </span>
+                <span className="text-xs font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                  NER Logistics
+                </span>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black text-foreground mt-1">
+                NER Accessibility
+              </h3>
+              <p className="text-sm font-semibold text-muted-foreground mt-0.5">
+                Road, route and essential-goods accessibility
+              </p>
+            </div>
+          </div>
+
+          <Button
+            onClick={() => onNavigate("ner_logistics")}
+            className="w-full sm:w-auto h-12 px-6 rounded-2xl font-black text-sm bg-sky-600 hover:bg-sky-700 active:scale-95 text-white gap-2 shadow-md shadow-sky-600/20 cursor-pointer"
+          >
+            <span>Open Logistics Suite</span>
+            <ArrowUpRight className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-sky-100 dark:border-slate-800 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5 font-bold">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            <span>Open & Blocked Roads</span>
+          </div>
+          <div className="flex items-center gap-1.5 font-bold">
+            <span className="h-2 w-2 rounded-full bg-amber-500" />
+            <span>Disruption Risk & Weather</span>
+          </div>
+          <div className="flex items-center gap-1.5 font-bold">
+            <span className="h-2 w-2 rounded-full bg-teal-500" />
+            <span>Priority Medicine Tracking</span>
+          </div>
+          <div className="flex items-center gap-1.5 font-bold">
+            <span className="h-2 w-2 rounded-full bg-sky-500" />
+            <span>AI Alternate Routes</span>
+          </div>
+        </div>
+      </div>
+
       {/* CAREGIVER UNIQUE QR + PAIRING IDENTITY (Requirements 20 & 22) */}
       <div className="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50/50 via-white to-white p-6 sm:p-8 shadow-xs space-y-5">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">

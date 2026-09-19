@@ -61,12 +61,13 @@ export const SENIOR_ALLOWED_TABS: readonly string[] = [
   "voice",
   "sos",
   "checkin",
+  "ner_logistics",
 ] as const;
 
 /**
  * Tabs permitted for the Caregiver / Family role.
  * Caregivers can access Caregiver Dashboard, patient profile, medicines,
- * appointments, care network, daily routines, reminders, settings, voice, and emergency SOS.
+ * appointments, care network, daily routines, reminders, settings, voice, emergency SOS, and NER logistics.
  * Caregivers are strictly prohibited from Senior Home and Senior-only game sessions.
  */
 export const CAREGIVER_ALLOWED_TABS: readonly string[] = [
@@ -81,6 +82,7 @@ export const CAREGIVER_ALLOWED_TABS: readonly string[] = [
   "settings",
   "voice",
   "sos",
+  "ner_logistics",
 ] as const;
 
 const SENIOR_ALLOWED_SET = new Set(SENIOR_ALLOWED_TABS);

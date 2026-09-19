@@ -16,6 +16,7 @@ import {
   Clock,
   Radio,
   Lock,
+  MapPin,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
@@ -221,6 +222,16 @@ export function Footer({
                 >
                   <Sparkles className="h-3.5 w-3.5 text-emerald-500" />
                   Cultural Hub
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => onNavigate("ner_logistics")}
+                  className="hover:text-primary hover:translate-x-1 transition-all flex items-center gap-2 cursor-pointer font-medium text-sky-600 dark:text-sky-400 font-bold"
+                >
+                  <MapPin className="h-3.5 w-3.5 text-sky-500" />
+                  NER Accessibility & Logistics
                 </button>
               </li>
             </ul>

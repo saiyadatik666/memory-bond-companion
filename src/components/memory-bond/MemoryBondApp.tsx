@@ -22,6 +22,8 @@ import { FamilyTreeView } from "./FamilyTreeView";
 import { SettingsView } from "./SettingsView";
 import { SeniorOnboarding } from "./SeniorOnboarding";
 import { LoginScreen } from "./LoginScreen";
+import { SeniorNerAccessibilityView } from "./ner/SeniorNerAccessibilityView";
+import { CaregiverNerAccessibilityView } from "./ner/CaregiverNerAccessibilityView";
 import { supabase } from "@/integrations/supabase/client";
 import { checkScheduledReminders, requestNotificationPermission } from "@/lib/notificationService";
 import {
@@ -472,6 +474,25 @@ export function MemoryBondApp() {
                   <FamilyManagementView store={store} />
                 ) : (
                   <FamilyTreeView store={store} initialTab="tree" />
+                )
+              )}
+
+              {/* 9. NER Accessibility & Smart Logistics */}
+              {currentTab === "ner_logistics" && (
+                currentRole === "senior" ? (
+                  <SeniorNerAccessibilityView
+                    store={store}
+                    onOpenVoiceAssistant={() => setIsVoiceOpen(true)}
+                    onOpenSos={handleOpenSos}
+                    onNavigate={handleNavigate}
+                  />
+                ) : (
+                  <CaregiverNerAccessibilityView
+                    store={store}
+                    onOpenVoiceAssistant={() => setIsVoiceOpen(true)}
+                    onOpenSos={handleOpenSos}
+                    onNavigate={handleNavigate}
+                  />
                 )
               )}
 

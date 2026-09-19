@@ -536,6 +536,33 @@ export function SeniorHome({
             );
           })()}
         </div>
+
+        {/* 🛣️ Road & Travel Help (NER Accessibility Module) */}
+        <button
+          type="button"
+          onClick={() => onNavigate("ner_logistics")}
+          className="w-full p-4 rounded-3xl bg-gradient-to-r from-sky-50/80 via-white to-sky-50/60 border border-sky-200 hover:border-sky-400 text-left transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-98 flex items-center justify-between gap-4 mt-3"
+        >
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-700 flex items-center justify-center text-2xl shrink-0 shadow-2xs">
+              🛣️
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm sm:text-base font-black text-[#0F243E]">
+                  Road & Travel Help
+                </span>
+                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200">
+                  NER Accessibility
+                </span>
+              </div>
+              <p className="text-xs font-semibold text-[#5B728D] mt-0.5 truncate">
+                Check road accessibility, travel alerts & safe routes
+              </p>
+            </div>
+          </div>
+          <ChevronRight className="h-5 w-5 text-sky-600 shrink-0 mr-1" />
+        </button>
       </div>
     </div>
   );

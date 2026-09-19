@@ -22,6 +22,7 @@ import {
   Leaf,
   Check,
   Lock,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -79,6 +80,7 @@ export function Header({
 
   const caregiverNavItems: NavItem[] = [
     { id: "caregiver", label: t("caregiverDashboard") || "Dashboard", icon: Home },
+    { id: "ner_logistics", label: t("nerAccessibility") || "NER Accessibility", icon: MapPin },
     { id: "medicines", label: t("medicines") || "Medicines", icon: Pill },
     { id: "appointments", label: t("appointments") || "Appointments", icon: Calendar },
     { id: "family", label: t("family") || "Care Network", icon: Users },
@@ -92,6 +94,7 @@ export function Header({
 
   const seniorNavItems: NavItem[] = [
     { id: "home", label: t("home") || "Home", icon: Home },
+    { id: "ner_logistics", label: t("nerRoadHelp") || "Road Help", icon: MapPin },
     { id: "games", label: t("games") || "Games", icon: Gamepad2 },
     { id: "medicines", label: t("medicines") || "Medicines", icon: Pill },
     { id: "appointments", label: t("appointments") || "Appointments", icon: Calendar },
@@ -110,7 +113,9 @@ export function Header({
   const executeSearch = (rawQuery: string) => {
     if (!rawQuery.trim()) return;
     const q = rawQuery.toLowerCase().trim();
-    if (q.includes("game") || q.includes("puzzle") || q.includes("khel") || q.includes("રમત")) onNavigate("games");
+    if (q.includes("road") || q.includes("logistics") || q.includes("flood") || q.includes("landslide") || q.includes("ner") || q.includes("route") || q.includes("shipment") || q.includes("rasta")) {
+      onNavigate("ner_logistics");
+    } else if (q.includes("game") || q.includes("puzzle") || q.includes("khel") || q.includes("રમત")) onNavigate("games");
     else if (q.includes("med") || q.includes("pill") || q.includes("dawa") || q.includes("દવા")) onNavigate("medicines");
     else if (q.includes("doctor") || q.includes("appoint") || q.includes("clinic")) onNavigate("appointments");
     else if (q.includes("family") || q.includes("photo") || q.includes("tree") || q.includes("parivar") || q.includes("પરિવાર")) onNavigate("family_tree");

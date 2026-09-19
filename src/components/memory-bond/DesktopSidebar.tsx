@@ -14,6 +14,7 @@ import {
   Settings,
   ShieldCheck,
   Sun,
+  MapPin,
 } from "lucide-react";
 import type { MemoryBondStore, UserRole } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
@@ -51,6 +52,7 @@ export function DesktopSidebar({
 
   const seniorNavItems: NavItem[] = [
     { id: "home", label: t("home") || "Home", icon: Home },
+    { id: "ner_logistics", label: t("nerRoadHelp") || "Road Help", icon: MapPin },
     { id: "games", label: t("games") || "Games", icon: Gamepad2 },
     { id: "medicines", label: t("medicines") || "Medicines", icon: Pill },
     { id: "appointments", label: t("appointments") || "Appointments", icon: Calendar },
@@ -63,6 +65,7 @@ export function DesktopSidebar({
 
   const caregiverNavItems: NavItem[] = [
     { id: "caregiver", label: t("caregiverDashboard") || "Dashboard", icon: Home },
+    { id: "ner_logistics", label: t("nerAccessibility") || "NER Accessibility", icon: MapPin },
     { id: "medicines", label: t("medicines") || "Medicines", icon: Pill },
     { id: "appointments", label: t("appointments") || "Appointments", icon: Calendar },
     { id: "family", label: t("family") || "Care Network", icon: Users },

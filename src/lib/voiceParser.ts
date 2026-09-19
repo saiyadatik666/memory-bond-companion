@@ -756,6 +756,150 @@ export function parseVoiceIntent(
     };
   }
 
+  // 1.35. NER Road Accessibility & Smart Logistics Voice Queries (Requirement 18)
+  const isRoadOpenQuery =
+    lower.includes("is the road open") ||
+    lower.includes("is road open") ||
+    lower.includes("is there a blockage") ||
+    lower.includes("check the road") ||
+    lower.includes("check road") ||
+    lower.includes("road status") ||
+    lower.includes("rasta khula hai") ||
+    lower.includes("kya rasta khula hai") ||
+    lower.includes("rastat blockage aasa ne") ||
+    lower.includes("rasta khula ahe ne") ||
+    lower.includes("রাস্তা খোলা আছে কি");
+
+  if (isRoadOpenQuery) {
+    let reply = "";
+    if (locale.startsWith("hi")) {
+      reply = "मेरे पास अभी लाइव सरकारी डेटा सीधे कनेक्टेड नहीं है। सिमुलेशन डेटा के अनुसार, दिमा हसाओ में NH-27 जटिंगा के पास भूस्खलन के कारण बंद है, जबकि गुवाहाटी और शिलांग के बीच का मार्ग खुला है।";
+    } else if (locale.startsWith("as") || locale.startsWith("bn")) {
+      reply = "মোৰ ওচৰত বৰ্তমান লাইভ চৰকাৰী ডেটা সংলগ্ন হৈ থকা নাই। ডেমো তথ্য অনুসৰি, ডিমা হাছাওৰ জাতিঙ্গাত ভূমিস্খলনৰ বাবে NH-27 বন্ধ আছে, কিন্তু গুৱাহাটী আৰু শ্বিলঙৰ মাজৰ পথ সুচল আছে।";
+    } else {
+      reply = "I don't have live road data connected right now. In demo simulation mode, NH-27 at Dima Hasao is currently blocked near Jatinga due to a mudslide, while Guwahati and Shillong corridors are accessible.";
+    }
+    return { type: "ANSWER", message: reply };
+  }
+
+  const isAlternateRouteQuery =
+    lower.includes("show another route") ||
+    lower.includes("alternate route") ||
+    lower.includes("alternative route") ||
+    lower.includes("another route") ||
+    lower.includes("dusra rasta") ||
+    lower.includes("dusra rasta dikhao") ||
+    lower.includes("aan eta rasta");
+
+  if (isAlternateRouteQuery) {
+    let reply = "";
+    if (locale.startsWith("hi")) {
+      reply = "गुवाहाटी से सिलचर के लिए मेघालय (NH-6) होकर लड रिमबाई का वैकल्पिक मार्ग खुला है, जिसमें सामान्य से लगभग 45 मिनट अधिक समय लगेगा।";
+    } else if (locale.startsWith("as") || locale.startsWith("bn")) {
+      reply = "গুৱাহাটীৰ পৰা শিলচৰলৈ মেঘালয় (NH-6) হৈ লাড ৰিম্বাইৰে বিকল্প পথটো খোলা আছে।";
+    } else {
+      reply = "For the Guwahati to Silchar route, the recommended alternate route is via Meghalaya (NH-6) through Lad Rymbai. It has single-lane sections with a 45-minute delay, but is open for vehicles.";
+    }
+    return { type: "ANSWER", message: reply };
+  }
+
+  const isDisruptionQuery =
+    lower.includes("is there a flood problem") ||
+    lower.includes("flood problem") ||
+    lower.includes("is there a landslide") ||
+    lower.includes("landslide problem") ||
+    lower.includes("landslide risk") ||
+    lower.includes("badh ki samasya") ||
+    lower.includes("pani ahe ne") ||
+    lower.includes("banya ahe ne");
+
+  if (isDisruptionQuery) {
+    let reply = "";
+    if (locale.startsWith("hi")) {
+      reply = "सिमुलेशन मॉडल के अनुसार, दिमा हसाओ में भारी बारिश के कारण भूस्खलन का उच्च जोखिम है, और काजीरंगा क्षेत्र में ब्रह्मपुत्र का जलस्तर बढ़ रहा है।";
+    } else if (locale.startsWith("as") || locale.startsWith("bn")) {
+      reply = "ডেমো তথ্য অনুসৰি, ডিমা হাছাওত ভূমিস্খলনৰ সতৰ্কতা আছে আৰু কাজিৰঙাৰ সমীপত ব্ৰহ্মপুত্ৰৰ পানী বাঢ়িছে।";
+    } else {
+      reply = "In simulation mode, there is a critical landslide hazard warning in Dima Hasao along the hill tracts, and elevated water levels along the Brahmaputra near Kaziranga.";
+    }
+    return { type: "ANSWER", message: reply };
+  }
+
+  const isMedicineVehicleQuery =
+    lower.includes("where is the medicine vehicle") ||
+    lower.includes("medicine vehicle") ||
+    lower.includes("medicine truck") ||
+    lower.includes("where is the truck") ||
+    lower.includes("dawai wali gadi") ||
+    lower.includes("oaxodh gari");
+
+  if (isMedicineVehicleQuery) {
+    let reply = "";
+    if (locale.startsWith("hi")) {
+      reply = "मेडिकल वाहन AS-01-GC-4482 वर्तमान में मेघालय के लड रिमबाई में है और आज शाम 4:45 बजे सिलचर मेडिकल कॉलेज पहुंचने का अनुमान है।";
+    } else if (locale.startsWith("as") || locale.startsWith("bn")) {
+      reply = "ঔষধ কঢ়িওৱা বাহনখন বৰ্তমান মেঘালয়ৰ লাড ৰিম্বাইত আছে আৰু আজি আবেলি ৪:৪৫ বজাত শিলচৰ পাবগৈ।";
+    } else {
+      reply = "Priority medical carrier AS-01-GC-4482 carrying insulin and fluids is currently at Lad Rymbai toll junction, en route to Silchar Medical College, with an estimated arrival at 4:45 PM today.";
+    }
+    return { type: "ANSWER", message: reply };
+  }
+
+  const isShipmentDelayedQuery =
+    lower.includes("is my shipment delayed") ||
+    lower.includes("shipment delayed") ||
+    lower.includes("consignment delay") ||
+    lower.includes("kya consignment late hai");
+
+  if (isShipmentDelayedQuery) {
+    let reply = "";
+    if (locale.startsWith("hi")) {
+      reply = "हाफलोंग जाने वाला कंसाइनमेंट जटिंगा भूस्खलन के कारण 4.5 घंटे देरी से चल रहा है, जबकि सिलचर वाला मुख्य कंसाइनमेंट निर्धारित समय पर चल रहा है।";
+    } else if (locale.startsWith("as") || locale.startsWith("bn")) {
+      reply = "হাফলংলৈ যোৱা ঔষধৰ সামগ্ৰীখিনি ভূমিস্খলনৰ বাবে ৪.৫ ঘণ্টা পলম হৈছে, কিন্তু শিলচৰৰ চালান ঠিকমতে চলি আছে।";
+    } else {
+      reply = "Consignment NER-MED-082 for Haflong is delayed by approximately 4.5 hours due to mud clearing, while the primary Silchar consignment is on-track via the Meghalaya bypass.";
+    }
+    return { type: "ANSWER", message: reply };
+  }
+
+  const isRoadAlertsQuery =
+    lower.includes("show road alerts") ||
+    lower.includes("road alerts") ||
+    lower.includes("travel alerts") ||
+    lower.includes("rasta alert");
+
+  if (isRoadAlertsQuery) {
+    let reply = "";
+    if (locale.startsWith("hi")) {
+      reply = "सड़क अलर्ट: NH-27 जटिंगा (असम) में भूस्खलन के कारण रास्ता बंद है, और NH-10 तीस्ता नदी के कटाव के कारण सिक्किम सीमा पर बंद है।";
+    } else if (locale.startsWith("as") || locale.startsWith("bn")) {
+      reply = "পথ সতৰ্কতা: NH-27 জাতিঙ্গাত ভূমিস্খলনৰ বাবে আৰু ছিকিমৰ NH-10 তিস্তা নদীৰ পানীৰ বাবে বন্ধ আছে।";
+    } else {
+      reply = "Active road alerts: NH-27 at Jatinga Valley is blocked by a mudslide, and NH-10 at 29th Mile in Sikkim is blocked due to Teesta river water overflow.";
+    }
+    return { type: "ANSWER", message: reply };
+  }
+
+  const isReportIncidentQuery =
+    lower.includes("report a landslide") ||
+    lower.includes("report landslide") ||
+    lower.includes("report incident") ||
+    lower.includes("report road incident") ||
+    lower.includes("incident report");
+
+  if (isReportIncidentQuery) {
+    let reply = "";
+    if (locale.startsWith("hi")) {
+      reply = "आप ऐप में 'Report Road Incident' बटन दबाकर या अपनी लोकेशन और फोटो के साथ सड़क समस्या की रिपोर्ट दर्ज कर सकते हैं।";
+    } else if (locale.startsWith("as") || locale.startsWith("bn")) {
+      reply = "আপুনি এপৰ 'Report Road Incident' বুটাম টিপি বা আপোনাৰ স্থান উল্লেখ কৰি পথৰ ঘটনা ৰিপৰ্ট কৰিব পাৰে।";
+    } else {
+      reply = "You can report a field incident by tapping 'Report Road Incident' in the logistics dashboard to submit a photo, location, and description.";
+    }
+    return { type: "ANSWER", message: reply };
+  }
+
   // 1.4. Direct Voice Quick Commands (Call Family, Start Game, Appointment Query)
   if (
     lower.includes("start my memory game") ||
