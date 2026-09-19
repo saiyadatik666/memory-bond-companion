@@ -77,6 +77,11 @@ export function MemoryBondApp() {
   // Synchronize store profile role with active authenticated session on mount & updates
   useEffect(() => {
     const session = getActiveSession();
+    if (!session && isAuthenticated) {
+      console.warn("[AuthSecurity] No valid authenticated session found. Requiring authentication.");
+      setIsAuthenticated(false);
+      return;
+    }
     if (session?.role) {
       if (store.profile.role !== session.role) {
         store.updateProfile({
@@ -86,7 +91,26 @@ export function MemoryBondApp() {
         store.setRole(session.role);
       }
     }
-  }, [store.profile.role, store.profile.full_name]);
+
+    // Guard against local storage tampering from other windows or devtools (Section 4 & 18)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "mb_active_session" || e.key === "mb_role") {
+        const currentValidSession = getActiveSession();
+        if (!currentValidSession) {
+          console.warn("[AuthSecurity] Active session was cleared or tampered with. Logging out.");
+          clearActiveSession();
+          setIsAuthenticated(false);
+        } else if (currentValidSession.role !== store.profile.role) {
+          console.warn("[AuthSecurity] Unauthorized role switch attempt detected in storage. Restoring locked session.");
+          store.setRole(currentValidSession.role);
+          store.updateProfile({ role: currentValidSession.role });
+        }
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [store.profile.role, store.profile.full_name, isAuthenticated]);
 
   // Listen to Supabase auth events (OAuth redirect, sign in, sign out) with fail-safe error handling
   useEffect(() => {
@@ -197,6 +221,26 @@ export function MemoryBondApp() {
       const session = getActiveSession();
       const role = session?.role || store.profile.role;
       const params = new URLSearchParams(window.location.search);
+
+      // Requirement 17: Disallow role switching through URL (?role=senior / ?role=caregiver / /switch-role)
+      let urlChanged = false;
+      if (params.has("role")) {
+        console.warn("[Security] Role override through URL query rejected. Role is locked to active authenticated session.");
+        params.delete("role");
+        urlChanged = true;
+      }
+      if (params.has("switch-role")) {
+        params.delete("switch-role");
+        urlChanged = true;
+      }
+      if (urlChanged) {
+        window.history.replaceState(
+          null,
+          "",
+          `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`
+        );
+      }
+
       const tabParam = params.get("tab");
 
       if (tabParam) {

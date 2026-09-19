@@ -21,6 +21,7 @@ import {
   Heart,
   Leaf,
   Check,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -338,13 +339,13 @@ export function Header({
               )}
             </button>
 
-            {/* Profile Button [ 👤 Profile ] — Opens Profile & Settings Menu with Role Switcher */}
+            {/* Profile Button [ 👤 Profile ] — Information & Settings */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
                   className="h-8 sm:h-9 md:h-10 pl-1 pr-1.5 sm:pr-3 rounded-full border border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] flex items-center gap-1.5 sm:gap-2 transition-colors shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E6FD9] shrink-0"
-                  aria-label="User Profile and Role Switcher"
+                  aria-label="User Profile"
                 >
                   <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full overflow-hidden shrink-0 border border-[#D0E2FF] bg-[#EBF3FC]">
                     <img
@@ -361,104 +362,77 @@ export function Header({
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="w-64 sm:w-72 rounded-2xl p-2.5 bg-white border-[#E2EAF5] shadow-xl space-y-2 z-50 animate-in fade-in zoom-in-95"
+                className="w-64 sm:w-72 rounded-2xl p-2.5 bg-white border-[#E2EAF5] shadow-xl space-y-1.5 z-50 animate-in fade-in zoom-in-95"
               >
-                {/* Profile Information Header */}
-                <div className="px-3 py-2 bg-[#F8FAFD] rounded-xl border border-[#EDF2F7]">
-                  <div className="font-black text-sm text-[#0F243E] truncate">
-                    {userDisplayName}
+                {/* Profile Information Header — Non-clickable Role Label (Sections 8 & 9) */}
+                <div className="px-3 py-2.5 bg-[#F8FAFD] rounded-xl border border-[#EDF2F7]">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-[#1E6FD9] shrink-0" />
+                    <span className="font-black text-sm text-[#0F243E] truncate">
+                      {userDisplayName}
+                    </span>
                   </div>
-                  <div className="text-[11px] font-bold text-[#1E6FD9] uppercase tracking-wider mt-0.5">
-                    {role === "caregiver" ? "Caregiver Mode (Priya)" : "Senior Mode (Meena)"}
-                  </div>
-                </div>
-
-                {/* ROLE SWITCHER INSIDE PROFILE MENU (Section 4 & 24) */}
-                <div className="p-2 bg-[#EBF3FC]/60 rounded-xl border border-[#D0E2FF] space-y-1.5">
-                  <div className="text-[10px] font-extrabold text-[#1E6FD9] uppercase tracking-wider px-1">
-                    Switch Mode / Role
-                  </div>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        store.setRole("senior");
-                        store.updateProfile({ role: "senior", full_name: "Meena Patel" });
-                        try {
-                          localStorage.setItem("mb_active_session", JSON.stringify({
-                            userId: "sr-1",
-                            role: "senior",
-                            fullName: "Meena Patel",
-                            email: "meena@memorybond.org"
-                          }));
-                        } catch {}
-                        onNavigate("home");
-                      }}
-                      className={`py-2 px-2 rounded-lg text-xs font-black transition-all text-center cursor-pointer ${
-                        role === "senior"
-                          ? "bg-[#1E6FD9] text-white shadow-xs"
-                          : "bg-white text-[#0F243E] border border-[#E2EAF5] hover:bg-[#F4F8FD]"
-                      }`}
-                    >
-                      👵 Senior Mode
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        store.setRole("caregiver");
-                        store.updateProfile({ role: "caregiver", full_name: "Priya Patel" });
-                        try {
-                          localStorage.setItem("mb_active_session", JSON.stringify({
-                            userId: "cg-1",
-                            role: "caregiver",
-                            fullName: "Priya Patel",
-                            email: "priya@memorybond.org"
-                          }));
-                        } catch {}
-                        onNavigate("caregiver");
-                      }}
-                      className={`py-2 px-2 rounded-lg text-xs font-black transition-all text-center cursor-pointer ${
-                        role === "caregiver"
-                          ? "bg-[#1E6FD9] text-white shadow-xs"
-                          : "bg-white text-[#0F243E] border border-[#E2EAF5] hover:bg-[#F4F8FD]"
-                      }`}
-                    >
-                      🛡️ Caregiver
-                    </button>
+                  <div className="inline-block text-[11px] font-bold text-[#1E6FD9] bg-[#EBF4FE] px-2.5 py-0.5 rounded-full border border-[#D0E2FF] mt-1.5 select-none pointer-events-none">
+                    {role === "caregiver" ? "Caregiver Account" : "Senior Account"}
                   </div>
                 </div>
 
                 <DropdownMenuSeparator />
 
-                {/* Profile Links & Settings */}
+                {/* Settings */}
                 <DropdownMenuItem
                   onClick={() => onNavigate("settings")}
-                  className="rounded-xl text-xs font-bold cursor-pointer py-2 px-3 hover:bg-[#F4F8FD] text-[#0F243E] flex items-center gap-2.5"
+                  className="rounded-xl text-xs font-bold cursor-pointer py-2.5 px-3 hover:bg-[#F4F8FD] text-[#0F243E] flex items-center gap-2.5"
                 >
                   <Settings className="h-4 w-4 text-[#627D98]" />
-                  <span>{t("settings") || "Settings & Accessibility"}</span>
+                  <span>{t("settings") || "Settings"}</span>
                 </DropdownMenuItem>
 
+                {/* Emergency SOS Contacts */}
                 {onOpenSos && (
                   <DropdownMenuItem
                     onClick={onOpenSos}
-                    className="rounded-xl text-xs font-bold text-rose-600 focus:bg-rose-50 hover:bg-rose-50 cursor-pointer py-2 px-3 flex items-center gap-2.5"
+                    className="rounded-xl text-xs font-bold text-rose-600 focus:bg-rose-50 hover:bg-rose-50 cursor-pointer py-2.5 px-3 flex items-center gap-2.5"
                   >
                     <AlertOctagon className="h-4 w-4 text-rose-600" />
                     <span>Emergency SOS Contacts</span>
                   </DropdownMenuItem>
                 )}
 
+                {/* Notifications */}
+                <DropdownMenuItem
+                  onClick={onOpenNotifications}
+                  className="rounded-xl text-xs font-bold cursor-pointer py-2.5 px-3 hover:bg-[#F4F8FD] text-[#0F243E] flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Bell className="h-4 w-4 text-[#627D98]" />
+                    <span>{t("notifications") || "Notifications"}</span>
+                  </div>
+                  {unreadCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full bg-destructive text-white text-[10px] font-black">
+                      {unreadCount}
+                    </span>
+                  )}
+                </DropdownMenuItem>
+
+                {/* Privacy */}
+                <DropdownMenuItem
+                  onClick={() => onNavigate("settings")}
+                  className="rounded-xl text-xs font-bold cursor-pointer py-2.5 px-3 hover:bg-[#F4F8FD] text-[#0F243E] flex items-center gap-2.5"
+                >
+                  <Lock className="h-4 w-4 text-[#627D98]" />
+                  <span>Privacy</span>
+                </DropdownMenuItem>
+
                 {onSignOut && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={onSignOut}
-                      className="rounded-xl text-xs font-bold text-[#DC2626] focus:bg-[#FEE2E2] cursor-pointer py-2 px-3 flex items-center gap-2.5"
+                      className="rounded-xl text-xs font-bold text-[#DC2626] focus:bg-[#FEE2E2] hover:bg-[#FEE2E2] cursor-pointer py-2.5 px-3 flex items-center gap-2.5"
                     >
                       <LogOut className="h-4 w-4" />
-                      <span>{t("signOut") || "Sign Out"}</span>
+                      <span>{t("signOut") || "Sign out"}</span>
                     </DropdownMenuItem>
                   </>
                 )}
@@ -581,8 +555,8 @@ export function Header({
                   <div className="font-extrabold text-sm text-[#0F243E] truncate">
                     {userDisplayName}
                   </div>
-                  <div className="text-xs text-[#5B728D] truncate">
-                    {role === "caregiver" ? "Primary Caregiver Account" : "Senior Member"}
+                  <div className="inline-block text-[11px] font-bold text-[#1E6FD9] bg-[#EBF4FE] px-2.5 py-0.5 rounded-full border border-[#D0E2FF] mt-1 select-none pointer-events-none">
+                    {role === "caregiver" ? "Caregiver Account" : "Senior Account"}
                   </div>
                 </div>
               </div>

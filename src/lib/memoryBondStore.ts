@@ -17,6 +17,7 @@ import {
   type EightDayCycleInfo,
   STATUTORY_WELLNESS_DISCLAIMER,
 } from "./cognitiveCareEngine";
+import { getActiveSession } from "./authGuards";
 
 export type UserRole = "senior" | "caregiver" | "admin_healthcare_worker" | "healthcare_worker" | "admin";
 
@@ -1163,19 +1164,16 @@ export function useMemoryBondStore() {
       if (saved) base = JSON.parse(saved);
     } catch {}
 
-    // Synchronize strictly with active authenticated session if one exists
+    // Synchronize strictly with verified authenticated session if one exists
     if (typeof window !== "undefined") {
       try {
-        const raw = localStorage.getItem("mb_active_session");
-        if (raw) {
-          const session = JSON.parse(raw);
-          if (session?.role) {
-            base = {
-              ...base,
-              role: session.role,
-              full_name: session.fullName || base.full_name,
-            };
-          }
+        const session = getActiveSession();
+        if (session?.role) {
+          base = {
+            ...base,
+            role: session.role,
+            full_name: session.fullName || base.full_name,
+          };
         }
       } catch {}
     }
@@ -1545,15 +1543,12 @@ export function useMemoryBondStore() {
     // If an authenticated session is active, lock role to session role
     if (typeof window !== "undefined") {
       try {
-        const raw = localStorage.getItem("mb_active_session");
-        if (raw) {
-          const session = JSON.parse(raw);
-          if (session?.role && session.role !== role) {
-            console.warn(
-              `[Security] Role change to '${role}' rejected. Active session is locked to '${session.role}'. Log out to switch roles.`
-            );
-            return;
-          }
+        const session = getActiveSession();
+        if (session?.role && session.role !== role) {
+          console.warn(
+            `[Security] Role change to '${role}' rejected. Active session is locked to '${session.role}'. Log out to switch roles.`
+          );
+          return;
         }
       } catch {}
     }
@@ -1565,15 +1560,12 @@ export function useMemoryBondStore() {
       let nextRole = patch.role !== undefined ? patch.role : prev.role;
       if (typeof window !== "undefined" && patch.role !== undefined) {
         try {
-          const raw = localStorage.getItem("mb_active_session");
-          if (raw) {
-            const session = JSON.parse(raw);
-            if (session?.role && session.role !== patch.role) {
-              console.warn(
-                `[Security] Role update to '${patch.role}' rejected. Active session is locked to '${session.role}'.`
-              );
-              nextRole = session.role;
-            }
+          const session = getActiveSession();
+          if (session?.role && session.role !== patch.role) {
+            console.warn(
+              `[Security] Role update to '${patch.role}' rejected. Active session is locked to '${session.role}'.`
+            );
+            nextRole = session.role;
           }
         } catch {}
       }

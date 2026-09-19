@@ -31,6 +31,7 @@ import { speakText } from "@/lib/voiceParser";
 import { connectSeniorToCaregiver } from "@/lib/caregiverConnectionService";
 import { MemoryBondLogo } from "./MemoryBondLogo";
 import { SeniorInterestsScreen } from "./SeniorInterestsScreen";
+import { saveActiveSession } from "@/lib/authGuards";
 
 interface LoginScreenProps {
   store: MemoryBondStore;
@@ -131,17 +132,13 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
         const userId = data.user?.id || `cg_${Date.now()}`;
         const caregiverCode = getOrCreateCaregiverCode(userId);
 
-        localStorage.setItem(
-          "mb_active_session",
-          JSON.stringify({
-            userId,
-            role: "caregiver",
-            email: email.trim(),
-            fullName: fullName.trim() || "Caregiver",
-            caregiverCode,
-          })
-        );
-        localStorage.setItem("mb_authenticated_user_id", userId);
+        saveActiveSession({
+          userId,
+          role: "caregiver",
+          email: email.trim(),
+          fullName: fullName.trim() || "Caregiver",
+          caregiverCode,
+        });
         localStorage.setItem("mb_welcome_completed", "true");
 
         store.updateProfile({
@@ -172,17 +169,13 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
         const caregiverCode = getOrCreateCaregiverCode(userId);
         const name = user?.user_metadata?.full_name || email.split("@")[0] || "Caregiver";
 
-        localStorage.setItem(
-          "mb_active_session",
-          JSON.stringify({
-            userId,
-            role: "caregiver",
-            email: user?.email || email,
-            fullName: name,
-            caregiverCode,
-          })
-        );
-        localStorage.setItem("mb_authenticated_user_id", userId);
+        saveActiveSession({
+          userId,
+          role: "caregiver",
+          email: user?.email || email,
+          fullName: name,
+          caregiverCode,
+        });
         localStorage.setItem("mb_welcome_completed", "true");
 
         store.updateProfile({
@@ -208,17 +201,13 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
     const demoId = "cg_demo_priya";
     const caregiverCode = getOrCreateCaregiverCode(demoId);
 
-    localStorage.setItem(
-      "mb_active_session",
-      JSON.stringify({
-        userId: demoId,
-        role: "caregiver",
-        email: "priya.patel@memorybond.org",
-        fullName: "Priya Patel (Caregiver)",
-        caregiverCode,
-      })
-    );
-    localStorage.setItem("mb_authenticated_user_id", demoId);
+    saveActiveSession({
+      userId: demoId,
+      role: "caregiver",
+      email: "priya.patel@memorybond.org",
+      fullName: "Priya Patel (Caregiver)",
+      caregiverCode,
+    });
     localStorage.setItem("mb_welcome_completed", "true");
 
     store.updateProfile({
@@ -238,16 +227,12 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
     const seniorId = "demo_senior_meena";
     const caregiverCode = "MB-CG-781042";
 
-    localStorage.setItem(
-      "mb_active_session",
-      JSON.stringify({
-        userId: seniorId,
-        role: "senior",
-        fullName: "Meena Patel",
-        caregiverCode,
-      })
-    );
-    localStorage.setItem("mb_authenticated_user_id", seniorId);
+    saveActiveSession({
+      userId: seniorId,
+      role: "senior",
+      fullName: "Meena Patel",
+      caregiverCode,
+    });
     localStorage.setItem("mb_welcome_completed", "true");
 
     store.updateProfile({
@@ -292,9 +277,22 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
 
       setLinkingSuccess(successMsg);
 
-      store.updateProfile({
+      saveActiveSession({
+        userId: `senior_${Date.now()}`,
+        role: "senior",
+        fullName: seniorName.trim() || store.profile.full_name || "Meena Patel",
+        caregiverCode: cleanCode,
         interests: seniorInterests,
       });
+      localStorage.setItem("mb_welcome_completed", "true");
+
+      store.updateProfile({
+        full_name: seniorName.trim() || store.profile.full_name || "Meena Patel",
+        role: "senior",
+        onboarded: true,
+        interests: seniorInterests,
+      });
+      store.setRole("senior");
 
       setTimeout(() => {
         onAuthenticated("senior");
@@ -313,16 +311,12 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
     const seniorId = `senior_${Date.now()}`;
     const name = seniorName.trim() || "Meena Patel";
 
-    localStorage.setItem(
-      "mb_active_session",
-      JSON.stringify({
-        userId: seniorId,
-        role: "senior",
-        fullName: name,
-        interests: seniorInterests,
-      })
-    );
-    localStorage.setItem("mb_authenticated_user_id", seniorId);
+    saveActiveSession({
+      userId: seniorId,
+      role: "senior",
+      fullName: name,
+      interests: seniorInterests,
+    });
     localStorage.setItem("mb_welcome_completed", "true");
 
     store.updateProfile({
