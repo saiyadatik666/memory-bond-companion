@@ -331,14 +331,54 @@ export const getTodayDateString = () => new Date().toISOString().slice(0, 10);
 export const CES_DISCLAIMER =
   "This score is for tracking cognitive engagement, daily activity participation, and memory exercise performance. It is NOT a medical diagnosis and should never be used to diagnose dementia or any neurological disease.";
 
-// Realistic Initial Demo Dataset (North Eastern Region / Indian context - Ramesh Das, 68, Assam)
+export interface CaregiverAlertItem {
+  id: string;
+  category: "medicine" | "activity" | "appointment" | "system";
+  title: string;
+  message: string;
+  severity: "red" | "yellow" | "blue";
+  timestamp: string;
+  resolved: boolean;
+}
+
+export const DEMO_ALERTS: CaregiverAlertItem[] = [
+  {
+    id: "alert-med-1",
+    category: "medicine",
+    title: "Morning Medicine Not Confirmed",
+    message: "Morning medicine (Metformin 500mg, 10:00 AM) has not been confirmed.",
+    severity: "red",
+    timestamp: "10:15 AM Today",
+    resolved: false,
+  },
+  {
+    id: "alert-act-1",
+    category: "activity",
+    title: "Today's Cognitive Activity Pending",
+    message: "Today's recommended 5-minute memory activity has not been completed.",
+    severity: "yellow",
+    timestamp: "09:00 AM Today",
+    resolved: false,
+  },
+  {
+    id: "alert-app-1",
+    category: "appointment",
+    title: "Doctor Appointment Tomorrow",
+    message: "General Health Checkup with Dr. Sharma tomorrow at 4:00 PM.",
+    severity: "blue",
+    timestamp: "Tomorrow 4:00 PM",
+    resolved: false,
+  },
+];
+
+// Realistic Initial Demo Dataset (North Eastern Region / Senior Context: Meena Patel, 72)
 export const DEMO_PROFILE: Profile = {
-  id: "demo-senior-ramesh",
-  member_id: "MB-NER-781003-RAMESH",
-  full_name: "Ramesh Das",
+  id: "demo-senior-meena",
+  member_id: "MB-SENIOR-MEENA-72",
+  full_name: "Meena Patel",
   role: "senior",
   language: "en",
-  age_range: "68",
+  age_range: "72",
   phone: "+91 98640 55123",
   font_size: "large",
   high_contrast: false,
@@ -352,12 +392,12 @@ export const DEMO_PROFILE: Profile = {
   floating_bubble: true,
   baseline_assessment: {
     completed_at: "2026-02-10",
-    overall_score: 76,
-    memory_score: 75,
-    attention_score: 80,
+    overall_score: 78,
+    memory_score: 76,
+    attention_score: 82,
     orientation_score: 85,
-    recall_score: 70,
-    notes: "Initial cognitive baseline established. Normal alert responses with pleasant orientation.",
+    recall_score: 74,
+    notes: "Initial cognitive engagement baseline established. Pleasant orientation with warm responsiveness.",
   },
   caregiver_alerts: {
     missed_medicines: true,
@@ -453,24 +493,25 @@ export interface AssignedSenior {
 
 export const DEMO_ASSIGNED_SENIORS: AssignedSenior[] = [
   {
-    id: "senior-ramesh",
-    name: "Ramesh Das",
-    age: 68,
+    id: "senior-meena",
+    name: "Meena Patel",
+    age: 72,
     region: "Assam",
-    language: "Assamese / English",
+    language: "English / Hindi / Assamese",
     status: "stable",
     statusLabel: "Activity Status: Normal",
     medicineTaken: 2,
-    medicineTotal: 2,
-    hydrationGlasses: 4,
-    hydrationTarget: 6,
-    routinesDone: 5,
-    routinesTotal: 6,
-    gamesCompleted: 2,
+    medicineTotal: 3,
+    hydrationGlasses: 5,
+    hydrationTarget: 8,
+    routinesDone: 4,
+    routinesTotal: 5,
+    gamesCompleted: 1,
     lastActive: "10 minutes ago",
     lastSync: "2 minutes ago",
-    alertsCount: 0,
-    cesScore: 76,
+    alertsCount: 1,
+    recentAlert: "Morning medicine scheduled at 10:00 AM",
+    cesScore: 82,
     trend: "improving",
   },
   {
@@ -496,7 +537,7 @@ export const DEMO_ASSIGNED_SENIORS: AssignedSenior[] = [
     trend: "declining",
   },
   {
-    id: "senior-meena",
+    id: "senior-barman",
     name: "Meena Barman",
     age: 81,
     region: "Meghalaya",
@@ -564,7 +605,7 @@ export const DEMO_ASSIGNED_SENIORS: AssignedSenior[] = [
 export const DEMO_CAREGIVER_LINKS: CaregiverLink[] = [
   {
     id: "cg-1",
-    caregiver_name: "Sunita Sharma",
+    caregiver_name: "Priya Patel",
     relationship: "Daughter / Primary Caregiver",
     phone: "+91 98765 43210",
     status: "approved",
@@ -574,12 +615,12 @@ export const DEMO_CAREGIVER_LINKS: CaregiverLink[] = [
       appointments: true,
       games: true,
       sos: true,
-      journal: false,
+      journal: true,
     },
   },
   {
     id: "cg-2",
-    caregiver_name: "Rajesh Sharma",
+    caregiver_name: "Rahul Patel",
     relationship: "Son (Bengaluru)",
     phone: "+91 98765 43211",
     status: "approved",
@@ -1363,6 +1404,55 @@ export function useMemoryBondStore() {
   const [lastSyncTime, setLastSyncTime] = useState<string>("2 minutes ago");
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "success" | "error">("idle");
 
+  // Caregiver Active Alerts System (Medicine, Activity, Appointment)
+  const [alerts, setAlerts] = useState<CaregiverAlertItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(getKey("caregiver_alerts_list"));
+      return saved ? JSON.parse(saved) : DEMO_ALERTS;
+    } catch {
+      return DEMO_ALERTS;
+    }
+  });
+
+  // Daily Mood Check-In ("happy" | "good" | "okay" | "worried" | "sad")
+  const [todaysMood, setTodaysMoodState] = useState<string>(() => {
+    try {
+      return localStorage.getItem(getKey("todays_mood")) || "happy";
+    } catch {
+      return "happy";
+    }
+  });
+
+  // Dynamic AI Adaptive Feedback
+  const [lastAdaptiveFeedback, setLastAdaptiveFeedback] = useState<{
+    previousAccuracy: number;
+    currentAccuracy: number;
+    recommendation: string;
+    adjustment: "increased" | "maintained" | "reduced";
+    timestamp?: string;
+  }>(() => {
+    try {
+      const saved = localStorage.getItem(getKey("last_adaptive_feedback"));
+      return saved
+        ? JSON.parse(saved)
+        : {
+            previousAccuracy: 74,
+            currentAccuracy: 82,
+            recommendation: "Difficulty increased slightly for your next activity based on your high accuracy & prompt response.",
+            adjustment: "increased",
+            timestamp: new Date().toISOString(),
+          };
+    } catch {
+      return {
+        previousAccuracy: 74,
+        currentAccuracy: 82,
+        recommendation: "Difficulty increased slightly for your next activity based on your high accuracy & prompt response.",
+        adjustment: "increased",
+        timestamp: new Date().toISOString(),
+      };
+    }
+  });
+
   // Sync state to LocalStorage
   useEffect(() => {
     try {
@@ -1389,10 +1479,13 @@ export function useMemoryBondStore() {
       localStorage.setItem(getKey("hydration_target"), String(hydrationTarget));
       localStorage.setItem(getKey("memory_stories"), JSON.stringify(memoryStories));
       localStorage.setItem(getKey("assigned_seniors"), JSON.stringify(assignedSeniors));
+      localStorage.setItem(getKey("caregiver_alerts_list"), JSON.stringify(alerts));
+      localStorage.setItem(getKey("todays_mood"), todaysMood);
+      localStorage.setItem(getKey("last_adaptive_feedback"), JSON.stringify(lastAdaptiveFeedback));
     } catch (e) {
       console.warn("LocalStorage save error:", e);
     }
-  }, [profile, medicines, medicineLogs, reminders, routines, appointments, memoryCues, journal, contacts, sosEvents, gameSessions, notifications, caregiverLinks, routineCalls, socialFeed, clinicalNotes, syncQueue, reminderEscalations, auditLog, hydrationGlasses, hydrationTarget, memoryStories, assignedSeniors]);
+  }, [profile, medicines, medicineLogs, reminders, routines, appointments, memoryCues, journal, contacts, sosEvents, gameSessions, notifications, caregiverLinks, routineCalls, socialFeed, clinicalNotes, syncQueue, reminderEscalations, auditLog, hydrationGlasses, hydrationTarget, memoryStories, assignedSeniors, alerts, todaysMood, lastAdaptiveFeedback]);
 
   // Network online/offline listener with automatic sync flush
   useEffect(() => {
@@ -1512,6 +1605,20 @@ export function useMemoryBondStore() {
       enqueueOfflineAction("MARK_MEDICINE_STATUS", { id, status, note, scheduledTime, photoUrl });
 
       if (status === "taken") {
+        // Auto-resolve any pending medicine alerts for Caregiver
+        setAlerts((prev) =>
+          prev.map((a) => (a.category === "medicine" ? { ...a, resolved: true } : a))
+        );
+
+        // Synchronize medicine adherence in caregiver assigned senior snapshot
+        setAssignedSeniors((seniors) =>
+          seniors.map((s) =>
+            s.id === "senior-meena" || s.id === "senior-ramesh"
+              ? { ...s, medicineTaken: Math.min(s.medicineTotal, s.medicineTaken + 1), lastActive: "Just now" }
+              : s
+          )
+        );
+
         setMedicines((prev) =>
           prev.map((med) => {
             if (med.id !== id) return med;
@@ -1750,6 +1857,46 @@ export function useMemoryBondStore() {
     };
     enqueueOfflineAction("RECORD_GAME_SESSION", session);
     setGameSessions((prev) => [session, ...prev]);
+
+    // Auto-resolve pending activity alerts for Caregiver
+    setAlerts((prev) =>
+      prev.map((a) => (a.category === "activity" ? { ...a, resolved: true } : a))
+    );
+
+    // Synchronize cognitive activity completion to caregiver overview
+    setAssignedSeniors((seniors) =>
+      seniors.map((s) =>
+        s.id === "senior-meena" || s.id === "senior-ramesh"
+          ? {
+              ...s,
+              gamesCompleted: s.gamesCompleted + 1,
+              lastActive: "Just now",
+              cesScore: Math.min(95, Math.max(60, Math.round((s.cesScore * 0.7) + (accuracy * 0.3)))),
+            }
+          : s
+      )
+    );
+
+    // AI Adaptive Difficulty Engine: Calculate transparent adjustments
+    const prevAcc = gameSessions.length > 0 ? (gameSessions[0].accuracy || 74) : 74;
+    let adjustment: "increased" | "maintained" | "reduced" = "maintained";
+    let recText = `Steady focus (${accuracy}%)! Current comfortable difficulty maintained for tomorrow's activity.`;
+
+    if (accuracy >= 80) {
+      adjustment = "increased";
+      recText = `Outstanding recall (${accuracy}%)! Difficulty increased slightly for your next activity.`;
+    } else if (accuracy < 55) {
+      adjustment = "reduced";
+      recText = `Gentle practice mode activated. Difficulty reduced slightly to support calm engagement.`;
+    }
+
+    setLastAdaptiveFeedback({
+      previousAccuracy: prevAcc,
+      currentAccuracy: accuracy,
+      recommendation: recText,
+      adjustment,
+      timestamp: new Date().toISOString(),
+    });
   }, [enqueueOfflineAction, gameSessions]);
 
   // SOS Trigger
@@ -1871,13 +2018,13 @@ export function useMemoryBondStore() {
   // Hydration Actions (SIH 2026 Section 13)
   const drinkGlassOfWater = useCallback(() => {
     setHydrationGlasses((prev) => {
-      const next = Math.min(10, prev + 1);
+      const next = Math.min(12, prev + 1);
       enqueueOfflineAction("DRINK_WATER", { glasses: next, timestamp: new Date().toISOString() });
       const notif: AppNotification = {
         id: `hyd-${Date.now()}`,
         category: "routine",
         title: "Hydration Recorded 💧",
-        body: `Good job Ramesh! 1 glass of water recorded (${next} of ${hydrationTarget} glasses today).`,
+        body: `1 glass of water recorded (${next} of ${hydrationTarget} glasses today). Stay refreshed!`,
         read: false,
         created_at: new Date().toISOString(),
       };
@@ -1885,12 +2032,63 @@ export function useMemoryBondStore() {
 
       // Update in assigned seniors list for caregiver
       setAssignedSeniors((seniors) =>
-        seniors.map((s) => (s.id === "senior-ramesh" ? { ...s, hydrationGlasses: next } : s))
+        seniors.map((s) =>
+          s.id === "senior-meena" || s.id === "senior-ramesh" ? { ...s, hydrationGlasses: next, lastActive: "Just now" } : s
+        )
       );
 
       return next;
     });
   }, [hydrationTarget, enqueueOfflineAction]);
+
+  // Daily Mood Check-in Action
+  const setTodaysMood = useCallback((mood: string) => {
+    setTodaysMoodState(mood);
+    try {
+      localStorage.setItem(getKey("todays_mood"), mood);
+    } catch {}
+
+    const moodLabels: Record<string, string> = {
+      happy: "Happy 😊",
+      good: "Good 🙂",
+      okay: "Okay 😐",
+      worried: "Worried 😟",
+      sad: "Sad 😢",
+    };
+    const label = moodLabels[mood] || mood;
+
+    // Record in memory journal
+    const moodEntry: MemoryJournalItem = {
+      id: `jou-mood-${Date.now()}`,
+      title: `Daily Well-being: Feeling ${label}`,
+      body: `Meena completed her daily mood check-in feeling ${label}. Warm encouragement and gentle presence provided.`,
+      entry_date: getTodayDateString(),
+      kind: "text",
+    };
+    setJournal((prev) => [moodEntry, ...prev.filter((j) => !j.id.startsWith("jou-mood-"))]);
+
+    // Update in caregiver patient profile
+    setAssignedSeniors((seniors) =>
+      seniors.map((s) =>
+        s.id === "senior-meena" || s.id === "senior-ramesh" ? { ...s, lastActive: "Just now" } : s
+      )
+    );
+  }, []);
+
+  // Caregiver Alert Management Actions
+  const resolveAlert = useCallback((id: string) => {
+    setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, resolved: true } : a)));
+  }, []);
+
+  const addAlert = useCallback((alert: Omit<CaregiverAlertItem, "id" | "timestamp" | "resolved">) => {
+    const newAlert: CaregiverAlertItem = {
+      ...alert,
+      id: `alert-${Date.now()}`,
+      timestamp: "Just now",
+      resolved: false,
+    };
+    setAlerts((prev) => [newAlert, ...prev]);
+  }, []);
 
   // Memory Story Actions (SIH 2026 Section 22)
   const recordMemoryStoryReaction = useCallback(
@@ -1937,10 +2135,19 @@ export function useMemoryBondStore() {
     setSosEvents([]);
     setReminderEscalations(DEMO_REMINDER_ESCALATIONS);
     setAuditLog(DEMO_AUDIT_LOG);
-    setHydrationGlasses(4);
-    setHydrationTarget(6);
+    setHydrationGlasses(5);
+    setHydrationTarget(8);
     setMemoryStories(DEMO_MEMORY_STORIES);
     setAssignedSeniors(DEMO_ASSIGNED_SENIORS);
+    setAlerts(DEMO_ALERTS);
+    setTodaysMoodState("happy");
+    setLastAdaptiveFeedback({
+      previousAccuracy: 74,
+      currentAccuracy: 82,
+      recommendation: "Difficulty increased slightly for your next activity based on your high accuracy & prompt response.",
+      adjustment: "increased",
+      timestamp: new Date().toISOString(),
+    });
     setLastSyncTime("Just now");
     setSyncStatus("idle");
   }, []);
@@ -2345,6 +2552,23 @@ export function useMemoryBondStore() {
     hydrationGlasses,
     hydrationTarget,
     drinkGlassOfWater,
+    addHydrationGlass: drinkGlassOfWater,
+
+    // Active Caregiver Alerts
+    alerts,
+    resolveAlert,
+    addAlert,
+
+    // Daily Mood Check-in
+    todaysMood,
+    setTodaysMood,
+
+    // AI Adaptive Difficulty Engine Feedback
+    lastAdaptiveFeedback,
+
+    // Offline Simulation Controls
+    setOfflineModeForced,
+    offlineModeForced: !!offlineModeForced,
 
     // Memory Stories (SIH 2026 Section 22)
     memoryStories,

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { RotateCcw, ArrowRight, AlertCircle } from "lucide-react";
+import { RotateCcw, ArrowRight, AlertCircle, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MemoryBondLogo } from "./MemoryBondLogo";
-import { MemoryBondPulseDots } from "./MemoryBondLoading";
 
 interface AppLoadingScreenProps {
   error?: string | null;
@@ -11,15 +10,20 @@ interface AppLoadingScreenProps {
 }
 
 export function AppLoadingScreen({ error, onRetry, onSkip }: AppLoadingScreenProps) {
-  const [isSlow, setIsSlow] = useState(false);
+  const [progress, setProgress] = useState(25);
 
-  // Fail-safe timeout guard: After 3.5 seconds on slow network, offer immediate entry
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsSlow(true);
-    }, 3500);
-    return () => clearTimeout(timer);
-  }, []);
+    const timer1 = setTimeout(() => setProgress(65), 400);
+    const timer2 = setTimeout(() => setProgress(100), 900);
+    const timer3 = setTimeout(() => {
+      if (onSkip) onSkip();
+    }, 1400);
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+    };
+  }, [onSkip]);
 
   const handleRetry = () => {
     if (onRetry) {
@@ -33,28 +37,29 @@ export function AppLoadingScreen({ error, onRetry, onSkip }: AppLoadingScreenPro
     <div
       role="status"
       aria-live="polite"
-      className="min-h-screen bg-ambient flex flex-col items-center justify-center p-4 sm:p-6 select-none page-transition-enter"
+      className="min-h-screen bg-ambient flex flex-col items-center justify-center p-4 sm:p-6 select-none animate-in fade-in duration-300"
     >
-      <div className="w-full max-w-md rounded-3xl bg-white/95 dark:bg-card/95 border border-sky-100 dark:border-border shadow-2xl p-8 sm:p-10 text-center space-y-6 backdrop-blur-md">
-        {/* Official Memory Bond Logo with Generous Whitespace & Soft Ambient Glow */}
+      <div className="w-full max-w-md rounded-3xl bg-white/98 dark:bg-card/98 border border-sky-100 dark:border-border shadow-2xl p-8 sm:p-10 text-center space-y-6 backdrop-blur-md">
+        {/* Official Memory Bond Logo with Ambient Glow */}
         <div className="relative mx-auto flex flex-col items-center justify-center pt-2">
-          <div className="absolute inset-0 max-w-[240px] mx-auto rounded-full bg-primary/10 blur-2xl pointer-events-none" />
+          <div className="absolute inset-0 max-w-[240px] mx-auto rounded-full bg-primary/15 blur-2xl pointer-events-none" />
           <div className="relative z-10 flex justify-center">
             <MemoryBondLogo variant="stacked" size="lg" className="mx-auto" priority={true} />
           </div>
         </div>
 
-        {/* Brand Tagline & Senior Care Badge */}
-        <div className="space-y-2">
-          <span className="text-[11px] uppercase tracking-widest font-black text-primary bg-primary/10 px-3.5 py-1 rounded-full border border-primary/20">
-            AI Senior Companion
-          </span>
-          <p className="text-xs sm:text-sm font-semibold text-muted-foreground">
-            Technology with a human heart
+        {/* Brand Information & Mission */}
+        <div className="space-y-2 pt-1">
+          <div className="inline-flex items-center gap-1.5 text-xs font-black text-primary bg-primary/10 px-4 py-1 rounded-full border border-primary/20 tracking-wider uppercase">
+            <span>AI Cognitive Care for Seniors</span>
+          </div>
+          <p className="text-sm sm:text-base font-bold text-muted-foreground flex items-center justify-center gap-1.5 pt-1">
+            <span>Technology with a Human Heart</span>
+            <Heart className="h-4 w-4 text-rose-500 fill-rose-500 inline" />
           </p>
         </div>
 
-        {/* Error Handling State if Initialization Failed */}
+        {/* Error State */}
         {error ? (
           <div className="space-y-4 animate-in fade-in duration-200">
             <div className="p-3.5 rounded-2xl bg-destructive/15 border border-destructive/30 flex items-start gap-2.5 text-left text-xs text-destructive">
@@ -84,43 +89,28 @@ export function AppLoadingScreen({ error, onRetry, onSkip }: AppLoadingScreenPro
             </div>
           </div>
         ) : (
-          /* Normal Clean Progress State with Subtle Pulse Dots */
-          <div className="space-y-3 py-1">
-            <div className="flex flex-col items-center justify-center gap-2.5">
-              <MemoryBondPulseDots />
-              <span className="text-xs sm:text-sm font-bold text-foreground">
-                Loading your cognitive companion...
-              </span>
+          /* Smooth 1-2s Progress Animation */
+          <div className="space-y-4 py-2">
+            <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-primary h-2 rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${progress}%` }}
+              />
             </div>
 
-            {/* Fail-safe slow network fallback: NEVER leaves the user stuck */}
-            {isSlow && (
-              <div className="pt-2 space-y-3 border-t border-border/60 animate-in fade-in duration-300">
-                <p className="text-xs text-muted-foreground font-medium">
-                  Connection is slower than usual. You can continue directly:
-                </p>
-
-                <div className="flex flex-col sm:flex-row gap-2">
-                  {onSkip && (
-                    <Button
-                      onClick={onSkip}
-                      className="w-full h-11 rounded-2xl font-black text-xs gap-1.5 bg-primary hover:bg-primary/90 text-white shadow-md cursor-pointer"
-                    >
-                      <span>Continue to Memory Bond</span>
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-
-                  <Button
-                    variant="outline"
-                    onClick={handleRetry}
-                    className="w-full h-11 rounded-2xl font-bold text-xs gap-1.5 cursor-pointer"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5" /> Reload
-                  </Button>
-                </div>
-              </div>
-            )}
+            <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground pt-1">
+              <span>Opening your companion...</span>
+              {onSkip && (
+                <button
+                  type="button"
+                  onClick={onSkip}
+                  className="text-primary hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <span>Skip</span>
+                  <ArrowRight className="h-3 w-3" />
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>

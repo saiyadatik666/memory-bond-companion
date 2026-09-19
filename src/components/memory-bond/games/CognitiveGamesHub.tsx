@@ -46,6 +46,7 @@ import { FindDifference } from "./FindDifference";
 import { WordMemory } from "./WordMemory";
 import { MatchTheObject } from "./MatchTheObject";
 import { NERCulturalMemoryGame } from "./NERCulturalMemoryGame";
+import { RealMemoryRecallGame } from "./RealMemoryRecallGame";
 
 import { Component, type ReactNode } from "react";
 
@@ -104,6 +105,7 @@ export function CognitiveGamesHub({
   const { t, speechLocale, lang, gameStrings } = useI18n();
   const [activeGame, setActiveGame] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "challenging">("easy");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   // In-game progression state
   const [currentLevel, setCurrentLevel] = useState<number>(1);
@@ -123,12 +125,48 @@ export function CognitiveGamesHub({
 
   const games = [
     {
+      id: "real_memory",
+      title: "Memory Match & Recall",
+      description: "Remember 4 familiar objects (🍎, ☕, 🔑, 🌸) and identify them from a tray of choices.",
+      icon: Sparkles,
+      color: "bg-primary/15 text-primary border-primary/30",
+      category: "memory",
+      duration: "5 minutes",
+      difficultyLabel: "Easy",
+      component: RealMemoryRecallGame,
+    },
+    {
       id: "card_match",
       title: "Memory Card Match",
       description: "Flip peaceful cards and find identical matching pairs.",
       icon: Layers,
       color: "bg-teal-500/15 text-teal-600 dark:text-teal-400 border-teal-500/30",
+      category: "memory",
+      duration: "5 minutes",
+      difficultyLabel: "Easy",
       component: MemoryCardMatch,
+    },
+    {
+      id: "ner_cultural_memory",
+      title: "Cultural Keepsakes Recall",
+      description: "Culturally familiar North East keepsakes tray recall and recognition.",
+      icon: Compass,
+      color: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+      category: "memory",
+      duration: "5 minutes",
+      difficultyLabel: "Easy",
+      component: NERCulturalMemoryGame,
+    },
+    {
+      id: "find_difference",
+      title: "Visual Attention (Odd One Out)",
+      description: "Calm visual search for the slightly different item in a pattern.",
+      icon: Eye,
+      color: "bg-violet-500/15 text-violet-600 dark:text-violet-400 border-violet-500/30",
+      category: "attention",
+      duration: "3 minutes",
+      difficultyLabel: "Easy",
+      component: FindDifference,
     },
     {
       id: "object_recall",
@@ -136,14 +174,20 @@ export function CognitiveGamesHub({
       description: "Observe cherished Indian keepsakes on the tray and spot the mystery change.",
       icon: Search,
       color: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border-cyan-500/30",
+      category: "attention",
+      duration: "4 minutes",
+      difficultyLabel: "Medium",
       component: ObjectRecall,
     },
     {
       id: "pattern_recall",
-      title: "Pattern Recall",
-      description: "Watch soothing visual sequences and repeat the pattern.",
+      title: "Pattern Recognition",
+      description: "Watch soothing visual sequences and complete the next item (🔵 → 🔴 → 🔵 → ?).",
       icon: Sparkles,
       color: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30",
+      category: "pattern",
+      duration: "4 minutes",
+      difficultyLabel: "Adaptive",
       component: PatternRecall,
     },
     {
@@ -152,23 +196,21 @@ export function CognitiveGamesHub({
       description: "Remember short number sequences and enter them calmly.",
       icon: Hash,
       color: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+      category: "pattern",
+      duration: "3 minutes",
+      difficultyLabel: "Medium",
       component: SequenceMemory,
     },
     {
       id: "routine_recall",
       title: "Daily Routine Recall",
-      description: "Gentle reflections reinforcing healthy daily habits.",
+      description: "Remember and sequence today's daily activities: wake up, breakfast, medicine, walk.",
       icon: Sun,
       color: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
+      category: "recall",
+      duration: "3 minutes",
+      difficultyLabel: "Easy",
       component: RoutineRecall,
-    },
-    {
-      id: "family_photo",
-      title: "Family Photo Memory",
-      description: "Familiar faces and heartwarming family relationships.",
-      icon: Users,
-      color: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30",
-      component: FamilyPhotoMemory,
     },
     {
       id: "voice_quiz",
@@ -176,23 +218,10 @@ export function CognitiveGamesHub({
       description: "Listen to audio cues and answer simple recall questions.",
       icon: Volume2,
       color: "bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30",
+      category: "recall",
+      duration: "4 minutes",
+      difficultyLabel: "Easy",
       component: VoiceMemoryQuiz,
-    },
-    {
-      id: "find_difference",
-      title: "Visual Attention (Odd One Out)",
-      description: "Calm visual search for the slightly different item.",
-      icon: Eye,
-      color: "bg-violet-500/15 text-violet-600 dark:text-violet-400 border-violet-500/30",
-      component: FindDifference,
-    },
-    {
-      id: "word_memory",
-      title: "Word Memory Recall",
-      description: "Short, pleasant word lists for focused memorization.",
-      icon: BookOpen,
-      color: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30",
-      component: WordMemory,
     },
     {
       id: "match_object",
@@ -200,15 +229,32 @@ export function CognitiveGamesHub({
       description: "Connect household items with their functional partners.",
       icon: LinkIcon,
       color: "bg-teal-500/15 text-teal-600 dark:text-teal-400 border-teal-500/30",
+      category: "recognition",
+      duration: "3 minutes",
+      difficultyLabel: "Easy",
       component: MatchTheObject,
     },
     {
-      id: "ner_cultural_memory",
-      title: "NER Cultural Memory (Remember Objects)",
-      description: "Culturally familiar North East keepsakes tray recall and recognition.",
-      icon: Compass,
-      color: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
-      component: NERCulturalMemoryGame,
+      id: "family_photo",
+      title: "Family Photo Memory",
+      description: "Familiar faces and heartwarming family relationships.",
+      icon: Users,
+      color: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30",
+      category: "recognition",
+      duration: "5 minutes",
+      difficultyLabel: "Gentle",
+      component: FamilyPhotoMemory,
+    },
+    {
+      id: "word_memory",
+      title: "Word Memory Recall",
+      description: "Short, pleasant word lists for focused memorization.",
+      icon: BookOpen,
+      color: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30",
+      category: "memory",
+      duration: "4 minutes",
+      difficultyLabel: "Medium",
+      component: WordMemory,
     },
   ];
 
@@ -267,7 +313,7 @@ export function CognitiveGamesHub({
     if (activeGame === "pattern_recall" || activeGame === "find_difference") gameType = "attention";
     else if (activeGame === "match_object" || activeGame === "family_photo") gameType = "recognition";
     else if (activeGame === "object_recall" || activeGame === "routine_recall" || activeGame === "voice_quiz") gameType = "recall";
-    else if (activeGame === "sequence_memory" || activeGame === "word_memory" || activeGame === "card_match") gameType = "memory";
+    else if (activeGame === "sequence_memory" || activeGame === "word_memory" || activeGame === "card_match" || activeGame === "real_memory") gameType = "memory";
 
     // Record session to central MemoryBondStore with level and cycle tracking
     const diffTag = currentLevel <= 10 ? "easy" : currentLevel <= 20 ? "medium" : "challenging";
@@ -278,6 +324,11 @@ export function CognitiveGamesHub({
       cycleNumber: store.cycleInfo?.cycleNumber,
       ...extra,
     });
+
+    if (activeGame === "real_memory") {
+      // RealMemoryRecallGame has its own self-contained Section 15 interactive celebration result screen
+      return;
+    }
 
     // Native multilingual respectful motivational feedback
     const motivation = getMotivationalFeedback(lang, currentLevel, acc, isAdvance);
@@ -610,6 +661,18 @@ export function CognitiveGamesHub({
                   key={`${activeGame}_lvl_${currentLevel}_${attemptCount}_${store.profile.selected_state || store.profile.selected_ner_state || "all"}_cycle_${store.cycleInfo.cycleNumber}`}
                   level={currentLevel}
                   onComplete={handleGameComplete}
+                  onBackToHome={() => {
+                    setActiveGame(null);
+                    setGameStage("playing");
+                    setLastResult(null);
+                    onNavigate?.("home");
+                  }}
+                  onPlayAnother={() => {
+                    setAttemptCount((c) => c + 1);
+                    setGameStage("playing");
+                    setLastResult(null);
+                  }}
+                  previousAccuracy={store.gameSessions.length > 0 ? store.gameSessions[store.gameSessions.length - 1].accuracy : 74}
                   nerState={store.profile.selected_state || store.profile.selected_ner_state || "all"}
                   memoryCues={store.memoryCues}
                   contacts={store.contacts}
@@ -1102,78 +1165,140 @@ export function CognitiveGamesHub({
             </div>
           </div>
 
-          {/* 10 Games Grid (All 10 Games Preserved, Senior-Friendly Cognitive Cards) */}
+          {/* Section 11: Category Filter & Subtitle */}
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-card border border-border p-5 rounded-3xl">
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-black text-foreground flex items-center gap-2">
+                  Brain Activities 🧠
+                </h2>
+                <p className="text-base text-muted-foreground font-semibold mt-1">
+                  "Let's exercise your memory for a few minutes."
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground bg-secondary/50 px-4 py-2 rounded-2xl">
+                <span>{games.length} total activities</span>
+                <span>•</span>
+                <span className="text-primary">Adaptive Difficulty</span>
+              </div>
+            </div>
+
+            {/* Category Filter Pills (Section 11) */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              {[
+                { id: "all", label: "🌟 All Activities", count: games.length },
+                { id: "memory", label: "🧠 Memory", count: games.filter((g) => g.category === "memory").length },
+                { id: "attention", label: "🎯 Attention", count: games.filter((g) => g.category === "attention").length },
+                { id: "pattern", label: "🔷 Pattern Recognition", count: games.filter((g) => g.category === "pattern").length },
+                { id: "recall", label: "🕐 Daily Recall", count: games.filter((g) => g.category === "recall").length },
+                { id: "recognition", label: "👀 Recognition", count: games.filter((g) => g.category === "recognition").length },
+              ].map((cat) => {
+                const isSelected = selectedCategory === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat.id)}
+                    className={`px-4 py-2.5 rounded-2xl border text-sm font-black transition-all flex items-center gap-2 cursor-pointer ${
+                      isSelected
+                        ? "bg-primary text-primary-foreground border-primary shadow-sm scale-105"
+                        : "bg-card border-border text-foreground hover:border-primary/50"
+                    }`}
+                  >
+                    <span>{cat.label}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      isSelected ? "bg-primary-foreground/20 text-primary-foreground" : "bg-secondary text-muted-foreground"
+                    }`}>
+                      {cat.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Games Grid (All Games with Section 11 Card Layout: icon, name, description, duration, difficulty, Start button) */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
-            {games.map((g) => {
-              const Icon = g.icon;
-              const prog = getGameProgress(g.id);
-              const progressPct = Math.round((prog.high / 30) * 100);
-              return (
-                <div
-                  key={g.id}
-                  className="group rounded-3xl border-2 border-border/80 bg-card p-6 text-left shadow-sm transition-all hover:border-primary/60 hover:shadow-md flex flex-col justify-between"
-                >
-                  <div className="space-y-4">
-                    {/* Header: Icon & Read Aloud & Level Pill */}
-                    <div className="flex items-center justify-between">
-                      <div className={`w-14 h-14 rounded-2xl border flex items-center justify-center shadow-xs ${g.color}`}>
-                        <Icon className="h-7 w-7" />
+            {games
+              .filter((g) => selectedCategory === "all" || g.category === selectedCategory)
+              .map((g) => {
+                const Icon = g.icon;
+                const prog = getGameProgress(g.id);
+                const progressPct = Math.round((prog.high / 30) * 100);
+                return (
+                  <div
+                    key={g.id}
+                    className="group rounded-3xl border-2 border-border/80 bg-card p-6 text-left shadow-sm transition-all hover:border-primary/60 hover:shadow-md flex flex-col justify-between"
+                  >
+                    <div className="space-y-4">
+                      {/* Header: Icon & Read Aloud & Level Pill */}
+                      <div className="flex items-center justify-between">
+                        <div className={`w-14 h-14 rounded-2xl border flex items-center justify-center shadow-xs ${g.color}`}>
+                          <Icon className="h-7 w-7" />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => speakText(`${g.title}. ${g.description}`, speechLocale)}
+                            className="p-2 rounded-xl hover:bg-secondary text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                            title="Read aloud"
+                            aria-label="Read game title aloud"
+                          >
+                            <Volume2 className="h-4 w-4" />
+                          </button>
+                          <span className="text-xs font-black px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
+                            Lvl {prog.high}/30
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => speakText(`${g.title}. ${g.description}`, speechLocale)}
-                          className="p-2 rounded-xl hover:bg-secondary text-muted-foreground hover:text-primary transition-colors cursor-pointer"
-                          title="Read aloud"
-                          aria-label="Read game title aloud"
-                        >
-                          <Volume2 className="h-4 w-4" />
-                        </button>
-                        <span className="text-xs font-black px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
-                          Lvl {prog.high}/30
-                        </span>
+
+                      {/* Title, Badges & Description */}
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <span className="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-secondary text-foreground/85 border border-border/60">
+                            ⏱️ {g.duration}
+                          </span>
+                          <span className="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                            ⚡ {g.difficultyLabel}
+                          </span>
+                        </div>
+                        <h3 className="text-xl font-black text-foreground group-hover:text-primary transition-colors">
+                          {g.title}
+                        </h3>
+                        <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed min-h-[40px]">
+                          {g.description}
+                        </p>
+                      </div>
+
+                      {/* Progress Bar & Best Score stats */}
+                      <div className="bg-secondary/30 rounded-2xl p-3 border border-border/60 space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-muted-foreground">Progress: Level {prog.cur}</span>
+                          <span className="font-extrabold text-foreground">{prog.best > 0 ? `Best: ${prog.best}%` : "Ready to Start"}</span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-border/60 overflow-hidden">
+                          <div
+                            className="h-full bg-primary rounded-full transition-all duration-300"
+                            style={{ width: `${Math.max(5, progressPct)}%` }}
+                          />
+                        </div>
                       </div>
                     </div>
 
-                    {/* Title & Description */}
-                    <div>
-                      <h3 className="text-xl font-black text-foreground group-hover:text-primary transition-colors">
-                        {g.title}
-                      </h3>
-                      <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed min-h-[40px]">
-                        {g.description}
-                      </p>
-                    </div>
-
-                    {/* Progress Bar & Best Score stats */}
-                    <div className="bg-secondary/30 rounded-2xl p-3 border border-border/60 space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-muted-foreground">Progress: Level {prog.cur}</span>
-                        <span className="font-extrabold text-foreground">{prog.best > 0 ? `Best: ${prog.best}%` : "Ready to Start"}</span>
-                      </div>
-                      <div className="w-full h-2 rounded-full bg-border/60 overflow-hidden">
-                        <div
-                          className="h-full bg-primary rounded-full transition-all duration-300"
-                          style={{ width: `${Math.max(5, progressPct)}%` }}
-                        />
-                      </div>
+                    {/* Prominent Senior-Friendly Start Button (Section 11) */}
+                    <div className="pt-4 mt-2">
+                      <Button
+                        onClick={() => handleSelectGame(g.id)}
+                        className="w-full h-14 rounded-2xl font-black text-lg shadow-sm bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.01]"
+                      >
+                        <Gamepad2 className="h-6 w-6" />
+                        <span>Start</span>
+                        <ArrowRight className="h-5 w-5 ml-1" />
+                      </Button>
                     </div>
                   </div>
-
-                  {/* Prominent Senior-Friendly PLAY Button */}
-                  <div className="pt-4 mt-2">
-                    <Button
-                      onClick={() => handleSelectGame(g.id)}
-                      className="w-full h-12 rounded-2xl font-black text-base shadow-xs bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.01]"
-                    >
-                      <Gamepad2 className="h-5 w-5" />
-                      <span>{t("play") || "Play Level"} {prog.cur}</span>
-                      <ArrowRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         </div>
       )}

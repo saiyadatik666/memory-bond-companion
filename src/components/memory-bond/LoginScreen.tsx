@@ -203,9 +203,9 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
     }
   };
 
-  // ONE-CLICK CAREGIVER DEMO LOGIN
+  // ONE-CLICK CAREGIVER DEMO LOGIN (Priya Patel)
   const handleDemoCaregiverLogin = () => {
-    const demoId = "cg_demo_verified";
+    const demoId = "cg_demo_priya";
     const caregiverCode = getOrCreateCaregiverCode(demoId);
 
     localStorage.setItem(
@@ -213,8 +213,8 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
       JSON.stringify({
         userId: demoId,
         role: "caregiver",
-        email: "caregiver@memorybond.org",
-        fullName: "Sunita Sharma (Caregiver)",
+        email: "priya.patel@memorybond.org",
+        fullName: "Priya Patel (Caregiver)",
         caregiverCode,
       })
     );
@@ -222,15 +222,45 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
     localStorage.setItem("mb_welcome_completed", "true");
 
     store.updateProfile({
-      full_name: "Sunita Sharma (Caregiver)",
+      full_name: "Priya Patel (Caregiver)",
       role: "caregiver",
     });
     store.setRole("caregiver");
 
-    setSuccessMessage("Opening Caregiver Dashboard with demo data...");
+    setSuccessMessage("Opening Caregiver Dashboard for Priya Patel...");
     setTimeout(() => {
       onAuthenticated("caregiver");
-    }, 600);
+    }, 500);
+  };
+
+  // ONE-CLICK FULL EVALUATION DEMO (Meena Patel - Senior Mode)
+  const handleStartFullDemo = () => {
+    const seniorId = "demo_senior_meena";
+    const caregiverCode = "MB-CG-781042";
+
+    localStorage.setItem(
+      "mb_active_session",
+      JSON.stringify({
+        userId: seniorId,
+        role: "senior",
+        fullName: "Meena Patel",
+        caregiverCode,
+      })
+    );
+    localStorage.setItem("mb_authenticated_user_id", seniorId);
+    localStorage.setItem("mb_welcome_completed", "true");
+
+    store.updateProfile({
+      full_name: "Meena Patel",
+      role: "senior",
+      onboarded: true,
+    });
+    store.setRole("senior");
+
+    setSuccessMessage("Launching Memory Bond Demo for Meena Patel...");
+    setTimeout(() => {
+      onAuthenticated("senior");
+    }, 400);
   };
 
   // SENIOR ACCOUNT LINKING VIA CODE / QR
@@ -244,7 +274,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
     try {
       const result = await connectSeniorToCaregiver({
         code: cleanCode,
-        seniorName: seniorName.trim() || store.profile.full_name || "Ramesh Sharma",
+        seniorName: seniorName.trim() || store.profile.full_name || "Meena Patel",
         store,
         currentLanguage: lang,
         timeoutMs: 8000,
@@ -281,7 +311,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
   const handleDirectSeniorContinue = () => {
     if (isLinking) return;
     const seniorId = `senior_${Date.now()}`;
-    const name = seniorName.trim() || "Ramesh Sharma";
+    const name = seniorName.trim() || "Meena Patel";
 
     localStorage.setItem(
       "mb_active_session",
@@ -306,72 +336,188 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
   };
 
   // ==========================================================================
-  // SCREEN 1: WELCOME SCREEN (Warm, Clean, Elder-Friendly)
+  // SCREEN 1: WELCOME SCREEN (Section 8: Warm, Emotionally Supportive, 2 Roles)
   // ==========================================================================
   if (stage === "welcome") {
     return (
-      <div className="min-h-screen bg-ambient flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
-        <div className="w-full max-w-lg rounded-3xl bg-white border border-[#E2EAF5] shadow-xl p-7 sm:p-10 text-center space-y-7">
-          {/* Memory Bond Official Logo with Generous Whitespace */}
-          <div className="flex justify-center pt-2">
-            <MemoryBondLogo variant="stacked" size="lg" />
+      <div className="min-h-screen bg-ambient flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300 select-none">
+        <div className="w-full max-w-xl rounded-3xl bg-white border border-[#E2EAF5] shadow-xl p-6 sm:p-10 space-y-6">
+          {/* Top Bar: Logo & Language Selector Dropdown */}
+          <div className="flex items-center justify-between border-b border-[#EDF2F7] pb-4">
+            <div className="flex items-center gap-2">
+              <MemoryBondLogo variant="horizontal" size="sm" />
+            </div>
+
+            {/* Language Selector (Default: English) */}
+            <div className="flex items-center gap-1.5 bg-[#F4F8FD] border border-[#E2EAF5] px-2.5 py-1 rounded-xl">
+              <Languages className="h-3.5 w-3.5 text-primary" />
+              <select
+                value={lang}
+                onChange={(e) => setLang(e.target.value)}
+                className="bg-transparent text-xs font-bold text-foreground focus:outline-none cursor-pointer"
+              >
+                <option value="en">English</option>
+                <option value="hi">हिन्दी (Hindi)</option>
+                <option value="as">অসমীয়া (Assamese)</option>
+                <option value="bn">বাংলা (Bengali)</option>
+                <option value="mni">মৈতৈলোন্ (Manipuri)</option>
+              </select>
+            </div>
           </div>
 
-          {/* Tagline & Badge */}
-          <div className="space-y-2.5">
-            <span className="text-xs uppercase tracking-widest font-black text-[#1E6FD9] bg-[#E0F2FE] px-4 py-1.5 rounded-full border border-[#BAE6FD]">
-              Care Companion
-            </span>
-            <p className="text-base sm:text-lg font-bold text-[#627D98] max-w-sm mx-auto leading-relaxed">
-              Warm like family. Calm like a companion.
+          {/* Heading & Emotional Subtitle (Section 8) */}
+          <div className="text-center space-y-2 pt-1">
+            <h1 className="text-2xl sm:text-3xl font-black text-[#0F243E] font-display flex items-center justify-center gap-2">
+              <span>Welcome to Memory Bond</span>
+              <span className="text-rose-500">❤️</span>
+            </h1>
+            <p className="text-sm sm:text-base font-semibold text-[#5B728D] max-w-md mx-auto leading-relaxed">
+              A smarter way to stay connected, engaged and supported.
+            </p>
+            <div className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-primary bg-primary/10 px-3.5 py-1 rounded-full border border-primary/20">
+              Technology with a Human Heart
+            </div>
+          </div>
+
+          {/* TWO LARGE OPTIONS (Section 8 & 4) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            {/* Option 1: 👵 I'm a Senior */}
+            <button
+              type="button"
+              onClick={() => {
+                if (!store.profile.onboarded) {
+                  // Direct to simple senior onboarding
+                  handleDirectSeniorContinue();
+                } else {
+                  handleDirectSeniorContinue();
+                }
+              }}
+              className="group p-5 rounded-3xl border-2 border-amber-200 hover:border-amber-400 bg-amber-50/40 hover:bg-amber-50 text-left space-y-3 transition-all cursor-pointer shadow-xs hover:shadow-md hover:scale-[1.01]"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
+                👵
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-xl font-black text-[#0F243E] group-hover:text-amber-900 font-display">
+                  I'm a Senior
+                </h3>
+                <p className="text-xs font-semibold text-[#5B728D] leading-relaxed">
+                  Simple and accessible experience with gentle brain activities, reminders & voice assistance.
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs font-black text-amber-900 pt-1">
+                <span>Start Senior Mode</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </div>
+            </button>
+
+            {/* Option 2: 👨‍👩‍👧 I'm a Caregiver */}
+            <button
+              type="button"
+              onClick={() => setStage("caregiver_auth")}
+              className="group p-5 rounded-3xl border-2 border-sky-200 hover:border-sky-400 bg-sky-50/40 hover:bg-sky-50 text-left space-y-3 transition-all cursor-pointer shadow-xs hover:shadow-md hover:scale-[1.01]"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-sky-500/20 border border-sky-500/30 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
+                👨‍👩‍👧
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-xl font-black text-[#0F243E] group-hover:text-primary font-display">
+                  I'm a Caregiver
+                </h3>
+                <p className="text-xs font-semibold text-[#5B728D] leading-relaxed">
+                  Monitor and support your loved one with activity tracking, alerts & daily routines.
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs font-black text-primary pt-1">
+                <span>Caregiver Dashboard</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </div>
+            </button>
+          </div>
+
+          {/* ONE-CLICK EVALUATOR / DEMO BUTTON (Section 39) */}
+          <div className="p-4 rounded-2xl bg-[#F0F7FF] border border-[#BAE6FD] flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="text-left min-w-0">
+              <div className="text-xs font-black text-primary flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>Instant Evaluator Demo Mode</span>
+              </div>
+              <p className="text-[11px] font-semibold text-[#5B728D] mt-0.5">
+                Experience full connected flow as Meena Patel (Senior) paired with Priya Patel (Caregiver).
+              </p>
+            </div>
+            <Button
+              size="sm"
+              onClick={handleStartFullDemo}
+              className="h-10 px-4 rounded-xl font-black text-xs bg-primary hover:bg-primary/90 text-white shadow-xs shrink-0 cursor-pointer"
+            >
+              <span>Explore Demo</span>
+              <ArrowRight className="h-3.5 w-3.5 ml-1" />
+            </Button>
+          </div>
+
+          {/* 5 SYSTEM HIGHLIGHTS (Section 3 & 45) */}
+          <div className="pt-2 border-t border-[#EDF2F7]">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-[11px] font-bold text-[#5B728D]">
+              <div className="p-2 rounded-xl bg-slate-50">🧠 Cognitive Games</div>
+              <div className="p-2 rounded-xl bg-slate-50">🎤 Voice AI</div>
+              <div className="p-2 rounded-xl bg-slate-50">💊 Smart Reminders</div>
+              <div className="p-2 rounded-xl bg-slate-50">👨‍👩‍👧 Family Care</div>
+              <div className="p-2 rounded-xl bg-slate-50 col-span-2 sm:col-span-1">📶 Offline Support</div>
+            </div>
+          </div>
+
+          {/* Section 46: HOW IT WORKS (Play → Learn → Adapt → Connect → Support) */}
+          <div className="rounded-2xl border border-[#E2EAF5] bg-[#F8FAFC] p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase tracking-wider text-primary">
+                How Memory Bond Works
+              </span>
+              <span className="text-[10px] font-bold text-muted-foreground">
+                5-Step Care Loop
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 text-left">
+              <div className="p-2.5 rounded-xl bg-white border border-border/80 space-y-0.5">
+                <div className="text-[10px] font-black text-primary uppercase">01 — Play</div>
+                <div className="text-xs font-bold text-foreground">Cognitive Game</div>
+                <p className="text-[10px] text-muted-foreground leading-tight">Senior completes enjoyable memory activity.</p>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white border border-border/80 space-y-0.5">
+                <div className="text-[10px] font-black text-emerald-600 uppercase">02 — Learn</div>
+                <div className="text-xs font-bold text-foreground">Record Data</div>
+                <p className="text-[10px] text-muted-foreground leading-tight">Records actual accuracy and reaction rhythm.</p>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white border border-border/80 space-y-0.5">
+                <div className="text-[10px] font-black text-indigo-600 uppercase">03 — Adapt</div>
+                <div className="text-xs font-bold text-foreground">AI Adjustment</div>
+                <p className="text-[10px] text-muted-foreground leading-tight">Difficulty gently calibrates to ensure calm engagement.</p>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white border border-border/80 space-y-0.5">
+                <div className="text-[10px] font-black text-amber-600 uppercase">04 — Connect</div>
+                <div className="text-xs font-bold text-foreground">Family Circle</div>
+                <p className="text-[10px] text-muted-foreground leading-tight">Caregivers stay informed with live updates.</p>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white border border-border/80 space-y-0.5">
+                <div className="text-[10px] font-black text-rose-600 uppercase">05 — Support</div>
+                <div className="text-xs font-bold text-foreground">Daily Routine</div>
+                <p className="text-[10px] text-muted-foreground leading-tight">Reminders & alerts assist with medicines & water.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 47: NORTH EASTERN REGION FOCUS */}
+          <div className="rounded-2xl border border-emerald-500/25 bg-emerald-50/50 p-4 space-y-2 text-left">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🎋</span>
+              <h4 className="text-xs sm:text-sm font-black text-emerald-950">
+                Designed for Connected Care — Even in Remote Communities
+              </h4>
+            </div>
+            <p className="text-xs text-emerald-900/80 leading-relaxed">
+              Tailored for elderly individuals and rural families across the North Eastern Region: multilingual voice interaction (Assamese, Bengali, Manipuri), offline-first local storage, simple high-contrast touch targets, and culturally adaptable memory objects.
             </p>
           </div>
-
-          {/* 4 Pastel Highlights */}
-          <div className="grid grid-cols-2 gap-3 text-left pt-1">
-            <div className="p-3.5 rounded-2xl bg-teal-50/70 border border-teal-100 space-y-1">
-              <div className="text-sm font-black text-teal-900 flex items-center gap-1.5">
-                <span>💊</span> Medicines
-              </div>
-              <p className="text-xs text-muted-foreground font-semibold">
-                Timely alerts & stock tracking
-              </p>
-            </div>
-            <div className="p-3.5 rounded-2xl bg-sky-50/70 border border-sky-100 space-y-1">
-              <div className="text-sm font-black text-sky-900 flex items-center gap-1.5">
-                <span>🎙️</span> AI Voice
-              </div>
-              <p className="text-xs text-muted-foreground font-semibold">
-                Natural talks in your language
-              </p>
-            </div>
-            <div className="p-3.5 rounded-2xl bg-rose-50/70 border border-rose-100 space-y-1">
-              <div className="text-sm font-black text-rose-900 flex items-center gap-1.5">
-                <span>👨‍👩‍👧</span> Family Link
-              </div>
-              <p className="text-xs text-muted-foreground font-semibold">
-                Caregiver paired in 1 scan
-              </p>
-            </div>
-            <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-100 space-y-1">
-              <div className="text-sm font-black text-indigo-900 flex items-center gap-1.5">
-                <span>🧠</span> Memory Games
-              </div>
-              <p className="text-xs text-muted-foreground font-semibold">
-                Calm & stimulating exercises
-              </p>
-            </div>
-          </div>
-
-          {/* Get Started Button */}
-          <Button
-            size="lg"
-            onClick={() => setStage("language")}
-            className="w-full h-14 rounded-2xl text-lg font-black bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 gap-3 cursor-pointer transition-transform hover:scale-[1.01] active:scale-98"
-          >
-            <span>{lang === "en" ? "Get Started" : (t("getStarted") || "Get Started")}</span>
-            <ArrowRight className="h-5 w-5" />
-          </Button>
         </div>
       </div>
     );

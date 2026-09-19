@@ -650,24 +650,35 @@ export function SosModal({
               </span>
             </button>
 
-            <div className="space-y-2">
-              <Button
-                variant="outline"
-                onClick={() => executeFinalDispatch(spokenEmergencyText, activeSessionIdRef.current || undefined)}
-                className="w-full h-12 rounded-xl text-destructive font-black border-destructive/40 text-sm"
+            {/* Section 24: Three Explicit Actions (Call Caregiver, Emergency Help, Cancel) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <a
+                href={`tel:${store.profile.phone || "+919876543210"}`}
+                onClick={handleCancelAndImSafe}
+                className="h-14 rounded-2xl bg-primary text-primary-foreground font-black text-base flex items-center justify-center gap-2 shadow-md hover:bg-primary/90 transition-all cursor-pointer"
               >
-                Send Alert Immediately (Do Not Wait)
-              </Button>
+                <PhoneCall className="h-5 w-5" />
+                <span>Call Caregiver</span>
+              </a>
 
               <Button
-                variant="ghost"
-                size="sm"
-                onClick={startEmergencyVoiceInput}
-                className="w-full text-xs font-bold text-muted-foreground hover:text-foreground gap-1.5"
+                variant="destructive"
+                onClick={() => executeFinalDispatch(spokenEmergencyText, activeSessionIdRef.current || undefined)}
+                className="h-14 rounded-2xl font-black text-base flex items-center justify-center gap-2 shadow-md cursor-pointer"
               >
-                <Mic className="h-4 w-4 text-destructive" /> Add Voice Details Before Sending
+                <AlertOctagon className="h-5 w-5" />
+                <span>Emergency Help</span>
               </Button>
             </div>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={startEmergencyVoiceInput}
+              className="w-full text-xs font-bold text-muted-foreground hover:text-foreground gap-1.5"
+            >
+              <Mic className="h-4 w-4 text-destructive" /> Add Voice Note Before Sending
+            </Button>
           </div>
         )}
 

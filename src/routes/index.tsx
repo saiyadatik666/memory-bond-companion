@@ -14,8 +14,11 @@ function RouteComponent() {
 
   useEffect(() => {
     try {
-      // Transition from loading screen as soon as client mounts & hydrates
-      setIsClientReady(true);
+      // 1.2-second subtle branded splash animation, then seamlessly open the welcome screen
+      const timer = setTimeout(() => {
+        setIsClientReady(true);
+      }, 1200);
+      return () => clearTimeout(timer);
     } catch (err: any) {
       setInitError(err?.message || "Failed to initialize companion view");
     }

@@ -417,6 +417,37 @@ export function SettingsView({ store }: { store: MemoryBondStore }) {
               onCheckedChange={handleVoiceToggle}
             />
           </div>
+
+          {/* Longer Response Time (Section 32) */}
+          <div className="flex items-center justify-between p-4 rounded-2xl bg-secondary/40">
+            <div>
+              <div className="font-bold text-base text-foreground">Longer Response Time</div>
+              <div className="text-xs text-muted-foreground">
+                Gives seniors extended timers and extra countdown time during memory activities and games.
+              </div>
+            </div>
+            <Switch
+              checked={store.profile.easy_mode}
+              onCheckedChange={handleEasyModeToggle}
+            />
+          </div>
+
+          {/* Large Buttons (Section 32) */}
+          <div className="flex items-center justify-between p-4 rounded-2xl bg-secondary/40">
+            <div>
+              <div className="font-bold text-base text-foreground">Large Touch Targets & Buttons</div>
+              <div className="text-xs text-muted-foreground">
+                Expands all interactive buttons and cards to senior-friendly touch dimensions.
+              </div>
+            </div>
+            <Switch
+              checked={store.profile.font_size === "xlarge" || store.profile.easy_mode}
+              onCheckedChange={(c) => {
+                handleEasyModeToggle(c);
+                if (c) handleFontSizeChange("large");
+              }}
+            />
+          </div>
         </div>
       </div>
 

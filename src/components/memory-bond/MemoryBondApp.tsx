@@ -40,6 +40,7 @@ import { Footer } from "./Footer";
 import { FloatingAssistantBubble } from "./FloatingAssistantBubble";
 import { MemoryStoryModal } from "./MemoryStoryModal";
 import { SafeRouteErrorBoundary } from "./SafeRouteErrorBoundary";
+import { DemoControlBar } from "./DemoControlBar";
 
 export function MemoryBondApp() {
   const store = useMemoryBondStore();
@@ -329,7 +330,7 @@ export function MemoryBondApp() {
           store.profile.high_contrast ? "high-contrast contrast-boost" : ""
         } ${store.profile.reduced_motion ? "reduced-motion" : ""}`}
       >
-        {/* Main Header — Clean, sticky at top-0 with NO Demo Evaluator Bar above it */}
+        {/* Main Header — Clean, sticky at top-0 */}
         <Header
           store={store}
           currentTab={currentTab}
@@ -338,6 +339,23 @@ export function MemoryBondApp() {
           onNavigate={handleNavigate}
           onSignOut={handleSignOut}
           onOpenSos={handleOpenSos}
+        />
+
+        {/* Evaluator Demo Floating Control Bar (Section 39 & 52) */}
+        <DemoControlBar
+          store={store}
+          currentRole={currentRole}
+          currentTab={currentTab}
+          onSelectRole={(role) => {
+            store.setRole(role);
+            store.updateProfile({
+              role,
+              full_name: role === "senior" ? "Meena Patel" : "Priya Patel",
+            });
+            const defaultTab = getDefaultTabForRole(role);
+            handleNavigate(defaultTab);
+          }}
+          onNavigate={handleNavigate}
         />
 
         {/* Main Responsive Body Canvas */}

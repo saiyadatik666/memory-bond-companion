@@ -26,13 +26,13 @@ export function BottomNavigation({
 }) {
   const { t } = useI18n();
 
-  // Mobile Bottom Navigation: Most essential sections per Section 26
+  // Mobile Bottom Navigation: Section 35 Senior Navigation (Home, Games, Reminders, Family, Voice)
   const seniorTabs = [
     { id: "home", label: t("home") || "Home", icon: Home },
     { id: "games", label: t("games") || "Games", icon: Gamepad2 },
+    { id: "reminders", label: t("reminders") || "Reminders", icon: Pill },
     { id: "family_tree", label: t("family") || "Family", icon: Users },
-    { id: "voice", label: t("voiceNote") || "Voice", icon: Mic, isVoiceAction: true },
-    { id: "settings", label: t("settings") || "Settings", icon: Settings },
+    { id: "voice", label: t("qaVoiceAi") || "Voice", icon: Mic, isVoiceAction: true },
   ];
 
   const caregiverTabs = [
