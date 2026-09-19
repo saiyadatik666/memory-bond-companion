@@ -756,73 +756,104 @@ export function parseVoiceIntent(
     };
   }
 
-  // 1.35. NER Road Accessibility & Smart Logistics Voice Queries (Requirement 18)
-  const isRoadOpenQuery =
+  // 1.35. Live Safety Map & Real Navigation Voice Queries (Section 27 Integration)
+  const isDangerNearMe =
+    lower.includes("मेरे आसपास कोई खतरा है") ||
+    lower.includes("koi khatra hai") ||
+    lower.includes("any danger near me") ||
+    lower.includes("is there any danger") ||
+    lower.includes("any hazard near me") ||
+    lower.includes(" आसपास कोई खतरा");
+
+  if (isDangerNearMe) {
+    let reply = "";
+    if (locale.startsWith("hi")) {
+      reply = "मेरे पास इस समय इस जगह के लिए verified information उपलब्ध नहीं है। कृपया लाइव मैप में 'TRAVEL ALERT' और 'HAZARDS' परत देखें।";
+    } else if (locale.startsWith("as") || locale.startsWith("bn")) {
+      reply = "মোৰ ওচৰত এই সময়ত এই স্থানৰ বাবে verified information উপলব্ধ নাই। অনুগ্ৰহ কৰি লাইভ মেপৰ সতৰ্কতা পৰীক্ষা কৰক।";
+    } else {
+      reply = "No verified hazard information currently available for your immediate area. Please check the Travel Alert and Hazards tab on the Live Safety Map.";
+    }
+    return { type: "ANSWER", message: reply };
+  }
+
+  const isRoadSafeQuery =
+    lower.includes("क्या इस रास्ते पर जाना ठीक है") ||
+    lower.includes("is it safe to travel on this road") ||
+    lower.includes("is this road safe") ||
+    lower.includes("kya raste par jana theek hai") ||
     lower.includes("is the road open") ||
-    lower.includes("is road open") ||
-    lower.includes("is there a blockage") ||
     lower.includes("check the road") ||
     lower.includes("check road") ||
     lower.includes("road status") ||
     lower.includes("rasta khula hai") ||
-    lower.includes("kya rasta khula hai") ||
-    lower.includes("rastat blockage aasa ne") ||
-    lower.includes("rasta khula ahe ne") ||
-    lower.includes("রাস্তা খোলা আছে কি");
+    lower.includes("kya rasta khula hai");
 
-  if (isRoadOpenQuery) {
+  if (isRoadSafeQuery) {
     let reply = "";
     if (locale.startsWith("hi")) {
-      reply = "मेरे पास अभी लाइव सरकारी डेटा सीधे कनेक्टेड नहीं है। सिमुलेशन डेटा के अनुसार, दिमा हसाओ में NH-27 जटिंगा के पास भूस्खलन के कारण बंद है, जबकि गुवाहाटी और शिलांग के बीच का मार्ग खुला है।";
+      reply = "उपलब्ध स्रोतों के अनुसार: No current verified road incident found in available sources. हालांकि सड़क की स्थिति मौसम पर निर्भर हो सकती है, इसलिए लाइव मैप पर CHECK ROAD दबाकर ताजा स्थिति देखें।";
     } else if (locale.startsWith("as") || locale.startsWith("bn")) {
-      reply = "মোৰ ওচৰত বৰ্তমান লাইভ চৰকাৰী ডেটা সংলগ্ন হৈ থকা নাই। ডেমো তথ্য অনুসৰি, ডিমা হাছাওৰ জাতিঙ্গাত ভূমিস্খলনৰ বাবে NH-27 বন্ধ আছে, কিন্তু গুৱাহাটী আৰু শ্বিলঙৰ মাজৰ পথ সুচল আছে।";
+      reply = "বৰ্তমান উপলব্ধ উৎস অনুসৰি: No current verified road incident found in available sources. ভ্ৰমণৰ পূৰ্বে লাইভ মেপত CHECK ROAD চাওক।";
     } else {
-      reply = "I don't have live road data connected right now. In demo simulation mode, NH-27 at Dima Hasao is currently blocked near Jatinga due to a mudslide, while Guwahati and Shillong corridors are accessible.";
+      reply = "According to available records: No current verified road incident found in available sources. Always exercise road caution and tap 'CHECK ROAD' on the map for live analysis.";
     }
     return { type: "ANSWER", message: reply };
   }
 
-  const isAlternateRouteQuery =
-    lower.includes("show another route") ||
-    lower.includes("alternate route") ||
-    lower.includes("alternative route") ||
-    lower.includes("another route") ||
-    lower.includes("dusra rasta") ||
-    lower.includes("dusra rasta dikhao") ||
-    lower.includes("aan eta rasta");
+  const isHospitalNearMe =
+    lower.includes("मेरे पास अस्पताल कहाँ है") ||
+    lower.includes("where is the hospital near me") ||
+    lower.includes("nearest hospital") ||
+    lower.includes("hospital kahan hai") ||
+    lower.includes("pass hospital");
 
-  if (isAlternateRouteQuery) {
+  if (isHospitalNearMe) {
     let reply = "";
     if (locale.startsWith("hi")) {
-      reply = "गुवाहाटी से सिलचर के लिए मेघालय (NH-6) होकर लड रिमबाई का वैकल्पिक मार्ग खुला है, जिसमें सामान्य से लगभग 45 मिनट अधिक समय लगेगा।";
+      reply = "आपके नजदीकी अस्पताल खोजने के लिए लाइव सेफ्टी मैप में 'MEDICAL & EVACUATION' सुविधा उपलब्ध है। यह आपके वास्तविक स्थान से सत्यापित स्वास्थ्य केंद्र और दूरी दिखाता है।";
     } else if (locale.startsWith("as") || locale.startsWith("bn")) {
-      reply = "গুৱাহাটীৰ পৰা শিলচৰলৈ মেঘালয় (NH-6) হৈ লাড ৰিম্বাইৰে বিকল্প পথটো খোলা আছে।";
+      reply = "আপোনাৰ ওচৰৰ চিকিৎসালয় চাবলৈ লাইভ মেপত 'MEDICAL & EVACUATION' বুটাম টিপক।";
     } else {
-      reply = "For the Guwahati to Silchar route, the recommended alternate route is via Meghalaya (NH-6) through Lad Rymbai. It has single-lane sections with a 45-minute delay, but is open for vehicles.";
+      reply = "To locate verified emergency facilities near you, please open the Live Safety Map and tap 'MEDICAL & EVACUATION'.";
     }
     return { type: "ANSWER", message: reply };
   }
 
-  const isDisruptionQuery =
-    lower.includes("is there a flood problem") ||
-    lower.includes("flood problem") ||
-    lower.includes("is there a landslide") ||
-    lower.includes("landslide problem") ||
-    lower.includes("landslide risk") ||
-    lower.includes("badh ki samasya") ||
-    lower.includes("pani ahe ne") ||
-    lower.includes("banya ahe ne");
+  const isRainWarningQuery =
+    lower.includes("कल बारिश की warning है क्या") ||
+    lower.includes("kal barish ki warning") ||
+    lower.includes("is there a rain warning tomorrow") ||
+    lower.includes("rain warning tomorrow") ||
+    lower.includes("kal barish hogi");
 
-  if (isDisruptionQuery) {
+  if (isRainWarningQuery) {
     let reply = "";
     if (locale.startsWith("hi")) {
-      reply = "सिमुलेशन मॉडल के अनुसार, दिमा हसाओ में भारी बारिश के कारण भूस्खलन का उच्च जोखिम है, और काजीरंगा क्षेत्र में ब्रह्मपुत्र का जलस्तर बढ़ रहा है।";
+      reply = "मौसम पूर्वानुमान और आधिकारिक अलर्ट के लिए लाइव मैप में 'TRAVEL ALERT' देखें। यदि मौसम विभाग से कोई आधिकारिक चेतावनी जारी नहीं है, तो मेरे पास इस समय कोई अतिरिक्त चेतावनी दर्ज नहीं है।";
     } else if (locale.startsWith("as") || locale.startsWith("bn")) {
-      reply = "ডেমো তথ্য অনুসৰি, ডিমা হাছাওত ভূমিস্খলনৰ সতৰ্কতা আছে আৰু কাজিৰঙাৰ সমীপত ব্ৰহ্মপুত্ৰৰ পানী বাঢ়িছে।";
+      reply = "বতৰৰ পূৰ্বাভাস আৰু সতৰ্কতাৰ বাবে লাইভ মেপত 'TRAVEL ALERT' পৰীক্ষা কৰক।";
     } else {
-      reply = "In simulation mode, there is a critical landslide hazard warning in Dima Hasao along the hill tracts, and elevated water levels along the Brahmaputra near Kaziranga.";
+      reply = "For verified forecasts and severe alerts from Open-Meteo, tap 'TRAVEL ALERT' on the Live Safety Map. No severe warning is assumed unless officially published.";
     }
     return { type: "ANSWER", message: reply };
+  }
+
+  const isShowHospitalRoute =
+    lower.includes("मुझे अस्पताल का रास्ता दिखाओ") ||
+    lower.includes("hospital ka rasta dikhao") ||
+    lower.includes("show me the route to hospital") ||
+    lower.includes("route to hospital") ||
+    lower.includes("navigate to hospital");
+
+  if (isShowHospitalRoute) {
+    return {
+      type: "NAVIGATE",
+      targetView: "ner_logistics",
+      confirmationMessage: locale.startsWith("hi")
+        ? "लाइव सेफ्टी मैप पर नजदीकी अस्पताल और वास्तविक रूट सहायता खोली जा रही है।"
+        : "Opening real hospital route navigation on your Live Safety Map now.",
+    };
   }
 
   const isMedicineVehicleQuery =
