@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Mic,
   MicOff,
@@ -11,67 +11,49 @@ import {
   RotateCcw,
   Languages,
   AlertCircle,
-  MessageSquare,
-  Bot,
-  User,
-  HelpCircle,
+  ExternalLink,
   StopCircle,
+  Clock,
+  Calendar,
+  Pill,
+  Droplets,
+  Footprints,
+  Phone,
+  Sun,
+  Bell,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useServerFn } from "@tanstack/react-start";
-import {
-  askVoiceAssistant,
-  getLocalOfflineFallback,
-  type VoiceAssistantResponse,
-} from "@/lib/voiceAssistant.functions";
 import { voiceManager } from "@/lib/voiceProvider";
 import {
   parseVoiceIntent,
   type VoiceIntent,
   detectLanguage,
-  pick,
+  extractExplicitTime,
   cleanAIResponse,
-  MEDICINE_TAKEN_SUCCESS_MSG,
-  REMINDER_SAVED_SUCCESS_MSG,
-  APPOINTMENT_SAVED_SUCCESS_MSG,
-  JOURNAL_SAVED_SUCCESS_MSG,
-  CANCELLED_MSG,
-  ERROR_HEARING_MSG,
-  RETRY_LABEL_MSG,
-  BARGE_IN_HINT_MSG,
 } from "@/lib/voiceParser";
 import { conversationalAI } from "@/lib/conversationalAI";
-import { createVerifiedReminder, getTodayReminders, getNextReminder } from "@/lib/reminderService";
+import {
+  createVerifiedReminder,
+  getTodayReminders,
+  getNextReminder,
+  formatTime12h,
+  getLocalTomorrowDateString,
+  getLocalTodayDateString,
+} from "@/lib/reminderService";
 import { requestNotificationPermission } from "@/lib/notificationService";
-import type { Reminder } from "@/lib/memoryBondStore";
-import { extractExplicitTime } from "@/lib/voiceParser";
-
-import { resolveWorldKnowledge } from "@/lib/worldKnowledgeEngine";
-import type { MemoryBondStore } from "@/lib/memoryBondStore";
-import { useI18n, LANGUAGES, NER_STATES, getLanguagesByState } from "@/lib/i18n";
-
+import type { MemoryBondStore, Reminder } from "@/lib/memoryBondStore";
+import { useI18n, LANGUAGES } from "@/lib/i18n";
 import { languageEngine, SUPPORTED_LANGUAGES } from "@/lib/languageEngine";
 import { MemoryBondLogo } from "./MemoryBondLogo";
 
 export type AssistantVoiceState =
-  | "idle"        // 🎙️ Tap to speak
+  | "idle"        // 🎤 Tap to speak
   | "listening"   // 🔴 Listening...
-  | "processing"  // 🧠 Thinking...
-  | "speaking"    // 🔊 Speaking...
-  | "interrupted" // ✋ Barge-in triggered
-  | "stopping"    // ⏹️ Stopping...
-  | "finished"    // ✅ Finished speaking
-  | "error";
-
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  text: string;
-  languageName?: string;
-  locale?: string;
-  timestamp: number;
-}
+  | "processing"  // ⏳ Thinking...
+  | "responding"  // 🔊 Speaking...
+  | "done"        // ✓ Done
+  | "error";      // ⚠️ Error
 
 export function VoiceAssistantModal({
   isOpen,
@@ -85,400 +67,157 @@ export function VoiceAssistantModal({
   onNavigate?: (tab: string) => void;
 }) {
   const { lang, speechLocale, setLang } = useI18n();
-  const askAIServerFn = useServerFn(askVoiceAssistant);
 
-  // States with persistent session memory
+  // Core Pipeline State
   const [voiceState, setVoiceState] = useState<AssistantVoiceState>("idle");
   const [currentLocale, setCurrentLocale] = useState<string>(speechLocale || "en-IN");
   const [detectedLangName, setDetectedLangName] = useState<string>("Auto-Detect");
   const [transcript, setTranscript] = useState<string>("");
   const [inputDraft, setInputDraft] = useState<string>("");
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoiceUri, setSelectedVoiceUri] = useState<string | null>(voiceManager.getSelectedVoice());
-  const [messages, setMessages] = useState<ChatMessage[]>(() => {
-    try {
-      const saved = sessionStorage.getItem("mb_voice_chat_history");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-  // Stored clean AI response for Speak Again / Listen Again (Requirements 8 & 9)
-  const [lastCleanAIResponse, setLastCleanAIResponse] = useState<string>("");
-  const [pendingIntent, setPendingIntent] = useState<VoiceIntent | null>(null);
-  const [recognitionError, setRecognitionError] = useState<string | null>(null);
-  const [conversationMode, setConversationMode] = useState<boolean>(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [lastResponseText, setLastResponseText] = useState<string>("");
   const [lastCreatedReminder, setLastCreatedReminder] = useState<Reminder | null>(null);
-  const silenceTimerRef = useRef<any>(null);
 
-
-  // References to preserve synchronous state across recognition and event loop callbacks
+  // Synchronous references across speech recognition & event loops
   const isOpenRef = useRef(isOpen);
-  const isActiveSessionRef = useRef(false);
-  const isThinkingRef = useRef(false);
-  const isSpeakingRef = useRef(false);
+  const voiceStateRef = useRef<AssistantVoiceState>("idle");
   const currentLocaleRef = useRef(currentLocale);
-  const lastCleanAIResponseRef = useRef<string>("");
-  const lastLocaleRef = useRef<string>(currentLocale);
-  const messagesRef = useRef<ChatMessage[]>(messages);
-  const listenTimeoutRef = useRef<any>(null);
   const recognitionRef = useRef<any>(null);
-  const chatScrollRef = useRef<HTMLDivElement>(null);
-  const speechDebounceTimerRef = useRef<any>(null);
+  const silenceTimerRef = useRef<any>(null);
+  const debounceTimerRef = useRef<any>(null);
   const speechAccumulatorRef = useRef<string>("");
+  const isSpeechActiveRef = useRef<boolean>(false);
 
+  // Keep refs synchronized
   useEffect(() => {
     isOpenRef.current = isOpen;
     if (isOpen) {
-      // Request browser notification permission for real scheduled alerts
+      // Request browser notification permissions so alerts can pop up on device
       requestNotificationPermission().catch(() => {});
+      setVoiceState("idle");
+      setTranscript("");
+      setErrorMessage(null);
       setLastCreatedReminder(null);
+      setLastResponseText("");
+      // Auto-start listening on open for seamless experience
+      const timer = setTimeout(() => {
+        if (isOpenRef.current) {
+          startListening();
+        }
+      }, 300);
+      return () => clearTimeout(timer);
+    } else {
+      cleanupAllAudio();
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    voiceStateRef.current = voiceState;
+  }, [voiceState]);
 
   useEffect(() => {
     currentLocaleRef.current = currentLocale;
   }, [currentLocale]);
 
-  // Load and refresh available TTS voices for current locale
-  useEffect(() => {
-    const updateVoices = () => {
-      const v = voiceManager.getVoicesForLocale(currentLocale);
-      setAvailableVoices(v);
-    };
-    updateVoices();
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-      window.speechSynthesis.onvoiceschanged = updateVoices;
-    }
-    return () => {
-      if (typeof window !== "undefined" && window.speechSynthesis) {
-        window.speechSynthesis.onvoiceschanged = null;
-      }
-    };
-  }, [currentLocale]);
-
-  // Keep messagesRef in lockstep with messages state & persist to sessionStorage
-  useEffect(() => {
-    messagesRef.current = messages;
-    try {
-      sessionStorage.setItem("mb_voice_chat_history", JSON.stringify(messages.slice(-20)));
-    } catch {}
-  }, [messages]);
-
-  // Sync locale when global language changes
   useEffect(() => {
     const loc = speechLocale || "en-IN";
     setCurrentLocale(loc);
     currentLocaleRef.current = loc;
   }, [speechLocale]);
 
-  // Load conversation preference
-  useEffect(() => {
-    const saved = localStorage.getItem("mb_conversation_mode");
-    if (saved !== null) {
-      setConversationMode(saved === "true");
+  // Comprehensive Cleanup function
+  const cleanupAllAudio = useCallback(() => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
     }
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    speechAccumulatorRef.current = "";
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.onstart = null;
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.onend = null;
+        recognitionRef.current.abort();
+      } catch {}
+      recognitionRef.current = null;
+    }
+
+    voiceManager.stopSpeaking();
+    isSpeechActiveRef.current = false;
   }, []);
 
-  // Auto-scroll chat to bottom
+  // Cleanup on unmount
   useEffect(() => {
-    if (chatScrollRef.current) {
-      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-    }
-  }, [messages, voiceState]);
-
-  const toggleConversationMode = (enabled: boolean) => {
-    setConversationMode(enabled);
-    localStorage.setItem("mb_conversation_mode", String(enabled));
-  };
-
-  const handleClearChat = () => {
-    messagesRef.current = [];
-    setMessages([]);
-    try {
-      sessionStorage.removeItem("mb_voice_chat_history");
-    } catch {}
-  };
+    return () => {
+      cleanupAllAudio();
+    };
+  }, [cleanupAllAudio]);
 
   const SpeechRecognition =
     typeof window !== "undefined"
       ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
       : null;
 
-  const extractTimeFromText = (tText: string): string => {
-    const t = tText.toLowerCase();
-    const m24 = t.match(/(\d{1,2}):(\d{2})/);
-    if (m24) {
-      const h = parseInt(m24[1], 10);
-      const m = m24[2];
-      const isPm = t.includes("pm") || t.includes("रात") || t.includes("शाम") || t.includes("रात्रे") || t.includes("दोपहर");
-      const hour24 = isPm && h < 12 ? h + 12 : h;
-      return `${String(hour24).padStart(2, "0")}:${m}`;
-    }
-    const mNum = t.match(/(\d{1,2})\s*(?:बजे|વાગ્યે|am|pm|घंटे|o'clock)?/i);
-    if (mNum) {
-      const h = parseInt(mNum[1], 10);
-      const isPm = t.includes("pm") || t.includes("रात") || t.includes("शाम") || t.includes("रात्रे") || t.includes("दोपहर") || t.includes("night") || t.includes("evening");
-      const hour24 = isPm && h < 12 ? h + 12 : (!isPm && h === 12 ? 0 : h);
-      return `${String(hour24).padStart(2, "0")}:00`;
-    }
-    return "08:30";
-  };
-
   // -------------------------------------------------------------------------
-  // Interruption / Barge-in: immediately cancel audio if speaking and listen
-  // (Requirement 5 & 11)
+  // Speech Recognition Lifecycle Controller
   // -------------------------------------------------------------------------
-  const handleBargeIn = () => {
-    if (speechDebounceTimerRef.current) {
-      clearTimeout(speechDebounceTimerRef.current);
-      speechDebounceTimerRef.current = null;
-    }
-    speechAccumulatorRef.current = "";
-    voiceManager.stopSpeaking();
-    isSpeakingRef.current = false;
-    if (listenTimeoutRef.current) {
-      clearTimeout(listenTimeoutRef.current);
-      listenTimeoutRef.current = null;
-    }
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
-    }
-    setVoiceState("interrupted");
-    setTimeout(() => {
-      setVoiceState("listening");
-    }, 120);
-  };
-
-  // -------------------------------------------------------------------------
-  // Clean Stop: Halts session completely until user triggers mic again
-  // (Requirement 16)
-  // -------------------------------------------------------------------------
-  const handleStop = () => {
-    isActiveSessionRef.current = false;
-    if (speechDebounceTimerRef.current) {
-      clearTimeout(speechDebounceTimerRef.current);
-      speechDebounceTimerRef.current = null;
-    }
-    speechAccumulatorRef.current = "";
-    if (listenTimeoutRef.current) {
-      clearTimeout(listenTimeoutRef.current);
-      listenTimeoutRef.current = null;
-    }
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
-    }
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.abort();
-      } catch {}
-    }
-    isThinkingRef.current = false;
-    isSpeakingRef.current = false;
-    voiceManager.stopSpeaking();
-    setVoiceState("stopping");
-    setTimeout(() => {
-      setVoiceState("idle");
-    }, 150);
-  };
-
-  // -------------------------------------------------------------------------
-  // Voice & Language Switch Handlers with Audio Cancellation
-  // (Requirements 20, 21, 22, 23)
-  // -------------------------------------------------------------------------
-  const handleVoiceChange = (voiceUri: string | null) => {
-    voiceManager.stopSpeaking();
-    isSpeakingRef.current = false;
-    if (listenTimeoutRef.current) {
-      clearTimeout(listenTimeoutRef.current);
-      listenTimeoutRef.current = null;
-    }
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
-    }
-    setSelectedVoiceUri(voiceUri);
-    voiceManager.setSelectedVoice(voiceUri);
-    setVoiceState("idle");
-  };
-
-  const handleLanguageChange = (newLocale: string) => {
-    voiceManager.stopSpeaking();
-    isSpeakingRef.current = false;
-    if (speechDebounceTimerRef.current) {
-      clearTimeout(speechDebounceTimerRef.current);
-      speechDebounceTimerRef.current = null;
-    }
-    speechAccumulatorRef.current = "";
-    if (listenTimeoutRef.current) {
-      clearTimeout(listenTimeoutRef.current);
-      listenTimeoutRef.current = null;
-    }
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
-    }
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.abort();
-      } catch {}
-    }
-
-    setCurrentLocale(newLocale);
-    currentLocaleRef.current = newLocale;
-    const matched = LANGUAGES.find((l) => l.speech === newLocale);
-    if (matched) {
-      setDetectedLangName(matched.name);
-      setLang(matched.code);
-    }
-
-    setSelectedVoiceUri(null);
-    voiceManager.setSelectedVoice(null);
-
-    const v = voiceManager.getVoicesForLocale(newLocale);
-    setAvailableVoices(v);
-
-    if (isActiveSessionRef.current) {
-      setTimeout(() => {
-        startListening(true);
-      }, 250);
-    } else {
-      setVoiceState("idle");
-    }
-  };
-
-  // -------------------------------------------------------------------------
-  // Clean Exit: Stops voice/TTS, mic, continuous loops, closes modal & returns to Home
-  // -------------------------------------------------------------------------
-  const handleExit = () => {
-    // 1. Immediately halt session & any continuous turn loops
-    isActiveSessionRef.current = false;
-    if (speechDebounceTimerRef.current) {
-      clearTimeout(speechDebounceTimerRef.current);
-      speechDebounceTimerRef.current = null;
-    }
-    speechAccumulatorRef.current = "";
-    if (listenTimeoutRef.current) {
-      clearTimeout(listenTimeoutRef.current);
-      listenTimeoutRef.current = null;
-    }
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
-    }
-
-    // 2. Stop microphone/listening if active
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.abort();
-      } catch {}
-      recognitionRef.current = null;
-    }
-
-    // 3. Immediately stop any currently playing AI voice/TTS & clear audio queue
-    isThinkingRef.current = false;
-    isSpeakingRef.current = false;
-    voiceManager.stopSpeaking();
-
-    // 4. Clean up audio/conversation states
-    setVoiceState("idle");
-    setPendingIntent(null);
-    setTranscript("");
-
-    // 5. Close Voice Assistant modal
-    onClose();
-
-    // 6. Return user directly to Home Screen / Dashboard using existing navigation
-    if (onNavigate) {
-      const homeTab =
-        store?.profile?.role === "caregiver"
-          ? "caregiver"
-          : store?.profile?.role === "healthcare_worker"
-          ? "healthcare"
-          : "home";
-      onNavigate(homeTab);
-    }
-  };
-
-  // -------------------------------------------------------------------------
-  // Start Listening (🔴 Listening...) with Barge-In Support & Robust Silence Management
-  // -------------------------------------------------------------------------
-  const startListening = (force = false) => {
+  const startListening = () => {
     if (!isOpenRef.current) return;
 
-    // If force (user tapped mic during speech), halt TTS immediately
-    if (isSpeakingRef.current || voiceManager.isAssistantSpeaking() || voiceState === "speaking") {
-      voiceManager.stopSpeaking();
-      isSpeakingRef.current = false;
-    }
-
-    if (listenTimeoutRef.current) {
-      clearTimeout(listenTimeoutRef.current);
-      listenTimeoutRef.current = null;
-    }
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
-    }
-
-    if (speechDebounceTimerRef.current) {
-      clearTimeout(speechDebounceTimerRef.current);
-      speechDebounceTimerRef.current = null;
-    }
-    speechAccumulatorRef.current = "";
-
-    setRecognitionError(null);
-    isThinkingRef.current = false;
-    isSpeakingRef.current = false;
+    // 1. Cancel any active speech synthesis or old recognition instance
+    cleanupAllAudio();
+    setErrorMessage(null);
+    setTranscript("");
 
     if (!SpeechRecognition) {
       setVoiceState("error");
-      setRecognitionError(
-        "Microphone access is not supported in this browser. You can type your request naturally below."
+      setErrorMessage(
+        "Speech recognition is not supported in this browser. You can type your request naturally below."
       );
       return;
     }
 
     try {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.abort();
-        } catch {}
-        recognitionRef.current = null;
-      }
-
       const recognition = new SpeechRecognition();
       recognitionRef.current = recognition;
 
       recognition.lang = currentLocaleRef.current;
       recognition.interimResults = true;
       recognition.maxAlternatives = 1;
+      recognition.continuous = false;
 
       recognition.onstart = () => {
+        if (!isOpenRef.current) {
+          try { recognition.abort(); } catch {}
+          return;
+        }
         setVoiceState("listening");
-        setRecognitionError(null);
+        setErrorMessage(null);
 
-        // 8-second silence timer to prevent permanently stuck microphone
+        // Silence Watchdog: 7.5 seconds without speech -> prompt user & return to IDLE
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
         silenceTimerRef.current = setTimeout(() => {
-          if (recognitionRef.current && voiceState === "listening" && !speechAccumulatorRef.current.trim()) {
+          if (recognitionRef.current && voiceStateRef.current === "listening" && !speechAccumulatorRef.current.trim()) {
             try {
               recognitionRef.current.abort();
             } catch {}
             setVoiceState("idle");
-            setTranscript("");
-            const noHearing = currentLocaleRef.current.startsWith("hi")
+            const noHearMsg = currentLocaleRef.current.startsWith("hi")
               ? "माफ़ कीजिए, मुझे कुछ सुनाई नहीं दिया। कृपया दोबारा बोलें।"
               : "Sorry, I didn't hear anything. Tap to speak again.";
-            setRecognitionError(noHearing);
+            setErrorMessage(noHearMsg);
           }
-        }, 8000);
+        }, 7500);
       };
 
       recognition.onresult = (event: any) => {
-        // Cancel silence timer as soon as user speaks
+        // Clear silence timeout as soon as audio is received
         if (silenceTimerRef.current) {
           clearTimeout(silenceTimerRef.current);
           silenceTimerRef.current = null;
@@ -505,14 +244,14 @@ export function VoiceAssistantModal({
           setTranscript(liveText);
         }
 
-        if (speechDebounceTimerRef.current) {
-          clearTimeout(speechDebounceTimerRef.current);
-          speechDebounceTimerRef.current = null;
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+          debounceTimerRef.current = null;
         }
 
-        // Wait 1000ms of quiet before submitting so natural speech isn't cut off
+        // Wait 850ms of quiet after speech before submitting query
         if (speechAccumulatorRef.current.trim()) {
-          speechDebounceTimerRef.current = setTimeout(() => {
+          debounceTimerRef.current = setTimeout(() => {
             const clean = speechAccumulatorRef.current.trim();
             speechAccumulatorRef.current = "";
 
@@ -523,14 +262,14 @@ export function VoiceAssistantModal({
             } catch {}
 
             processQuery(clean);
-          }, 1000);
+          }, 850);
         }
       };
 
       recognition.onerror = (event: any) => {
         const errType = event?.error;
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-        if (speechDebounceTimerRef.current) clearTimeout(speechDebounceTimerRef.current);
+        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
 
         if (errType === "aborted") {
           return;
@@ -538,14 +277,18 @@ export function VoiceAssistantModal({
 
         if (errType === "not-allowed" || errType === "service-not-allowed") {
           setVoiceState("error");
-          setRecognitionError(
-            "Microphone permission is blocked. Please enable microphone access in your browser or type your request below."
-          );
+          setErrorMessage("Microphone access is needed to use Voice AI. Please allow microphone permissions or type below.");
+          return;
+        }
+
+        if (errType === "network") {
+          setVoiceState("error");
+          setErrorMessage("I'm having trouble connecting. Please check your internet connection or try again.");
           return;
         }
 
         if (errType === "no-speech") {
-          // If speech was accumulated before silence, process it now!
+          // If speech was accumulated before silence event, process it immediately
           if (speechAccumulatorRef.current.trim()) {
             const clean = speechAccumulatorRef.current.trim();
             speechAccumulatorRef.current = "";
@@ -554,186 +297,111 @@ export function VoiceAssistantModal({
               return;
             }
           }
-
-          // Clean return to idle with helpful error message (prevents infinite loop!)
           setVoiceState("idle");
-          setRecognitionError(
+          setErrorMessage(
             currentLocaleRef.current.startsWith("hi")
-              ? "मैंने आपको नहीं सुना। कृपया माइक दबाकर दोबारा बोलें या नीचे लिखें।"
-              : "I didn't hear you. Please tap the microphone to try again or type below."
+              ? "मैंने आपको नहीं सुना। कृपया दोबारा बोलें।"
+              : "I didn't hear you. Please tap the microphone to try again."
           );
-          return;
-        }
-
-        if (errType === "network") {
-          setVoiceState("error");
-          setRecognitionError("I'm having trouble connecting. Please check your internet or try again.");
           return;
         }
 
         if (errType === "audio-capture") {
           setVoiceState("error");
-          setRecognitionError("Could not access microphone audio. Please check your microphone device.");
+          setErrorMessage("Could not access microphone. Please check your audio input device.");
           return;
         }
 
         setVoiceState("idle");
-        setRecognitionError("Sorry, I couldn't hear clearly. Please tap the microphone to retry.");
+        setErrorMessage("Sorry, I couldn't hear clearly. Please tap the microphone to retry.");
       };
 
       recognition.onend = () => {
-        if (isThinkingRef.current || isSpeakingRef.current || voiceManager.isAssistantSpeaking()) {
+        if (voiceStateRef.current === "processing" || voiceStateRef.current === "responding") {
           return;
         }
-
-        // If debounce timer is waiting to process accumulated speech, do not revert to idle
-        if (speechDebounceTimerRef.current && speechAccumulatorRef.current.trim()) {
+        if (debounceTimerRef.current && speechAccumulatorRef.current.trim()) {
           return;
         }
-
-        // Return to idle cleanly without loops
-        setVoiceState("idle");
+        if (voiceStateRef.current === "listening") {
+          setVoiceState("idle");
+        }
       };
 
       recognition.start();
     } catch {
-      if (!isSpeakingRef.current && !voiceManager.isAssistantSpeaking()) {
-        setVoiceState("error");
-        setRecognitionError(pick(ERROR_HEARING_MSG, currentLocaleRef.current));
-      }
+      setVoiceState("error");
+      setErrorMessage("Could not start microphone. You can type your request below.");
     }
   };
 
-  // Speak Answer (🔊 Speaking...) with Audio & Echo Guard
-  // (Requirements 3, 4, 5, 6, 7)
   // -------------------------------------------------------------------------
-  const speakAIAnswer = (
-    text: string,
-    locale: string,
-    onFinish?: () => void
-  ) => {
-    // Clean response before sending to TTS (Requirement 2 & 11)
+  // TTS Response Speaker
+  // -------------------------------------------------------------------------
+  const speakResponse = (text: string, locale: string, onFinish?: () => void) => {
     const clean = cleanAIResponse(text);
     if (!clean || clean.trim().length === 0) {
-      console.log("TTS skipped: cleaned response is empty");
       setVoiceState("idle");
       if (onFinish) onFinish();
       return;
     }
 
-    // 1. Immediately cancel any scheduled listen timeouts so continuous mode cannot fire during speech
-    if (listenTimeoutRef.current) {
-      clearTimeout(listenTimeoutRef.current);
-      listenTimeoutRef.current = null;
-    }
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
-    }
-
-    // 2. Abort active speech recognition so mic never picks up assistant speech
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.abort();
-      } catch {}
-    }
-
-    isThinkingRef.current = false;
-    isSpeakingRef.current = true;
-    setVoiceState("speaking");
+    cleanupAllAudio();
+    isSpeechActiveRef.current = true;
+    setVoiceState("responding");
 
     voiceManager.speak(
       clean,
       locale,
       () => {
         // onStart
-        isSpeakingRef.current = true;
-        setVoiceState("speaking");
+        setVoiceState("responding");
       },
       () => {
-        // Speech ended successfully after all chunks finish (Requirements 4, 5, 7, 10)
-        isSpeakingRef.current = false;
-        setVoiceState("finished");
+        // onEnd
+        isSpeechActiveRef.current = false;
         if (onFinish) onFinish();
 
-        // Only trigger continuous listening if a multi-turn dialogue question was asked (e.g. asking for missing time/topic)
-        const isFollowUpExpected = conversationalAI.getDialogueState().stage !== "idle";
-        if (isFollowUpExpected && isOpenRef.current && isActiveSessionRef.current) {
-          if (listenTimeoutRef.current) clearTimeout(listenTimeoutRef.current);
-          listenTimeoutRef.current = setTimeout(() => {
-            if (
-              isOpenRef.current &&
-              isActiveSessionRef.current &&
-              !isThinkingRef.current &&
-              !isSpeakingRef.current
-            ) {
-              startListening(true);
+        // Check if multi-turn dialogue expects user follow-up (e.g. asking for missing time/topic)
+        const dialogueStage = conversationalAI.getDialogueState().stage;
+        if (dialogueStage !== "idle" && isOpenRef.current) {
+          setTimeout(() => {
+            if (isOpenRef.current) {
+              startListening();
             }
           }, 350);
         } else {
-          // Action completed or informative answer spoken: safely return to idle
-          if (listenTimeoutRef.current) clearTimeout(listenTimeoutRef.current);
-          listenTimeoutRef.current = setTimeout(() => {
-            if (isOpenRef.current && !isSpeakingRef.current && !isThinkingRef.current) {
-              setVoiceState("idle");
-            }
-          }, 500);
+          // Action completed or informative answer: transition to done or idle
+          if (voiceStateRef.current !== "done") {
+            setVoiceState("idle");
+          }
         }
       },
-      (ttsErr) => {
-        // On TTS failure: safely return to idle (Requirement 18)
-        console.warn("[TTS_ERROR] Playback block/error:", ttsErr);
-        isSpeakingRef.current = false;
+      (err) => {
+        console.warn("[VoiceAssistantModal] TTS playback notice:", err);
+        isSpeechActiveRef.current = false;
         if (onFinish) onFinish();
-        setVoiceState("idle");
+        if (voiceStateRef.current !== "done") {
+          setVoiceState("idle");
+        }
       }
     );
   };
 
   // -------------------------------------------------------------------------
-  // Speak Again / Listen Again (Replays complete last clean AI response)
-  // (CRITICAL REQUIREMENTS 8 & 9)
-  // -------------------------------------------------------------------------
-  const handleSpeakAgain = () => {
-    const textToReplay =
-      lastCleanAIResponseRef.current ||
-      [...messagesRef.current].reverse().find((m) => m.role === "assistant")?.text;
-
-    if (!textToReplay) return;
-
-    // Stop only previous TTS if still playing & reset audio state
-    voiceManager.stopSpeaking();
-    isSpeakingRef.current = false;
-    if (listenTimeoutRef.current) {
-      clearTimeout(listenTimeoutRef.current);
-      listenTimeoutRef.current = null;
-    }
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
-    }
-
-    const replayLocale =
-      lastLocaleRef.current ||
-      [...messagesRef.current].reverse().find((m) => m.role === "assistant")?.locale ||
-      currentLocaleRef.current;
-
-    speakAIAnswer(textToReplay, replayLocale);
-  };
-
-  // -------------------------------------------------------------------------
-  // Core Conversational AI Pipeline: STT -> Intent Engine -> Verified Central Action -> TTS
+  // Unified Core Intent & Action Pipeline
+  // (Both Voice and Text input flow through this EXACT same engine)
   // -------------------------------------------------------------------------
   const processQuery = async (queryText: string) => {
     const text = queryText.trim();
     if (!text) return;
 
-    handleBargeIn();
-    isThinkingRef.current = true;
+    cleanupAllAudio();
     setVoiceState("processing");
-    setRecognitionError(null);
+    setErrorMessage(null);
+    setTranscript(text);
 
-    // 1. Detect language on client for immediate locale awareness
+    // 1. Detect language on client
     const detectedLocale = languageEngine.detectLanguage(text, currentLocaleRef.current) || currentLocaleRef.current;
     setCurrentLocale(detectedLocale);
     currentLocaleRef.current = detectedLocale;
@@ -742,28 +410,10 @@ export function VoiceAssistantModal({
       setDetectedLangName(detectedLangObj.name);
     }
 
-    // 2. Append User Message to messagesRef and state synchronously
-    const userMsg: ChatMessage = {
-      id: "u_" + Date.now(),
-      role: "user",
-      text,
-      locale: detectedLocale,
-      timestamp: Date.now(),
-    };
-    const updatedWithUser = [...messagesRef.current, userMsg];
-    messagesRef.current = updatedWithUser;
-    setMessages(updatedWithUser);
-    setTranscript(text);
+    let finalResponseText = "";
+    let isActionCompleted = false;
 
-    if (store && typeof store.addConversation === "function") {
-      store.addConversation(`User: ${text}`);
-    }
-
-    let finalCleanText = "";
-    let actionToExecute: string | null = null;
-    let actionData: any = null;
-
-    // STAGE 1: Check if multi-turn dialogue is already awaiting user input (e.g. asking for missing time)
+    // STAGE 1: Check Multi-Turn Dialogue (e.g. user answering "8 AM" to previous "What time?")
     const currentDialogue = conversationalAI.getDialogueState();
     if (currentDialogue.stage !== "idle") {
       try {
@@ -775,38 +425,40 @@ export function VoiceAssistantModal({
         );
 
         if (dialogueResult && dialogueResult.handled && dialogueResult.responseText) {
-          finalCleanText = cleanAIResponse(dialogueResult.responseText);
-          actionToExecute = dialogueResult.action || null;
-          actionData = dialogueResult.actionData;
+          finalResponseText = cleanAIResponse(dialogueResult.responseText);
+          if (dialogueResult.action === "create_reminder" && dialogueResult.actionData) {
+            setLastCreatedReminder(dialogueResult.actionData);
+            isActionCompleted = true;
+          }
         }
       } catch (e) {
-        console.warn("Conversational dialogue error:", e);
+        console.warn("[VoiceAssistantModal] Multi-turn dialogue error:", e);
       }
     }
 
-    // STAGE 2: Direct Central Intent Parser (Parses Hindi, Hinglish, English natural commands)
-    if (!finalCleanText) {
+    // STAGE 2: Direct Central Intent Parser (Hindi, Hinglish, English)
+    if (!finalResponseText) {
       const parsed = parseVoiceIntent(text, store, detectedLocale);
 
       if (parsed.type === "CREATE_REMINDER") {
         if (parsed.needsTime) {
-          // Missing time: preserve context and ask user
+          // Preserve context & ask for missing time
           conversationalAI.setDialogueContext({
             stage: "awaiting_reminder_time",
             targetTitle: parsed.title,
             targetDate: parsed.date,
             reminderType: parsed.reminderType,
           });
-          finalCleanText = parsed.confirmationMessage;
+          finalResponseText = parsed.confirmationMessage;
         } else if (parsed.needsTitle) {
-          // Missing title: preserve context and ask user
+          // Preserve context & ask for missing topic
           conversationalAI.setDialogueContext({
             stage: "awaiting_reminder_topic",
             targetTime: parsed.time,
             targetDate: parsed.date,
             reminderType: parsed.reminderType,
           });
-          finalCleanText = parsed.confirmationMessage;
+          finalResponseText = parsed.confirmationMessage;
         } else {
           // REAL PERSISTENT CREATION VIA CENTRAL REMINDER SERVICE
           const result = createVerifiedReminder(store, {
@@ -821,757 +473,372 @@ export function VoiceAssistantModal({
 
           if (result.success && result.reminder) {
             setLastCreatedReminder(result.reminder);
-            finalCleanText = parsed.confirmationMessage;
-            actionToExecute = "create_reminder";
-            actionData = result.reminder;
+            finalResponseText = parsed.confirmationMessage;
+            isActionCompleted = true;
           } else {
-            finalCleanText = detectedLocale.startsWith("hi")
+            finalResponseText = detectedLocale.startsWith("hi")
               ? "मैं यह रिमाइंडर सेव नहीं कर सका। कृपया दोबारा प्रयास करें।"
               : "I couldn't save that reminder. Please try again.";
           }
         }
       } else if (parsed.type === "SPEAK_REMINDERS") {
-        finalCleanText = parsed.message;
+        finalResponseText = parsed.message;
       } else if (parsed.type === "QUERY_NEXT_REMINDER") {
-        finalCleanText = parsed.message;
+        finalResponseText = parsed.message;
       } else if (parsed.type === "TAKE_MEDICINE") {
         const medId = parsed.medicineId || store.medicines[0]?.id;
         if (medId) {
-          store.markMedicineTaken(medId, "taken");
+          store.takeMedicine(medId);
         }
-        finalCleanText = parsed.confirmationMessage;
-        actionToExecute = "take_medicine";
+        finalResponseText = parsed.confirmationMessage;
       } else if (parsed.type === "NAVIGATE") {
-        finalCleanText = parsed.confirmationMessage;
-        actionToExecute = "navigate";
-        actionData = parsed.targetView;
+        finalResponseText = parsed.confirmationMessage;
+        if (onNavigate) {
+          setTimeout(() => {
+            onNavigate(parsed.targetView);
+            onClose();
+          }, 1200);
+        }
       } else if (parsed.type === "ANSWER" || parsed.type === "QUERY_MEDICINE") {
-        finalCleanText = parsed.message;
-      } else if (parsed.type === "CONFIRM_ACTION" || parsed.type === "CANCEL_ACTION") {
-        finalCleanText = parsed.confirmationMessage;
+        finalResponseText = parsed.message;
+      } else if (parsed.type === "CANCEL_ACTION") {
+        conversationalAI.resetDialogue();
+        finalResponseText = parsed.confirmationMessage;
       }
     }
 
-    // STAGE 3: World Knowledge Fact Engine
-    if (!finalCleanText) {
-      try {
-        const worldFact = await resolveWorldKnowledge(text, detectedLocale);
-        if (worldFact && worldFact.answered && worldFact.answer) {
-          finalCleanText = cleanAIResponse(worldFact.answer);
-        }
-      } catch (e) {
-        console.warn("World knowledge lookup notice:", e);
-      }
-    }
-
-    // STAGE 4: Direct App Action Intent Matching
-    if (!finalCleanText) {
+    // STAGE 3: Quick Navigation Check
+    if (!finalResponseText) {
       const lower = text.toLowerCase();
-      if (
-        lower.includes("game") ||
-        lower.includes("गेम") ||
-        lower.includes("रमत") ||
-        lower.includes("खेल") ||
-        lower.includes("খেলা")
-      ) {
-        actionToExecute = "navigate_games";
-        finalCleanText = detectedLocale.startsWith("hi")
-          ? "मैं आपके लिए कॉग्निटिव मेमोरी गेम्स शुरू कर रहा हूँ। चलिए खेलना शुरू करते हैं!"
-          : "Opening your Cognitive Memory Games now!";
-      } else if (
-        (lower.includes("medicine") || lower.includes("dawa") || lower.includes("दवाई") || lower.includes("દવા")) &&
-        (lower.includes("show") || lower.includes("dikhao") || lower.includes("दिखाओ") || lower.includes("બતાવો"))
-      ) {
-        actionToExecute = "navigate_medicines";
-        const medList = store.medicines.map((m) => `${m.name} (${m.dosage})`).join(", ");
-        finalCleanText = detectedLocale.startsWith("hi")
-          ? `आपकी दर्ज दवाएं हैं: ${medList || "वर्तमान में कोई दवा दर्ज नहीं है"}।`
-          : `Your scheduled medicines are: ${medList || "No medicines recorded"}.`;
-      }
-    }
-
-    // STAGE 5: Cloud AI / Local Companion Engine Fallback
-    if (!finalCleanText) {
-      const previousTurns = updatedWithUser.slice(-8).map((m) => ({
-        role: m.role,
-        content: m.text,
-      }));
-
-      try {
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("AI_TIMEOUT")), 5000)
-        );
-
-        const aiPromise = askAIServerFn({
-          data: {
-            query: text,
-            history: previousTurns,
-            context: {
-              userName: store.profile?.full_name || "Senior",
-              medicinesCount: store.medicines?.length || 0,
-              pendingMeds: store.medicines?.map((m) => m.name).join(", "),
-              routinesCompleted: `${
-                store.routines?.filter(
-                  (r) => r.done_date === new Date().toISOString().slice(0, 10)
-                ).length || 0
-              } completed`,
-              nextAppointment: store.appointments?.[0]?.title,
-            },
-            preferredLocale: detectedLocale,
-          },
-        });
-
-        const aiResponse: any = await Promise.race([aiPromise, timeoutPromise]);
-        if (aiResponse?.reply) {
-          finalCleanText = cleanAIResponse(aiResponse.reply);
+      if (lower.includes("game") || lower.includes("गेम") || lower.includes("खेल")) {
+        finalResponseText = detectedLocale.startsWith("hi")
+          ? "आपका मेमोरी गेम शुरू कर रहे हैं।"
+          : "Opening your Cognitive Memory Games now.";
+        if (onNavigate) {
+          setTimeout(() => {
+            onNavigate("games");
+            onClose();
+          }, 1000);
         }
-      } catch {
-        finalCleanText = cleanAIResponse(
-          conversationalAI.generateConversationalReply(text, detectedLocale, store)
-        );
       }
     }
 
-    // Guarantee clean non-empty response
-    if (!finalCleanText || finalCleanText.trim().length === 0) {
-      finalCleanText = cleanAIResponse(
-        conversationalAI.generateConversationalReply(text, detectedLocale, store)
-      );
+    // STAGE 4: Friendly Conversational Fallback
+    if (!finalResponseText) {
+      finalResponseText = detectedLocale.startsWith("hi")
+        ? "माफ़ कीजिए, मैं पूरी तरह समझ नहीं पाया। आप 'मुझे कल सुबह 8 बजे पौधों को पानी देने का रिमाइंडर लगा दो' या 'आज के मेरे रिमाइंडर क्या हैं?' पूछ सकते हैं।"
+        : "I'm having trouble understanding that request. You can say 'Remind me tomorrow at 8 AM to water the plants' or 'What are my reminders today?'";
     }
 
-    finalCleanText = cleanAIResponse(finalCleanText);
-    isThinkingRef.current = false;
+    setLastResponseText(finalResponseText);
 
-    // Record turn in Conversational AI dialogue memory
-    conversationalAI.recordTurn("user", text, detectedLocale);
-    conversationalAI.recordTurn("assistant", finalCleanText, detectedLocale);
-
-    // Sync app language with detected language
-    const matchedLang = LANGUAGES.find(
-      (l) => l.speech.toLowerCase() === detectedLocale.toLowerCase() || l.speech.startsWith(detectedLocale.slice(0, 2))
-    );
-    if (matchedLang) {
-      setLang(matchedLang.code);
+    if (isActionCompleted) {
+      setVoiceState("done");
     }
 
-    lastCleanAIResponseRef.current = finalCleanText;
-    setLastCleanAIResponse(finalCleanText);
-    lastLocaleRef.current = detectedLocale;
-
-    // Append Assistant Message to chat
-    const assistantMsg: ChatMessage = {
-      id: "a_" + Date.now(),
-      role: "assistant",
-      text: finalCleanText,
-      languageName: matchedLang?.label || "Auto-Detected",
-      locale: detectedLocale,
-      timestamp: Date.now(),
-    };
-    const finalMessages = [...messagesRef.current, assistantMsg];
-    messagesRef.current = finalMessages;
-    setMessages(finalMessages);
-
-    if (store && typeof store.addConversation === "function") {
-      store.addConversation(`Assistant: ${finalCleanText}`);
-    }
-
-    // Execute application actions
-    if (actionToExecute === "take_medicine" && actionData?.medicineId) {
-      store.markMedicineTaken(actionData.medicineId, "taken");
-    } else if (actionToExecute === "navigate_reminders") {
-      onNavigate?.("reminders");
-    } else if (actionToExecute === "navigate_games") {
-      onNavigate?.("games");
-    } else if (actionToExecute === "navigate_medicines") {
-      onNavigate?.("medicines");
-    } else if (actionToExecute === "navigate" && typeof actionData === "string") {
-      onNavigate?.(actionData);
-    }
-
-    // Speak the response
-    speakAIAnswer(finalCleanText, detectedLocale);
+    // Speak response cleanly
+    speakResponse(finalResponseText, detectedLocale);
   };
 
-  // Care Action Confirmations (Take Medicine, Reminders, Appointments, Games)
-  // -------------------------------------------------------------------------
-  const handleConfirmIntent = () => {
-    if (!pendingIntent) return;
+  // User cancel handler
+  const handleCancel = () => {
+    cleanupAllAudio();
+    conversationalAI.resetDialogue();
+    setVoiceState("idle");
+    setTranscript("");
+    setErrorMessage(null);
+  };
 
-    if (pendingIntent.type === "TAKE_MEDICINE") {
-      const medId = pendingIntent.medicineId || store.medicines[0]?.id;
-      if (medId) {
-        store.takeMedicine(medId);
-        speakAIAnswer(
-          pick(MEDICINE_TAKEN_SUCCESS_MSG, currentLocaleRef.current),
-          currentLocaleRef.current
-        );
-      }
-    } else if (pendingIntent.type === "CREATE_REMINDER") {
-      store.addReminder({
-        title: pendingIntent.title,
-        time: pendingIntent.time,
-        type: pendingIntent.reminderType,
-        date: pendingIntent.date || null,
-        repeat: pendingIntent.date ? "none" : "daily",
-        notes: pendingIntent.notes || "Created by Memory Bond Voice Assistant",
-        active: true,
-      });
-      const remFn = pick(REMINDER_SAVED_SUCCESS_MSG, currentLocaleRef.current);
-      speakAIAnswer(remFn(pendingIntent.time), currentLocaleRef.current);
-    } else if (pendingIntent.type === "CREATE_APPOINTMENT") {
-      store.addAppointment({
-        title: pendingIntent.title,
-        date: pendingIntent.date,
-        time: pendingIntent.time,
-        kind: "doctor",
-        location: pendingIntent.location || "Clinic",
-        notes: "Created via Voice Assistant",
-      });
-      speakAIAnswer(
-        pick(APPOINTMENT_SAVED_SUCCESS_MSG, currentLocaleRef.current),
-        currentLocaleRef.current
-      );
-    } else if (pendingIntent.type === "ADD_JOURNAL") {
-      store.addJournalEntry({
-        title: pendingIntent.title,
-        body: pendingIntent.body,
-        entry_date: new Date().toISOString().slice(0, 10),
-        kind: "voice",
-      });
-      speakAIAnswer(
-        pick(JOURNAL_SAVED_SUCCESS_MSG, currentLocaleRef.current),
-        currentLocaleRef.current
-      );
-    } else if (pendingIntent.type === "NAVIGATE") {
-      if (onNavigate) {
-        onNavigate(pendingIntent.targetView);
-      }
+  // Exit modal handler
+  const handleExit = () => {
+    cleanupAllAudio();
+    conversationalAI.resetDialogue();
+    onClose();
+  };
+
+  const getReminderBadgeIcon = (type?: Reminder["type"]) => {
+    switch (type) {
+      case "medicine":
+        return <Pill className="h-5 w-5 text-emerald-600" />;
+      case "hydration":
+        return <Droplets className="h-5 w-5 text-sky-600" />;
+      case "walking":
+        return <Footprints className="h-5 w-5 text-teal-600" />;
+      case "family_call":
+        return <Phone className="h-5 w-5 text-rose-600" />;
+      case "appointment":
+        return <Calendar className="h-5 w-5 text-purple-600" />;
+      case "routine":
+      default:
+        // Plant/routine representation
+        return <span className="text-xl">🌱</span>;
     }
-
-    setPendingIntent(null);
   };
-
-  const handleCancelIntent = () => {
-    setPendingIntent(null);
-    speakAIAnswer(
-      pick(CANCELLED_MSG, currentLocaleRef.current),
-      currentLocaleRef.current
-    );
-  };
-
-  const handleRetry = () => {
-    setRecognitionError(null);
-    isActiveSessionRef.current = true;
-    startListening();
-  };
-
-  // -------------------------------------------------------------------------
-  // Lifecycle: Auto-start on modal open, clean stop on close
-  // -------------------------------------------------------------------------
-  useEffect(() => {
-    if (isOpen) {
-      isActiveSessionRef.current = true;
-      const timer = setTimeout(() => {
-        startListening();
-      }, 350);
-      return () => clearTimeout(timer);
-    } else {
-      handleStop();
-      setPendingIntent(null);
-      setTranscript("");
-    }
-  }, [isOpen]);
-
-  // Escape key handler to trigger clean Exit
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpenRef.current) {
-        handleExit();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
 
   if (!isOpen) return null;
 
-  const latestAssistantMessage = [...messages]
-    .reverse()
-    .find((m) => m.role === "assistant");
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-3 sm:p-4 backdrop-blur-md animate-in fade-in duration-200"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          handleExit();
-        }
-      }}
-    >
-      <div className="relative w-full max-w-2xl rounded-3xl border border-border bg-card p-5 sm:p-7 shadow-2xl space-y-5 flex flex-col max-h-[92vh] modal-enter">
-        
-        {/* Top Header: STOP Button, Auto-Detected Language Pill, New Topic, Language Selector, Exit Button */}
-        <div className="flex items-center justify-between pb-3 border-b border-border shrink-0 gap-2 flex-wrap sm:flex-nowrap">
-          <div className="flex items-center gap-2">
-            <MemoryBondLogo variant="icon" size="xs" />
-            {/* Immediate Stop Speaking / Cancel Button */}
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={handleStop}
-              className="rounded-full px-3.5 py-1.5 text-xs font-black gap-1.5 shadow-xs hover:scale-105 transition-transform"
-            >
-              <VolumeX className="h-4 w-4" /> STOP
-            </Button>
-
-            {/* Auto-Detected Language Pill Badge */}
-            <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 px-3 py-1 rounded-full text-xs font-black shadow-xs">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <Languages className="h-3.5 w-3.5" />
-              <span>{detectedLangName}</span>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-background/80 backdrop-blur-sm animate-in fade-in">
+      <div className="relative w-full max-w-lg rounded-3xl bg-card border-2 border-border/80 shadow-2xl p-5 sm:p-6 flex flex-col gap-4 text-foreground">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-border/40 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-bold">
+              <MemoryBondLogo size={24} />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-base sm:text-lg text-foreground">
+                Memory Bond Voice AI
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Reliable Voice Assistant • {detectedLangName}
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-            {/* Clear Chat / Start New Topic Button */}
-            {messages.length > 0 && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={handleClearChat}
-                className="rounded-full text-xs font-bold gap-1 text-muted-foreground hover:text-foreground h-8 px-2.5"
-                title="Reset conversation memory for a new topic"
-              >
-                <RotateCcw className="h-3.5 w-3.5" /> New Topic
-              </Button>
-            )}
-
-            {/* State-Grouped Manual Language Selector (Pan-India & All 8 NER States) */}
-            <select
-              value={currentLocale}
-              onChange={(e) => handleLanguageChange(e.target.value)}
-              className="bg-secondary text-foreground text-xs font-bold rounded-full px-2.5 py-1 border border-border cursor-pointer focus:outline-none max-w-[140px] sm:max-w-none text-ellipsis overflow-hidden"
-              title="Select Language (Pan-India & All 8 North East States)"
-            >
-              <option value="auto">🌐 Auto-Detect</option>
-              <optgroup label="Pan-India National Languages">
-                {LANGUAGES.filter((l) => !l.state || l.state === "Pan-India").map((l) => (
-                  <option key={l.code} value={l.speech}>
-                    {l.native} ({l.label})
-                  </option>
-                ))}
-              </optgroup>
-              {NER_STATES.map((stateName) => (
-                <optgroup key={stateName} label={`${stateName} (NER)`}>
-                  {getLanguagesByState(stateName).map((l) => (
-                    <option key={l.code} value={l.speech}>
-                      {l.native} ({l.label})
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-
-            {/* TTS Spoken Voice Selector (Voice A / B / C / System Voices) */}
-            <select
-              value={selectedVoiceUri || "auto"}
-              onChange={(e) => handleVoiceChange(e.target.value === "auto" ? null : e.target.value)}
-              className="bg-secondary text-foreground text-xs font-bold rounded-full px-2.5 py-1 border border-border cursor-pointer focus:outline-none max-w-[125px] sm:max-w-none text-ellipsis overflow-hidden"
-              title="Select spoken voice (Voice A / Voice B / Voice C)"
-            >
-              <option value="auto">🎙️ Voice (Auto)</option>
-              {availableVoices.length > 0 ? (
-                availableVoices.map((v) => (
-                  <option key={v.voiceURI} value={v.voiceURI}>
-                    {v.name}
-                  </option>
-                ))
-              ) : (
-                <>
-                  <option value="voice-a">Voice A (Warm Elder)</option>
-                  <option value="voice-b">Voice B (Gentle Female)</option>
-                  <option value="voice-c">Voice C (Clear Male)</option>
-                </>
-              )}
-            </select>
-
-            {/* Clearly Visible Exit Button (Accessible, Mobile-Friendly, Top-Right Corner) */}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleExit}
-              className="rounded-full px-3.5 py-1.5 text-xs font-black gap-1.5 border-destructive/40 text-destructive hover:bg-destructive hover:text-white transition-all shadow-xs h-8 sm:h-9 shrink-0 hover:scale-105"
-              title="Exit Voice Assistant"
-              aria-label="Exit Voice Assistant"
-            >
-              <X className="h-4 w-4" />
-              <span>Exit</span>
-            </Button>
-          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleExit}
+            className="rounded-full h-9 w-9 text-muted-foreground hover:text-foreground cursor-pointer"
+            title="Close Voice AI"
+          >
+            <X className="h-5 w-5" />
+          </Button>
         </div>
 
-        {/* Robust Voice State Machine Visualizer */}
-        <div className="text-center space-y-3 shrink-0">
-          {/* Large Central Microphone Control Button */}
-          <div className="flex flex-col items-center justify-center gap-3">
-            <button
-              onClick={
-                voiceState === "speaking"
-                  ? () => {
-                      handleBargeIn();
-                      isActiveSessionRef.current = true;
-                      startListening(true);
-                    }
-                  : voiceState === "listening"
-                  ? handleStop
-                  : () => {
-                      isActiveSessionRef.current = true;
-                      startListening();
-                    }
-              }
-              className={`h-24 w-24 sm:h-28 sm:w-28 rounded-full border-4 flex items-center justify-center transition-all duration-300 shadow-xl focus:outline-none cursor-pointer ${
-                voiceState === "listening"
-                  ? "bg-destructive text-white border-destructive/50 scale-110 shadow-destructive/30 animate-pulse ring-8 ring-destructive/15"
-                  : voiceState === "processing"
-                  ? "bg-amber-500 text-white border-amber-400 scale-105 shadow-amber-500/25 animate-pulse ring-8 ring-amber-500/15"
-                  : voiceState === "speaking"
-                  ? "bg-primary text-white border-primary/60 scale-105 shadow-primary/30 animate-pulse ring-8 ring-primary/15"
-                  : voiceState === "interrupted"
-                  ? "bg-amber-600 text-white border-amber-400 animate-pulse"
-                  : voiceState === "stopping"
-                  ? "bg-slate-600 text-white border-slate-400"
-                  : voiceState === "finished"
-                  ? "bg-emerald-600 text-white border-emerald-400 scale-105 shadow-emerald-500/25 ring-8 ring-emerald-500/15"
-                  : voiceState === "error"
-                  ? "bg-destructive/10 text-destructive border-destructive ring-4 ring-destructive/10"
-                  : "bg-primary hover:bg-primary/90 text-white border-primary/20 hover:scale-105 shadow-primary/25"
-              }`}
-              title={
-                voiceState === "speaking"
-                  ? "Tap to interrupt speech"
-                  : voiceState === "listening"
-                  ? "Tap to pause listening"
-                  : "Tap to speak"
-              }
-            >
-              {voiceState === "listening" ? (
-                <Mic className="h-12 w-12 sm:h-14 sm:w-14 animate-bounce" />
-              ) : voiceState === "processing" ? (
-                <Sparkles className="h-12 w-12 sm:h-14 sm:w-14 animate-spin" />
-              ) : voiceState === "speaking" ? (
-                <Volume2 className="h-12 w-12 sm:h-14 sm:w-14 animate-pulse" />
-              ) : voiceState === "interrupted" ? (
-                <VolumeX className="h-12 w-12 sm:h-14 sm:w-14" />
-              ) : voiceState === "stopping" ? (
-                <StopCircle className="h-12 w-12 sm:h-14 sm:w-14 animate-spin" />
-              ) : voiceState === "finished" ? (
-                <Check className="h-12 w-12 sm:h-14 sm:w-14 animate-pulse" />
-              ) : voiceState === "error" ? (
-                <AlertCircle className="h-12 w-12 sm:h-14 sm:w-14" />
-              ) : (
-                <Mic className="h-12 w-12 sm:h-14 sm:w-14" />
-              )}
-            </button>
-
-            {/* Audio Waveform Animation (Speaking / Listening) */}
-            {(voiceState === "speaking" || voiceState === "listening") && (
-              <div className="flex items-center justify-center gap-1.5 h-6">
-                <span className="w-1.5 h-5 rounded-full bg-primary animate-pulse" style={{ animationDelay: "0ms" }} />
-                <span className="w-1.5 h-7 rounded-full bg-primary animate-pulse" style={{ animationDelay: "150ms" }} />
-                <span className="w-1.5 h-3 rounded-full bg-primary animate-pulse" style={{ animationDelay: "300ms" }} />
-                <span className="w-1.5 h-8 rounded-full bg-primary animate-pulse" style={{ animationDelay: "100ms" }} />
-                <span className="w-1.5 h-4 rounded-full bg-primary animate-pulse" style={{ animationDelay: "250ms" }} />
-                <span className="w-1.5 h-6 rounded-full bg-primary animate-pulse" style={{ animationDelay: "350ms" }} />
-              </div>
-            )}
-          </div>
-
-          {/* Verified Real Reminder Creation Card */}
-          {lastCreatedReminder && (
-            <div className="w-full rounded-2xl border-2 border-emerald-500/50 bg-emerald-500/10 p-3.5 sm:p-4 flex items-center justify-between gap-3 shadow-md animate-in fade-in zoom-in-95 duration-200">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center font-black text-lg shrink-0 shadow-xs">
-                  ✓
+        {/* Central State Display */}
+        <div className="flex flex-col items-center justify-center min-h-[220px] py-4 text-center space-y-4">
+          {/* Main Status & Animation */}
+          {voiceState === "listening" && (
+            <div className="flex flex-col items-center space-y-3 animate-in zoom-in-95">
+              <div className="relative flex items-center justify-center">
+                {/* Subtle pulse ring */}
+                <div className="absolute w-24 h-24 rounded-full bg-red-500/20 animate-ping duration-1000" />
+                <div className="relative w-20 h-20 rounded-full bg-destructive text-white flex items-center justify-center shadow-lg shadow-destructive/30">
+                  <Mic className="h-9 w-9 animate-pulse" />
                 </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded-md">
-                      {lastCreatedReminder.repeat === "daily" ? "Daily Reminder" : lastCreatedReminder.repeat === "interval" ? "Hydration Schedule" : "Scheduled"}
-                    </span>
-                    <span className="text-[10px] font-bold text-emerald-600">Verified in Reminders</span>
-                  </div>
-                  <h4 className="text-sm sm:text-base font-black text-foreground truncate mt-0.5">
+              </div>
+              <div className="space-y-1">
+                <p className="text-lg font-black text-destructive flex items-center justify-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-destructive animate-ping" />
+                  Listening...
+                </p>
+                <p className="text-sm text-muted-foreground font-medium">
+                  "Tell me what you need"
+                </p>
+              </div>
+            </div>
+          )}
+
+          {voiceState === "processing" && (
+            <div className="flex flex-col items-center space-y-3 animate-in zoom-in-95">
+              <div className="w-20 h-20 rounded-full bg-primary/10 border-2 border-primary/40 flex items-center justify-center text-primary shadow-sm">
+                <Sparkles className="h-9 w-9 text-primary animate-spin duration-1500" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-lg font-black text-primary">Thinking...</p>
+                <p className="text-sm text-muted-foreground">Understanding your request...</p>
+              </div>
+            </div>
+          )}
+
+          {voiceState === "responding" && (
+            <div className="flex flex-col items-center space-y-3 animate-in zoom-in-95">
+              <div className="w-20 h-20 rounded-full bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30">
+                <Volume2 className="h-9 w-9 animate-pulse" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-lg font-black text-primary">Speaking...</p>
+              </div>
+            </div>
+          )}
+
+          {voiceState === "done" && (
+            <div className="flex flex-col items-center space-y-3 animate-in zoom-in-95">
+              <div className="w-20 h-20 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                <Check className="h-10 w-10 stroke-[3]" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-xl font-black text-emerald-600">✓ Done</p>
+              </div>
+            </div>
+          )}
+
+          {voiceState === "error" && (
+            <div className="flex flex-col items-center space-y-3 animate-in zoom-in-95">
+              <div className="w-18 h-18 rounded-full bg-destructive/15 text-destructive flex items-center justify-center border border-destructive/30">
+                <AlertCircle className="h-9 w-9" />
+              </div>
+              <p className="text-sm font-bold text-destructive max-w-xs">
+                {errorMessage || "Something went wrong. Please try again."}
+              </p>
+            </div>
+          )}
+
+          {voiceState === "idle" && (
+            <div className="flex flex-col items-center space-y-3 animate-in zoom-in-95">
+              <button
+                type="button"
+                onClick={startListening}
+                className="w-20 h-20 rounded-full bg-secondary hover:bg-secondary/80 border-2 border-primary/40 flex items-center justify-center text-primary shadow-md hover:scale-105 transition-all cursor-pointer"
+                title="Tap to speak"
+              >
+                <Mic className="h-9 w-9" />
+              </button>
+              <div className="space-y-1">
+                <p className="text-base font-bold text-foreground">Tap to speak</p>
+                <p className="text-xs text-muted-foreground max-w-xs">
+                  Say something like: "Remind me tomorrow at 8 AM to water the plants"
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Live Transcript / Response Text Display */}
+          {transcript && (
+            <div className="w-full rounded-2xl bg-secondary/40 border border-border p-3 text-sm text-foreground italic font-medium max-h-24 overflow-y-auto">
+              "{transcript}"
+            </div>
+          )}
+
+          {/* Spoken Response Text */}
+          {lastResponseText && voiceState !== "listening" && voiceState !== "idle" && (
+            <p className="text-base sm:text-lg font-bold text-foreground leading-relaxed max-w-md">
+              {lastResponseText}
+            </p>
+          )}
+
+          {/* VERIFIED CREATED REMINDER CARD (Requirement 14 & 30) */}
+          {lastCreatedReminder && (
+            <div className="w-full rounded-2xl border-2 border-emerald-500/40 bg-emerald-500/10 p-4 text-left space-y-2.5 animate-in fade-in">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 font-bold text-sm text-emerald-800 dark:text-emerald-300">
+                  <Check className="h-4 w-4 text-emerald-600" />
+                  <span>Saved to Reminders Database</span>
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
+                  {lastCreatedReminder.type}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-card border border-border flex items-center justify-center shrink-0">
+                  {getReminderBadgeIcon(lastCreatedReminder.type)}
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-base text-foreground">
                     {lastCreatedReminder.title}
                   </h4>
-                  <p className="text-xs text-muted-foreground font-medium">
-                    ⏰ {lastCreatedReminder.date ? `${lastCreatedReminder.date} at ` : ""}{lastCreatedReminder.time}
-                    {lastCreatedReminder.notes ? ` • ${lastCreatedReminder.notes}` : ""}
-                  </p>
-                </div>
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setLastCreatedReminder(null);
-                  if (onNavigate) onNavigate("reminders");
-                  onClose();
-                }}
-                className="rounded-xl font-black text-xs border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/15 shrink-0"
-              >
-                View in Reminders
-              </Button>
-            </div>
-          )}
-
-          {/* Explicit State Indicator Label */}
-
-          <div className="flex items-center justify-center gap-2">
-            <span
-              className={`w-3 h-3 rounded-full ${
-                voiceState === "listening"
-                  ? "bg-destructive animate-ping"
-                  : voiceState === "processing"
-                  ? "bg-amber-500 animate-pulse"
-                  : voiceState === "speaking"
-                  ? "bg-primary animate-pulse"
-                  : voiceState === "interrupted"
-                  ? "bg-amber-600 animate-pulse"
-                  : voiceState === "stopping"
-                  ? "bg-slate-500"
-                  : voiceState === "finished"
-                  ? "bg-emerald-500 animate-pulse"
-                  : voiceState === "error"
-                  ? "bg-destructive"
-                  : "bg-primary/40"
-              }`}
-            />
-            <h2 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
-              {voiceState === "listening"
-                ? "🔴 LISTENING (Speak naturally)"
-                : voiceState === "processing"
-                ? "🧠 PROCESSING (Understanding your question)"
-                : voiceState === "speaking"
-                ? "🔊 SPEAKING (Tap mic to interrupt)"
-                : voiceState === "interrupted"
-                ? "✋ INTERRUPTED (Switching to listening)"
-                : voiceState === "stopping"
-                ? "⏹️ STOPPING (Resetting state)"
-                : voiceState === "finished"
-                ? "✅ FINISHED (Preparing next turn)"
-                : voiceState === "error"
-                ? "⚠️ Speech Error"
-                : "🎙️ READY (Tap microphone to speak)"}
-            </h2>
-          </div>
-
-          {voiceState === "speaking" && (
-            <p className="text-xs font-bold text-primary animate-pulse">
-              {pick(BARGE_IN_HINT_MSG, currentLocaleRef.current)}
-            </p>
-          )}
-        </div>
-
-        {/* Multi-Turn Conversation Stream with Persistent Context Memory (CRITICAL REQUIREMENT 1 & 8) */}
-        <div
-          ref={chatScrollRef}
-          className="flex-1 overflow-y-auto space-y-3 p-3 sm:p-4 rounded-2xl bg-secondary/40 border border-border/70 min-h-[140px] max-h-[260px] scroll-smooth"
-        >
-          {messages.length === 0 ? (
-            <div className="text-center py-6 text-muted-foreground space-y-2">
-              <Bot className="h-10 w-10 mx-auto opacity-40 text-primary" />
-              <p className="font-bold text-sm">
-                Speak in any Indian language (Hindi, Gujarati, English, Bengali, Marathi, etc.)
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Ask follow-up questions naturally ("Explain it simply", "Ab Hindi mein samjhao", "હવે ગુજરાતીમાં કહો").
-              </p>
-            </div>
-          ) : (
-            messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex gap-2.5 ${
-                  msg.role === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
-                {msg.role === "assistant" && (
-                  <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center shrink-0 mt-1">
-                    <Bot className="h-4 w-4" />
-                  </div>
-                )}
-                <div
-                  className={`max-w-[82%] rounded-2xl p-3.5 text-sm sm:text-base leading-relaxed ${
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground font-semibold rounded-tr-none shadow-md"
-                      : "bg-card border-2 border-primary/20 text-foreground font-medium rounded-tl-none shadow-md"
-                  }`}
-                >
-                  <p>{msg.text}</p>
-                  {msg.role === "assistant" && msg.languageName && (
-                    <span className="inline-block mt-1 text-[10px] font-black uppercase tracking-wider text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-                      {msg.languageName}
+                  <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-muted-foreground mt-0.5">
+                    <span className="flex items-center gap-1 text-primary">
+                      <Clock className="h-3.5 w-3.5" />
+                      {formatTime12h(lastCreatedReminder.time, currentLocale)}
                     </span>
-                  )}
-                </div>
-                {msg.role === "user" && (
-                  <div className="w-8 h-8 rounded-full bg-secondary text-foreground flex items-center justify-center shrink-0 mt-1">
-                    <User className="h-4 w-4" />
+                    {lastCreatedReminder.date && (
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3.5 w-3.5" />
+                        {lastCreatedReminder.date === getLocalTomorrowDateString()
+                          ? "Tomorrow"
+                          : lastCreatedReminder.date === getLocalTodayDateString()
+                          ? "Today"
+                          : lastCreatedReminder.date}
+                      </span>
+                    )}
+                    {lastCreatedReminder.repeat && lastCreatedReminder.repeat !== "none" && (
+                      <span>• Repeat: {lastCreatedReminder.repeat}</span>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
-            ))
-          )}
 
-          {/* Live Transcript Bubble while user is speaking */}
-          {voiceState === "listening" && transcript && (
-            <div className="flex justify-end gap-2">
-              <div className="max-w-[80%] rounded-2xl p-3 text-sm bg-primary/20 border border-primary/30 text-foreground italic rounded-tr-none animate-pulse">
-                " {transcript} "
-              </div>
-            </div>
-          )}
-
-          {/* Thinking Animation Bubble */}
-          {voiceState === "processing" && (
-            <div className="flex gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center shrink-0">
-                <Bot className="h-4 w-4" />
-              </div>
-              <div className="rounded-2xl p-3 text-sm bg-card border border-border text-foreground flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-amber-500 animate-spin" />
-                <span className="font-semibold text-xs">AI is thinking with conversation context...</span>
-              </div>
+              {/* Direct View in Reminders button */}
+              {onNavigate && (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    cleanupAllAudio();
+                    onNavigate("reminders");
+                    onClose();
+                  }}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl h-9 text-xs gap-1.5 mt-1 cursor-pointer"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  View in Reminders Screen
+                </Button>
+              )}
             </div>
           )}
         </div>
 
-        {/* Action Controls for Latest AI Answer (Speak Again + Listen Again + Ask Question + Stop Speaking) */}
-        {latestAssistantMessage && (
-          <div className="flex flex-wrap items-center justify-center gap-2.5 shrink-0">
-            {/* Speak Again Button (Requirement 8) */}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleSpeakAgain}
-              className="rounded-xl font-black text-xs gap-1.5 border-primary/60 text-primary hover:bg-primary/10 h-9 px-3.5 shadow-xs"
-              title="Replay the complete AI answer"
-            >
-              <Volume2 className="h-4 w-4" /> 🔊 Speak Again
-            </Button>
+        {/* Quick Suggestion Chips (Covering Core Test Cases) */}
+        {voiceState === "idle" && (
+          <div className="flex flex-wrap items-center justify-center gap-1.5 text-xs">
+            {[
+              "Kal 8 baje mujhe paudhon ko pani dene ka reminder laga do.",
+              "Tomorrow at 8 AM remind me to water the plants.",
+              "Every day at 9 AM remind me to drink water.",
+              "Remind me to take my medicine tomorrow at 8 PM.",
+              "What reminders do I have today?",
+              "What's my next reminder?",
+            ].map((prompt, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => processQuery(prompt)}
+                className="px-2.5 py-1 rounded-full bg-secondary hover:bg-secondary/80 text-foreground font-semibold transition-all border border-border/60 text-[11px] cursor-pointer"
+              >
+                "{prompt}"
+              </button>
+            ))}
+          </div>
+        )}
 
-            {/* Listen Again Button (Requirement 9) */}
+        {/* Action Controls (Cancel / Stop Speaking / Close) */}
+        <div className="flex items-center justify-center gap-3">
+          {voiceState === "listening" && (
             <Button
-              size="sm"
               variant="outline"
-              onClick={handleSpeakAgain}
-              className="rounded-xl font-black text-xs gap-1.5 border-primary/30 text-muted-foreground hover:text-foreground h-9 px-3 shadow-xs"
-              title="Replay the complete AI answer"
+              onClick={handleCancel}
+              className="rounded-2xl font-bold h-11 px-6 border-border cursor-pointer"
             >
-              <RotateCcw className="h-3.5 w-3.5" /> Listen Again
+              Cancel
             </Button>
+          )}
 
-            {/* Ask Question Follow-up Button */}
+          {voiceState === "responding" && (
             <Button
-              size="sm"
+              variant="destructive"
               onClick={() => {
-                isActiveSessionRef.current = true;
-                handleStop();
-                setTimeout(() => {
-                  startListening();
-                }, 80);
+                voiceManager.stopSpeaking();
+                setVoiceState("idle");
               }}
-              className="rounded-xl font-black text-xs gap-1.5 bg-primary text-white hover:bg-primary/90 h-9 px-3.5 shadow-sm"
-              title="Ask another question by voice"
+              className="rounded-2xl font-bold h-11 px-6 gap-2 cursor-pointer"
             >
-              <Mic className="h-4 w-4" /> 🎙️ Ask Question
+              <StopCircle className="h-4 w-4" /> Stop Speaking
             </Button>
+          )}
 
-            {/* Stop Speaking Button (Requirement 16) */}
-            {voiceState === "speaking" && (
+          {(voiceState === "done" || voiceState === "idle" || voiceState === "error") && (
+            <div className="flex items-center gap-2">
               <Button
-                size="sm"
-                variant="destructive"
-                onClick={handleStop}
-                className="rounded-xl font-black text-xs gap-1.5 h-9 px-3.5 shadow-sm animate-pulse"
-                title="Stop speech playback"
+                variant="outline"
+                onClick={startListening}
+                className="rounded-2xl font-bold h-11 px-5 gap-2 cursor-pointer text-primary border-primary/40 hover:bg-primary/10"
               >
-                <StopCircle className="h-4 w-4" /> ⏹️ Stop Speaking
-              </Button>
-            )}
-          </div>
-        )}
-
-        {/* Structured Action Confirmation Card (Caregiver & Senior Safety) */}
-        {pendingIntent && (
-          <div className="rounded-2xl border-2 border-primary bg-primary/10 p-4 space-y-3 shrink-0 animate-in zoom-in-95">
-            <div className="flex items-center gap-2 text-primary font-black text-xs uppercase tracking-wider">
-              <Sparkles className="h-4 w-4" /> Confirm Action
-            </div>
-            <p className="text-sm sm:text-base font-bold text-foreground">
-              {"confirmationMessage" in pendingIntent
-                ? (pendingIntent as any).confirmationMessage
-                : "Would you like to execute this action?"}
-            </p>
-            <div className="grid grid-cols-2 gap-2.5">
-              <Button
-                onClick={handleConfirmIntent}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black h-11 rounded-xl text-sm"
-              >
-                <Check className="h-4 w-4 mr-1" /> CONFIRM
+                <Mic className="h-4 w-4" /> {voiceState === "done" ? "Ask Another" : "Tap to Speak"}
               </Button>
               <Button
-                variant="destructive"
-                onClick={handleCancelIntent}
-                className="font-black h-11 rounded-xl text-sm"
+                onClick={handleExit}
+                className="rounded-2xl font-bold h-11 px-6 cursor-pointer"
               >
-                <X className="h-4 w-4 mr-1" /> CANCEL
+                Close
               </Button>
             </div>
-          </div>
-        )}
-
-        {/* Error Notification with User-Friendly Retry (CRITICAL REQUIREMENT 10) */}
-        {recognitionError && (
-          <div className="rounded-2xl bg-destructive/15 border border-destructive/30 p-3.5 text-center space-y-2 shrink-0 animate-in fade-in">
-            <p className="text-xs text-destructive font-bold">{recognitionError}</p>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleRetry}
-              className="rounded-full font-bold border-destructive/40 text-destructive text-xs gap-1.5 h-8"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              {pick(RETRY_LABEL_MSG, currentLocaleRef.current)}
-            </Button>
-          </div>
-        )}
-
-        {/* Quick Test Prompt Chips (Covering Hindi, Gujarati, English, Romanized, Mixed) */}
-        <div className="flex flex-wrap gap-1.5 justify-center text-xs shrink-0 max-h-16 overflow-y-auto">
-          {[
-            "What is AI?",
-            "Explain it simply",
-            "Ab Hindi mein samjhao",
-            "હવે ગુજરાતીમાં કહો",
-            "kem cho?",
-            "mare medicine kyare levani che?",
-            "kaise ho?",
-            "aaj kya karna hai?",
-            "Can you tell me aaj ka routine?",
-            "Tell me a short moral story",
-          ].map((prompt, i) => (
-            <button
-              key={i}
-              onClick={() => processQuery(prompt)}
-              className="rounded-full bg-secondary hover:bg-secondary/80 text-foreground font-semibold px-2.5 py-1 transition-all border border-border/60 text-[11px]"
-            >
-              "{prompt}"
-            </button>
-          ))}
+          )}
         </div>
 
-        {/* Text Fallback Input (CRITICAL REQUIREMENT 10) */}
+        {/* Text Fallback Input Bar (Requirement 28) */}
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -1580,38 +847,22 @@ export function VoiceAssistantModal({
               setInputDraft("");
             }
           }}
-          className="flex gap-2 shrink-0"
+          className="flex gap-2 pt-2 border-t border-border/40"
         >
           <Input
             value={inputDraft}
             onChange={(e) => setInputDraft(e.target.value)}
-            placeholder="Or type here (e.g. 'What is AI?', 'Explain it simply', 'Ab Hindi mein samjhao')..."
-            className="h-11 rounded-2xl text-sm"
+            placeholder="Or type your request here (e.g. 'Tomorrow at 8 AM remind me to water the plants')..."
+            className="h-11 rounded-2xl text-sm bg-secondary/30"
           />
           <Button
             type="submit"
             disabled={!inputDraft.trim() || voiceState === "processing"}
-            className="h-11 px-4 rounded-2xl font-bold"
+            className="h-11 px-4 rounded-2xl font-bold cursor-pointer shrink-0"
           >
             <Send className="h-4 w-4" />
           </Button>
         </form>
-
-        {/* Continuous Conversation Toggle */}
-        <div className="flex items-center justify-between pt-1 border-t border-border/60 text-xs text-muted-foreground shrink-0">
-          <span>Continuous Natural Conversation:</span>
-          <button
-            type="button"
-            onClick={() => toggleConversationMode(!conversationMode)}
-            className={`font-bold px-3 py-0.5 rounded-full border transition-all text-[11px] ${
-              conversationMode
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-secondary text-muted-foreground border-border"
-            }`}
-          >
-            {conversationMode ? "Active (Natural Turn Loop)" : "Single Turn"}
-          </button>
-        </div>
       </div>
     </div>
   );

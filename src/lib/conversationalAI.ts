@@ -11,6 +11,8 @@ import {
   formatRemindersForSpeech,
   formatNextReminderForSpeech,
   formatConfirmationSpeech,
+  getLocalTodayDateString,
+  getLocalTomorrowDateString,
 } from "./reminderService";
 
 
@@ -525,19 +527,38 @@ export class ConversationalAIEngine {
         t.includes("med") ||
         t.includes("ঔষধ");
 
-      const explicitTime = extractedTimeFn(raw);
+      // Check if we already have the target time from previous turn (e.g. "Remind me tomorrow at 8")
+      if (this._dialogue.targetTime) {
+        const explicitTime = this._dialogue.targetTime;
+        const targetDate = this._dialogue.targetDate || null;
+        let title = raw.trim();
+        let remType: DialogueContext["reminderType"] = this._dialogue.reminderType || "custom";
 
-      // If user supplied both medicine & time in one response (e.g. "Crocin रात 8 बजे")
-      if (explicitTime) {
-        const title = extractCleanTitle(raw) || "Medicine";
+        if (t.includes("plant") || t.includes("paudhon") || t.includes("पौधों") || t.includes("water the plants") || t.includes("water plants")) {
+          title = "Water the plants";
+          remType = "routine";
+        } else if (isMedTopic) {
+          title = "Take medicine";
+          remType = "medicine";
+        } else if (t.includes("water") || t.includes("pani") || t.includes("पानी") || t.includes("drink")) {
+          title = "Drink water";
+          remType = "hydration";
+        } else if (t.includes("call") || t.includes("daughter") || t.includes("beti") || t.includes("बेटी")) {
+          title = "Call daughter";
+          remType = "family_call";
+        } else if (t.includes("walk") || t.includes("tahal") || t.includes("टहलना")) {
+          title = "Go for a walk";
+          remType = "routine";
+        }
+
         const result = createVerifiedReminder(store, {
           title,
           time: explicitTime,
-          date: null,
-          repeat: "daily",
-          type: "medicine",
-          notes: "Created via Conversational Voice Assistant",
-          active: true,
+          date: targetDate,
+          repeat: targetDate ? "none" : "daily",
+          type: remType,
+          notes: "Created via Voice Assistant",
+          source: "voice",
         });
 
         this.resetDialogue();
@@ -552,40 +573,65 @@ export class ConversationalAIEngine {
           };
         }
 
-        const [hhStr] = explicitTime.split(":");
-        const hhNum = parseInt(hhStr || "20", 10);
-        const disp12 = hhNum % 12 === 0 ? 12 : hhNum % 12;
-        const timeFmtHi = hhNum >= 18 ? `रात ${disp12} बजे` : hhNum < 12 ? `सुबह ${disp12} बजे` : `${disp12} बजे`;
-
-        const savedMsg = isSaved
-          ? lang === "hi"
-            ? `मैंने ${timeFmtHi} ${title} का reminder लगा दिया है। मैं आपको समय पर याद दिलाऊँगा।`
-            : `I have set your reminder for ${title} at ${explicitTime}. I will remind you on time.`
-          : lang === "hi"
-          ? `मैंने ${timeFmtHi} ${title} का reminder दर्ज कर लिया है।`
-          : `Your reminder for ${title} at ${explicitTime} has been recorded.`;
-
+        const confSpeech = formatConfirmationSpeech(result.reminder, locale);
         return {
           handled: true,
-          responseText: savedMsg,
+          responseText: confSpeech,
           action: "create_reminder",
-          actionData: { title, time: explicitTime },
+          actionData: result.reminder,
+        };
+      }
+
+      const explicitTime = extractedTimeFn(raw);
+
+      // If user supplied both medicine & time in one response (e.g. "Crocin रात 8 बजे")
+      if (explicitTime) {
+        const title = extractCleanTitle(raw) || "Medicine";
+        const targetDate = this._dialogue.targetDate || null;
+        const result = createVerifiedReminder(store, {
+          title,
+          time: explicitTime,
+          date: targetDate,
+          repeat: targetDate ? "none" : "daily",
+          type: "medicine",
+          notes: "Created via Conversational Voice Assistant",
+          source: "voice",
+        });
+
+        this.resetDialogue();
+
+        if (!result.success || !result.reminder) {
+          return {
+            handled: true,
+            responseText:
+              lang === "hi"
+                ? "मैं यह रिमाइंडर सेव नहीं कर सका। कृपया दोबारा प्रयास करें।"
+                : "I couldn't save that reminder. Please try again.",
+          };
+        }
+
+        const confSpeech = formatConfirmationSpeech(result.reminder, locale);
+        return {
+          handled: true,
+          responseText: confSpeech,
+          action: "create_reminder",
+          actionData: result.reminder,
         };
       }
 
       if (isMedTopic) {
         this._dialogue.stage = "awaiting_reminder_time";
-        this._dialogue.targetTitle = "Medicine";
+        this._dialogue.targetTitle = "Take medicine";
         this._dialogue.reminderType = "medicine";
         this._dialogue.turnCount++;
 
         const askMedDetailsMsgs: Record<string, string> = {
-          hi: "किस दवाई के लिए और किस समय का reminder लगाना है? (जैसे: Crocin रात 8 बजे)",
-          gu: "કઈ દવા માટે અને કયા સમયે રિમાઇન્ડર ગોઠવવું છે? (જેમ કે: Crocin રાત્રે 8 વાગ્યે)",
-          en: "Which medicine and what time should I set the reminder for? (For example: Crocin at 8 PM)",
-          bn: "কোন ওষুধের জন্য এবং কয়টায় রিমাইন্ডার দেব? (যেমন: Crocin রাত ৮টায়)",
-          as: "কোনটো ঔষধ আৰু কি সময়ৰ বাবে সংকেত লাগিব? (যেনে: Crocin ৰাতি ৮ বজাত)",
-          mr: "कोणत्या औषधासाठी आणि कोणत्या वेळेची आठवण सेट करू? (उदा: Crocin रात्री 8 वाजता)",
+          hi: "किस समय का reminder लगाना है? (जैसे: रात 8 बजे या सुबह 8:30)",
+          gu: "કયા સમયે રિમાઇન્ડર ગોઠવવું છે? (જેમ કે: રાત્રે 8 વાગ્યે)",
+          en: "What time should I set the medicine reminder for? (For example: 8:00 PM)",
+          bn: "কোন সময়ে রিমাইন্ডার দেব? (যেমন: রাত ৮টায়)",
+          as: "কি সময়ত সংকেত লাগিব? (যেনে: ৰাতি ৮ বজাত)",
+          mr: "कोणत्या वेळेची आठवण सेट करू? (उदा: रात्री 8 वाजता)",
         };
 
         return {
@@ -599,14 +645,18 @@ export class ConversationalAIEngine {
 
       if (t.includes("doctor") || t.includes("डॉक्टर") || t.includes("clinic") || t.includes("appointment")) {
         remType = "appointment";
-      } else if (t.includes("water") || t.includes("पानी") || t.includes("પાણી")) {
+        topic = "Doctor appointment";
+      } else if (t.includes("water") || t.includes("pani") || t.includes("पानी") || t.includes("પાણી")) {
         remType = "hydration";
+        topic = "Drink water";
       } else if (t.includes("bazaar") || t.includes("market") || t.includes("shopping") || t.includes("सब्जी")) {
         remType = "shopping";
-      } else if (t.includes("walk") || t.includes("सैर") || t.includes("घूमना")) {
+      } else if (t.includes("walk") || t.includes("सैर") || t.includes("घूमना") || t.includes("tahal")) {
         remType = "routine";
-      } else if (t.includes("phone") || t.includes("call") || t.includes("फोन")) {
+        topic = "Go for a walk";
+      } else if (t.includes("phone") || t.includes("call") || t.includes("फोन") || t.includes("daughter") || t.includes("beti")) {
         remType = "family_call";
+        topic = "Call daughter";
       }
 
       this._dialogue.stage = "awaiting_reminder_time";
@@ -614,10 +664,11 @@ export class ConversationalAIEngine {
       this._dialogue.reminderType = remType;
       this._dialogue.turnCount++;
 
+      const isTomorrowContext = this._dialogue.targetDate === getLocalTomorrowDateString();
       const askTimeMsgs: Record<string, string> = {
-        hi: `ठीक है, ${topic} के लिए। किस समय का reminder लगाऊँ?`,
-        gu: `ઠીક છે, ${topic} માટે. કયા સમયે રિમાઇન્ડર ગોઠવવું છે?`,
-        en: `Got it, for ${topic}. What time should I set the reminder for?`,
+        hi: isTomorrowContext ? `कल किस समय "${topic}" के लिए याद दिलाऊँ?` : `ठीक है, "${topic}" के लिए। किस समय का reminder लगाऊँ?`,
+        gu: `ઠીક છે, "${topic}" માટે. કયા સમયે રિમાઇન્ડર ગોઠવવું છે?`,
+        en: isTomorrowContext ? `What time should I remind you tomorrow about "${topic}"?` : `Got it, for "${topic}". What time should I set the reminder for?`,
         bn: `ঠিক আছে। কোন সময়ে রিমাইন্ডার দেব?`,
         as: `ঠিক আছে। কি সময়ত সংকেত দিম?`,
         mr: `ठीक आहे. कोणत्या वेळेची आठवण सेट करू?`,
@@ -629,10 +680,10 @@ export class ConversationalAIEngine {
       };
     }
 
-    // Case B: User is in "awaiting_reminder_time" stage (e.g. user says "Crocin रात 8 बजे")
+    // Case B: User is in "awaiting_reminder_time" stage (e.g. user says "8 AM" or "रात 8 बजे")
     if (this._dialogue.stage === "awaiting_reminder_time") {
       const explicitTime = extractedTimeFn(raw);
-      const isTomorrow =
+      const isTomorrowSpoken =
         t.includes("tomorrow") ||
         t.includes("kal") ||
         t.includes("कल") ||
@@ -640,15 +691,18 @@ export class ConversationalAIEngine {
         t.includes("उद्या") ||
         t.includes("কাল");
 
-      const targetDate = isTomorrow
-        ? new Date(Date.now() + 86400000).toISOString().slice(0, 10)
-        : null;
+      const targetDate =
+        this._dialogue.targetDate ||
+        (isTomorrowSpoken ? getLocalTomorrowDateString() : null);
 
       if (explicitTime) {
-        // Extract specific medicine name if provided (e.g. "Crocin")
+        // Extract specific title or retain from dialogue
         const extractedTitle = extractCleanTitle(raw);
-        const title = extractedTitle !== "Medicine" ? extractedTitle : this._dialogue.targetTitle || "Medicine";
-        const remType = this._dialogue.reminderType || "medicine";
+        let title = this._dialogue.targetTitle || "Reminder";
+        if (extractedTitle && extractedTitle !== "Medicine" && extractedTitle.length > 2) {
+          title = extractedTitle;
+        }
+        const remType = this._dialogue.reminderType || "routine";
 
         // ACTUALLY SAVE TO STORE AND VERIFY REAL PERSISTENCE
         const repeatMode = targetDate ? "none" : "daily";
@@ -659,7 +713,7 @@ export class ConversationalAIEngine {
           repeat: repeatMode,
           type: remType,
           notes: "Created via Voice Assistant",
-          active: true,
+          source: "voice",
         });
 
         this.resetDialogue();
@@ -674,28 +728,12 @@ export class ConversationalAIEngine {
           };
         }
 
-        const [hhStr] = explicitTime.split(":");
-        const hhNum = parseInt(hhStr || "20", 10);
-        const isNightTime = hhNum >= 18;
-        const isMorningTime = hhNum < 12 && hhNum >= 4;
-        const disp12 = hhNum % 12 === 0 ? 12 : hhNum % 12;
-        const timeFormattedHi = isNightTime ? `रात ${disp12} बजे` : isMorningTime ? `सुबह ${disp12} बजे` : `${disp12} बजे`;
-        const timeFormattedGu = isNightTime ? `રાત્રે ${disp12} વાગ્યે` : isMorningTime ? `સવારે ${disp12} વાગ્યે` : `${disp12} વાગ્યે`;
-
-        const savedAnswers: Record<string, string> = {
-          hi: `मैंने ${isTomorrow ? "कल " : ""}${timeFormattedHi} ${title} का reminder लगा दिया है। मैं आपको समय पर याद दिलाऊँगा।`,
-          gu: `મેં ${isTomorrow ? "કાલે " : ""}${timeFormattedGu} ${title}નું રિમાઇન્ડર ગોઠવી દીધું છે. હું તમને સમયસર યાદ કરાવીશ.`,
-          en: `I have set your reminder for ${title} at ${explicitTime}${isTomorrow ? " tomorrow" : ""}. I will remind you on time.`,
-          bn: `আমি ${explicitTime} টায় ${title} এর রিমাইন্ডার সেট করে দিয়েছি।`,
-          as: `মই ${explicitTime} বজাত ${title}ৰ বাবে সংকেত সংৰক্ষণ কৰিলোঁ।`,
-          mr: `मी ${explicitTime} वाजता ${title} ची आठवण सेट केली आहे.`,
-        };
-
+        const confSpeech = formatConfirmationSpeech(result.reminder, locale);
         return {
           handled: true,
-          responseText: savedAnswers[lang] || savedAnswers["en"],
+          responseText: confSpeech,
           action: "create_reminder",
-          actionData: { title, time: explicitTime, date: targetDate },
+          actionData: result.reminder,
         };
       } else {
         return {
@@ -719,32 +757,34 @@ export class ConversationalAIEngine {
         const remType = this._dialogue.reminderType || "medicine";
 
         // ACTUALLY SAVE TO STORE AND VERIFY! (Part 7)
-        store.addReminder({
+        const result = createVerifiedReminder(store, {
           title,
           time,
           date,
-          repeat: "daily",
+          repeat: date ? "none" : "daily",
           type: remType,
           notes: "Created via Conversational Voice Assistant",
-          active: true,
+          source: "voice",
         });
 
         this.resetDialogue();
 
-        const successMsgs: Record<string, string> = {
-          hi: `मैंने ${title} का रिमाइंडर लगा दिया है। मैं आपको समय पर याद दिलाऊँगा।`,
-          gu: `મેં ${title}નું રિમાઇન્ડર ગોઠવી દીધું છે. હું તમને સમયસર યાદ કરાવીશ.`,
-          en: `Your reminder for ${title} has been set. I will make sure to remind you on time.`,
-          bn: `রিমাইন্ডার সেট করা হয়েছে। সময়মতো মনে করিয়ে দেওয়া হবে।`,
-          as: `সংকেত সংৰক্ষণ কৰা হ’ল। সময়ত মনত পেলাই দিম।`,
-          mr: `आपली आठवण सेट झाली आहे. वेळेवर आठवण करून दिली जाईल.`,
-        };
+        if (!result.success || !result.reminder) {
+          return {
+            handled: true,
+            responseText:
+              lang === "hi"
+                ? "मैं यह रिमाइंडर सेव नहीं कर सका। कृपया दोबारा प्रयास करें।"
+                : "I couldn't save that reminder. Please try again.",
+          };
+        }
 
+        const confSpeech = formatConfirmationSpeech(result.reminder, locale);
         return {
           handled: true,
-          responseText: successMsgs[lang] || successMsgs["en"],
+          responseText: confSpeech,
           action: "create_reminder",
-          actionData: { title, time, date },
+          actionData: result.reminder,
         };
       } else if (isNo) {
         this.resetDialogue();

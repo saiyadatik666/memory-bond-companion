@@ -28,7 +28,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { MemoryBondStore, Reminder } from "@/lib/memoryBondStore";
-import { speakText, startSpeechRecognition } from "@/lib/voiceParser";
+import { speakText, startSpeechRecognition, parseVoiceIntent } from "@/lib/voiceParser";
+import {
+  getLocalTodayDateString,
+  getLocalTomorrowDateString,
+  formatTime12h,
+  getReminders,
+  getTodayReminders,
+  getUpcomingReminders,
+  createVerifiedReminder,
+  updateVerifiedReminder,
+} from "@/lib/reminderService";
 import { useI18n } from "@/lib/i18n";
 
 // Memory Bond Reminders Engine — Senior-Friendly Light Theme
@@ -43,7 +53,7 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState<boolean>(false);
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
-  const [activeTab, setActiveTab] = useState<"today" | "upcoming" | "completed">("today");
+  const [activeTab, setActiveTab] = useState<"all" | "today" | "upcoming" | "completed">("today");
   const [typeFilter, setTypeFilter] = useState<string>("all");
 
   // Form State
@@ -54,39 +64,43 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
   const [repeat, setRepeat] = useState<Reminder["repeat"]>("daily");
   const [notes, setNotes] = useState<string>("");
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = getLocalTodayDateString();
+  const tomorrowStr = getLocalTomorrowDateString();
 
-  const getReminderIcon = (remType: Reminder["type"]) => {
-    switch (remType) {
-      case "medicine":
-        return <Pill className="h-5 w-5 text-emerald-600" />;
-      case "hydration":
-        return <Droplets className="h-5 w-5 text-sky-600" />;
-      case "walking":
-        return <Footprints className="h-5 w-5 text-teal-600" />;
-      case "meal":
-        return <Utensils className="h-5 w-5 text-amber-600" />;
-      case "shopping":
-        return <ShoppingBag className="h-5 w-5 text-purple-600" />;
-      case "family_call":
-        return <Phone className="h-5 w-5 text-rose-600" />;
-      case "routine":
-        return <Sun className="h-5 w-5 text-amber-600" />;
-      default:
-        return <Bell className="h-5 w-5 text-primary" />;
+  const getReminderIcon = (rem: Reminder) => {
+    const titleLower = (rem.title || "").toLowerCase();
+    if (titleLower.includes("plant") || titleLower.includes("paudh") || titleLower.includes("पौध") || titleLower.includes("garden")) {
+      return <span className="text-2xl select-none" role="img" aria-label="Plants">🌱</span>;
     }
+    if (rem.type === "hydration" || titleLower.includes("water") || titleLower.includes("pani") || titleLower.includes("पानी")) {
+      return <Droplets className="h-5 w-5 text-sky-600" />;
+    }
+    if (rem.type === "medicine" || titleLower.includes("medicine") || titleLower.includes("dawa") || titleLower.includes("दवा")) {
+      return <Pill className="h-5 w-5 text-emerald-600" />;
+    }
+    if (rem.type === "walking" || titleLower.includes("walk") || titleLower.includes("tahal") || titleLower.includes("टहल")) {
+      return <Footprints className="h-5 w-5 text-teal-600" />;
+    }
+    if (rem.type === "meal") {
+      return <Utensils className="h-5 w-5 text-amber-600" />;
+    }
+    if (rem.type === "shopping") {
+      return <ShoppingBag className="h-5 w-5 text-purple-600" />;
+    }
+    if (rem.type === "family_call" || titleLower.includes("daughter") || titleLower.includes("call") || titleLower.includes("phone")) {
+      return <Phone className="h-5 w-5 text-rose-600" />;
+    }
+    if (rem.type === "routine") {
+      return <Sun className="h-5 w-5 text-amber-600" />;
+    }
+    return <Bell className="h-5 w-5 text-primary" />;
   };
 
-  // Filter into clear groups
-  const todayReminders = store.reminders.filter(
-    (r) => r.active && (r.repeat === "daily" || !r.date || r.date === todayStr) && r.last_done !== todayStr
-  );
-  const upcomingReminders = store.reminders.filter(
-    (r) => r.active && r.date && r.date > todayStr && r.repeat !== "daily"
-  );
-  const completedReminders = store.reminders.filter(
-    (r) => r.last_done === todayStr
-  );
+  // Filter into clear groups using central service
+  const allActiveReminders = getReminders(store).filter((r) => r.active && r.last_done !== todayStr);
+  const todayReminders = getTodayReminders(store);
+  const upcomingReminders = getUpcomingReminders(store);
+  const completedReminders = getReminders(store).filter((r) => r.last_done === todayStr);
 
   // Direct Speech Recognition for Reminders
   const handleStartVoiceInput = () => {
@@ -112,82 +126,44 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
     }, 10000);
   };
 
-  // Natural Language Fast Add: parses "Remind me to take my medicine at 8 PM"
+  // Natural Language Fast Add using Central Intent Parser & Reminder Service
   const handleNaturalLanguageSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!naturalInput.trim()) return;
 
     setIsAiProcessing(true);
-    const text = naturalInput.toLowerCase();
+    const parsed = parseVoiceIntent(naturalInput, store, speechLocale || "en-IN");
 
-    // 1. Time extraction
-    let extractedTime = "09:00";
-    const timeMatch = text.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
-    if (timeMatch) {
-      let h = parseInt(timeMatch[1], 10);
-      const m = timeMatch[2] || "00";
-      const meridian = timeMatch[3]?.toLowerCase();
-      if (meridian === "pm" && h < 12) h += 12;
-      if (meridian === "am" && h === 12) h = 0;
-      if (!meridian && (text.includes("night") || text.includes("evening") || text.includes("shaam") || text.includes("raat")) && h < 12) {
-        h += 12;
+    if (parsed.type === "CREATE_REMINDER") {
+      const result = createVerifiedReminder(store, {
+        title: parsed.title,
+        time: parsed.time,
+        date: parsed.date,
+        repeat: parsed.repeat || (parsed.date ? "none" : "daily"),
+        type: parsed.reminderType,
+        notes: parsed.notes,
+        source: "manual",
+      });
+
+      if (result.success && result.reminder) {
+        speakText(parsed.confirmationMessage, speechLocale);
+        if (parsed.date === tomorrowStr) {
+          setActiveTab("upcoming");
+        } else {
+          setActiveTab("today");
+        }
       }
-      extractedTime = `${h.toString().padStart(2, "0")}:${m}`;
+    } else {
+      createVerifiedReminder(store, {
+        title: naturalInput.trim(),
+        time: "09:00",
+        repeat: "daily",
+        type: "custom",
+        source: "manual",
+      });
+      speakText(`Reminder added for ${naturalInput.trim()}.`, speechLocale);
     }
 
-    // 2. Category extraction
-    let extractedType: Reminder["type"] = "personal";
-    let extractedNotes: string | null = null;
-    let isTomorrow = text.includes("tomorrow") || text.includes("kal") || text.includes("कल");
-
-    if (text.includes("doctor") || text.includes("appointment") || text.includes("clinic") || text.includes("hospital") || text.includes("डॉक्टर") || text.includes("अपॉइंटमेंट")) {
-      extractedType = "appointment";
-    } else if (text.includes("medicine") || text.includes("dawa") || text.includes("दवा") || text.includes("pill") || text.includes("tablet")) {
-      extractedType = "medicine";
-    } else if (text.includes("walk") || text.includes("tahal") || text.includes("टहल") || text.includes("walking")) {
-      extractedType = "walking";
-    } else if (text.includes("water") || text.includes("paani") || text.includes("पानी") || text.includes("hydrate") || text.includes("drink")) {
-      extractedType = "hydration";
-    } else if (text.includes("buy") || text.includes("market") || text.includes("bazaar") || text.includes("rice") || text.includes("tea") || text.includes("shopping") || text.includes("सब्जी") || text.includes("खरीद")) {
-      extractedType = "shopping";
-      const buyMatch = naturalInput.match(/(?:buy|purchase|खरीदने|लाने)\s+(.+?)(?=\s+tomorrow|\s+at|\s+in|\s+morning|\s+कल|$)/i);
-      if (buyMatch && buyMatch[1]) {
-        extractedNotes = `Items: ${buyMatch[1].trim()}`;
-      } else if (text.includes("rice") || text.includes("tea")) {
-        extractedNotes = "Items: rice, tea";
-      }
-    } else if (text.includes("call") || text.includes("phone") || text.includes("daughter") || text.includes("sunita") || text.includes("बेटी")) {
-      extractedType = "family_call";
-    }
-
-    // Clean title
-    let cleanTitle = naturalInput
-      .replace(/^(please\s+)?(remind me to|set a reminder for|reminder for|remind me)\s*/i, "")
-      .replace(/कल सुबह|कल शाम|सुबह|शाम|बजे|याद दिलाना|याद दिलाओ/gi, "")
-      .replace(/tomorrow\s*(morning|evening|afternoon)?/i, "")
-      .replace(/at\s+\d{1,2}(:\d{2})?\s*(am|pm)?/i, "")
-      .trim();
-
-    if (!cleanTitle || cleanTitle.length < 3) {
-      if (extractedType === "appointment") cleanTitle = "Doctor Appointment";
-      else if (extractedType === "medicine") cleanTitle = "Take scheduled medicine";
-      else if (extractedType === "walking") cleanTitle = "Gentle daily walk";
-      else if (extractedType === "hydration") cleanTitle = "Drink warm water";
-      else if (extractedType === "shopping") cleanTitle = extractedNotes ? `Buy ${extractedNotes.replace("Items: ", "")}` : "Pick up fresh groceries";
-      else cleanTitle = "Daily task";
-    }
-
-    store.addReminder({
-      title: cleanTitle,
-      time: extractedTime,
-      type: extractedType,
-      date: isTomorrow ? new Date(Date.now() + 86400000).toISOString().slice(0, 10) : null,
-      repeat: isTomorrow ? "none" : "daily",
-      notes: extractedNotes,
-      active: true,
-    });
-
-    speakText(`Reminder created for ${cleanTitle} at ${extractedTime}.`, speechLocale);
     setNaturalInput("");
     setIsAiProcessing(false);
   };
@@ -219,7 +195,7 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
     if (!title.trim()) return;
 
     if (editingReminder) {
-      store.updateReminder(editingReminder.id, {
+      updateVerifiedReminder(store, editingReminder.id, {
         title: title.trim(),
         time,
         date: date || null,
@@ -228,14 +204,14 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
         notes: notes.trim() || null,
       });
     } else {
-      store.addReminder({
+      createVerifiedReminder(store, {
         title: title.trim(),
         time,
         type,
         date: date || null,
         repeat,
         notes: notes.trim() || null,
-        active: true,
+        source: "manual",
       });
     }
 
@@ -244,7 +220,7 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
   };
 
   const handleAnnounceReminder = (rem: Reminder) => {
-    speakText(`Reminder: ${rem.title} scheduled for ${rem.time}. Category: ${rem.type}.`, speechLocale);
+    speakText(`Reminder: ${rem.title} scheduled for ${formatTime12h(rem.time, speechLocale || "en-IN")}. Category: ${rem.type}.`, speechLocale);
   };
 
   return (
@@ -262,6 +238,17 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
 
         <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
           <div className="inline-flex rounded-2xl border border-border bg-card p-1 shadow-xs flex-wrap">
+            <button
+              type="button"
+              onClick={() => setActiveTab("all")}
+              className={`px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                activeTab === "all"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              All ({allActiveReminders.length})
+            </button>
             <button
               type="button"
               onClick={() => setActiveTab("today")}
@@ -408,7 +395,9 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
       <div className="space-y-4">
         {(() => {
           const rawList =
-            activeTab === "today"
+            activeTab === "all"
+              ? allActiveReminders
+              : activeTab === "today"
               ? todayReminders
               : activeTab === "upcoming"
               ? upcomingReminders
@@ -428,14 +417,16 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
               <div className="rounded-3xl border border-dashed border-border bg-card p-10 text-center space-y-2">
                 <Bell className="h-10 w-10 text-primary/40 mx-auto" />
                 <h4 className="text-base font-bold text-foreground">
-                  {activeTab === "today"
+                  {activeTab === "all"
+                    ? "No reminders found."
+                    : activeTab === "today"
                     ? "All clear for today! No pending reminders."
                     : activeTab === "upcoming"
                     ? "No upcoming reminders scheduled for future dates."
                     : "No completed reminders recorded yet today."}
                 </h4>
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                  {activeTab === "today"
+                  {activeTab === "today" || activeTab === "all"
                     ? "You are all caught up. Would you like to create a new reminder?"
                     : "Use the voice input or tap '+ New Reminder' above."}
                 </p>
@@ -455,7 +446,7 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-13 h-13 rounded-2xl bg-secondary flex items-center justify-center shrink-0">
-                      {getReminderIcon(rem.type)}
+                      {getReminderIcon(rem)}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
@@ -477,13 +468,12 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
                       </div>
                       <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground mt-1 font-medium">
                         <span className="flex items-center gap-1 font-bold text-primary">
-                          <Clock className="h-4 w-4" /> {rem.time}
+                          <Clock className="h-4 w-4" /> {formatTime12h(rem.time, speechLocale || "en-IN")}
                         </span>
-                        {rem.date && (
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3.5 w-3.5" /> Date: {rem.date}
-                          </span>
-                        )}
+                        <span className="flex items-center gap-1 font-semibold text-foreground">
+                          <Calendar className="h-3.5 w-3.5 text-primary" />
+                          {rem.date === tomorrowStr ? "Tomorrow" : rem.date === todayStr ? "Today" : rem.date || "Daily"}
+                        </span>
                         <span>• Repeat: {rem.repeat}</span>
                         {rem.notes && <span className="font-semibold text-foreground">• {rem.notes}</span>}
                       </div>

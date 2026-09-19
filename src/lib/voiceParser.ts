@@ -1,4 +1,4 @@
-﻿import type { MemoryBondStore } from "./memoryBondStore";
+import type { MemoryBondStore } from "./memoryBondStore";
 import { conversationalAI } from "./conversationalAI";
 import { voiceManager, getBestMatchingVoice, cleanAIResponse } from "./voiceProvider";
 import { isWorldKnowledgeQuery, resolveWorldKnowledge, resolveVerifiedFact } from "./worldKnowledgeEngine";
@@ -222,6 +222,24 @@ export function extractExplicitTime(text: string): string | null {
   const norm = normalizeNumerals(text);
   const t = norm.toLowerCase();
 
+  // Relative offset: "in 30 minutes", "in 15 mins", "30 minute baad"
+  const mRelMin = t.match(/(?:in|after|के बाद)\s*(\d+)\s*(?:minutes|minute|mins|min|मिनट)/i) ||
+                  t.match(/(\d+)\s*(?:minutes|minute|mins|min|मिनट)\s*(?:in|after|बाद)/i);
+  if (mRelMin && mRelMin[1]) {
+    const minsToAdd = parseInt(mRelMin[1], 10);
+    const target = new Date(Date.now() + minsToAdd * 60000);
+    return `${String(target.getHours()).padStart(2, "0")}:${String(target.getMinutes()).padStart(2, "0")}`;
+  }
+
+  // Relative offset: "after 2 hours", "in 2 hours", "2 ghante baad"
+  const mRelHour = t.match(/(?:in|after|के बाद)\s*(\d+)\s*(?:hours|hour|hr|hrs|घंटे|घंटा)/i) ||
+                   t.match(/(\d+)\s*(?:hours|hour|hr|hrs|घंटे|घंटा)\s*(?:in|after|बाद)/i);
+  if (mRelHour && mRelHour[1]) {
+    const hoursToAdd = parseInt(mRelHour[1], 10);
+    const target = new Date(Date.now() + hoursToAdd * 3600000);
+    return `${String(target.getHours()).padStart(2, "0")}:${String(target.getMinutes()).padStart(2, "0")}`;
+  }
+
   // 1. Format: 8:30 AM / 8.30 PM / 8:30 / 8.30
   const m1 = t.match(/\b(\d{1,2})[:.](\d{2})\s*(am|pm)?\b/i);
   if (m1 && m1[1] && m1[2]) {
@@ -256,12 +274,14 @@ export function extractExplicitTime(text: string): string | null {
     }
   }
 
-  // 3. Format: "at 8" / "at 7" / "at 8 PM"
-  const m3 = t.match(/\bat\s+(\d{1,2})(?!\d)\b/i);
+  // 3. Format: "at 8" / "at 7" / "at 8 PM" / "at 7 PM" / "at 2 PM"
+  const m3 = t.match(/\bat\s+(\d{1,2})(?:\s*(am|pm))?(?!\d)\b/i);
   if (m3 && m3[1]) {
     let h = parseInt(m3[1], 10);
+    const mer = m3[2]?.toLowerCase();
     if (h >= 1 && h <= 12) {
       const isPm =
+        mer === "pm" ||
         t.includes("pm") ||
         t.includes("evening") ||
         t.includes("shaam") ||
@@ -269,11 +289,24 @@ export function extractExplicitTime(text: string): string | null {
         t.includes("raat") ||
         t.includes("afternoon");
       if (isPm && h < 12) h += 12;
+      if (mer === "am" && h === 12) h = 0;
       return `${h.toString().padStart(2, "0")}:00`;
     }
   }
 
-  // 4. Hindi number words with baje/बजे or am/pm
+  // 4. Standalone time with meridian: e.g. "7 PM", "8 AM", "2 PM"
+  const m4 = t.match(/\b(\d{1,2})\s*(am|pm)\b/i);
+  if (m4 && m4[1]) {
+    let h = parseInt(m4[1], 10);
+    const mer = m4[2].toLowerCase();
+    if (h >= 1 && h <= 12) {
+      if (mer === "pm" && h < 12) h += 12;
+      if (mer === "am" && h === 12) h = 0;
+      return `${h.toString().padStart(2, "0")}:00`;
+    }
+  }
+
+  // 5. Hindi number words with baje/बजे or am/pm
   for (const [word, num] of Object.entries(NUMBER_WORDS)) {
     if (
       t.includes(word) &&
@@ -297,7 +330,7 @@ export function extractExplicitTime(text: string): string | null {
     }
   }
 
-  // 5. Natural explicit time-of-day phrases
+  // 6. Natural explicit time-of-day phrases
   if (t.includes("tonight") || t.includes("this evening") || t.includes("आज रात")) return "20:00";
   if (t.includes("every morning") || t.includes("कल सुबह") || t.includes("tomorrow morning") || t.includes("subah")) return "08:00";
   if (t.includes("every evening") || t.includes("कल शाम") || t.includes("tomorrow evening") || t.includes("shaam")) return "18:00";
@@ -997,6 +1030,10 @@ export function parseVoiceIntent(
     lower.includes("pani dena hai") ||
     lower.includes("pani dene ka") ||
     lower.includes("paani dene ka") ||
+    lower.includes("plants ko paani") ||
+    lower.includes("plants ko pani") ||
+    lower.includes("water the plants") ||
+    lower.includes("water plants") ||
     lower.includes("pani peena hai") ||
     lower.includes("paani peena hai") ||
     lower.includes("dawa leni hai") ||
@@ -1035,7 +1072,8 @@ export function parseVoiceIntent(
       lower.includes("2 hours") ||
       lower.includes("do ghante") ||
       lower.includes("दो घंटे") ||
-      lower.includes("every hour");
+      lower.includes("every hour") ||
+      lower.includes("every 2 hours");
 
     const isWeekly =
       lower.includes("every monday") ||
@@ -1061,7 +1099,7 @@ export function parseVoiceIntent(
     let extractedNotes = "";
     let cleanTitle = "";
 
-    // 1. Water / Gardening: "paudhon ko pani", "water the plants"
+    // 1. Water / Gardening: "paudhon ko pani", "water the plants", "plants ko pani"
     if (
       lower.includes("plant") ||
       lower.includes("paudhon") ||
@@ -1090,8 +1128,18 @@ export function parseVoiceIntent(
         extractedNotes = "Every 2 hours";
       }
     }
-    // 3. Medicine: "blood pressure medicine", "one tablet", "take medicine"
-    else if (lower.includes("blood pressure") || lower.includes("bp medicine") || lower.includes("बीपी")) {
+    // 3. Medicine: "give medicine to mom", "blood pressure medicine", "one tablet", "take medicine"
+    else if (
+      lower.includes("give medicine to mom") ||
+      lower.includes("medicine to mom") ||
+      lower.includes("mom ko medicine") ||
+      lower.includes("mom ko dawa") ||
+      lower.includes("maa ko dawa") ||
+      lower.includes("mummy ko dawa")
+    ) {
+      cleanTitle = "Give medicine to Mom";
+      reminderType = "medicine";
+    } else if (lower.includes("blood pressure") || lower.includes("bp medicine") || lower.includes("बीपी")) {
       cleanTitle = "Take blood pressure medicine";
       reminderType = "medicine";
     } else if (lower.includes("one tablet") || lower.includes("1 tablet") || lower.includes("एक गोली")) {
@@ -1111,7 +1159,7 @@ export function parseVoiceIntent(
       cleanTitle = "Take medicine";
       reminderType = "medicine";
     }
-    // 4. Family Call: "call my daughter", "call son", "beti ko call"
+    // 4. Family Call: "call my daughter", "call daughter", "beti ko call"
     else if (lower.includes("call my daughter") || lower.includes("call daughter") || lower.includes("beti") || lower.includes("बेटी")) {
       cleanTitle = "Call daughter";
       reminderType = "family_call";

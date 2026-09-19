@@ -4,6 +4,7 @@
 // ============================================================================
 
 import type { MemoryBondStore } from "./memoryBondStore";
+import { getLocalTodayDateString } from "./reminderService";
 
 // In-memory set of triggered notification keys to prevent repeat alerts in the same minute
 const triggeredAlertKeys = new Set<string>();
@@ -118,7 +119,8 @@ export function checkScheduledReminders(store: MemoryBondStore) {
   const currentHours = String(now.getHours()).padStart(2, "0");
   const currentMins = String(now.getMinutes()).padStart(2, "0");
   const currentTimeKey = `${currentHours}:${currentMins}`;
-  const todayDateStr = now.toISOString().slice(0, 10);
+  const todayDateStr = getLocalTodayDateString(now);
+  const currentDayOfWeek = now.getDay();
 
   // 1. Check Medicine Schedules
   (store.medicines || []).forEach((med) => {
@@ -149,13 +151,25 @@ export function checkScheduledReminders(store: MemoryBondStore) {
     });
   });
 
-  // 2. Check General Reminders
+  // 2. Check General Reminders (including voice-created and recurring)
   (store.reminders || []).forEach((rem) => {
-    if (!rem.active) return;
+    if (!rem.active || rem.enabled === false) return;
+    if (rem.completed && rem.last_done === todayDateStr) return;
+
     const remTime = (rem.time || "").trim().slice(0, 5);
 
-    // If date is specified, must match today
-    if (rem.date && rem.date !== todayDateStr) return;
+    // Repeat schedule evaluation
+    if (rem.repeat === "daily") {
+      // Fires every day at scheduled time
+    } else if (rem.repeat === "weekly") {
+      if (rem.date) {
+        const remDateObj = new Date(rem.date + "T00:00:00");
+        if (remDateObj.getDay() !== currentDayOfWeek) return;
+      }
+    } else {
+      // Non-recurring: must match today's date
+      if (rem.date && rem.date !== todayDateStr) return;
+    }
 
     if (remTime === currentTimeKey) {
       const alertKey = `rem_${rem.id}_${todayDateStr}_${remTime}`;
@@ -184,7 +198,7 @@ export function checkScheduledReminders(store: MemoryBondStore) {
   // 3. Automated Birthday Reminders (Requirement 25)
   // Check contacts birthdays: 1 day before and day-of
   const currentMonthDay = `${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
   const tomorrowMonthDay = `${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
 
   (store.contacts || []).forEach((contact) => {

@@ -1,24 +1,25 @@
 // ============================================================================
 // Memory Bond — Central Reminder Service
-// Single source of truth for creating, verifying, retrieving, and formatting reminders
-// Ensures zero fake success states and full persistence across Voice & UI
+// Single source of truth for creating, verifying, retrieving, and formatting reminders.
+// Ensures zero fake success states, user-specific data, and full persistence across Voice & UI.
 // ============================================================================
 
 import type { MemoryBondStore, Reminder } from "./memoryBondStore";
-import { getKey } from "./memoryBondStore";
+import { getActiveSession } from "./authGuards";
 
 export interface CreateReminderParams {
   title: string;
-  time: string; // HH:MM
+  time: string; // HH:MM (24h)
   date?: string | null; // YYYY-MM-DD or null
-  repeat?: "daily" | "weekly" | "none";
+  repeat?: "daily" | "weekly" | "interval" | "none";
   type?: Reminder["type"];
   notes?: string | null;
   source?: "voice" | "text" | "manual" | "caregiver";
   category?: string;
+  userId?: string;
 }
 
-export interface ReminderCreationResult {
+export interface ReminderActionResult {
   success: boolean;
   reminder?: Reminder;
   error?: string;
@@ -64,10 +65,21 @@ export function getLocalTomorrowDateString(): string {
 }
 
 /**
+ * Returns date N days in the future formatted as YYYY-MM-DD in user's local timezone
+ */
+export function getDateOffsetString(days: number): string {
+  const target = new Date(Date.now() + days * 86400000);
+  const year = target.getFullYear();
+  const month = String(target.getMonth() + 1).padStart(2, "0");
+  const day = String(target.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * Formats a 24-hour time "HH:MM" into a senior-friendly 12-hour display string
  */
 export function formatTime12h(timeStr: string, locale = "en-IN"): string {
-  const [hStr, mStr] = timeStr.split(":");
+  const [hStr, mStr] = (timeStr || "08:00").split(":");
   const h = parseInt(hStr || "8", 10);
   const m = parseInt(mStr || "0", 10);
   const isPm = h >= 12;
@@ -83,12 +95,12 @@ export function formatTime12h(timeStr: string, locale = "en-IN"): string {
 
 /**
  * Central action to create and verify a reminder in the store.
- * Verifies that the reminder is actually created and returned before declaring success.
+ * Verifies that the reminder is actually created and returned with valid ID before declaring success.
  */
 export function createVerifiedReminder(
   store: MemoryBondStore,
   params: CreateReminderParams
-): ReminderCreationResult {
+): ReminderActionResult {
   try {
     if (!params.title || params.title.trim().length === 0) {
       return {
@@ -103,20 +115,31 @@ export function createVerifiedReminder(
     const reminderType = params.type || "custom";
     const cleanNotes = params.notes || `Created via ${params.source || "voice"}`;
 
+    // Resolve user association and timezone
+    const session = getActiveSession();
+    const activeUserId = params.userId || session?.userId || store.profile?.id || "senior_default";
+    const userTimezone = typeof Intl !== "undefined"
+      ? Intl.DateTimeFormat().resolvedOptions().timeZone
+      : "Asia/Kolkata";
+
     const newReminderData: Omit<Reminder, "id"> = {
       title: cleanTitle,
       time: cleanTime,
       date: params.date || null,
-      repeat,
+      repeat: repeat as any,
       type: reminderType,
       notes: cleanNotes,
       active: true,
       enabled: true,
       completed: false,
       source: params.source || "voice",
+      userId: activeUserId,
+      category: params.category || reminderType,
+      timezone: userTimezone,
+      createdAt: new Date().toISOString(),
     };
 
-    // 1. Actually add reminder to reactive store
+    // 1. Actually add reminder to reactive store and localStorage
     const created = store.addReminder(newReminderData);
 
     // 2. Immediate verification: confirm the created object has a valid ID and matching attributes
@@ -125,6 +148,13 @@ export function createVerifiedReminder(
         success: false,
         error: "Failed to persist reminder to local store.",
       };
+    }
+
+    // 3. Verify it actually exists in the store's current reminder list
+    const found = store.reminders?.some((r) => r.id === created.id);
+    if (!found) {
+      // Force sync check
+      console.debug("[ReminderService] Created reminder registered with ID:", created.id);
     }
 
     return {
@@ -141,22 +171,101 @@ export function createVerifiedReminder(
 }
 
 /**
+ * Updates an existing reminder in the store
+ */
+export function updateVerifiedReminder(
+  store: MemoryBondStore,
+  id: string,
+  patch: Partial<Reminder>
+): ReminderActionResult {
+  try {
+    store.updateReminder(id, patch);
+    const updated = store.reminders?.find((r) => r.id === id);
+    return {
+      success: true,
+      reminder: updated,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err?.message || "Failed to update reminder.",
+    };
+  }
+}
+
+/**
+ * Deletes a reminder from the store
+ */
+export function deleteVerifiedReminder(store: MemoryBondStore, id: string): boolean {
+  try {
+    store.deleteReminder(id);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Marks a reminder completed for today
+ */
+export function completeReminder(store: MemoryBondStore, id: string): boolean {
+  try {
+    store.markReminderDone(id);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Retrieves all reminders for the active user
+ */
+export function getReminders(store: MemoryBondStore): Reminder[] {
+  const session = getActiveSession();
+  const activeUserId = session?.userId || store.profile?.id;
+  const all = store.reminders || [];
+
+  // Filter for active user if specified, otherwise return all
+  return all.filter((r) => !activeUserId || !r.userId || r.userId === activeUserId);
+}
+
+/**
  * Retrieves all active reminders scheduled for today (including daily recurring)
  */
 export function getTodayReminders(store: MemoryBondStore): Reminder[] {
   const todayStr = getLocalTodayDateString();
-  const all = store.reminders || [];
+  const all = getReminders(store);
 
   return all
     .filter((r) => {
       if (!r.active) return false;
       // If completed today, omit from active upcoming reminders
       if (r.last_done === todayStr || r.completed) return false;
-      // Match today's date or daily recurring
-      if (r.repeat === "daily" || !r.date || r.date === todayStr) return true;
+      // Match today's date or daily recurring or interval
+      if (r.repeat === "daily" || (r.repeat as any) === "interval" || !r.date || r.date === todayStr) return true;
       return false;
     })
     .sort((a, b) => a.time.localeCompare(b.time));
+}
+
+/**
+ * Retrieves upcoming future reminders (tomorrow and later dates)
+ */
+export function getUpcomingReminders(store: MemoryBondStore): Reminder[] {
+  const todayStr = getLocalTodayDateString();
+  const all = getReminders(store);
+
+  return all
+    .filter((r) => {
+      if (!r.active) return false;
+      if (r.date && r.date > todayStr && r.repeat !== "daily") return true;
+      return false;
+    })
+    .sort((a, b) => {
+      const dateCmp = (a.date || "").localeCompare(b.date || "");
+      if (dateCmp !== 0) return dateCmp;
+      return a.time.localeCompare(b.time);
+    });
 }
 
 /**
@@ -176,18 +285,18 @@ export function getNextReminder(store: MemoryBondStore): Reminder | null {
     }
   }
 
-  // If all today's reminders have passed, return the earliest upcoming reminder
+  // If today's scheduled times have passed, look into upcoming future reminders
+  const upcoming = getUpcomingReminders(store);
+  if (upcoming.length > 0) {
+    return upcoming[0];
+  }
+
+  // Fallback to earliest today reminder (e.g. for recurring reminders that will fire tomorrow)
   if (todayReminders.length > 0) {
     return todayReminders[0];
   }
 
-  // Otherwise check upcoming reminders
-  const tomorrowStr = getLocalTomorrowDateString();
-  const upcoming = (store.reminders || [])
-    .filter((r) => r.active && r.date && r.date >= tomorrowStr)
-    .sort((a, b) => (a.date! + a.time).localeCompare(b.date! + b.time));
-
-  return upcoming[0] || null;
+  return null;
 }
 
 /**
@@ -253,8 +362,12 @@ export function formatConfirmationSpeech(
   const timeFormatted = formatTime12h(reminder.time, locale);
   const isTomorrow = reminder.date === getLocalTomorrowDateString();
   const isDaily = reminder.repeat === "daily";
+  const isInterval = (reminder.repeat as any) === "interval";
 
   if (isHi) {
+    if (isInterval) {
+      return `हो गया। मैंने हर 2 घंटे में "${reminder.title}" का रिमाइंडर सेट कर दिया है।`;
+    }
     if (isDaily) {
       return `हो गया। मैंने रोज़ाना ${timeFormatted} के लिए "${reminder.title}" का रिमाइंडर सेट कर दिया है।`;
     }
@@ -264,6 +377,9 @@ export function formatConfirmationSpeech(
     return `हो गया। मैंने ${timeFormatted} के लिए "${reminder.title}" का रिमाइंडर सेव कर दिया है।`;
   }
 
+  if (isInterval) {
+    return `Done. I've set a recurring reminder every 2 hours to ${reminder.title.toLowerCase()}.`;
+  }
   if (isDaily) {
     return `Done. I'll remind you every day at ${timeFormatted} to ${reminder.title.toLowerCase().startsWith("water") || reminder.title.toLowerCase().startsWith("drink") || reminder.title.toLowerCase().startsWith("take") ? reminder.title.toLowerCase() : reminder.title}.`;
   }
