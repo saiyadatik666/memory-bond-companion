@@ -10,7 +10,7 @@ export const SENIOR_INTERESTS_LIST: SeniorInterest[] = [
     id: "music",
     icon: "🎵",
     labels: {
-      en: "Music & Songs",
+      en: "Music & Singing",
       hi: "संगीत और गाने",
       as: "গান আৰু গীত",
       bn: "সঙ্গীত ও গান",
@@ -29,7 +29,7 @@ export const SENIOR_INTERESTS_LIST: SeniorInterest[] = [
       mni: "ঈশৈ অমসুং সুর",
     },
     descriptions: {
-      en: "Bhajans, classical melodies & evergreen favorites",
+      en: "Bhajans, classical & favorite songs",
       hi: "भजन, शास्त्रीय धुनें और पुराने मधुर गीत",
       as: "ভজন, পুৰণি গীত আৰু লোকসংগীত",
       bn: "ভজন, পুরাতন গান ও শাস্ত্রীয় সুর",
@@ -71,7 +71,7 @@ export const SENIOR_INTERESTS_LIST: SeniorInterest[] = [
       mni: "লৈকোই অমসুং মহৌশাগী শক্তম",
     },
     descriptions: {
-      en: "Plants, flowers, fresh morning breeze & greenery",
+      en: "Plants, flowers & fresh air",
       hi: "पौधे, फूल, ताज़ी हवा और सुबह की हरियाली",
       as: "ফুল, গছ-গছনি আৰু সেউজ প্ৰকৃতিৰ পৰশ",
       bn: "গাছপালা, ফুল ও নির্মল সকালের বাতাস",
@@ -113,7 +113,7 @@ export const SENIOR_INTERESTS_LIST: SeniorInterest[] = [
       mni: "ৱারী অমসুং পাবা",
     },
     descriptions: {
-      en: "Inspiring folktales, spiritual texts & memoirs",
+      en: "Folktales, books & inspiration",
       hi: "प्रेरक कहानियां, धार्मिक ग्रंथ और संस्मरण",
       as: "সাধুকথা, পুথি আৰু মন চুই যোৱা স্মৃতিচাৰণ",
       bn: "উপকথা, ধর্মীয় গ্রন্থ ও অনুপ্রেরণার গল্প",
@@ -136,7 +136,7 @@ export const SENIOR_INTERESTS_LIST: SeniorInterest[] = [
     id: "games",
     icon: "🧩",
     labels: {
-      en: "Memory Games",
+      en: "Memory & Puzzles",
       hi: "स्मृति खेल",
       as: "স্মৃতি খেল",
       bn: "স্মৃতির খেলা",
@@ -155,7 +155,7 @@ export const SENIOR_INTERESTS_LIST: SeniorInterest[] = [
       mni: "নিংশিং শান্নবা",
     },
     descriptions: {
-      en: "Gentle puzzles, cards & calm brain exercises",
+      en: "Gentle puzzles, cards & brain games",
       hi: "आसान पहेलियां, पत्ते और दिमागी कसरत",
       as: "সহজ সাঁথৰ আৰু মন সতেজ ৰখা সহজ খেল",
       bn: "সহজ ধাঁধা ও মনকে সতেজ রাখার খেলা",
@@ -197,7 +197,7 @@ export const SENIOR_INTERESTS_LIST: SeniorInterest[] = [
       mni: "যোগ অমসুং ধ্যান",
     },
     descriptions: {
-      en: "Pranayama, calm breathing & peaceful relaxation",
+      en: "Pranayama, calm breathing & movement",
       hi: "प्राणायाम, हल्का खिंचाव और मानसिक शांति",
       as: "প্ৰাণায়াম, সহজ যোগাসন আৰু শান্ত ধ্যান",
       bn: "প্রাণায়াম, হালকা আসন ও মানসিক প্রশান্তি",
@@ -220,7 +220,7 @@ export const SENIOR_INTERESTS_LIST: SeniorInterest[] = [
     id: "cooking",
     icon: "🍳",
     labels: {
-      en: "Cooking & Recipes",
+      en: "Cooking & Food",
       hi: "खाना पकाना और व्यंजन",
       as: "ৰন্ধা-বঢ়া আৰু ব্যঞ্জন",
       bn: "রান্না ও রেসিপি",
@@ -239,7 +239,7 @@ export const SENIOR_INTERESTS_LIST: SeniorInterest[] = [
       mni: "চাক-থোংবা অমসুং চান-থকনবা",
     },
     descriptions: {
-      en: "Traditional tastes, healthy spices & kitchen stories",
+      en: "Traditional tastes & healthy recipes",
       hi: "पारंपरिक स्वाद, पौष्टिक व्यंजन और रसोई की बातें",
       as: "ঘৰুৱা সোৱাদ, পৰম্পৰাগত খাদ্য আৰু ৰন্ধন প্ৰণালী",
       bn: "ঐতিহ্যবাহী স্বাদ, পুষ্টিকর খাবার ও রান্নার গল্প",
@@ -281,7 +281,7 @@ export const SENIOR_INTERESTS_LIST: SeniorInterest[] = [
       mni: "নাৎ অমসুং চৎনবী",
     },
     descriptions: {
-      en: "Festivals, holy shrines, sacred folklore & heritage",
+      en: "Festivals, traditions & heritage",
       hi: "त्योहार, तीर्थ, उत्सव और गौरवशाली विरासत",
       as: "উৎসৱ, তিথি, মন্দিৰ আৰু আমাৰ অমূল্য ঐতিহ্য",
       bn: "উৎসব, তীর্থস্থান ও সমৃদ্ধ লোকসংস্কৃতি",
@@ -304,7 +304,7 @@ export const SENIOR_INTERESTS_LIST: SeniorInterest[] = [
     id: "family",
     icon: "👨‍👩‍👧",
     labels: {
-      en: "Family & Memories",
+      en: "Family & Relationships",
       hi: "परिवार और यादें",
       as: "পৰিয়াল আৰু স্মৃতি",
       bn: "পরিবার ও স্মৃতি",
@@ -323,7 +323,7 @@ export const SENIOR_INTERESTS_LIST: SeniorInterest[] = [
       mni: "ইমুং অমসুং নিংশিংবা",
     },
     descriptions: {
-      en: "Children, grandchildren & golden family milestones",
+      en: "Children, grandchildren & loved ones",
       hi: "बच्चे, नाती-पोते और अनमोल पारिवारिक पल",
       as: "সন্তান, নাতি-নাতিনী আৰু পৰিয়ালৰ মৰমৰ ক্ষণ",
       bn: "সন্তান, নাতি-নাতনি ও পারিবারিক আনন্দঘন মুহূর্ত",
@@ -346,7 +346,7 @@ export const SENIOR_INTERESTS_LIST: SeniorInterest[] = [
     id: "movies",
     icon: "🎬",
     labels: {
-      en: "Movies & Entertainment",
+      en: "Movies & Cinema",
       hi: "सिनेमा और मनोरंजन",
       as: "চলচ্চিত্ৰ আৰু মনোৰঞ্জন",
       bn: "চলচ্চিত্র ও বিনোদন",
@@ -365,7 +365,7 @@ export const SENIOR_INTERESTS_LIST: SeniorInterest[] = [
       mni: "মমো অমসুং নুংঙাইবা",
     },
     descriptions: {
-      en: "Golden era cinema, comedy clips & classic stage plays",
+      en: "Favorite films & golden-era cinema",
       hi: "पुराना सुनहरा दौर, हास्य कार्यक्रम और नाटक",
       as: "সোণালী যুগৰ ছৱি, নাটক আৰু আনন্দদায়ক অনুষ্ঠান",
       bn: "সোনালী দিনের সিনেমা, হাস্যকৌতুক ও নাটক",
@@ -407,7 +407,7 @@ export const SENIOR_INTERESTS_LIST: SeniorInterest[] = [
       mni: "পাউ অমসুং লৈবাক্কী শক্তম",
     },
     descriptions: {
-      en: "Morning headlines, regional bulletins & weather updates",
+      en: "Morning headlines & daily updates",
       hi: "रोज़ की ताज़ा ख़बरें, प्रांतीय समाचार और मौसम",
       as: "দৈনন্দিন বাতৰি, ৰাজ্যিক খবৰ আৰু বতৰৰ বতৰা",
       bn: "প্রতিদিনের তাজা খবর, স্থানীয় সংবাদ ও আবহাওয়া",
@@ -430,7 +430,7 @@ export const SENIOR_INTERESTS_LIST: SeniorInterest[] = [
     id: "walking",
     icon: "🚶",
     labels: {
-      en: "Walking & Daily Activities",
+      en: "Walking & Exercise",
       hi: "टहलना और दिनचर्या",
       as: "খোজ কঢ়া আৰু দৈনন্দিন কাম",
       bn: "হাঁটা ও দৈনন্দিন কাজ",
@@ -449,7 +449,7 @@ export const SENIOR_INTERESTS_LIST: SeniorInterest[] = [
       mni: "খোঙনা চৎপা অমসুং নোংমগী থবক",
     },
     descriptions: {
-      en: "Gentle morning strolls, fresh air & staying active",
+      en: "Gentle walking, stretches & movement",
       hi: "सुबह की ताज़ी सैर, हल्का व्यायाम और सक्रिय जीवन",
       as: "পুৱাৰ খোজ কঢ়া, পাতল সঞ্চালন আৰু সক্ৰিয় জীৱন",
       bn: "সকালের নিয়মিত পায়চারি, হালকা ব্যায়াম ও সতেজ মন",
@@ -472,7 +472,7 @@ export const SENIOR_INTERESTS_LIST: SeniorInterest[] = [
     id: "shopping",
     icon: "🛍️",
     labels: {
-      en: "Shopping & Market",
+      en: "Shopping & Outings",
       hi: "खरीदारी और बाज़ार",
       as: "বজাৰ আৰু কেনাকাটা",
       bn: "কেনাকাটা ও বাজার",
@@ -491,7 +491,7 @@ export const SENIOR_INTERESTS_LIST: SeniorInterest[] = [
       mni: "কৈথেল চৎপা অমসুং পোৎ লৈবা",
     },
     descriptions: {
-      en: "Local bazaar visits, seasonal fruits & household goods",
+      en: "Local bazaars, visits & seasonal outings",
       hi: "स्थानीय बाज़ार, फल-सब्ज़ी और ज़रूरत का सामान",
       as: "ঘৰৰ ওচৰৰ বজাৰ, সতেজ ফল-মূল আৰু ক্ৰয়-বিক্ৰয়",
       bn: "কাছের বাজার, তাজা ফলমূল ও নিত্যপ্রয়োজনীয় জিনিস",
@@ -525,7 +525,7 @@ export interface SeniorInterestTexts {
 export const SENIOR_INTERESTS_PAGE_TEXTS: Record<string, SeniorInterestTexts> = {
   en: {
     title: "What are you interested in?",
-    subtitle: "Choose your preferences so Memory Bond can tailor your experience to you.",
+    subtitle: "Choose a few things you enjoy so Memory Bond can personalize your experience.",
     continueBtn: "Continue",
     backBtn: "Back",
     selectAlert: "Please select at least 1 interest to continue.",

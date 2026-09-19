@@ -356,7 +356,7 @@ export function SeniorHome({
       </div>
 
       {/* ===================================================================== */}
-      {/* 5. QUICK ACCESS (Sections 2, 3, 4, 5, 6, 7: Your Everyday Features)   */}
+      {/* 5. QUICK ACCESS (Play Games, My Reminders, Family, Cultural Hub)      */}
       {/* ===================================================================== */}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between px-0.5">
@@ -380,10 +380,10 @@ export function SeniorHome({
             className="group p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border border-[#E2EAF5] hover:border-purple-300 hover:bg-purple-50/30 text-left transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-98 flex flex-col justify-between min-h-[96px] sm:min-h-[104px]"
           >
             <div className="flex items-center justify-between w-full">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 transition-transform">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 transition-transform shrink-0">
                 🧠
               </div>
-              <ChevronRight className="h-4 w-4 text-[#829AB1]/60 group-hover:text-purple-600 group-hover:translate-x-0.5 transition-all" />
+              <ChevronRight className="h-4 w-4 text-[#829AB1]/60 group-hover:text-purple-600 group-hover:translate-x-0.5 transition-all shrink-0" />
             </div>
             <div className="mt-2 min-w-0">
               <div className="text-xs sm:text-sm font-black text-[#0F243E] group-hover:text-purple-900 truncate">
@@ -402,10 +402,10 @@ export function SeniorHome({
             className="group p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border border-[#E2EAF5] hover:border-teal-300 hover:bg-teal-50/30 text-left transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-98 flex flex-col justify-between min-h-[96px] sm:min-h-[104px]"
           >
             <div className="flex items-center justify-between w-full">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 transition-transform">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 transition-transform shrink-0">
                 💊
               </div>
-              <ChevronRight className="h-4 w-4 text-[#829AB1]/60 group-hover:text-teal-600 group-hover:translate-x-0.5 transition-all" />
+              <ChevronRight className="h-4 w-4 text-[#829AB1]/60 group-hover:text-teal-600 group-hover:translate-x-0.5 transition-all shrink-0" />
             </div>
             <div className="mt-2 min-w-0">
               <div className="text-xs sm:text-sm font-black text-[#0F243E] group-hover:text-teal-900 truncate">
@@ -424,10 +424,10 @@ export function SeniorHome({
             className="group p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border border-[#E2EAF5] hover:border-rose-300 hover:bg-rose-50/30 text-left transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-98 flex flex-col justify-between min-h-[96px] sm:min-h-[104px]"
           >
             <div className="flex items-center justify-between w-full">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 transition-transform">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 transition-transform shrink-0">
                 ❤️
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 shrink-0">
                 <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 hidden sm:inline">
                   Priya ❤️
                 </span>
@@ -444,27 +444,53 @@ export function SeniorHome({
             </div>
           </button>
 
-          {/* Card 4: 📖 Memory Journal */}
-          <button
-            type="button"
-            onClick={() => onNavigate("journal")}
-            className="group p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border border-[#E2EAF5] hover:border-amber-300 hover:bg-amber-50/30 text-left transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-98 flex flex-col justify-between min-h-[96px] sm:min-h-[104px]"
-          >
-            <div className="flex items-center justify-between w-full">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 transition-transform">
-                📖
-              </div>
-              <ChevronRight className="h-4 w-4 text-[#829AB1]/60 group-hover:text-amber-700 group-hover:translate-x-0.5 transition-all" />
-            </div>
-            <div className="mt-2 min-w-0">
-              <div className="text-xs sm:text-sm font-black text-[#0F243E] group-hover:text-amber-950 truncate">
-                Memory Journal
-              </div>
-              <div className="text-[10px] sm:text-xs font-semibold text-[#5B728D] truncate">
-                Today's memories
-              </div>
-            </div>
-          </button>
+          {/* Card 4: 🌍 Cultural Hub (Replaces Memory Journal per requirements 23-30) */}
+          {(() => {
+            const userInterests = store.profile?.interests || [];
+            let culturalSuggestion = "Culture, stories & traditions";
+            let culturalBadge = "Explore";
+            if (userInterests.includes("stories")) {
+              culturalSuggestion = "Folk stories & inspiring tales";
+              culturalBadge = "Stories ✨";
+            } else if (userInterests.includes("music")) {
+              culturalSuggestion = "Traditional songs & bhajans";
+              culturalBadge = "Music 🎵";
+            } else if (userInterests.includes("culture")) {
+              culturalSuggestion = "Heritage & sacred traditions";
+              culturalBadge = "Heritage 🛕";
+            } else if (userInterests.includes("cooking")) {
+              culturalSuggestion = "Traditional tastes & recipes";
+              culturalBadge = "Taste 🍲";
+            }
+
+            return (
+              <button
+                type="button"
+                onClick={() => onNavigate("cultural")}
+                className="group p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border border-[#E2EAF5] hover:border-amber-300 hover:bg-amber-50/30 text-left transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-98 flex flex-col justify-between min-h-[96px] sm:min-h-[104px]"
+              >
+                <div className="flex items-center justify-between w-full">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 transition-transform shrink-0">
+                    🌍
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 hidden sm:inline">
+                      {culturalBadge}
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-[#829AB1]/60 group-hover:text-amber-700 group-hover:translate-x-0.5 transition-all" />
+                  </div>
+                </div>
+                <div className="mt-2 min-w-0">
+                  <div className="text-xs sm:text-sm font-black text-[#0F243E] group-hover:text-amber-950 truncate">
+                    Cultural Hub
+                  </div>
+                  <div className="text-[10px] sm:text-xs font-semibold text-[#5B728D] truncate">
+                    {culturalSuggestion}
+                  </div>
+                </div>
+              </button>
+            );
+          })()}
         </div>
       </div>
 
