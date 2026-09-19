@@ -157,45 +157,46 @@ export function Header({
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E8EEF5] transition-colors select-none shadow-[0_1px_4px_rgba(15,36,62,0.03)]">
+      <header className="sticky top-0 z-40 w-full max-w-[100vw] bg-white/95 backdrop-blur-md border-b border-[#E8EEF5] transition-colors select-none shadow-[0_1px_4px_rgba(15,36,62,0.03)] box-border">
         {/* ==================================================================== */}
-        {/* ROW 1: PRIMARY TOP BAR (Logo + Branding + Profile / Controls)        */}
+        {/* ROW 1: PRIMARY TOP BAR (Logo + Search + Adaptive Controls)           */}
+        {/* Responsive at: 320px, 360px, 375px, 390px, 430px, 768px, 1024px+     */}
         {/* ==================================================================== */}
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-4 md:gap-6">
+        <div className="w-full max-w-[1600px] mx-auto px-2.5 sm:px-4 md:px-6 h-[56px] sm:h-[62px] md:h-[68px] flex items-center justify-between gap-1.5 sm:gap-3 box-border">
           {/* Left: Memory Bond Logo + Brand Name */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 shrink-0">
             <button
               type="button"
               onClick={() => onNavigate(role === "caregiver" ? "caregiver" : "home")}
-              className="flex items-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 rounded-xl p-0.5 transition-transform active:scale-98 text-left"
+              className="flex items-center gap-1.5 sm:gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 rounded-xl p-0.5 transition-transform active:scale-98 text-left min-w-0"
               aria-label="Memory Bond Home"
             >
               <img
                 src="/images/brand/logo_icon.png"
                 alt="Memory Bond"
-                className="h-8 w-8 sm:h-9 sm:w-9 object-contain shrink-0 drop-shadow-2xs"
+                className="h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 object-contain shrink-0 drop-shadow-2xs"
               />
-              <div className="flex flex-col leading-none">
-                <span className="font-black text-base sm:text-lg md:text-xl tracking-tight text-[#0F243E]">
+              <div className="flex flex-col leading-none min-w-0">
+                <span className="font-black text-sm sm:text-base md:text-xl tracking-tight text-[#0F243E] truncate">
                   Memory Bond
                 </span>
-                <span className="text-[10px] sm:text-[11px] font-bold text-[#5B728D] tracking-wide mt-0.5 hidden sm:inline">
+                <span className="text-[10px] sm:text-[11px] font-bold text-[#5B728D] tracking-wide mt-0.5 hidden lg:inline">
                   Healthcare & Family Companion
                 </span>
               </div>
             </button>
 
-            {/* Desktop Role Badge (Caregiver vs Senior) — Hidden on mobile as per requirement */}
-            <div className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wide bg-[#EBF3FC] text-[#1E6FD9] border border-[#D0E2FF] ml-1 shrink-0">
+            {/* Desktop Role Badge (Caregiver vs Senior) — Shown on xl+ displays */}
+            <div className="hidden xl:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wide bg-[#EBF3FC] text-[#1E6FD9] border border-[#D0E2FF] ml-1 shrink-0">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>{role === "caregiver" ? t("iAmCaregiver") || "Caregiver" : t("iAmSenior") || "Senior"}</span>
             </div>
           </div>
 
-          {/* Center: Search Bar (Desktop & Tablet: sm+ only — removed from mobile home screen) */}
+          {/* Center: Search Bar (Desktop & Tablet: md+ only) */}
           <form
             onSubmit={handleSearch}
-            className="relative flex-1 min-w-[180px] max-w-xs md:max-w-md lg:max-w-lg hidden sm:flex items-center mx-2"
+            className="relative flex-1 min-w-[140px] max-w-xs md:max-w-md lg:max-w-lg hidden md:flex items-center mx-2"
           >
             <div className="relative w-full">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#829AB1] pointer-events-none" />
@@ -221,115 +222,123 @@ export function Header({
             </div>
           </form>
 
-          {/* Right Tools & Profile Control */}
-          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 ml-auto shrink-0">
-            {/* Offline indicator: compact pill when offline, unobtrusive sync dot when online */}
+          {/* Right Tools & Adaptive Controls: strictly constrained to viewport */}
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            {/* Offline indicator: compact sync badge, hidden on mobile to protect header width */}
             {(!store.isOnline || store.offlineModeForced) ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black bg-amber-100 text-amber-900 border border-amber-300">
+              <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black bg-amber-100 text-amber-900 border border-amber-300 shrink-0">
                 <span>📶</span>
-                <span className="hidden xs:inline">Offline</span>
+                <span>Offline</span>
               </span>
             ) : (
-              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="hidden lg:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
                 <Check className="h-3 w-3" />
                 <span>Synced</span>
               </span>
             )}
 
-            {/* Language Selector Dropdown (Pan-India & NER languages) */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 sm:h-9 md:h-10 px-2 sm:px-3 rounded-full border-[#BAE6FD] bg-[#F0F9FF] hover:bg-[#E0F2FE] text-[#0369A1] font-black text-xs sm:text-sm gap-1.5 shadow-2xs cursor-pointer focus-visible:ring-2 focus-visible:ring-[#0284C7] shrink-0 transition-all"
-                  aria-label="Choose Language"
-                  title={`Language: ${currentLangObj.native} (${currentLangObj.label})`}
+            {/* Language Selector Dropdown */}
+            {/* Small mobile (<380px): Hidden in header, accessible in hamburger menu */}
+            {/* Normal mobile (380px-639px): Ultra-compact [ 🌐 EN ] pill */}
+            {/* Tablet/Desktop (640px+): Full [ 🌐 English ⌄ ] pill */}
+            <div className="hidden min-[380px]:inline-flex shrink-0">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 sm:h-9 md:h-10 px-2 sm:px-3 rounded-full border-[#BAE6FD] bg-[#F0F9FF] hover:bg-[#E0F2FE] text-[#0369A1] font-black text-xs sm:text-sm gap-1 sm:gap-1.5 shadow-2xs cursor-pointer focus-visible:ring-2 focus-visible:ring-[#0284C7] shrink-0 transition-all"
+                    aria-label="Choose Language"
+                    title={`Language: ${currentLangObj.native} (${currentLangObj.label})`}
+                  >
+                    <Globe className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#0284C7] shrink-0" />
+                    <span className="sm:hidden font-black text-[11px] uppercase tracking-wider">
+                      {lang}
+                    </span>
+                    <span className="hidden sm:inline font-bold truncate max-w-[85px] md:max-w-[120px]">
+                      {currentLangObj.native}
+                    </span>
+                    <ChevronDown className="h-3 w-3 text-[#0284C7] shrink-0 opacity-70 hidden sm:inline" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-64 max-h-[75vh] overflow-y-auto rounded-2xl p-2 bg-white border-[#E2EAF5] shadow-xl z-50"
                 >
-                  <Globe className="h-4 w-4 text-[#0284C7] shrink-0" />
-                  <span className="font-bold truncate max-w-[65px] sm:max-w-[90px] md:max-w-[120px]">
-                    {currentLangObj.native}
-                  </span>
-                  <ChevronDown className="h-3 w-3 text-[#0284C7] shrink-0 opacity-70 hidden xs:inline" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                className="w-64 max-h-[75vh] overflow-y-auto rounded-2xl p-2 bg-white border-[#E2EAF5] shadow-xl z-50"
-              >
-                <div className="px-3 py-1.5 text-[11px] font-extrabold text-[#0284C7] uppercase tracking-wider flex items-center justify-between">
-                  <span>{t("panIndiaLanguages") || "Languages"}</span>
-                  <span className="text-[10px] text-[#627D98] font-normal">22+ Supported</span>
-                </div>
-                {LANGUAGES.filter((l) => !l.state || l.state === "Pan-India").map((l) => {
-                  const isSelected = lang === l.code;
-                  return (
-                    <DropdownMenuItem
-                      key={l.code}
-                      onClick={() => {
-                        voiceManager.stopSpeaking();
-                        setLang(l.code);
-                        store.updateProfile({ language: l.code });
-                      }}
-                      className={`rounded-xl cursor-pointer flex items-center justify-between font-bold py-2 px-3 text-xs transition-colors ${
-                        isSelected
-                          ? "bg-[#E0F2FE] text-[#0369A1] font-black"
-                          : "hover:bg-[#F4F8FD] text-[#0F243E]"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        {isSelected && <Check className="h-3.5 w-3.5 text-[#0284C7] shrink-0" />}
-                        <span>{l.native}</span>
-                      </div>
-                      <span className="text-[11px] text-[#627D98] font-normal">{l.label}</span>
-                    </DropdownMenuItem>
-                  );
-                })}
-
-                {NER_STATES.map((stateName) => (
-                  <div key={stateName} className="mt-2">
-                    <DropdownMenuSeparator />
-                    <div className="px-3 py-1 text-[10px] font-extrabold text-[#627D98] uppercase tracking-wider">
-                      {stateName} (NER)
-                    </div>
-                    {getLanguagesByState(stateName).map((l) => {
-                      const isSelected = lang === l.code;
-                      return (
-                        <DropdownMenuItem
-                          key={l.code}
-                          onClick={() => {
-                            voiceManager.stopSpeaking();
-                            setLang(l.code);
-                            store.updateProfile({
-                              language: l.code,
-                              selected_ner_state: stateName,
-                              selected_state: stateName,
-                            });
-                          }}
-                          className={`rounded-xl cursor-pointer flex items-center justify-between font-bold py-1.5 px-3 text-xs transition-colors ${
-                            isSelected
-                              ? "bg-[#E0F2FE] text-[#0369A1] font-black"
-                              : "hover:bg-[#F4F8FD] text-[#0F243E]"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            {isSelected && <Check className="h-3 w-3 text-[#0284C7] shrink-0" />}
-                            <span>{l.native}</span>
-                          </div>
-                          <span className="text-[10px] text-[#627D98] font-normal">{l.label}</span>
-                        </DropdownMenuItem>
-                      );
-                    })}
+                  <div className="px-3 py-1.5 text-[11px] font-extrabold text-[#0284C7] uppercase tracking-wider flex items-center justify-between">
+                    <span>{t("panIndiaLanguages") || "Languages"}</span>
+                    <span className="text-[10px] text-[#627D98] font-normal">22+ Supported</span>
                   </div>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  {LANGUAGES.filter((l) => !l.state || l.state === "Pan-India").map((l) => {
+                    const isSelected = lang === l.code;
+                    return (
+                      <DropdownMenuItem
+                        key={l.code}
+                        onClick={() => {
+                          voiceManager.stopSpeaking();
+                          setLang(l.code);
+                          store.updateProfile({ language: l.code });
+                        }}
+                        className={`rounded-xl cursor-pointer flex items-center justify-between font-bold py-2 px-3 text-xs transition-colors ${
+                          isSelected
+                            ? "bg-[#E0F2FE] text-[#0369A1] font-black"
+                            : "hover:bg-[#F4F8FD] text-[#0F243E]"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          {isSelected && <Check className="h-3.5 w-3.5 text-[#0284C7] shrink-0" />}
+                          <span>{l.native}</span>
+                        </div>
+                        <span className="text-[11px] text-[#627D98] font-normal">{l.label}</span>
+                      </DropdownMenuItem>
+                    );
+                  })}
 
-            {/* Notification Bell Button with live Red Badge Dot */}
+                  {NER_STATES.map((stateName) => (
+                    <div key={stateName} className="mt-2">
+                      <DropdownMenuSeparator />
+                      <div className="px-3 py-1 text-[10px] font-extrabold text-[#627D98] uppercase tracking-wider">
+                        {stateName} (NER)
+                      </div>
+                      {getLanguagesByState(stateName).map((l) => {
+                        const isSelected = lang === l.code;
+                        return (
+                          <DropdownMenuItem
+                            key={l.code}
+                            onClick={() => {
+                              voiceManager.stopSpeaking();
+                              setLang(l.code);
+                              store.updateProfile({
+                                language: l.code,
+                                selected_ner_state: stateName,
+                                selected_state: stateName,
+                              });
+                            }}
+                            className={`rounded-xl cursor-pointer flex items-center justify-between font-bold py-1.5 px-3 text-xs transition-colors ${
+                              isSelected
+                                ? "bg-[#E0F2FE] text-[#0369A1] font-black"
+                                : "hover:bg-[#F4F8FD] text-[#0F243E]"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              {isSelected && <Check className="h-3 w-3 text-[#0284C7] shrink-0" />}
+                              <span>{l.native}</span>
+                            </div>
+                            <span className="text-[10px] text-[#627D98] font-normal">{l.label}</span>
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* Notification Bell Button (Always visible on all screens) */}
             <button
               type="button"
               onClick={onOpenNotifications}
-              className="relative w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full border border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] text-[#486581] hover:text-[#0F243E] flex items-center justify-center transition-colors shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E6FD9] shrink-0"
+              className="relative w-8 h-8 sm:w-9 sm:h-9 md:h-10 md:w-10 rounded-full border border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] text-[#486581] hover:text-[#0F243E] flex items-center justify-center transition-colors shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E6FD9] shrink-0"
               aria-label="View Notifications"
               title="Notifications"
             >
@@ -339,107 +348,112 @@ export function Header({
               )}
             </button>
 
-            {/* Profile Button [ 👤 Profile ] — Information & Settings */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="h-8 sm:h-9 md:h-10 pl-1 pr-1.5 sm:pr-3 rounded-full border border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] flex items-center gap-1.5 sm:gap-2 transition-colors shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E6FD9] shrink-0"
-                  aria-label="User Profile"
-                >
-                  <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full overflow-hidden shrink-0 border border-[#D0E2FF] bg-[#EBF3FC]">
-                    <img
-                      src="/images/family_memory_hero.jpg"
-                      alt={userDisplayName}
-                      className="w-full h-full object-cover object-top"
-                    />
-                  </div>
-                  <span className="hidden sm:inline text-xs sm:text-sm font-bold text-[#0F243E] max-w-[100px] truncate">
-                    {firstName}
-                  </span>
-                  <ChevronDown className="h-3 w-3 text-[#829AB1] shrink-0 opacity-80" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                className="w-64 sm:w-72 rounded-2xl p-2.5 bg-white border-[#E2EAF5] shadow-xl space-y-1.5 z-50 animate-in fade-in zoom-in-95"
-              >
-                {/* Profile Information Header — Non-clickable Role Label (Sections 8 & 9) */}
-                <div className="px-3 py-2.5 bg-[#F8FAFD] rounded-xl border border-[#EDF2F7]">
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-[#1E6FD9] shrink-0" />
-                    <span className="font-black text-sm text-[#0F243E] truncate">
-                      {userDisplayName}
-                    </span>
-                  </div>
-                  <div className="inline-block text-[11px] font-bold text-[#1E6FD9] bg-[#EBF4FE] px-2.5 py-0.5 rounded-full border border-[#D0E2FF] mt-1.5 select-none pointer-events-none">
-                    {role === "caregiver" ? "Caregiver Account" : "Senior Account"}
-                  </div>
-                </div>
-
-                <DropdownMenuSeparator />
-
-                {/* Settings */}
-                <DropdownMenuItem
-                  onClick={() => onNavigate("settings")}
-                  className="rounded-xl text-xs font-bold cursor-pointer py-2.5 px-3 hover:bg-[#F4F8FD] text-[#0F243E] flex items-center gap-2.5"
-                >
-                  <Settings className="h-4 w-4 text-[#627D98]" />
-                  <span>{t("settings") || "Settings"}</span>
-                </DropdownMenuItem>
-
-                {/* Emergency SOS Contacts */}
-                {onOpenSos && (
-                  <DropdownMenuItem
-                    onClick={onOpenSos}
-                    className="rounded-xl text-xs font-bold text-rose-600 focus:bg-rose-50 hover:bg-rose-50 cursor-pointer py-2.5 px-3 flex items-center gap-2.5"
+            {/* Profile Button */}
+            {/* Small mobile (<380px): Hidden in header, accessible in hamburger menu */}
+            {/* Normal mobile (380px-639px): Avatar circle icon */}
+            {/* Tablet/Desktop (640px+): Avatar + Name + Dropdown */}
+            <div className="hidden min-[380px]:inline-flex shrink-0">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="h-8 sm:h-9 md:h-10 p-1 sm:pl-1 sm:pr-2.5 md:pr-3 rounded-full border border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] flex items-center gap-1 sm:gap-2 transition-colors shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E6FD9] shrink-0"
+                    aria-label="User Profile"
                   >
-                    <AlertOctagon className="h-4 w-4 text-rose-600" />
-                    <span>Emergency SOS Contacts</span>
-                  </DropdownMenuItem>
-                )}
-
-                {/* Notifications */}
-                <DropdownMenuItem
-                  onClick={onOpenNotifications}
-                  className="rounded-xl text-xs font-bold cursor-pointer py-2.5 px-3 hover:bg-[#F4F8FD] text-[#0F243E] flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Bell className="h-4 w-4 text-[#627D98]" />
-                    <span>{t("notifications") || "Notifications"}</span>
-                  </div>
-                  {unreadCount > 0 && (
-                    <span className="px-2 py-0.5 rounded-full bg-destructive text-white text-[10px] font-black">
-                      {unreadCount}
+                    <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full overflow-hidden shrink-0 border border-[#D0E2FF] bg-[#EBF3FC]">
+                      <img
+                        src="/images/family_memory_hero.jpg"
+                        alt={userDisplayName}
+                        className="w-full h-full object-cover object-top"
+                      />
+                    </div>
+                    <span className="hidden sm:inline text-xs sm:text-sm font-bold text-[#0F243E] max-w-[85px] md:max-w-[110px] truncate">
+                      {firstName}
                     </span>
-                  )}
-                </DropdownMenuItem>
-
-                {/* Privacy */}
-                <DropdownMenuItem
-                  onClick={() => onNavigate("settings")}
-                  className="rounded-xl text-xs font-bold cursor-pointer py-2.5 px-3 hover:bg-[#F4F8FD] text-[#0F243E] flex items-center gap-2.5"
+                    <ChevronDown className="h-3 w-3 text-[#829AB1] shrink-0 opacity-80 hidden sm:inline" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-64 sm:w-72 rounded-2xl p-2.5 bg-white border-[#E2EAF5] shadow-xl space-y-1.5 z-50 animate-in fade-in zoom-in-95"
                 >
-                  <Lock className="h-4 w-4 text-[#627D98]" />
-                  <span>Privacy</span>
-                </DropdownMenuItem>
+                  {/* Profile Information Header — Non-clickable Role Label */}
+                  <div className="px-3 py-2.5 bg-[#F8FAFD] rounded-xl border border-[#EDF2F7]">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-[#1E6FD9] shrink-0" />
+                      <span className="font-black text-sm text-[#0F243E] truncate">
+                        {userDisplayName}
+                      </span>
+                    </div>
+                    <div className="inline-block text-[11px] font-bold text-[#1E6FD9] bg-[#EBF4FE] px-2.5 py-0.5 rounded-full border border-[#D0E2FF] mt-1.5 select-none pointer-events-none">
+                      {role === "caregiver" ? "Caregiver Account" : "Senior Account"}
+                    </div>
+                  </div>
 
-                {onSignOut && (
-                  <>
-                    <DropdownMenuSeparator />
+                  <DropdownMenuSeparator />
+
+                  {/* Settings */}
+                  <DropdownMenuItem
+                    onClick={() => onNavigate("settings")}
+                    className="rounded-xl text-xs font-bold cursor-pointer py-2.5 px-3 hover:bg-[#F4F8FD] text-[#0F243E] flex items-center gap-2.5"
+                  >
+                    <Settings className="h-4 w-4 text-[#627D98]" />
+                    <span>{t("settings") || "Settings"}</span>
+                  </DropdownMenuItem>
+
+                  {/* Emergency SOS Contacts */}
+                  {onOpenSos && (
                     <DropdownMenuItem
-                      onClick={onSignOut}
-                      className="rounded-xl text-xs font-bold text-[#DC2626] focus:bg-[#FEE2E2] hover:bg-[#FEE2E2] cursor-pointer py-2.5 px-3 flex items-center gap-2.5"
+                      onClick={onOpenSos}
+                      className="rounded-xl text-xs font-bold text-rose-600 focus:bg-rose-50 hover:bg-rose-50 cursor-pointer py-2.5 px-3 flex items-center gap-2.5"
                     >
-                      <LogOut className="h-4 w-4" />
-                      <span>{t("signOut") || "Sign out"}</span>
+                      <AlertOctagon className="h-4 w-4 text-rose-600" />
+                      <span>Emergency SOS Contacts</span>
                     </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  )}
 
-            {/* Mobile Navigation Drawer Toggle */}
+                  {/* Notifications */}
+                  <DropdownMenuItem
+                    onClick={onOpenNotifications}
+                    className="rounded-xl text-xs font-bold cursor-pointer py-2.5 px-3 hover:bg-[#F4F8FD] text-[#0F243E] flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Bell className="h-4 w-4 text-[#627D98]" />
+                      <span>{t("notifications") || "Notifications"}</span>
+                    </div>
+                    {unreadCount > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-destructive text-white text-[10px] font-black">
+                        {unreadCount}
+                      </span>
+                    )}
+                  </DropdownMenuItem>
+
+                  {/* Privacy */}
+                  <DropdownMenuItem
+                    onClick={() => onNavigate("settings")}
+                    className="rounded-xl text-xs font-bold cursor-pointer py-2.5 px-3 hover:bg-[#F4F8FD] text-[#0F243E] flex items-center gap-2.5"
+                  >
+                    <Lock className="h-4 w-4 text-[#627D98]" />
+                    <span>Privacy</span>
+                  </DropdownMenuItem>
+
+                  {onSignOut && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={onSignOut}
+                        className="rounded-xl text-xs font-bold text-[#DC2626] focus:bg-[#FEE2E2] hover:bg-[#FEE2E2] cursor-pointer py-2.5 px-3 flex items-center gap-2.5"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        <span>{t("signOut") || "Sign out"}</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* Mobile Navigation Drawer Toggle — ALWAYS inside viewport and fully accessible */}
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(true)}

@@ -16,7 +16,7 @@ export function FloatingAssistantBubble({
 
   return (
     <div
-      className="fixed right-3.5 sm:right-6 bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] lg:bottom-8 z-40 flex flex-col items-center gap-2.5 sm:gap-3 select-none pointer-events-auto"
+      className="fixed right-2.5 min-[380px]:right-4 sm:right-6 bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] lg:bottom-8 z-40 flex flex-col items-center gap-2.5 sm:gap-3 select-none pointer-events-auto"
       aria-label="Floating Controls"
     >
       {/* 1. SOS Emergency Button (Positioned safely ABOVE Voice AI as per Section 12 Option B) */}
