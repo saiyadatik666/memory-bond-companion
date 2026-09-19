@@ -114,7 +114,7 @@ export function SeniorHome({
   };
 
   return (
-    <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 space-y-4 sm:space-y-6 pb-28 sm:pb-24 select-none box-border">
+    <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 space-y-5 sm:space-y-6 pb-12 sm:pb-16 select-none box-border">
       {/* ===================================================================== */}
       {/* 1. COMPACT OFFLINE SYNC STRIP (Section 27: Unobtrusive Indicator)     */}
       {/* ===================================================================== */}
@@ -356,7 +356,51 @@ export function SeniorHome({
       </div>
 
       {/* ===================================================================== */}
-      {/* 5. QUICK ACCESS (Play Games, My Reminders, Family, Cultural Hub)      */}
+      {/* 5. MOOD CHECK-IN (Section 8: How are you feeling today? ❤️)           */}
+      {/* ===================================================================== */}
+      <div className="rounded-3xl bg-white border border-[#E2EAF5] p-4 sm:p-5 shadow-2xs space-y-2.5">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm sm:text-base font-black text-[#0F243E] flex items-center gap-1.5">
+            <span>How are you feeling today?</span>
+            <span className="text-rose-500">❤️</span>
+          </h3>
+          {moodSavedToast && (
+            <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 animate-in fade-in">
+              {moodSavedToast}
+            </span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-5 gap-1.5 sm:gap-2.5">
+          {MOOD_OPTIONS.map((opt) => {
+            const isSelected = store.todaysMood === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => handleSelectMood(opt.id)}
+                className={`p-2 sm:p-3 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 active:scale-95 min-h-[64px] sm:min-h-[72px] ${
+                  isSelected
+                    ? "bg-amber-50 border-amber-400 ring-2 ring-amber-300/40 shadow-xs"
+                    : "bg-[#F8FAFD] border-[#E2EAF5] hover:bg-[#F0F5FB]"
+                }`}
+              >
+                <span className="text-2xl sm:text-3xl">{opt.emoji}</span>
+                <span
+                  className={`text-[11px] sm:text-xs font-bold truncate ${
+                    isSelected ? "text-amber-950 font-black" : "text-[#5B728D]"
+                  }`}
+                >
+                  {opt.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ===================================================================== */}
+      {/* 6. QUICK ACCESS (Play Games, My Reminders, Family, Cultural Hub)      */}
       {/* ===================================================================== */}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between px-0.5">
@@ -491,46 +535,6 @@ export function SeniorHome({
               </button>
             );
           })()}
-        </div>
-      </div>
-
-      {/* ===================================================================== */}
-      {/* 6. MOOD CHECK-IN (Section 8: How are you feeling today? ❤️)           */}
-      {/* ===================================================================== */}
-      <div className="rounded-3xl bg-white border border-[#E2EAF5] p-4 sm:p-5 shadow-2xs space-y-2.5">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm sm:text-base font-black text-[#0F243E] flex items-center gap-1.5">
-            <span>How are you feeling today?</span>
-            <span className="text-rose-500">❤️</span>
-          </h3>
-          {moodSavedToast && (
-            <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 animate-in fade-in">
-              {moodSavedToast}
-            </span>
-          )}
-        </div>
-
-        <div className="grid grid-cols-5 gap-1.5 sm:gap-2.5">
-          {MOOD_OPTIONS.map((opt) => {
-            const isSelected = store.todaysMood === opt.id;
-            return (
-              <button
-                key={opt.id}
-                type="button"
-                onClick={() => handleSelectMood(opt.id)}
-                className={`p-2 sm:p-3 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 active:scale-95 min-h-[64px] sm:min-h-[72px] ${
-                  isSelected
-                    ? "bg-amber-50 border-amber-400 ring-2 ring-amber-300/40 shadow-xs"
-                    : "bg-[#F8FAFD] border-[#E2EAF5] hover:bg-[#F0F5FB]"
-                }`}
-              >
-                <span className="text-2xl sm:text-3xl">{opt.emoji}</span>
-                <span className={`text-[11px] sm:text-xs font-bold truncate ${isSelected ? "text-amber-950 font-black" : "text-[#5B728D]"}`}>
-                  {opt.label}
-                </span>
-              </button>
-            );
-          })}
         </div>
       </div>
     </div>
