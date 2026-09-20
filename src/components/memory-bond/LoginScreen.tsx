@@ -286,6 +286,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
       const redirectOrigin = typeof window !== "undefined"
         ? window.location.origin
         : "https://memory-bond-ai.lovable.app";
+      // Redirect back to root — Supabase session is restored via onAuthStateChange
       const redirectTo = `${redirectOrigin}/`;
 
       const { error } = await supabase.auth.signInWithOAuth({
@@ -294,28 +295,40 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
           redirectTo,
           queryParams: provider === "google" ? {
             access_type: "offline",
-            prompt: "consent",
+            prompt: "select_account",
           } : undefined,
         },
       });
 
       if (error) {
-        if (error.message?.includes("provider is not enabled") || error.message?.includes("Unsupported provider")) {
+        const msg = error.message?.toLowerCase() || "";
+        // Provider not configured in Supabase Dashboard
+        if (
+          msg.includes("provider is not enabled") ||
+          msg.includes("unsupported provider") ||
+          msg.includes("validation_failed")
+        ) {
+          const name = provider === "google" ? "Google" : "Facebook";
           throw new Error(
-            `${provider === "google" ? "Google" : "Facebook"} login is ready in Memory Bond, but requires activating the ${provider === "google" ? "Google" : "Facebook"} provider in your Supabase Auth dashboard (Authentication -> Providers).`
+            `${name} Sign-In is not yet activated on this project. ` +
+            `Please enable the ${name} provider in your Supabase Dashboard → Authentication → Providers, ` +
+            `then add your OAuth Client ID and Secret. In the meantime, please use email and password to sign in.`
           );
+        }
+        // Network/connection error
+        if (msg.includes("fetch") || msg.includes("network") || msg.includes("connection")) {
+          throw new Error("We couldn't connect right now. Please check your internet connection and try again.");
         }
         throw error;
       }
+      // If no error, Supabase will redirect the browser to Google/Facebook.
+      // Don't setIsLoading(false) here — the page is about to navigate away.
     } catch (err: any) {
-      console.error(`${provider} OAuth error:`, err);
-      if (err.message?.includes("fetch") || err.message?.includes("network")) {
-        setErrorMessage("We couldn't connect right now. Please check your internet connection and try again.");
-      } else {
-        setErrorMessage(
-          err.message || `${provider === "google" ? "Google" : "Facebook"} sign-in could not be completed. Please try again.`
-        );
-      }
+      console.error(`[Auth] ${provider} OAuth error:`, err);
+      setErrorMessage(
+        err.message ||
+        `${provider === "google" ? "Google" : "Facebook"} sign-in could not be completed. Please use email and password instead.`
+      );
       setIsLoading(false);
     }
   };
