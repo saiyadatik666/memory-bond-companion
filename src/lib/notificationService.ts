@@ -123,8 +123,8 @@ export function checkScheduledReminders(store: MemoryBondStore) {
   const currentDayOfWeek = now.getDay();
 
   // 1. Check Medicine Schedules
-  (store.medicines || []).forEach((med) => {
-    (med.times || []).forEach((schedTime) => {
+  (store.medicines || []).forEach((med: any) => {
+    (med.times || []).forEach((schedTime: string) => {
       const formattedSched = schedTime.trim().slice(0, 5);
       if (formattedSched === currentTimeKey) {
         const alertKey = `med_${med.id}_${todayDateStr}_${formattedSched}`;
@@ -152,7 +152,7 @@ export function checkScheduledReminders(store: MemoryBondStore) {
   });
 
   // 2. Check General Reminders (including voice-created and recurring)
-  (store.reminders || []).forEach((rem) => {
+  (store.reminders || []).forEach((rem: any) => {
     if (!rem.active || rem.enabled === false) return;
     if (rem.completed && rem.last_done === todayDateStr) return;
 
@@ -201,7 +201,7 @@ export function checkScheduledReminders(store: MemoryBondStore) {
   const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
   const tomorrowMonthDay = `${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
 
-  (store.contacts || []).forEach((contact) => {
+  (store.contacts || []).forEach((contact: any) => {
     if (!contact.birthday) return;
     const bdayRaw = contact.birthday.slice(-5); // "MM-DD"
 
@@ -265,7 +265,7 @@ export function checkScheduledReminders(store: MemoryBondStore) {
   });
 
   // 4. Medicine Stock Refill Alert for Caregivers (Requirement 16)
-  (store.medicines || []).forEach((med) => {
+  (store.medicines || []).forEach((med: any) => {
     const daysLeft = med.daily_usage > 0 ? Math.floor(med.stock / med.daily_usage) : 999;
     if (daysLeft <= 3 && med.stock > 0) {
       const alertKey = `stock_low_${med.id}_${todayDateStr}`;

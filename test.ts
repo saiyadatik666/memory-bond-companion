@@ -1,1 +1,2 @@
-import { WORD_LISTS } from "./WordMemory"; const x = WORD_LISTS[0]; const y: typeof x = undefined;
+import { WordMemory } from "./src/components/memory-bond/games/WordMemory";
+export const testMemoryComponent = WordMemory;

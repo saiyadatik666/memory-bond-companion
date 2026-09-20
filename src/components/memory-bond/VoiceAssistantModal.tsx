@@ -414,7 +414,7 @@ export function VoiceAssistantModal({
     setTranscript(text);
 
     // 1. Detect language on client
-    const detectedLocale = languageEngine.detectLanguage(text, currentLocaleRef.current) || currentLocaleRef.current;
+    let detectedLocale = languageEngine.detectLanguage(text, currentLocaleRef.current) || currentLocaleRef.current;
     setCurrentLocale(detectedLocale);
     currentLocaleRef.current = detectedLocale;
     const detectedLangObj = SUPPORTED_LANGUAGES.find((l) => l.locale === detectedLocale);

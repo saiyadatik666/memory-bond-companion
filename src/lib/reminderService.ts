@@ -194,7 +194,7 @@ export function updateVerifiedReminder(
 ): ReminderActionResult {
   try {
     store.updateReminder(id, patch);
-    const updated = store.reminders?.find((r) => r.id === id);
+    const updated = store.reminders?.find((r: Reminder) => r.id === id);
     return {
       success: true,
       reminder: updated,
@@ -241,7 +241,7 @@ export function getReminders(store: MemoryBondStore): Reminder[] {
   const all = store.reminders || [];
 
   // Return all reminders belonging to this senior's active environment
-  return all.filter((r) => {
+  return all.filter((r: Reminder) => {
     if (!r.userId || r.userId === "guest" || r.userId === "senior_default") return true;
     if (activeUserId && (r.userId === activeUserId || r.userId === store.profile?.id)) return true;
     return true; // Keep all reminders in the current profile context
@@ -256,7 +256,7 @@ export function getTodayReminders(store: MemoryBondStore): Reminder[] {
   const all = getReminders(store);
 
   return all
-    .filter((r) => {
+    .filter((r: Reminder) => {
       if (!r.active) return false;
       // If completed today, omit from active upcoming reminders
       if (r.last_done === todayStr || r.completed) return false;
@@ -264,7 +264,7 @@ export function getTodayReminders(store: MemoryBondStore): Reminder[] {
       if (r.repeat === "daily" || (r.repeat as any) === "interval" || !r.date || r.date === todayStr) return true;
       return false;
     })
-    .sort((a, b) => a.time.localeCompare(b.time));
+    .sort((a: Reminder, b: Reminder) => a.time.localeCompare(b.time));
 }
 
 /**
@@ -275,7 +275,7 @@ export function getUpcomingReminders(store: MemoryBondStore): Reminder[] {
   const all = getReminders(store);
 
   return all
-    .filter((r) => {
+    .filter((r: Reminder) => {
       if (!r.active) return false;
       if (r.date && r.date > todayStr && r.repeat !== "daily") return true;
       return false;

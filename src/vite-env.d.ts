@@ -11,4 +11,9 @@ declare namespace NodeJS {
   }
 }
 
-declare const process: NodeJS.Process;
+declare var process: NodeJS.Process;
+
+declare module 'node:crypto' {
+  export function createHash(algorithm: string): any;
+  export function timingSafeEqual(a: any, b: any): boolean;
+}

@@ -52,7 +52,7 @@ export interface VoiceAssistantResponse {
  */
 export const askVoiceAssistant = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => VoiceAssistantInput.parse(input))
-  .handler(async ({ data }): Promise<VoiceAssistantResponse> => {
+  .handler(async ({ data }: { data: z.infer<typeof VoiceAssistantInput> }): Promise<VoiceAssistantResponse> => {
     const key = process.env["LOVABLE_API_KEY"];
     const { query, history = [], context = {}, preferredLocale = "en-IN" } = data;
 

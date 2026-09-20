@@ -36,7 +36,7 @@ function base64ToBytes(b64: string): Uint8Array {
  */
 export const processVoiceMemory = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ProcessInput.parse(input))
-  .handler(async ({ data }) => {
+  .handler(async ({ data }: { data: z.infer<typeof ProcessInput> }) => {
     const key = process.env["LOVABLE_API_KEY"];
     if (!key) throw new Error("AI is not configured yet.");
 

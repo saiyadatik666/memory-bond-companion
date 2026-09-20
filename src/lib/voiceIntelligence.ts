@@ -496,7 +496,12 @@ export function evaluateMedicineQuery(rawText: string, store: MemoryBondStore, l
       }
     }
 
-    const selected = nextMed || fallbackMed || { name: meds[0]!.name, time: meds[0]!.times[0] || "08:00 AM", dosage: meds[0]!.dosage };
+    const selected = nextMed || fallbackMed || {
+      name: meds[0]!.name,
+      time: meds[0]!.times[0] || "08:00 AM",
+      dosage: meds[0]!.dosage,
+      instructions: meds[0]!.instructions,
+    };
 
     if (lang === "gu") {
       return `તમારી આગામી દવા ${selected.name} (${selected.dosage}) છે, જેનો સમય ${selected.time} વાગ્યાનો છે. ${selected.instructions ? "સૂચના: " + selected.instructions : ""}`;
@@ -1027,8 +1032,8 @@ export async function processVoiceQuery(
 
   // 13. Call Lovable AI Gateway (Full Gemini 3.8 Flash LLM for open-ended queries)
   try {
-    const medSummary = (store.medicines || []).map((m) => `${m.name} (${m.dosage} at ${m.times.join(", ")})`).join("; ");
-    const appointmentSummary = (store.appointments || []).map((a) => `${a.title} with ${a.doctor} at ${a.time}`).join("; ");
+    const medSummary = (store.medicines || []).map((m: any) => `${m.name} (${m.dosage} at ${(m.times || []).join(", ")})`).join("; ");
+    const appointmentSummary = (store.appointments || []).map((a: any) => `${a.title} with ${a.doctor} at ${a.time}`).join("; ");
 
     const res: VoiceAssistantResponse = await askVoiceAssistant({
       data: {
