@@ -113,6 +113,8 @@ export interface RealRouteResult {
   steps: RouteStep[];
   source: string;
   calculatedAt: string;
+  label?: string; // e.g. "Route 1", "Route 2", "Alternative Route"
+  alternatives?: RealRouteResult[];
 }
 
 export interface WeatherWarning {

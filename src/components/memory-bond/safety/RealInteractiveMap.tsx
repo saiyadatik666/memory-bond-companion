@@ -41,6 +41,7 @@ import {
   searchNearbyPOIs,
   sanitizeSearchQuery,
   getTrafficNotice,
+  DEFAULT_INDIA_CENTER,
   DEFAULT_NER_CENTER,
   TILE_SIZE,
 } from "@/lib/safety/realMapService";
@@ -75,8 +76,8 @@ interface RealInteractiveMapProps {
 }
 
 export function RealInteractiveMap({
-  initialCenter = DEFAULT_NER_CENTER,
-  initialZoom = 11,
+  initialCenter = DEFAULT_INDIA_CENTER,
+  initialZoom = 5,
   locationState,
   onCenterOnLocation,
   activeRoute,
@@ -164,6 +165,7 @@ export function RealInteractiveMap({
       !activeSelectedLoc
     ) {
       setCenter(locationState.coords);
+      setZoom(14);
       hasCenteredInitialRef.current = true;
     }
   }, [locationState.coords, locationState.permissionStatus, activeSelectedLoc]);

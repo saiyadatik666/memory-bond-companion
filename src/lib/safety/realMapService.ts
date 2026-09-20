@@ -26,11 +26,21 @@ import type {
   NearbyPlace,
 } from "@/types/realSafetyMap";
 
-// Default regional center for North Eastern Region (Guwahati, Assam)
-export const DEFAULT_NER_CENTER: LatLng = {
-  lat: 26.1445,
-  lng: 91.7362,
+// Default national center for India (Nagpur, Central India: 20.5937° N, 78.9629° E)
+export const DEFAULT_INDIA_CENTER: LatLng = {
+  lat: 20.5937,
+  lng: 78.9629,
 };
+
+// Regional center alias
+export const DEFAULT_NER_CENTER: LatLng = DEFAULT_INDIA_CENTER;
+
+/**
+ * Validates that coordinates fall within the geographic boundaries of India
+ */
+export function isInsideIndia(lat: number, lng: number): boolean {
+  return lat >= 6.5 && lat <= 37.5 && lng >= 68.0 && lng <= 97.5;
+}
 
 // ---------------------------------------------------------------------------
 // 1. Web Mercator Slippy Map Tile Mathematics
@@ -109,16 +119,15 @@ export async function searchPlacesNominatim(
   if (!cleanQ || cleanQ.length < 2) return [];
 
   try {
+    // Strictly restrict place search to India (Requirement 1)
     let url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
       cleanQ
-    )}&limit=7&addressdetails=1`;
+    )}&limit=8&addressdetails=1&countrycodes=in`;
 
-    // Bias search toward India / user location if available
-    if (nearLat !== undefined && nearLng !== undefined) {
+    // Bias search toward user's local Indian position if available
+    if (nearLat !== undefined && nearLng !== undefined && isInsideIndia(nearLat, nearLng)) {
       const delta = 1.5;
       url += `&viewbox=${nearLng - delta},${nearLat + delta},${nearLng + delta},${nearLat - delta}`;
-    } else {
-      url += `&countrycodes=in`;
     }
 
     const res = await fetch(url, {
@@ -135,16 +144,18 @@ export async function searchPlacesNominatim(
     const data = await res.json();
     if (!Array.isArray(data)) return [];
 
-    return data.map((item: any) => ({
-      id: String(item.place_id),
-      name: item.name || item.display_name.split(",")[0],
-      displayName: item.display_name,
-      lat: parseFloat(item.lat),
-      lng: parseFloat(item.lon),
-      type: item.type || "place",
-      category: item.class || "location",
-      address: item.display_name,
-    }));
+    return data
+      .map((item: any) => ({
+        id: String(item.place_id),
+        name: item.name || item.display_name.split(",")[0],
+        displayName: item.display_name,
+        lat: parseFloat(item.lat),
+        lng: parseFloat(item.lon),
+        type: item.type || "place",
+        category: item.class || "location",
+        address: item.display_name,
+      }))
+      .filter((item) => isInsideIndia(item.lat, item.lng));
   } catch (err) {
     console.warn("[RealMap] Geocoding lookup failed:", err);
     return [];
@@ -173,8 +184,14 @@ export async function calculateRouteOSRM(
   originName = "Current Location",
   destinationName = "Destination"
 ): Promise<RealRouteResult | null> {
+  // Routes must be restricted to destinations within India (Requirement 1)
+  if (!isInsideIndia(destination.lat, destination.lng)) {
+    console.warn("[RealMap] Route rejected: destination must be within India.");
+    return null;
+  }
+
   try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=full&geometries=geojson&steps=true`;
+    const url = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=full&geometries=geojson&steps=true&alternatives=true`;
 
     const res = await fetch(url);
     if (!res.ok) {
@@ -186,45 +203,63 @@ export async function calculateRouteOSRM(
       return null;
     }
 
-    const route = data.routes[0];
-    const distanceKm = Math.round((route.distance / 1000) * 10) / 10;
-    const durationMin = Math.round(route.duration / 60);
+    const parseRouteItem = (route: any, index: number): RealRouteResult => {
+      const distanceKm = Math.round((route.distance / 1000) * 10) / 10;
+      const durationMin = Math.round(route.duration / 60);
+      const hours = Math.floor(durationMin / 60);
+      const mins = durationMin % 60;
+      const durationFormatted =
+        hours > 0 ? `${hours} hr ${mins} min` : `${mins} min`;
 
-    const hours = Math.floor(durationMin / 60);
-    const mins = durationMin % 60;
-    const durationFormatted =
-      hours > 0 ? `${hours} hr ${mins} min` : `${mins} min`;
+      const coordinates: LatLng[] = (route.geometry.coordinates || []).map(
+        (coord: [number, number]) => ({
+          lat: coord[1],
+          lng: coord[0],
+        })
+      );
 
-    // Coordinates are [lng, lat] in GeoJSON; convert to { lat, lng }
-    const coordinates: LatLng[] = (route.geometry.coordinates || []).map(
-      (coord: [number, number]) => ({
-        lat: coord[1],
-        lng: coord[0],
-      })
-    );
+      const steps = (route.legs?.[0]?.steps || []).map((step: any) => ({
+        instruction:
+          step.maneuver?.instruction ||
+          `${step.maneuver?.type || "Proceed"} onto ${step.name || "road"}`,
+        distanceMeters: Math.round(step.distance),
+        durationSeconds: Math.round(step.duration),
+        name: step.name || "Road",
+      }));
 
-    const steps = (route.legs?.[0]?.steps || []).map((step: any) => ({
-      instruction:
-        step.maneuver?.instruction ||
-        `${step.maneuver?.type || "Proceed"} onto ${step.name || "road"}`,
-      distanceMeters: Math.round(step.distance),
-      durationSeconds: Math.round(step.duration),
-      name: step.name || "Road",
-    }));
+      // Label factually: Route 1, Route 2, Alternative Route (Requirement 4)
+      const label =
+        index === 0
+          ? "Route 1"
+          : index === 1
+          ? "Route 2"
+          : `Alternative Route ${index}`;
 
-    return {
-      origin,
-      originName,
-      destination,
-      destinationName,
-      distanceKm,
-      durationMin,
-      durationFormatted,
-      coordinates,
-      steps,
-      source: "Open Source Routing Machine (OSRM) / OpenStreetMap Road Network",
-      calculatedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      return {
+        origin,
+        originName,
+        destination,
+        destinationName,
+        distanceKm,
+        durationMin,
+        durationFormatted,
+        coordinates,
+        steps,
+        source: "Open Source Routing Machine (OSRM) / OpenStreetMap Road Network",
+        calculatedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        label,
+      };
     };
+
+    const primaryRoute = parseRouteItem(data.routes[0], 0);
+
+    if (data.routes.length > 1) {
+      primaryRoute.alternatives = data.routes
+        .slice(1)
+        .map((r: any, idx: number) => parseRouteItem(r, idx + 1));
+    }
+
+    return primaryRoute;
   } catch (err) {
     console.warn("[RealMap] Routing request failed:", err);
     return null;
@@ -408,7 +443,7 @@ export async function searchNearbyEmergencyFacilities(
     const delta = 0.25; // approx 25 km bounding box
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
       facilityType
-    )}&bounded=1&viewbox=${lng - delta},${lat + delta},${lng + delta},${lat - delta}&limit=10&addressdetails=1`;
+    )}&bounded=1&viewbox=${lng - delta},${lat + delta},${lng + delta},${lat - delta}&limit=10&addressdetails=1&countrycodes=in`;
 
     const res = await fetch(url, {
       headers: {
@@ -444,6 +479,7 @@ export async function searchNearbyEmergencyFacilities(
           source: "OpenStreetMap Verified Facilities Directory",
         };
       })
+      .filter((item) => isInsideIndia(item.lat, item.lng))
       .sort((a, b) => a.distanceKm - b.distanceKm);
   } catch (err) {
     console.warn("[RealMap] Emergency facility search failed:", err);
@@ -562,7 +598,7 @@ export async function searchNearbyPOIs(
     const delta = 0.35; // approx 35-40 km bounding box
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
       meta.query
-    )}&bounded=1&viewbox=${lng - delta},${lat + delta},${lng + delta},${lat - delta}&limit=12&addressdetails=1`;
+    )}&bounded=1&viewbox=${lng - delta},${lat + delta},${lng + delta},${lat - delta}&limit=12&addressdetails=1&countrycodes=in`;
 
     const res = await fetch(url, {
       headers: {
@@ -576,26 +612,28 @@ export async function searchNearbyPOIs(
     const data = await res.json();
     if (!Array.isArray(data)) return [];
 
-    const places: NearbyPlace[] = data.map((item: any) => {
-      const itemLat = parseFloat(item.lat);
-      const itemLng = parseFloat(item.lon);
-      const distKm = calculateDistanceKm({ lat, lng }, { lat: itemLat, lng: itemLng });
-      const phone = item.extratags?.phone || item.extratags?.["contact:phone"] || null;
+    const places: NearbyPlace[] = data
+      .map((item: any) => {
+        const itemLat = parseFloat(item.lat);
+        const itemLng = parseFloat(item.lon);
+        const distKm = calculateDistanceKm({ lat, lng }, { lat: itemLat, lng: itemLng });
+        const phone = item.extratags?.phone || item.extratags?.["contact:phone"] || null;
 
-      return {
-        id: String(item.place_id),
-        name: item.name || item.display_name.split(",")[0],
-        category,
-        categoryLabel: meta.label,
-        lat: itemLat,
-        lng: itemLng,
-        distanceKm: distKm,
-        address: item.display_name,
-        phone,
-        isOpen24Hours: item.extratags?.opening_hours === "24/7",
-        source: "OpenStreetMap Free Verified POI Directory",
-      };
-    });
+        return {
+          id: String(item.place_id),
+          name: item.name || item.display_name.split(",")[0],
+          category,
+          categoryLabel: meta.label,
+          lat: itemLat,
+          lng: itemLng,
+          distanceKm: distKm,
+          address: item.display_name,
+          phone,
+          isOpen24Hours: item.extratags?.opening_hours === "24/7",
+          source: "OpenStreetMap Free Verified POI Directory",
+        };
+      })
+      .filter((item) => isInsideIndia(item.lat, item.lng));
 
     places.sort((a, b) => a.distanceKm - b.distanceKm);
     nearbyCache.set(cacheKey, { timestamp: Date.now(), data: places });

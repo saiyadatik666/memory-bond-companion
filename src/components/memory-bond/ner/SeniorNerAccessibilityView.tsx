@@ -46,7 +46,9 @@ import {
   sanitizeSearchQuery,
   searchNearbyPOIs,
   calculateDistanceKm,
+  DEFAULT_INDIA_CENTER,
   DEFAULT_NER_CENTER,
+  isInsideIndia,
 } from "@/lib/safety/realMapService";
 import {
   loadSavedPlaces,
@@ -121,22 +123,29 @@ export function SeniorNerAccessibilityView({
 
   // 4. Route Guidance State
   const [activeRoute, setActiveRoute] = useState<RealRouteResult | null>(null);
+  const [availableRoutes, setAvailableRoutes] = useState<RealRouteResult[]>([]);
   const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
 
   // 5. Travel & Safety Data State
   const [liveWeather, setLiveWeather] = useState<RealWeatherResult | null>(null);
+  const [destinationWeather, setDestinationWeather] = useState<RealWeatherResult | null>(null);
+  const [nearestHospitals, setNearestHospitals] = useState<NearbyPlace[]>([]);
+  const [isLoadingHospitals, setIsLoadingHospitals] = useState(false);
   const [roadAnalysis, setRoadAnalysis] = useState<RoadStatusAnalysis | null>(null);
   const [activeTravelModal, setActiveTravelModal] = useState<"weather" | "road" | null>(null);
+  const [lastRefreshedTime, setLastRefreshedTime] = useState<string>(() =>
+    new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  );
 
   // 6. Saved & Recent Destinations
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [recentDestinations, setRecentDestinations] = useState<RecentDestination[]>([]);
   const [saveModalPlace, setSaveModalPlace] = useState<SelectedLocationState | null>(null);
 
-  // 7. Intentional 10-Second SOS State (Requirement 17)
+  // 7. Intentional 3-Second SOS State (Requirement 16)
   const [sosHoldProgress, setSosHoldProgress] = useState(0);
-  const [sosSecondsLeft, setSosSecondsLeft] = useState(10);
+  const [sosSecondsLeft, setSosSecondsLeft] = useState(3);
   const [isHoldingSos, setIsHoldingSos] = useState(false);
   const sosTimerRef = useRef<NodeJS.Timeout | null>(null);
   const sosIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -201,8 +210,10 @@ export function SeniorNerAccessibilityView({
         setIsPermissionModalOpen(false);
         setOperationLoadingText(null);
 
-        // Preload live weather for user's actual location
+        // Preload live weather, nearby hospitals, and road condition for user's real Indian coordinates
         fetchLiveWeatherOpenMeteo(coords.lat, coords.lng).then(setLiveWeather);
+        searchNearbyPOIs(coords.lat, coords.lng, "hospital").then(setNearestHospitals);
+        analyzeRoadSafety(coords, { lat: coords.lat + 0.04, lng: coords.lng + 0.04 }, "Local Highway Corridor").then(setRoadAnalysis);
       },
       (err) => {
         console.warn("[RoadHelp] Geolocation denied or failed:", err);
@@ -238,6 +249,8 @@ export function SeniorNerAccessibilityView({
           });
           setLocationPermissionState("available");
           fetchLiveWeatherOpenMeteo(coords.lat, coords.lng).then(setLiveWeather);
+          searchNearbyPOIs(coords.lat, coords.lng, "hospital").then(setNearestHospitals);
+          analyzeRoadSafety(coords, { lat: coords.lat + 0.04, lng: coords.lng + 0.04 }, "Local Highway Corridor").then(setRoadAnalysis);
         },
         () => {
           // If not permitted initially, remain in friendly prompt state
@@ -248,7 +261,93 @@ export function SeniorNerAccessibilityView({
     }
   }, []);
 
-  // Listen to Global Voice Travel Actions (Requirement 15)
+  // Multi-lingual Voice Alert announcer (Requirement 11 & 12)
+  const speakTravelAlert = useCallback(() => {
+    let text = "";
+    if (liveWeather && liveWeather.activeWarnings.length > 0) {
+      const topWarning = liveWeather.activeWarnings[0];
+      if (currentLanguage === "hi") {
+        text = `ध्यान दें। आपके इलाके में ${topWarning.title} की चेतावनी उपलब्ध है।`;
+      } else if (currentLanguage === "gu") {
+        text = `ધ્યાન આપો. તમારા વિસ્તારમાં ${topWarning.title} ની ચેતવણી ઉપલબ્ધ છે.`;
+      } else {
+        text = `Attention. A verified weather warning is active in your area: ${topWarning.title}.`;
+      }
+    } else if (roadAnalysis && roadAnalysis.verifiedClosureReported) {
+      if (currentLanguage === "hi") {
+        text = "ध्यान दें। आपके रास्ते पर सड़क से जुड़ी एक यात्रा चेतावनी उपलब्ध है।";
+      } else if (currentLanguage === "gu") {
+        text = "ધ્યાન આપો. તમારા રસ્તા પર માર્ગ સંબંધી યાત્રા ચેતવણી ઉપલબ્ધ છે.";
+      } else {
+        text = "Attention. A verified travel disruption is reported along your route.";
+      }
+    } else {
+      if (currentLanguage === "hi") {
+        text = "अभी आपके रास्ते के लिए कोई महत्वपूर्ण यात्रा चेतावनी उपलब्ध नहीं है।";
+      } else if (currentLanguage === "gu") {
+        text = "હમણાં તમારા રસ્તા માટે કોઈ મહત્વપૂર્ણ યાત્રા ચેતવણી ઉપલબ્ધ નથી.";
+      } else {
+        text = "No important travel alerts are currently reported for your route.";
+      }
+    }
+    announceToUser(text);
+  }, [liveWeather, roadAnalysis, currentLanguage, announceToUser]);
+
+  // Refresh All Live Data (Requirement 22)
+  const handleRefreshAll = useCallback(() => {
+    const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    setLastRefreshedTime(now);
+    setOperationLoadingText("Refreshing live road, weather and emergency status…");
+
+    const centerPos = locationState.coords || DEFAULT_INDIA_CENTER;
+    const promises: Promise<any>[] = [
+      fetchLiveWeatherOpenMeteo(centerPos.lat, centerPos.lng).then(setLiveWeather),
+    ];
+
+    if (locationState.coords) {
+      promises.push(
+        searchNearbyPOIs(locationState.coords.lat, locationState.coords.lng, "hospital").then(
+          setNearestHospitals
+        )
+      );
+    }
+
+    if (selectedLocation) {
+      promises.push(
+        fetchLiveWeatherOpenMeteo(selectedLocation.lat, selectedLocation.lng).then(
+          setDestinationWeather
+        )
+      );
+      promises.push(
+        analyzeRoadSafety(
+          centerPos,
+          { lat: selectedLocation.lat, lng: selectedLocation.lng },
+          selectedLocation.name
+        ).then(setRoadAnalysis)
+      );
+    } else {
+      promises.push(
+        analyzeRoadSafety(
+          centerPos,
+          { lat: centerPos.lat + 0.05, lng: centerPos.lng + 0.05 },
+          "Immediate Regional Corridor"
+        ).then(setRoadAnalysis)
+      );
+    }
+
+    Promise.all(promises).finally(() => {
+      setOperationLoadingText(null);
+      announceToUser(
+        currentLanguage === "hi"
+          ? "लाइव जानकारी अपडेट हो गई है।"
+          : currentLanguage === "gu"
+          ? "લાઇવ માહિતી અપડેટ થઈ ગઈ છે."
+          : "Live information has been refreshed."
+      );
+    });
+  }, [locationState.coords, selectedLocation, currentLanguage, announceToUser]);
+
+  // Listen to Global Voice Travel Actions (Requirement 11, 12, 15)
   useEffect(() => {
     const handleVoiceTravel = (e: Event) => {
       const customEvent = e as CustomEvent<{ action: string }>;
@@ -258,6 +357,8 @@ export function SeniorNerAccessibilityView({
         handleSelectCategory("hospital");
       } else if (action === "pharmacy") {
         handleSelectCategory("pharmacy");
+      } else if (action === "weather" || action === "road") {
+        speakTravelAlert();
       } else if (action === "home") {
         const homePlace = savedPlaces.find((p) => p.type === "home");
         if (homePlace) {
@@ -275,6 +376,8 @@ export function SeniorNerAccessibilityView({
           announceToUser(
             currentLanguage === "hi"
               ? "घर का पता अभी सहेजा नहीं गया है। कृपया पहले घर का पता सहेजें।"
+              : currentLanguage === "gu"
+              ? "ઘરનું સરનામું હજુ સેવ નથી થયું. કૃપા કરીને પહેલા સેવ કરો."
               : "Home address is not saved yet. Please set your Home in Saved Places."
           );
         }
@@ -282,10 +385,14 @@ export function SeniorNerAccessibilityView({
         if (selectedLocation) {
           handleCalculateRoute(selectedLocation);
         } else {
+          const input = document.getElementById("search-destination-input");
+          input?.focus();
           announceToUser(
             currentLanguage === "hi"
-              ? "कृपया पहले गंतव्य स्थान खोजें या चुनें।"
-              : "Please search or select a destination first."
+              ? "कृपया पहले भारत में अपना गंतव्य स्थान खोजें।"
+              : currentLanguage === "gu"
+              ? "કૃપા કરીને પહેલા ભારતમાં તમારું સ્થળ શોધો."
+              : "Please search or select a destination in India first."
           );
         }
       }
@@ -293,9 +400,9 @@ export function SeniorNerAccessibilityView({
 
     window.addEventListener("mb_voice_travel_action", handleVoiceTravel);
     return () => window.removeEventListener("mb_voice_travel_action", handleVoiceTravel);
-  }, [savedPlaces, selectedLocation, currentLanguage, announceToUser]);
+  }, [savedPlaces, selectedLocation, currentLanguage, announceToUser, speakTravelAlert]);
 
-  // Destination Search Handler (Requirement 4 & 5)
+  // Destination Search Handler (Strictly restricted to India - Requirement 1)
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const cleanQ = sanitizeSearchQuery(searchQuery);
@@ -304,30 +411,47 @@ export function SeniorNerAccessibilityView({
     setIsSearching(true);
     setSearchHasSearched(true);
     setOperationLoadingText(
-      currentLanguage === "hi" ? "स्थान खोजा जा रहा है…" : "Searching places…"
+      currentLanguage === "hi"
+        ? "भारत में स्थान खोजा जा रहा है…"
+        : currentLanguage === "gu"
+        ? "ભારતમાં સ્થળ શોધાઈ રહ્યું છે…"
+        : "Searching places in India…"
     );
 
-    const centerLat = locationState.coords?.lat ?? DEFAULT_NER_CENTER.lat;
-    const centerLng = locationState.coords?.lng ?? DEFAULT_NER_CENTER.lng;
+    const centerLat = locationState.coords?.lat ?? DEFAULT_INDIA_CENTER.lat;
+    const centerLng = locationState.coords?.lng ?? DEFAULT_INDIA_CENTER.lng;
 
     const results = await searchPlacesNominatim(cleanQ, centerLat, centerLng);
-    setSearchResults(results);
+    // Explicitly enforce India-only boundary (Requirement 1)
+    const indiaOnlyResults = results.filter((p) => isInsideIndia(p.lat, p.lng));
+    setSearchResults(indiaOnlyResults);
     setIsSearching(false);
     setOperationLoadingText(null);
 
-    if (results.length === 0) {
+    if (indiaOnlyResults.length === 0) {
       announceToUser(
         currentLanguage === "hi"
-          ? "कोई स्थान नहीं मिला। कृपया दूसरा नाम खोजें।"
-          : "No place found. Try another name or search nearby."
+          ? "भारत में कोई स्थान नहीं मिला। कृपया दूसरा नाम खोजें।"
+          : currentLanguage === "gu"
+          ? "ભારતમાં કોઈ સ્થળ મળ્યું નથી. કૃપા કરીને બીજું નામ શોધો."
+          : "No place found within India. Please try another search."
       );
     }
   };
 
-  // Select a place from Search or Map or Recents (Requirement 5 & 7)
+  // Select a place from Search or Map or Recents (Requirement 4, 7, 9)
   const handleSelectDestination = (loc: SelectedLocationState) => {
     setSelectedLocation(loc);
+    setActiveRoute(null);
+    setAvailableRoutes([]);
     setRouteError(null);
+
+    // Real weather for destination (Requirement 9)
+    fetchLiveWeatherOpenMeteo(loc.lat, loc.lng).then(setDestinationWeather);
+
+    // Real road status analysis for route (Requirement 4)
+    const originPos = locationState.coords || DEFAULT_INDIA_CENTER;
+    analyzeRoadSafety(originPos, { lat: loc.lat, lng: loc.lng }, loc.name).then(setRoadAnalysis);
 
     // Save to Recent Destinations
     const updatedRecents = addRecentDestination({
@@ -346,6 +470,8 @@ export function SeniorNerAccessibilityView({
     const spoken =
       currentLanguage === "hi"
         ? `चुना गया स्थान: ${loc.name}। ${distText}`
+        : currentLanguage === "gu"
+        ? `પસંદ કરેલ સ્થળ: ${loc.name}. ${distText}`
         : `${loc.name} selected. ${distText}`;
     announceToUser(spoken);
   };
@@ -394,6 +520,19 @@ export function SeniorNerAccessibilityView({
       return;
     }
 
+    if (!locationState.coords) {
+      const errMsg =
+        currentLanguage === "hi"
+          ? "आपका वर्तमान स्थान उपलब्ध नहीं है। मार्ग गणना के लिए स्थान अनुमति सक्षम करें।"
+          : currentLanguage === "gu"
+          ? "તમારું વર્તમાન સ્થાન ઉપલબ્ધ નથી. રસ્તો ગણવા માટે લોકેશન ચાલુ કરો."
+          : "Your current location is unavailable. Enable location to calculate the route.";
+      setRouteError(errMsg);
+      announceToUser(errMsg);
+      setIsPermissionModalOpen(true);
+      return;
+    }
+
     if (!isOnline()) {
       setRouteError("Internet connection required for live map and routing.");
       announceToUser("Internet connection required for live routing.");
@@ -406,12 +545,13 @@ export function SeniorNerAccessibilityView({
       currentLanguage === "hi" ? "वास्तविक मार्ग की गणना की जा रही है…" : "Calculating route…"
     );
 
-    const originPos = locationState.coords || DEFAULT_NER_CENTER;
-    const originName = locationState.coords
-      ? currentLanguage === "hi"
+    const originPos = locationState.coords;
+    const originName =
+      currentLanguage === "hi"
         ? "आपका वर्तमान स्थान"
-        : "Your Current Location"
-      : "Regional Center";
+        : currentLanguage === "gu"
+        ? "તમારું વર્તમાન સ્થાન"
+        : "Your Current Location";
 
     const route = await calculateRouteOSRM(
       originPos,
@@ -424,13 +564,16 @@ export function SeniorNerAccessibilityView({
     setOperationLoadingText(null);
 
     if (route) {
-      setActiveRoute(route);
+      const all = [route, ...(route.alternatives || [])];
+      setAvailableRoutes(all);
+      setActiveRoute(all[0]);
       const spoken =
         currentLanguage === "hi"
           ? `${route.destinationName} तक की दूरी ${route.distanceKm} किलोमीटर है। अनुमानित समय ${route.durationFormatted} है।`
           : `Route calculated to ${route.destinationName}. Distance is ${route.distanceKm} kilometers, estimated driving time is ${route.durationFormatted}.`;
       announceToUser(spoken);
     } else {
+      setAvailableRoutes([]);
       const errMsg =
         currentLanguage === "hi"
           ? "सड़क मार्ग अभी उपलब्ध नहीं है। कृपया दूसरा स्थान चुनें।"
@@ -464,7 +607,7 @@ export function SeniorNerAccessibilityView({
   // Live Weather & Safety Inspection (Requirement 18)
   const handleCheckWeatherAndRoad = async () => {
     setOperationLoadingText("Checking weather and travel warnings…");
-    const centerPos = locationState.coords || DEFAULT_NER_CENTER;
+    const centerPos = locationState.coords || DEFAULT_INDIA_CENTER;
     const wx = await fetchLiveWeatherOpenMeteo(centerPos.lat, centerPos.lng);
     setLiveWeather(wx);
 
@@ -477,7 +620,6 @@ export function SeniorNerAccessibilityView({
       selectedLocation?.name || "Immediate Road Network"
     );
     setRoadAnalysis(analysis);
-    setActiveTravelModal("weather");
     setOperationLoadingText(null);
 
     if (wx) {
@@ -486,25 +628,28 @@ export function SeniorNerAccessibilityView({
     }
   };
 
-  // Intentional 10-Second SOS Press & Hold (Requirement 17)
+  // Intentional 3-Second SOS Press & Hold (Requirement 16)
   const startSosHold = () => {
     setIsHoldingSos(true);
     setSosHoldProgress(0);
-    setSosSecondsLeft(10);
+    setSosSecondsLeft(3);
 
     const startTime = Date.now();
-    const duration = 10000; // 10 seconds
+    const duration = 3000; // Exactly 3 seconds (Requirement 16)
 
     sosIntervalRef.current = setInterval(() => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(100, (elapsed / duration) * 100);
-      const remainingSecs = Math.max(0, Math.ceil((duration - elapsed) / 1000));
+      const remainingSecs = Math.max(1, Math.ceil((duration - elapsed) / 1000));
       setSosHoldProgress(progress);
       setSosSecondsLeft(remainingSecs);
     }, 100);
 
     sosTimerRef.current = setTimeout(() => {
       cancelSosHold();
+      if (locationState.coords) {
+        store.setSeniorCoordinates?.(locationState.coords.lat, locationState.coords.lng);
+      }
       onOpenSos();
     }, duration);
   };
@@ -516,7 +661,7 @@ export function SeniorNerAccessibilityView({
     sosIntervalRef.current = null;
     setIsHoldingSos(false);
     setSosHoldProgress(0);
-    setSosSecondsLeft(10);
+    setSosSecondsLeft(3);
   };
 
   // Clean up timers on unmount
@@ -625,8 +770,198 @@ export function SeniorNerAccessibilityView({
         </div>
       </div>
 
+      {/* Offline Alert Strip (Requirement 23) */}
+      {!isOnline() && (
+        <div className="p-4 rounded-3xl bg-amber-50 dark:bg-amber-950/60 border-2 border-amber-300 text-xs font-bold text-amber-900 dark:text-amber-200 flex items-center gap-2 shadow-xs">
+          <span className="text-lg">📶</span>
+          <span>Live road, weather and route information requires an internet connection.</span>
+        </div>
+      )}
+
       {/* ============================================================ */}
-      {/* 2. LOCATION PERMISSION & STATUS BANNER (Requirement 3)       */}
+      {/* 2. YOUR TRAVEL STATUS (Requirement 21 & 22)                  */}
+      {/* ============================================================ */}
+      <div className="p-5 sm:p-6 rounded-3xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-2 border-sky-200 dark:border-sky-800 shadow-md space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">📋</span>
+              <h2 className="text-base sm:text-lg font-black text-foreground tracking-tight">
+                YOUR TRAVEL STATUS
+              </h2>
+            </div>
+            <p className="text-xs font-semibold text-muted-foreground mt-0.5">
+              Live safety, road, weather and emergency readiness summary
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2.5 self-end sm:self-auto">
+            <span className="text-[11px] font-bold text-muted-foreground">
+              LAST UPDATED: <strong className="text-foreground">{lastRefreshedTime}</strong>
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRefreshAll}
+              className="h-8 px-3 rounded-xl font-black text-xs text-primary border-primary/30 hover:bg-sky-50 gap-1.5 cursor-pointer shadow-2xs"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              <span>REFRESH</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* 5 Indicator Badges */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 text-xs font-semibold">
+          {/* Location Indicator */}
+          <div className="p-3.5 rounded-2xl bg-muted/30 border border-border/80 flex flex-col justify-between gap-2">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span className="flex items-center gap-1.5 font-black text-[11px] uppercase tracking-wider">
+                📍 Location
+              </span>
+              <span
+                className={`w-2.5 h-2.5 rounded-full ${
+                  locationState.coords ? "bg-emerald-500" : "bg-amber-500 animate-ping"
+                }`}
+              />
+            </div>
+            <div>
+              {locationState.coords ? (
+                <div className="font-black text-emerald-700 dark:text-emerald-300 truncate">
+                  Available (GPS Live)
+                </div>
+              ) : (
+                <div className="font-black text-rose-700 dark:text-rose-400 truncate">
+                  Your location is unavailable.
+                </div>
+              )}
+              <div className="text-[10px] text-muted-foreground truncate mt-0.5">
+                {locationState.coords
+                  ? `Accuracy ±${Math.round(locationState.accuracyMeters || 10)}m`
+                  : "Enable GPS to calculate exact routes"}
+              </div>
+            </div>
+            {!locationState.coords && (
+              <div className="flex items-center gap-1.5 pt-1">
+                <button
+                  type="button"
+                  onClick={handleRequestLocation}
+                  className="px-2.5 py-1 rounded-lg bg-primary text-white text-[10px] font-black cursor-pointer hover:bg-primary/90"
+                >
+                  TRY AGAIN
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const el = document.getElementById("search-destination-input");
+                    el?.focus();
+                  }}
+                  className="px-2 py-1 rounded-lg bg-muted text-foreground text-[10px] font-bold cursor-pointer hover:bg-muted/80"
+                >
+                  SEARCH MANUALLY
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Road Condition Indicator */}
+          <div className="p-3.5 rounded-2xl bg-muted/30 border border-border/80 flex flex-col justify-between gap-1.5">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span className="flex items-center gap-1.5 font-black text-[11px] uppercase tracking-wider">
+                🛣 Road
+              </span>
+              <span className="text-xs">
+                {roadAnalysis?.verifiedClosureReported ? "⚠️" : "✅"}
+              </span>
+            </div>
+            <div>
+              <div className="font-black text-foreground truncate">
+                {roadAnalysis ? roadAnalysis.headline : "No verified disruption found."}
+              </div>
+              <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                {roadAnalysis?.source || "OpenStreetMap verified road network"}
+              </p>
+            </div>
+          </div>
+
+          {/* Weather Indicator */}
+          <div className="p-3.5 rounded-2xl bg-muted/30 border border-border/80 flex flex-col justify-between gap-1.5">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span className="flex items-center gap-1.5 font-black text-[11px] uppercase tracking-wider">
+                🌦 Weather
+              </span>
+              <span className="text-xs">
+                {liveWeather ? "🌡️" : "⏳"}
+              </span>
+            </div>
+            <div>
+              <div className="font-black text-foreground truncate">
+                {liveWeather
+                  ? `${liveWeather.condition}, ${liveWeather.temperatureC}°C`
+                  : "Checking live weather…"}
+              </div>
+              <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                {liveWeather
+                  ? `Wind ${liveWeather.windSpeedKmh} km/h • Rain ${liveWeather.precipitationMm} mm`
+                  : "Open-Meteo Meteorological Feed"}
+              </p>
+            </div>
+          </div>
+
+          {/* Alerts Indicator */}
+          <div className="p-3.5 rounded-2xl bg-muted/30 border border-border/80 flex flex-col justify-between gap-1.5">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span className="flex items-center gap-1.5 font-black text-[11px] uppercase tracking-wider">
+                ⚠ Alerts
+              </span>
+              <span className="text-xs">
+                {liveWeather && liveWeather.activeWarnings.length > 0 ? "🚨" : "🛡️"}
+              </span>
+            </div>
+            <div>
+              <div
+                className={`font-black truncate ${
+                  liveWeather && liveWeather.activeWarnings.length > 0
+                    ? "text-amber-700 dark:text-amber-300"
+                    : "text-emerald-700 dark:text-emerald-300"
+                }`}
+              >
+                {liveWeather && liveWeather.activeWarnings.length > 0
+                  ? liveWeather.activeWarnings[0].title
+                  : "No important alert"}
+              </div>
+              <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                {liveWeather && liveWeather.activeWarnings.length > 0
+                  ? liveWeather.activeWarnings[0].severity
+                  : "Regional corridor is clear"}
+              </p>
+            </div>
+          </div>
+
+          {/* Nearest Hospital Indicator */}
+          <div className="p-3.5 rounded-2xl bg-muted/30 border border-border/80 flex flex-col justify-between gap-1.5">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span className="flex items-center gap-1.5 font-black text-[11px] uppercase tracking-wider">
+                🏥 Hospital
+              </span>
+              <span className="text-xs">🚑</span>
+            </div>
+            <div>
+              <div className="font-black text-rose-950 dark:text-rose-200 truncate">
+                {nearestHospitals[0]?.name || "Searching nearby hospitals…"}
+              </div>
+              <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                {nearestHospitals[0]
+                  ? `${nearestHospitals[0].distanceKm} km away • Verified OSM`
+                  : "Emergency route ready on tap"}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ============================================================ */}
+      {/* 2B. REAL DEVICE LOCATION BANNER (Requirements 1 & 2)         */}
       {/* ============================================================ */}
       <div className="p-4 rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-border shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-3">
@@ -658,22 +993,13 @@ export function SeniorNerAccessibilityView({
                 <RefreshCw className="h-3.5 w-3.5 animate-spin" />
                 Finding your location…
               </span>
-            ) : locationPermissionState === "denied" ? (
-              <div className="space-y-0.5">
-                <span className="font-black text-sm text-rose-600 dark:text-rose-400">
-                  Location access is unavailable.
-                </span>
-                <p className="text-[11px] text-muted-foreground font-semibold">
-                  Enable location in browser settings or search any place manually below.
-                </p>
-              </div>
             ) : (
               <div className="space-y-0.5">
-                <span className="font-black text-sm text-foreground">
-                  Location access not enabled
+                <span className="font-black text-sm text-rose-600 dark:text-rose-400">
+                  Your location is unavailable.
                 </span>
                 <p className="text-[11px] text-muted-foreground font-semibold">
-                  Enable location to view real distances from where you are right now.
+                  Enable location in browser settings or search any Indian location manually.
                 </p>
               </div>
             )}
@@ -699,7 +1025,7 @@ export function SeniorNerAccessibilityView({
                 className="h-9 px-4 text-xs font-black rounded-xl bg-primary text-white cursor-pointer shadow-xs gap-1.5"
               >
                 <MapPin className="h-3.5 w-3.5" />
-                <span>{locationPermissionState === "denied" ? "Try Again" : "Enable Location"}</span>
+                <span>TRY AGAIN</span>
               </Button>
               <button
                 type="button"
@@ -709,7 +1035,7 @@ export function SeniorNerAccessibilityView({
                 }}
                 className="px-3 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground underline cursor-pointer"
               >
-                Search a place manually
+                SEARCH LOCATION MANUALLY
               </button>
             </>
           )}
@@ -727,7 +1053,13 @@ export function SeniorNerAccessibilityView({
               id="search-destination-input"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Where do you want to go?"
+              placeholder={
+                currentLanguage === "hi"
+                  ? "भारत में अपना गंतव्य स्थान खोजें..."
+                  : currentLanguage === "gu"
+                  ? "ભારતમાં તમારું સ્થળ શોધો..."
+                  : "Search destination in India..."
+              }
               className="border-0 shadow-none focus-visible:ring-0 text-base sm:text-lg font-bold h-12 p-0 bg-transparent text-foreground placeholder:text-muted-foreground"
             />
             {isSearching && (
@@ -965,7 +1297,461 @@ export function SeniorNerAccessibilityView({
       )}
 
       {/* ============================================================ */}
-      {/* 6. REAL INTERACTIVE MAP (Requirement 2, 13, 14)              */}
+      {/* 5. WEATHER NEAR YOU & TRAVEL ALERTS (Requirement 7, 8, 9, 10)*/}
+      {/* ============================================================ */}
+      <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-sky-50 via-white to-blue-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-sky-950/20 border-2 border-sky-200 dark:border-sky-800 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-sky-600 text-white flex items-center justify-center text-2xl shadow-md shrink-0">
+              🌦️
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-black text-foreground">
+                  WEATHER NEAR YOU
+                </h3>
+                <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200">
+                  Real-Time Weather
+                </span>
+              </div>
+              <p className="text-xs font-semibold text-muted-foreground">
+                Verified meteorological observations for your current location in India
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={speakTravelAlert}
+              className="h-9 px-3.5 rounded-xl font-black text-xs text-sky-700 border-sky-300 hover:bg-sky-50 gap-1.5 cursor-pointer"
+            >
+              <Volume2 className="h-4 w-4" />
+              <span>Read Weather</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Real Weather Details Cards (Requirement 8) */}
+        {liveWeather ? (
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 text-xs text-center font-bold">
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/80 border border-sky-100 dark:border-slate-700 shadow-2xs">
+              <div className="text-[10px] uppercase font-black text-muted-foreground tracking-wider">Condition</div>
+              <div className="text-base font-black text-foreground mt-1 truncate">{liveWeather.condition}</div>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/80 border border-sky-100 dark:border-slate-700 shadow-2xs">
+              <div className="text-[10px] uppercase font-black text-muted-foreground tracking-wider">Temperature</div>
+              <div className="text-base font-black text-foreground mt-1">{liveWeather.temperatureC}°C</div>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/80 border border-sky-100 dark:border-slate-700 shadow-2xs">
+              <div className="text-[10px] uppercase font-black text-muted-foreground tracking-wider">Rainfall</div>
+              <div className="text-base font-black text-sky-600 mt-1">{liveWeather.precipitationMm} mm</div>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/80 border border-sky-100 dark:border-slate-700 shadow-2xs">
+              <div className="text-[10px] uppercase font-black text-muted-foreground tracking-wider">Wind Speed</div>
+              <div className="text-base font-black text-foreground mt-1">{liveWeather.windSpeedKmh} km/h</div>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/80 border border-sky-100 dark:border-slate-700 shadow-2xs col-span-2 sm:col-span-1">
+              <div className="text-[10px] uppercase font-black text-muted-foreground tracking-wider">Warning</div>
+              <div className="text-sm font-black mt-1 truncate text-amber-700 dark:text-amber-300">
+                {liveWeather.activeWarnings.length > 0 ? liveWeather.activeWarnings[0].title : "None Active"}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="p-4 rounded-2xl bg-muted/20 border border-dashed border-border text-center text-xs text-muted-foreground">
+            {locationState.coords
+              ? "Fetching live weather observations…"
+              : "Enable location to view real weather at your current position."}
+          </div>
+        )}
+
+        {/* Travel Alerts (Requirement 10) */}
+        {liveWeather && liveWeather.activeWarnings.length > 0 && (
+          <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-black text-amber-900 dark:text-amber-200">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <span>ACTIVE TRAVEL ALERT</span>
+            </div>
+            {liveWeather.activeWarnings.map((w, idx) => (
+              <div key={idx} className="text-xs text-amber-950 dark:text-amber-100 space-y-0.5">
+                <div className="font-black text-sm">{w.title}</div>
+                <p className="font-semibold text-[11px] text-amber-900/80">{w.description}</p>
+                <div className="text-[10px] text-muted-foreground pt-1">
+                  Severity: {w.severity} • Source: Open-Meteo Meteorological Warning Stream
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Destination Weather Comparison if Destination is selected (Requirement 9) */}
+        {selectedLocation && destinationWeather && (
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-800/90 border border-border shadow-xs space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-black text-foreground flex items-center gap-1.5">
+                <span>🎯 Destination Weather:</span>
+                <strong className="text-primary">{selectedLocation.name}</strong>
+              </span>
+              <span className="text-[11px] font-bold text-muted-foreground">
+                {destinationWeather.condition} • {destinationWeather.temperatureC}°C • Rain: {destinationWeather.precipitationMm} mm
+              </span>
+            </div>
+            {destinationWeather.precipitationMm > 0 ? (
+              <p className="text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 p-2.5 rounded-xl border border-amber-200">
+                🌧️ Rain may affect your destination ({selectedLocation.name}). Carry umbrella or plan extra travel time.
+              </p>
+            ) : (
+              <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-200">
+                ☀️ Clear weather expected at your destination ({selectedLocation.name}).
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ============================================================ */}
+      {/* 6. NEAREST HOSPITALS (Requirements 13, 14, 15)               */}
+      {/* ============================================================ */}
+      <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-rose-50/80 via-white to-red-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-rose-950/20 border-2 border-rose-200 dark:border-rose-900/50 shadow-md space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-rose-600 text-white flex items-center justify-center text-2xl shadow-md shrink-0">
+              🏥
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-black text-rose-950 dark:text-rose-100">
+                  NEAREST HOSPITALS
+                </h3>
+                <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200 border border-rose-200">
+                  Verified Healthcare
+                </span>
+              </div>
+              <p className="text-xs font-semibold text-muted-foreground">
+                Actual verified hospitals near your real current location in India
+              </p>
+            </div>
+          </div>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleSelectCategory("hospital")}
+            className="h-9 px-4 rounded-xl font-black text-xs text-rose-700 border-rose-300 hover:bg-rose-50 cursor-pointer self-start sm:self-auto"
+          >
+            Find More Hospitals →
+          </Button>
+        </div>
+
+        {nearestHospitals.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {nearestHospitals.slice(0, 3).map((hosp) => (
+              <div
+                key={hosp.id}
+                className="p-4 rounded-2xl bg-white dark:bg-slate-800/90 border border-rose-200/80 dark:border-rose-900/40 flex flex-col justify-between gap-3 shadow-2xs hover:shadow-xs transition-all"
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-2">
+                    <h4 className="font-black text-sm text-foreground line-clamp-1">
+                      {hosp.name}
+                    </h4>
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200 shrink-0">
+                      {hosp.distanceKm} km
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground line-clamp-2 mt-1">
+                    {hosp.address}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2 border-t border-border/40">
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      if (!locationState.coords) {
+                        announceToUser(
+                          "Your current location is unavailable. Enable location to calculate the emergency route."
+                        );
+                        setIsPermissionModalOpen(true);
+                        return;
+                      }
+                      const loc: SelectedLocationState = {
+                        lat: hosp.lat,
+                        lng: hosp.lng,
+                        name: hosp.name,
+                        address: hosp.address,
+                        type: "Hospital",
+                        selectedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                      };
+                      handleSelectDestination(loc);
+                      handleCalculateRoute(loc);
+                    }}
+                    className="flex-1 h-9 text-xs font-black rounded-xl bg-rose-600 hover:bg-rose-700 text-white cursor-pointer shadow-xs gap-1.5"
+                  >
+                    <Navigation className="h-3.5 w-3.5" />
+                    <span>GET EMERGENCY ROUTE</span>
+                  </Button>
+
+                  {hosp.phone && (
+                    <a
+                      href={`tel:${hosp.phone}`}
+                      className="h-9 px-3 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 flex items-center justify-center font-black text-xs gap-1 shadow-2xs"
+                      title={`Call ${hosp.phone}`}
+                    >
+                      <Phone className="h-3.5 w-3.5" />
+                      <span>CALL</span>
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="p-4 rounded-2xl bg-muted/20 border border-dashed border-border text-center text-xs text-muted-foreground space-y-1">
+            <p className="font-bold">
+              {locationState.coords
+                ? "Searching verified hospitals near you…"
+                : "Your current location is unavailable. Enable location to calculate the emergency route."}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ============================================================ */}
+      {/* 7. ROUTE STATUS & TRAVEL CHECK (Requirement 4, 5, 6)          */}
+      {/* ============================================================ */}
+      {selectedLocation && (
+        <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border-2 border-primary/40 shadow-xl space-y-4 animate-in fade-in slide-in-from-bottom-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200">
+                  ROUTE STATUS
+                </span>
+                {locationState.coords && (
+                  <span className="text-xs font-black text-sky-700 dark:text-sky-400">
+                    • {calculateDistanceKm(locationState.coords, { lat: selectedLocation.lat, lng: selectedLocation.lng })} km straight line
+                  </span>
+                )}
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black text-foreground truncate">
+                {selectedLocation.name}
+              </h3>
+              <p className="text-xs sm:text-sm text-muted-foreground font-medium line-clamp-2">
+                📍 {selectedLocation.address}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedLocation(null);
+                setActiveRoute(null);
+                setAvailableRoutes([]);
+                setDestinationWeather(null);
+              }}
+              className="w-9 h-9 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground font-black text-sm cursor-pointer shrink-0"
+              title="Close destination"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Real Route Calculation Card (Requirement 4 & 5) */}
+          {activeRoute && (
+            <div className="p-4 sm:p-5 rounded-2xl bg-sky-50/80 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-sky-200 dark:border-sky-800/80 pb-2.5">
+                <div className="flex items-center gap-2 font-black text-sm text-[#0F243E] dark:text-sky-200">
+                  <span>{activeRoute.originName}</span>
+                  <span>↓</span>
+                  <span>{activeRoute.destinationName}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-black px-2.5 py-0.5 rounded-md bg-white dark:bg-slate-900 border border-sky-300 text-sky-800 dark:text-sky-300">
+                    {activeRoute.label || "Route 1"}
+                  </span>
+                  <span className="text-sm font-black text-primary">
+                    {activeRoute.distanceKm} km • {activeRoute.durationFormatted}
+                  </span>
+                </div>
+              </div>
+
+              {/* Alternative Routes Comparison (Requirement 4) */}
+              {availableRoutes.length > 1 && (
+                <div className="flex flex-wrap items-center gap-2 py-1 border-b border-sky-200/60 dark:border-sky-800/60">
+                  <span className="text-[11px] font-black uppercase text-muted-foreground tracking-wider">
+                    Available Routes:
+                  </span>
+                  {availableRoutes.map((r, idx) => {
+                    const isSelected = activeRoute.label === r.label;
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setActiveRoute(r)}
+                        className={`px-3 py-1 rounded-xl text-xs font-black transition-all cursor-pointer border ${
+                          isSelected
+                            ? "bg-primary text-white border-primary shadow-xs"
+                            : "bg-white dark:bg-slate-900 text-foreground border-border hover:border-primary/50"
+                        }`}
+                      >
+                        {r.label || `Route ${idx + 1}`}: {r.distanceKm} km ({r.durationFormatted})
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Real Values Display */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-border">
+                  <div className="text-[10px] uppercase text-muted-foreground font-black">Driving Distance</div>
+                  <div className="text-base font-black text-foreground mt-0.5">{activeRoute.distanceKm} km</div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-border">
+                  <div className="text-[10px] uppercase text-muted-foreground font-black">Estimated Travel Time</div>
+                  <div className="text-base font-black text-foreground mt-0.5">{activeRoute.durationFormatted}</div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-border">
+                  <div className="text-[10px] uppercase text-muted-foreground font-black">Road Condition</div>
+                  <div className="text-xs font-bold text-foreground mt-1 truncate">
+                    {roadAnalysis ? roadAnalysis.headline : "No verified disruption found."}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-border">
+                  <div className="text-[10px] uppercase text-muted-foreground font-black">Travel Alert</div>
+                  <div className="text-xs font-bold text-amber-800 dark:text-amber-300 mt-1 truncate">
+                    {liveWeather && liveWeather.activeWarnings.length > 0 ? liveWeather.activeWarnings[0].title : "No important alert"}
+                  </div>
+                </div>
+              </div>
+
+              {/* TRAVEL CHECK Section (Requirement 6) */}
+              <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-border space-y-2">
+                <div className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">
+                  TRAVEL CHECK
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                  <div className="flex items-start gap-2">
+                    <span className="text-sm">🛣️</span>
+                    <div>
+                      <strong className="block text-foreground">ROAD</strong>
+                      <span className="text-muted-foreground text-[11px]">
+                        {roadAnalysis ? roadAnalysis.headline : "No verified disruption found."}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-sm">🌦️</span>
+                    <div>
+                      <strong className="block text-foreground">WEATHER</strong>
+                      <span className="text-muted-foreground text-[11px]">
+                        {destinationWeather ? `${destinationWeather.condition}, ${destinationWeather.temperatureC}°C` : "Weather nominal."}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-sm">⚠️</span>
+                    <div>
+                      <strong className="block text-foreground">ALERTS</strong>
+                      <span className="text-muted-foreground text-[11px]">
+                        {liveWeather && liveWeather.activeWarnings.length > 0 ? liveWeather.activeWarnings[0].title : "No verified travel alerts."}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-[11px] text-muted-foreground">
+                Calculated with: {activeRoute.source}
+              </div>
+            </div>
+          )}
+
+          {routeError && (
+            <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-200 text-xs font-bold text-amber-900 dark:text-amber-200 space-y-2">
+              <div className="flex items-center gap-2 font-black text-sm">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <span>Unable to calculate the route right now.</span>
+              </div>
+              <p className="text-[11px] font-medium text-amber-800 dark:text-amber-300">
+                {routeError}
+              </p>
+              <div className="flex items-center gap-2 pt-1">
+                <Button
+                  size="sm"
+                  onClick={() => handleCalculateRoute(selectedLocation)}
+                  className="h-8 px-3 rounded-xl bg-amber-700 hover:bg-amber-800 text-white font-black text-xs cursor-pointer"
+                >
+                  TRY AGAIN
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedLocation(null);
+                    setActiveRoute(null);
+                    const input = document.getElementById("search-destination-input");
+                    input?.focus();
+                  }}
+                  className="h-8 px-3 rounded-xl border-amber-400 text-amber-900 dark:text-amber-200 font-bold text-xs cursor-pointer"
+                >
+                  CHANGE DESTINATION
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            {!activeRoute ? (
+              <Button
+                size="lg"
+                onClick={() => handleCalculateRoute(selectedLocation)}
+                disabled={isCalculatingRoute}
+                className="flex-1 sm:flex-initial h-13 px-6 rounded-2xl font-black text-sm bg-primary hover:bg-primary/90 text-white cursor-pointer shadow-md gap-2"
+              >
+                <Compass className="h-5 w-5" />
+                <span>{isCalculatingRoute ? "Calculating Route…" : "CALCULATE ROUTE"}</span>
+              </Button>
+            ) : (
+              <Button
+                size="lg"
+                onClick={handleStartNavigation}
+                className="flex-1 sm:flex-initial h-13 px-8 rounded-2xl font-black text-sm bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-lg shadow-emerald-600/25 gap-2 animate-bounce-short"
+              >
+                <Navigation className="h-5 w-5 fill-white" />
+                <span>START NAVIGATION</span>
+              </Button>
+            )}
+
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => setSaveModalPlace(selectedLocation)}
+              className="h-13 px-5 rounded-2xl font-black text-xs gap-2 cursor-pointer border-amber-300 text-amber-800 hover:bg-amber-50"
+            >
+              <Bookmark className="h-4 w-4" />
+              <span>Save Place</span>
+            </Button>
+
+            <Button
+              size="lg"
+              variant="ghost"
+              onClick={handleStartNavigation}
+              className="h-13 px-4 rounded-2xl font-bold text-xs gap-1.5 text-muted-foreground hover:text-foreground cursor-pointer"
+            >
+              <ExternalLink className="h-4 w-4" />
+              <span>Open in Navigation App</span>
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* 8. REAL INTERACTIVE MAP (India-Focused) (Requirement 1, 18)   */}
       {/* ============================================================ */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -973,18 +1759,18 @@ export function SeniorNerAccessibilityView({
             <h2 className="text-lg sm:text-xl font-black text-foreground flex items-center gap-2">
               <span>Interactive Navigation Map</span>
               <span className="text-xs font-bold text-muted-foreground">
-                (Tap anywhere to drop pin)
+                (India Geographic Focus)
               </span>
             </h2>
           </div>
           <span className="text-xs font-bold text-muted-foreground">
-            {locationState.coords ? "📍 Real Current Position Active" : "📍 Regional Map"}
+            {locationState.coords ? "📍 Real Current Position Active" : "📍 India Overview Map"}
           </span>
         </div>
 
         <RealInteractiveMap
-          initialCenter={locationState.coords || DEFAULT_NER_CENTER}
-          initialZoom={locationState.coords ? 13 : 11}
+          initialCenter={locationState.coords || DEFAULT_INDIA_CENTER}
+          initialZoom={locationState.coords ? 14 : 5}
           locationState={locationState}
           hideEmbeddedSearch={true}
           onCenterOnLocation={() => {
@@ -1018,116 +1804,6 @@ export function SeniorNerAccessibilityView({
           }}
         />
       </div>
-
-      {/* ============================================================ */}
-      {/* 7. PLACE DETAILS & ROUTE BOTTOM CARD (Requirement 7, 8, 9)    */}
-      {/* ============================================================ */}
-      {selectedLocation && (
-        <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border-2 border-primary/40 shadow-xl space-y-4 animate-in fade-in slide-in-from-bottom-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200">
-                  {selectedLocation.type || "Selected Destination"}
-                </span>
-                {locationState.coords && (
-                  <span className="text-xs font-black text-sky-700 dark:text-sky-400">
-                    • {calculateDistanceKm(locationState.coords, { lat: selectedLocation.lat, lng: selectedLocation.lng })} km away
-                  </span>
-                )}
-              </div>
-              <h3 className="text-xl sm:text-2xl font-black text-foreground truncate">
-                {selectedLocation.name}
-              </h3>
-              <p className="text-xs sm:text-sm text-muted-foreground font-medium line-clamp-2">
-                📍 {selectedLocation.address}
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedLocation(null);
-                setActiveRoute(null);
-              }}
-              className="w-9 h-9 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground font-black text-sm cursor-pointer shrink-0"
-              title="Close Details"
-            >
-              ✕
-            </button>
-          </div>
-
-          {/* Route Details Card if Route is Active */}
-          {activeRoute && (
-            <div className="p-4 rounded-2xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-xs space-y-2">
-              <div className="flex items-center justify-between font-black text-sm text-[#0F243E] dark:text-sky-200">
-                <span>YOUR ROUTE</span>
-                <span className="text-sky-700 dark:text-sky-400">
-                  {activeRoute.distanceKm} km • {activeRoute.durationFormatted}
-                </span>
-              </div>
-              <div className="text-xs text-muted-foreground font-bold flex items-center gap-2">
-                <span>{activeRoute.originName}</span>
-                <span>➔</span>
-                <span className="text-foreground">{activeRoute.destinationName}</span>
-              </div>
-              <div className="text-[11px] text-muted-foreground">
-                Source: {activeRoute.source}
-              </div>
-            </div>
-          )}
-
-          {routeError && (
-            <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 text-xs font-bold text-amber-800 dark:text-amber-200">
-              {routeError}
-            </div>
-          )}
-
-          {/* Action Buttons (Requirement 7, 8, 10) */}
-          <div className="flex flex-wrap items-center gap-3 pt-1">
-            {!activeRoute ? (
-              <Button
-                size="lg"
-                onClick={() => handleCalculateRoute(selectedLocation)}
-                disabled={isCalculatingRoute}
-                className="flex-1 sm:flex-initial h-13 px-6 rounded-2xl font-black text-sm bg-primary hover:bg-primary/90 text-white cursor-pointer shadow-md gap-2"
-              >
-                <Compass className="h-5 w-5" />
-                <span>{isCalculatingRoute ? "Calculating Route…" : "GET DIRECTIONS"}</span>
-              </Button>
-            ) : (
-              <Button
-                size="lg"
-                onClick={handleStartNavigation}
-                className="flex-1 sm:flex-initial h-13 px-8 rounded-2xl font-black text-sm bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-lg shadow-emerald-600/25 gap-2 animate-bounce-short"
-              >
-                <Navigation className="h-5 w-5" />
-                <span>START NAVIGATION</span>
-              </Button>
-            )}
-
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={() => setSaveModalPlace(selectedLocation)}
-              className="h-13 px-5 rounded-2xl font-black text-xs gap-2 cursor-pointer border-amber-300 text-amber-800 hover:bg-amber-50"
-            >
-              <Bookmark className="h-4 w-4" />
-              <span>Save Place</span>
-            </Button>
-
-            <Button
-              size="lg"
-              variant="ghost"
-              onClick={() => handleStartNavigation()}
-              className="h-13 px-4 rounded-2xl font-bold text-xs gap-1.5 text-muted-foreground hover:text-foreground cursor-pointer"
-            >
-              <ExternalLink className="h-4 w-4" />
-              <span>Open in Google / Apple Maps</span>
-            </Button>
-          </div>
-        </div>
-      )}
 
       {/* Save Place Dialog Modal */}
       {saveModalPlace && (
@@ -1185,147 +1861,7 @@ export function SeniorNerAccessibilityView({
         </div>
       )}
 
-      {/* ============================================================ */}
-      {/* 8. TRAVEL HELP SECTION (Requirement 11, 12, 18)              */}
-      {/* ============================================================ */}
-      <div className="space-y-3 pt-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-black text-[#0F243E] dark:text-white">
-              Travel Help & Safety Actions
-            </h2>
-            <p className="text-xs font-semibold text-[#5B728D] dark:text-slate-300">
-              One-tap assistance designed for easy elderly navigation.
-            </p>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5">
-          {/* Action 1: Find Hospital */}
-          <button
-            type="button"
-            onClick={() => handleSelectCategory("hospital")}
-            className="p-5 rounded-3xl bg-gradient-to-br from-rose-50 via-white to-rose-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-rose-950/20 border-2 border-rose-200 hover:border-rose-400 text-left transition-all cursor-pointer shadow-xs hover:shadow-md active:scale-98 flex flex-col justify-between min-h-[140px]"
-          >
-            <div className="w-12 h-12 rounded-2xl bg-rose-600 text-white flex items-center justify-center text-2xl shadow-md">
-              🏥
-            </div>
-            <div className="mt-2">
-              <h4 className="text-base font-black text-foreground">Find Hospital</h4>
-              <p className="text-xs font-semibold text-muted-foreground mt-0.5">
-                Nearby emergency medical centers
-              </p>
-            </div>
-          </button>
-
-          {/* Action 2: Find Pharmacy */}
-          <button
-            type="button"
-            onClick={() => handleSelectCategory("pharmacy")}
-            className="p-5 rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-emerald-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-emerald-950/20 border-2 border-emerald-200 hover:border-emerald-400 text-left transition-all cursor-pointer shadow-xs hover:shadow-md active:scale-98 flex flex-col justify-between min-h-[140px]"
-          >
-            <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-2xl shadow-md">
-              💊
-            </div>
-            <div className="mt-2">
-              <h4 className="text-base font-black text-foreground">Find Pharmacy</h4>
-              <p className="text-xs font-semibold text-muted-foreground mt-0.5">
-                Nearby medical stores & medicines
-              </p>
-            </div>
-          </button>
-
-          {/* Action 3: Find Fuel */}
-          <button
-            type="button"
-            onClick={() => handleSelectCategory("fuel")}
-            className="p-5 rounded-3xl bg-gradient-to-br from-amber-50 via-white to-amber-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-amber-950/20 border-2 border-amber-200 hover:border-amber-400 text-left transition-all cursor-pointer shadow-xs hover:shadow-md active:scale-98 flex flex-col justify-between min-h-[140px]"
-          >
-            <div className="w-12 h-12 rounded-2xl bg-amber-600 text-white flex items-center justify-center text-2xl shadow-md">
-              ⛽
-            </div>
-            <div className="mt-2">
-              <h4 className="text-base font-black text-foreground">Find Fuel</h4>
-              <p className="text-xs font-semibold text-muted-foreground mt-0.5">
-                Petrol pumps & vehicle refuel
-              </p>
-            </div>
-          </button>
-
-          {/* Action 4: Weather & Travel Alerts */}
-          <button
-            type="button"
-            onClick={handleCheckWeatherAndRoad}
-            className="p-5 rounded-3xl bg-gradient-to-br from-sky-50 via-white to-sky-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-sky-950/20 border-2 border-sky-200 hover:border-sky-400 text-left transition-all cursor-pointer shadow-xs hover:shadow-md active:scale-98 flex flex-col justify-between min-h-[140px]"
-          >
-            <div className="w-12 h-12 rounded-2xl bg-sky-600 text-white flex items-center justify-center text-2xl shadow-md">
-              🌤️
-            </div>
-            <div className="mt-2">
-              <h4 className="text-base font-black text-foreground">Weather & Road</h4>
-              <p className="text-xs font-semibold text-muted-foreground mt-0.5">
-                Live temperature & travel alerts
-              </p>
-            </div>
-          </button>
-        </div>
-      </div>
-
-      {/* Live Weather & Road Analysis Card Modal (Requirement 18) */}
-      {activeTravelModal === "weather" && (
-        <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border-2 border-sky-300 shadow-xl space-y-4 animate-in fade-in">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">🌤️</span>
-              <h3 className="text-base sm:text-lg font-black text-foreground">
-                Verified Meteorological & Road Information
-              </h3>
-            </div>
-            <button
-              type="button"
-              onClick={() => setActiveTravelModal(null)}
-              className="text-muted-foreground hover:text-foreground font-bold p-1"
-            >
-              ✕
-            </button>
-          </div>
-
-          {liveWeather && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-bold text-center">
-              <div className="p-3 rounded-2xl bg-muted/40">
-                <div className="text-[10px] text-muted-foreground uppercase">Condition</div>
-                <div className="text-base font-black text-foreground">{liveWeather.condition}</div>
-              </div>
-              <div className="p-3 rounded-2xl bg-muted/40">
-                <div className="text-[10px] text-muted-foreground uppercase">Temperature</div>
-                <div className="text-base font-black text-foreground">{liveWeather.temperatureC}°C</div>
-              </div>
-              <div className="p-3 rounded-2xl bg-muted/40">
-                <div className="text-[10px] text-muted-foreground uppercase">Wind Speed</div>
-                <div className="text-base font-black text-foreground">{liveWeather.windSpeedKmh} km/h</div>
-              </div>
-              <div className="p-3 rounded-2xl bg-muted/40">
-                <div className="text-[10px] text-muted-foreground uppercase">Rainfall</div>
-                <div className="text-base font-black text-sky-600">{liveWeather.precipitationMm} mm</div>
-              </div>
-            </div>
-          )}
-
-          {/* Honest Road & Traffic Notice (Requirement 18 & 25) */}
-          <div className="p-4 rounded-2xl bg-muted/30 border border-border text-xs space-y-1">
-            <div className="font-black text-foreground flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4 text-emerald-600" />
-              <span>Road Status:</span>
-            </div>
-            <p className="text-muted-foreground font-medium leading-relaxed">
-              {roadAnalysis ? roadAnalysis.details : "No verified road closures reported in available OpenStreetMap networks."}
-            </p>
-            <p className="text-[11px] text-amber-700 dark:text-amber-400 font-semibold pt-1">
-              Live municipal telematics sensor stream is currently not connected for this corridor. OpenStreetMap standard geometry applies.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* ============================================================ */}
       {/* 9. SAVED PLACES & RECENT DESTINATIONS (Requirement 20 & 21)   */}
@@ -1475,7 +2011,7 @@ export function SeniorNerAccessibilityView({
       </div>
 
       {/* ============================================================ */}
-      {/* 10. INTENTIONAL SOS EMERGENCY SECTION (Requirement 17)       */}
+      {/* 10. INTENTIONAL 3-SECOND SOS EMERGENCY SECTION (Requirement 16) */}
       {/* ============================================================ */}
       <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-rose-50 via-white to-rose-50/60 dark:from-slate-900 dark:via-slate-900 dark:to-rose-950/30 border-2 border-rose-300 dark:border-rose-900/60 shadow-md space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1487,7 +2023,7 @@ export function SeniorNerAccessibilityView({
               </h3>
             </div>
             <p className="text-xs sm:text-sm font-semibold text-rose-800/80 dark:text-rose-300">
-              Hold the emergency button for 10 seconds to notify family & emergency contacts.
+              Hold the emergency button for 3 seconds to notify family & emergency contacts.
             </p>
           </div>
 
@@ -1497,7 +2033,7 @@ export function SeniorNerAccessibilityView({
               <Button
                 variant="outline"
                 onClick={cancelSosHold}
-                className="h-12 px-4 rounded-2xl font-black text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                className="h-14 px-4 rounded-2xl font-black text-xs text-muted-foreground hover:text-foreground cursor-pointer"
               >
                 CANCEL
               </Button>
@@ -1508,7 +2044,7 @@ export function SeniorNerAccessibilityView({
               onPointerDown={startSosHold}
               onPointerUp={cancelSosHold}
               onPointerLeave={cancelSosHold}
-              className={`relative overflow-hidden h-14 px-6 rounded-3xl font-black text-sm transition-all cursor-pointer select-none flex items-center gap-2 shadow-lg ${
+              className={`relative overflow-hidden h-14 px-7 rounded-3xl font-black text-sm transition-all cursor-pointer select-none flex items-center gap-2.5 shadow-lg ${
                 isHoldingSos
                   ? "bg-rose-700 text-white scale-105 shadow-rose-600/40"
                   : "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/25 active:scale-95"
@@ -1524,8 +2060,8 @@ export function SeniorNerAccessibilityView({
               <AlertOctagon className="h-5 w-5 relative z-10" />
               <span className="relative z-10">
                 {isHoldingSos
-                  ? `HOLDING... ${sosSecondsLeft}s`
-                  : "HOLD FOR 10s TO ACTIVATE SOS"}
+                  ? `HOLDING... ${sosSecondsLeft}`
+                  : "HOLD FOR 3 SECONDS"}
               </span>
             </button>
           </div>

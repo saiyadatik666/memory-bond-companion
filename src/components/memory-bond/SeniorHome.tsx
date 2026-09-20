@@ -537,32 +537,116 @@ export function SeniorHome({
           })()}
         </div>
 
-        {/* 🛣️ Road & Travel Help (NER Accessibility Module) */}
-        <button
-          type="button"
-          onClick={() => onNavigate("ner_logistics")}
-          className="w-full p-4 rounded-3xl bg-gradient-to-r from-sky-50/80 via-white to-sky-50/60 border border-sky-200 hover:border-sky-400 text-left transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-98 flex items-center justify-between gap-4 mt-3"
-        >
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-700 flex items-center justify-center text-2xl shrink-0 shadow-2xs">
-              🛣️
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm sm:text-base font-black text-[#0F243E]">
-                  Road & Travel Help
-                </span>
-                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200">
-                  Live Navigation
-                </span>
+        {/* 🛣️ Road & Travel Help — India-focused Live System */}
+        <div className="w-full p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-sky-50 via-white to-blue-50/50 border-2 border-sky-200 shadow-xs space-y-3.5 mt-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-sky-600 text-white flex items-center justify-center text-2xl shrink-0 shadow-md">
+                🛣️
               </div>
-              <p className="text-xs font-semibold text-[#5B728D] mt-0.5 truncate">
-                Find nearby hospitals, pharmacies, routes & emergency help
-              </p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-base sm:text-lg font-black text-[#0F243E]">
+                    ROAD & TRAVEL HELP
+                  </h4>
+                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200">
+                    India Live
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm font-semibold text-[#5B728D] mt-0.5">
+                  Check your road, route and weather before you travel.
+                </p>
+              </div>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onNavigate("ner_logistics")}
+              className="rounded-xl font-black text-xs text-sky-700 border-sky-300 hover:bg-sky-50 shrink-0 cursor-pointer"
+            >
+              Open Map →
+            </Button>
           </div>
-          <ChevronRight className="h-5 w-5 text-sky-600 shrink-0 mr-1" />
-        </button>
+
+          {/* Genuine Action Buttons (Requirement 20) */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => {
+                onNavigate("ner_logistics");
+                setTimeout(() => {
+                  window.dispatchEvent(
+                    new CustomEvent("mb_voice_travel_action", { detail: { action: "road" } })
+                  );
+                }, 300);
+              }}
+              className="p-2.5 sm:p-3 rounded-2xl bg-white border border-sky-200 hover:border-sky-400 hover:bg-sky-50 text-left transition-all cursor-pointer flex flex-col justify-between shadow-2xs active:scale-95"
+            >
+              <span className="text-lg">🛣️</span>
+              <div className="mt-1.5">
+                <span className="text-xs font-black text-[#0F243E] block">CHECK ROAD</span>
+                <span className="text-[10px] font-semibold text-[#5B728D]">Verified alerts</span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                onNavigate("ner_logistics");
+                setTimeout(() => {
+                  window.dispatchEvent(
+                    new CustomEvent("mb_voice_travel_action", { detail: { action: "weather" } })
+                  );
+                }, 300);
+              }}
+              className="p-2.5 sm:p-3 rounded-2xl bg-white border border-sky-200 hover:border-sky-400 hover:bg-sky-50 text-left transition-all cursor-pointer flex flex-col justify-between shadow-2xs active:scale-95"
+            >
+              <span className="text-lg">🌦️</span>
+              <div className="mt-1.5">
+                <span className="text-xs font-black text-[#0F243E] block">CHECK WEATHER</span>
+                <span className="text-[10px] font-semibold text-[#5B728D]">Live conditions</span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                onNavigate("ner_logistics");
+                setTimeout(() => {
+                  window.dispatchEvent(
+                    new CustomEvent("mb_voice_travel_action", { detail: { action: "hospital" } })
+                  );
+                }, 300);
+              }}
+              className="p-2.5 sm:p-3 rounded-2xl bg-white border border-rose-200 hover:border-rose-400 hover:bg-rose-50 text-left transition-all cursor-pointer flex flex-col justify-between shadow-2xs active:scale-95"
+            >
+              <span className="text-lg">🏥</span>
+              <div className="mt-1.5">
+                <span className="text-xs font-black text-rose-950 block">FIND HOSPITAL</span>
+                <span className="text-[10px] font-semibold text-rose-800">Nearest medical</span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                onNavigate("ner_logistics");
+                setTimeout(() => {
+                  window.dispatchEvent(
+                    new CustomEvent("mb_voice_travel_action", { detail: { action: "route" } })
+                  );
+                }, 300);
+              }}
+              className="p-2.5 sm:p-3 rounded-2xl bg-white border border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 text-left transition-all cursor-pointer flex flex-col justify-between shadow-2xs active:scale-95"
+            >
+              <span className="text-lg">🧭</span>
+              <div className="mt-1.5">
+                <span className="text-xs font-black text-indigo-950 block">PLAN ROUTE</span>
+                <span className="text-[10px] font-semibold text-indigo-800">Driving navigation</span>
+              </div>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
