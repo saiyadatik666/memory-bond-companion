@@ -840,19 +840,98 @@ export function parseVoiceIntent(
   }
 
   const isShowHospitalRoute =
-    lower.includes("मुझे अस्पताल का रास्ता दिखाओ") ||
-    lower.includes("hospital ka rasta dikhao") ||
+    lower.includes("मुझे अस्पताल") ||
+    lower.includes("नजदीकी अस्पताल") ||
+    lower.includes("hospital ka rasta") ||
+    lower.includes("najdiki hospital") ||
     lower.includes("show me the route to hospital") ||
     lower.includes("route to hospital") ||
-    lower.includes("navigate to hospital");
+    lower.includes("navigate to hospital") ||
+    lower.includes("find nearby hospital") ||
+    lower.includes("find hospital") ||
+    lower.includes("હોસ્પિટલ");
 
   if (isShowHospitalRoute) {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("mb_voice_travel_action", { detail: { action: "hospital" } }));
+    }
     return {
       type: "NAVIGATE",
       targetView: "ner_logistics",
       confirmationMessage: locale.startsWith("hi")
-        ? "लाइव सेफ्टी मैप पर नजदीकी अस्पताल और वास्तविक रूट सहायता खोली जा रही है।"
-        : "Opening real hospital route navigation on your Live Safety Map now.",
+        ? "नजदीकी अस्पताल ढूंढे जा रहे हैं और सुरक्षित मार्ग दिखाया जा रहा है।"
+        : locale.startsWith("gu")
+        ? "નજીકની હોસ્પિટલ શોધાઈ રહી છે અને સુરક્ષિત રસ્તો બતાવાઈ રહ્યો છે."
+        : "Searching nearby hospitals and showing the verified route on your Road & Travel map.",
+    };
+  }
+
+  const isPharmacyQuery =
+    lower.includes("pharmacy") ||
+    lower.includes("दवा की दुकान") ||
+    lower.includes("मेडिकल स्टोर") ||
+    lower.includes("medical store") ||
+    lower.includes("દવા ની દુકાન") ||
+    lower.includes("ફાર્મસી");
+
+  if (isPharmacyQuery) {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("mb_voice_travel_action", { detail: { action: "pharmacy" } }));
+    }
+    return {
+      type: "NAVIGATE",
+      targetView: "ner_logistics",
+      confirmationMessage: locale.startsWith("hi")
+        ? "आपके नजदीक खुली दवा की दुकानें और फार्मेसी ढूंढी जा रही हैं।"
+        : locale.startsWith("gu")
+        ? "તમારી નજીકની ફાર્મસી અને મેડિકલ સ્ટોર શોધાઈ રહ્યા છે."
+        : "Finding nearby pharmacies and medical stores on your Road & Travel map.",
+    };
+  }
+
+  const isGoHomeQuery =
+    lower.includes("मुझे घर जाना है") ||
+    lower.includes("घर का रास्ता") ||
+    lower.includes("take me home") ||
+    lower.includes("navigate home") ||
+    lower.includes("route to home") ||
+    lower.includes("ઘેર જવું છે") ||
+    lower.includes("ઘરનો રસ્તો");
+
+  if (isGoHomeQuery) {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("mb_voice_travel_action", { detail: { action: "home" } }));
+    }
+    return {
+      type: "NAVIGATE",
+      targetView: "ner_logistics",
+      confirmationMessage: locale.startsWith("hi")
+        ? "घर के लिए सुरक्षित नेविगेशन मार्ग खोला जा रहा है।"
+        : locale.startsWith("gu")
+        ? "ઘર માટે સુરક્ષિત નેવિગેશન રસ્તો ખોલાઈ રહ્યો છે."
+        : "Opening route guidance to your saved Home address.",
+    };
+  }
+
+  const isShowRouteQuery =
+    lower.includes("रास्ता दिखाओ") ||
+    lower.includes("rasta dikhao") ||
+    lower.includes("show route") ||
+    lower.includes("get directions") ||
+    lower.includes("રસ્તો બતાવો");
+
+  if (isShowRouteQuery) {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("mb_voice_travel_action", { detail: { action: "route" } }));
+    }
+    return {
+      type: "NAVIGATE",
+      targetView: "ner_logistics",
+      confirmationMessage: locale.startsWith("hi")
+        ? "रोड और यात्रा सहायता पर वास्तविक रूट की गणना की जा रही है।"
+        : locale.startsWith("gu")
+        ? "રોડ અને પ્રવાસ સહાયતા પર રસ્તાની ગણતરી થઈ રહી છે."
+        : "Calculating verified driving route on your Road & Travel map.",
     };
   }
 

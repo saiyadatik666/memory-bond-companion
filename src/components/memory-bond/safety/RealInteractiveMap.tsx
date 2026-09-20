@@ -70,6 +70,7 @@ interface RealInteractiveMapProps {
   onRequestRouteFromCurrent?: (dest: SelectedLocationState) => void;
   facilities?: EmergencyFacility[];
   isSeniorMode?: boolean;
+  hideEmbeddedSearch?: boolean;
   className?: string;
 }
 
@@ -86,6 +87,7 @@ export function RealInteractiveMap({
   onRequestRouteFromCurrent,
   facilities = [],
   isSeniorMode = false,
+  hideEmbeddedSearch = false,
   className = "",
 }: RealInteractiveMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -123,6 +125,7 @@ export function RealInteractiveMap({
 
   // Traffic modal state (Requirement 11)
   const [trafficModalOpen, setTrafficModalOpen] = useState(false);
+  const [isMapTypeOpen, setIsMapTypeOpen] = useState(false);
 
   // Selected Pin Bottom Sheet
   const [activePin, setActivePin] = useState<{
@@ -754,132 +757,134 @@ export function RealInteractiveMap({
         )}
       </div>
 
-      {/* 4. Top Controls: Clean Search Bar & Location Context Banner */}
-      <div className="absolute top-3 left-3 right-3 sm:right-auto sm:w-[420px] z-30 pointer-events-auto space-y-2">
-        {/* Search Input Form */}
-        <form onSubmit={handleSearchSubmit} className="relative">
-          <div className="flex items-center rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-border shadow-md px-3 py-1.5 gap-2">
-            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search place, road, hospital, destination..."
-              className="border-0 shadow-none focus-visible:ring-0 text-xs font-bold h-8 p-0 bg-transparent"
-            />
-            {isSearching && <span className="animate-spin text-xs">⏳</span>}
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery("");
-                  setSearchResults([]);
-                  setShowSearchDropdown(false);
-                }}
-                className="text-muted-foreground hover:text-foreground text-xs font-bold px-1 cursor-pointer"
-              >
-                ✕
-              </button>
+      {/* 4. Top Controls: Clean Search Bar & Location Context Banner (Only when not provided externally) */}
+      {!hideEmbeddedSearch && (
+        <div className="absolute top-3 left-3 right-3 sm:right-auto sm:w-[420px] z-30 pointer-events-auto space-y-2">
+          {/* Search Input Form */}
+          <form onSubmit={handleSearchSubmit} className="relative">
+            <div className="flex items-center rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-border shadow-md px-3 py-1.5 gap-2">
+              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search place, road, hospital, destination..."
+                className="border-0 shadow-none focus-visible:ring-0 text-xs font-bold h-8 p-0 bg-transparent"
+              />
+              {isSearching && <span className="animate-spin text-xs">⏳</span>}
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setSearchResults([]);
+                    setShowSearchDropdown(false);
+                  }}
+                  className="text-muted-foreground hover:text-foreground text-xs font-bold px-1 cursor-pointer"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Search Results Dropdown */}
+            {showSearchDropdown && searchResults.length > 0 && (
+              <div className="absolute top-12 left-0 right-0 rounded-2xl bg-white dark:bg-slate-900 border border-border shadow-xl p-2 max-h-60 overflow-y-auto space-y-1 text-xs z-50">
+                {searchResults.map((res) => (
+                  <button
+                    key={res.id}
+                    type="button"
+                    onClick={() => handleSelectSearchResult(res)}
+                    className="w-full p-2.5 rounded-xl hover:bg-muted/70 text-left transition-all cursor-pointer flex items-start gap-2"
+                  >
+                    <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <div className="font-black text-foreground truncate">
+                        {res.name}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground truncate">
+                        {res.displayName}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
             )}
+          </form>
+
+          {/* Horizontal Quick Nearby POIs Chips (Requirement 12) */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+            {[
+              { id: "hotel", label: "Hotels", icon: "🏨" },
+              { id: "hospital", label: "Hospitals", icon: "🏥" },
+              { id: "pharmacy", label: "Pharmacies", icon: "💊" },
+              { id: "restaurant", label: "Food", icon: "🍽️" },
+              { id: "fuel", label: "Petrol", icon: "⛽" },
+              { id: "station", label: "Railway", icon: "🚆" },
+              { id: "atm", label: "ATMs", icon: "🏧" },
+              { id: "police", label: "Police", icon: "🚓" },
+              { id: "shop", label: "Shops", icon: "🛒" },
+            ].map((cat) => {
+              const isActive = activeNearbyCategory === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() =>
+                    handleToggleNearbyCategory(cat.id as NearbyCategoryType)
+                  }
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-black whitespace-nowrap shadow-xs transition-all cursor-pointer ${
+                    isActive
+                      ? "bg-amber-600 text-white scale-102"
+                      : "bg-white/90 dark:bg-slate-900/90 text-foreground hover:bg-white border border-border/80"
+                  }`}
+                >
+                  <span>{cat.icon}</span>
+                  <span>{cat.label}</span>
+                </button>
+              );
+            })}
           </div>
 
-          {/* Search Results Dropdown */}
-          {showSearchDropdown && searchResults.length > 0 && (
-            <div className="absolute top-12 left-0 right-0 rounded-2xl bg-white dark:bg-slate-900 border border-border shadow-xl p-2 max-h-60 overflow-y-auto space-y-1 text-xs z-50">
-              {searchResults.map((res) => (
+          {/* Selected Destination Active Banner */}
+          {activeSelectedLoc && (
+            <div className="flex items-center justify-between p-2 px-3 rounded-2xl bg-rose-50/95 dark:bg-rose-950/90 border border-rose-200 text-xs shadow-md">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-sm shrink-0">🎯</span>
+                <div className="truncate">
+                  <span className="font-black text-rose-950 dark:text-rose-100">
+                    Selected Destination:{" "}
+                  </span>
+                  <span className="font-bold text-rose-800 dark:text-rose-200">
+                    {activeSelectedLoc.name}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
                 <button
-                  key={res.id}
                   type="button"
-                  onClick={() => handleSelectSearchResult(res)}
-                  className="w-full p-2.5 rounded-xl hover:bg-muted/70 text-left transition-all cursor-pointer flex items-start gap-2"
+                  onClick={handleCenterOnSelectedLocation}
+                  title="Center on this destination"
+                  className="px-2 py-0.5 rounded-lg bg-rose-200 text-rose-900 text-[10px] font-black uppercase cursor-pointer hover:bg-rose-300"
                 >
-                  <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                  <div className="min-w-0">
-                    <div className="font-black text-foreground truncate">
-                      {res.name}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground truncate">
-                      {res.displayName}
-                    </div>
-                  </div>
+                  View
                 </button>
-              ))}
-            </div>
-          )}
-        </form>
-
-        {/* Horizontal Quick Nearby POIs Chips (Requirement 12) */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-          {[
-            { id: "hotel", label: "Hotels", icon: "🏨" },
-            { id: "hospital", label: "Hospitals", icon: "🏥" },
-            { id: "pharmacy", label: "Pharmacies", icon: "💊" },
-            { id: "restaurant", label: "Food", icon: "🍽️" },
-            { id: "fuel", label: "Petrol", icon: "⛽" },
-            { id: "station", label: "Railway", icon: "🚆" },
-            { id: "atm", label: "ATMs", icon: "🏧" },
-            { id: "police", label: "Police", icon: "🚓" },
-            { id: "shop", label: "Shops", icon: "🛒" },
-          ].map((cat) => {
-            const isActive = activeNearbyCategory === cat.id;
-            return (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() =>
-                  handleToggleNearbyCategory(cat.id as NearbyCategoryType)
-                }
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-black whitespace-nowrap shadow-xs transition-all cursor-pointer ${
-                  isActive
-                    ? "bg-amber-600 text-white scale-102"
-                    : "bg-white/90 dark:bg-slate-900/90 text-foreground hover:bg-white border border-border/80"
-                }`}
-              >
-                <span>{cat.icon}</span>
-                <span>{cat.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Selected Destination Active Banner */}
-        {activeSelectedLoc && (
-          <div className="flex items-center justify-between p-2 px-3 rounded-2xl bg-rose-50/95 dark:bg-rose-950/90 border border-rose-200 text-xs shadow-md">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-sm shrink-0">🎯</span>
-              <div className="truncate">
-                <span className="font-black text-rose-950 dark:text-rose-100">
-                  Selected Destination:{" "}
-                </span>
-                <span className="font-bold text-rose-800 dark:text-rose-200">
-                  {activeSelectedLoc.name}
-                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInternalSelectedLocation(null);
+                    onClearSelectedLocation?.();
+                    setActivePin(null);
+                  }}
+                  className="p-1 text-rose-700 hover:text-rose-950 font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
               </div>
             </div>
-
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={handleCenterOnSelectedLocation}
-                title="Center on this destination"
-                className="px-2 py-0.5 rounded-lg bg-rose-200 text-rose-900 text-[10px] font-black uppercase cursor-pointer hover:bg-rose-300"
-              >
-                View
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setInternalSelectedLocation(null);
-                  onClearSelectedLocation?.();
-                  setActivePin(null);
-                }}
-                className="p-1 text-rose-700 hover:text-rose-950 font-bold cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {/* 5. Senior-Friendly Right Controls Toolbar */}
       <div className="absolute right-3 top-3 sm:top-auto sm:bottom-8 z-30 flex flex-col gap-2 pointer-events-auto">
@@ -935,22 +940,44 @@ export function RealInteractiveMap({
           <Car className="h-5 w-5" />
         </button>
 
-        {/* Map Style Switcher (Road / Satellite / Terrain) */}
-        <div className="rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-border shadow-md p-1 flex flex-col gap-1 text-[10px] font-black">
-          {(["ROAD", "SATELLITE", "TERRAIN"] as MapStyleMode[]).map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => setMapMode(mode)}
-              className={`px-2 py-1.5 rounded-xl transition-all cursor-pointer ${
-                mapMode === mode
-                  ? "bg-primary text-white shadow-2xs"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
-            >
-              {mode === "ROAD" ? "Road" : mode === "SATELLITE" ? "Satellite" : "Terrain"}
-            </button>
-          ))}
+        {/* Map Style Switcher (Road / Satellite / Terrain) - Collapsible Menu (Requirement 13 & 14) */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setIsMapTypeOpen((prev) => !prev)}
+            title="Choose Map View (Road, Satellite, Terrain)"
+            aria-label="Choose Map View"
+            className={`w-11 h-11 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-border shadow-md flex items-center justify-center transition-colors cursor-pointer ${
+              isMapTypeOpen ? "bg-primary/10 border-primary text-primary" : "text-foreground hover:bg-muted"
+            }`}
+          >
+            <Layers className="h-5 w-5" />
+          </button>
+
+          {isMapTypeOpen && (
+            <div className="absolute right-13 bottom-0 sm:top-0 sm:bottom-auto rounded-2xl bg-white/98 dark:bg-slate-900/98 backdrop-blur-md border border-border shadow-2xl p-1.5 flex flex-col gap-1 text-xs font-black z-50 min-w-[125px] animate-in fade-in zoom-in-95">
+              <div className="px-2.5 py-1 text-[10px] text-muted-foreground uppercase font-black tracking-wider border-b border-border/50">
+                Map View
+              </div>
+              {(["ROAD", "SATELLITE", "TERRAIN"] as MapStyleMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => {
+                    setMapMode(mode);
+                    setIsMapTypeOpen(false);
+                  }}
+                  className={`px-3 py-2 rounded-xl text-left transition-all cursor-pointer flex items-center gap-2 ${
+                    mapMode === mode
+                      ? "bg-primary text-white shadow-2xs"
+                      : "text-foreground hover:bg-muted/80"
+                  }`}
+                >
+                  <span>{mode === "ROAD" ? "🗺️ Road" : mode === "SATELLITE" ? "🛰️ Satellite" : "⛰️ Terrain"}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

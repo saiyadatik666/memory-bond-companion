@@ -24,6 +24,7 @@ import {
   Phone,
   Layers,
   Sparkles,
+  Compass,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,7 @@ import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
 import { nerApiService } from "@/lib/ner/nerApiService";
 import { NerSmartMap } from "./NerSmartMap";
+import { SeniorNerAccessibilityView } from "./SeniorNerAccessibilityView";
 import {
   searchPlacesNominatim,
   calculateRouteOSRM,
@@ -83,6 +85,7 @@ interface CaregiverNerAccessibilityViewProps {
 }
 
 type ActiveSection =
+  | "travel_help"
   | "overview"
   | "roads"
   | "risks"
@@ -450,6 +453,7 @@ export function CaregiverNerAccessibilityView({
         {/* Sub-Navigation Tabs Carousel / Bar */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-2 no-scrollbar border-t border-border/60">
           {[
+            { id: "travel_help", label: "Road & Travel Help", icon: Compass },
             { id: "overview", label: "Overview", icon: Activity },
             { id: "roads", label: "Roads & Bridges", icon: Navigation },
             { id: "risks", label: "Disruption Risk", icon: AlertTriangle },
@@ -488,6 +492,20 @@ export function CaregiverNerAccessibilityView({
       </div>
 
       {/* 3. TAB CONTENT RENDERERS */}
+
+      {/* =================================================================== */}
+      {/* ROAD & TRAVEL HELP TAB (Elderly-Friendly Experience for Caregivers)  */}
+      {/* =================================================================== */}
+      {activeTab === "travel_help" && (
+        <div className="pt-2">
+          <SeniorNerAccessibilityView
+            store={store}
+            onOpenVoiceAssistant={onOpenVoiceAssistant || (() => {})}
+            onOpenSos={onOpenSos || (() => {})}
+            onNavigate={onNavigate}
+          />
+        </div>
+      )}
 
       {/* =================================================================== */}
       {/* OVERVIEW TAB                                                        */}

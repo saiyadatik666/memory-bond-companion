@@ -553,11 +553,11 @@ export function SeniorHome({
                   Road & Travel Help
                 </span>
                 <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200">
-                  NER Accessibility
+                  Live Navigation
                 </span>
               </div>
               <p className="text-xs font-semibold text-[#5B728D] mt-0.5 truncate">
-                Check road accessibility, travel alerts & safe routes
+                Find nearby hospitals, pharmacies, routes & emergency help
               </p>
             </div>
           </div>
