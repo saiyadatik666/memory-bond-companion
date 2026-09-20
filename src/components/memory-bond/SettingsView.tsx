@@ -1,22 +1,11 @@
-import { useState } from "react";
 import {
   Settings,
-  Languages,
   Type,
   Eye,
-  Volume2,
-  Bell,
   Shield,
-  User,
   RotateCcw,
-  Check,
   Smartphone,
   Sparkles,
-  Zap,
-  Sliders,
-  Cpu,
-  HelpCircle,
-  Activity,
   Award,
   MapPin,
 } from "lucide-react";
@@ -25,23 +14,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
-import { useI18n, LANGUAGES, NER_STATES, getLanguagesByState, type LangCode } from "@/lib/i18n";
 import { RegionalLanguageSection } from "./RegionalLanguageSection";
-import { speakText, stopSpeaking } from "@/lib/voiceParser";
-import { voiceManager } from "@/lib/voiceProvider";
 import { INDIAN_STATES } from "@/lib/panIndiaCulturalRepository";
 import { MemoryBondLogo } from "./MemoryBondLogo";
 
 export function SettingsView({ store }: { store: MemoryBondStore }) {
-  const { lang, setLang, t, speechLocale } = useI18n();
-  const [testSpeechStatus, setTestSpeechStatus] = useState<string>("");
-  const [selectedRegionTab, setSelectedRegionTab] = useState<string>(
-    store.profile.selected_ner_state || "Pan-India"
-  );
-  const [selectedVoice, setSelectedVoice] = useState<string>(
-    voiceManager.getSelectedVoice() || "voice-a"
-  );
-
   const handleFontSizeChange = (size: "normal" | "large" | "xlarge") => {
     store.updateProfile({ font_size: size });
   };
@@ -66,72 +43,6 @@ export function SettingsView({ store }: { store: MemoryBondStore }) {
     store.updateProfile({ floating_bubble: checked });
   };
 
-  const handleVoiceProviderChange = (provider: "web_speech" | "bhashini" | "google_cloud") => {
-    store.updateProfile({ voice_provider: provider });
-    if (typeof window !== "undefined") {
-      localStorage.setItem("mb_voice_provider", provider);
-    }
-  };
-
-  const handleVoiceSelection = (vKey: string) => {
-    voiceManager.stopSpeaking();
-    setSelectedVoice(vKey);
-    voiceManager.setSelectedVoice(vKey);
-    setTestSpeechStatus(`Applied ${vKey.toUpperCase()}. Playing sample...`);
-    const sample =
-      lang === "hi"
-        ? "नमस्ते! यह आपकी नई चुनी हुई आवाज़ है।"
-        : lang === "as"
-        ? "নমস্কাৰ! এইটো আপোনাৰ নতুন কণ্ঠস্বৰ।"
-        : lang === "bn"
-        ? "নমস্কার! এটি আপনার নতুন কণ্ঠস্বর।"
-        : "Hello! This is your newly selected companion voice.";
-    voiceManager.speak(
-      sample,
-      speechLocale || "en-IN",
-      () => {},
-      () => {
-        setTestSpeechStatus("");
-      },
-      () => {
-        setTestSpeechStatus("");
-      }
-    );
-  };
-
-  const testVoiceSample = () => {
-    voiceManager.stopSpeaking();
-    setTestSpeechStatus("Playing voice sample...");
-    const sampleText =
-      lang === "hi"
-        ? "नमस्ते! मैं आपका Memory Bond साथी हूँ। मैं आपकी सहायता के लिए सदैव यहाँ हूँ।"
-        : lang === "as"
-        ? "নমস্কাৰ! মই আপোনাৰ Memory Bond সংগী। মই আপোনাক সহায় কৰিবলৈ সদায় প্ৰস্তুত।"
-        : lang === "bn"
-        ? "নমস্কার! আমি আপনার Memory Bond সঙ্গী। আমি আপনাকে সাহায্য করতে সবসময় প্রস্তুত।"
-        : "Namaste! I am your Memory Bond companion, here to assist your peaceful day.";
-
-    voiceManager.speak(
-      sampleText,
-      speechLocale || "en-IN",
-      () => {},
-      () => {
-        setTestSpeechStatus("Voice test completed successfully.");
-        setTimeout(() => setTestSpeechStatus(""), 3000);
-      },
-      () => {
-        setTestSpeechStatus("");
-      }
-    );
-  };
-
-  const currentProvider = store.profile.voice_provider || "web_speech";
-
-  const displayedLanguages =
-    selectedRegionTab === "Pan-India"
-      ? LANGUAGES.filter((l) => !l.state)
-      : getLanguagesByState(selectedRegionTab);
-
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
@@ -141,7 +52,7 @@ export function SettingsView({ store }: { store: MemoryBondStore }) {
             <Settings className="h-8 w-8 text-primary" /> Accessibility & System Settings
           </h2>
           <p className="text-muted-foreground mt-1 text-base">
-            Customize senior accessibility, Indian native scripts, voice AI providers, and simplified mode.
+            Customize senior accessibility, Indian native scripts, and simplified mode.
           </p>
         </div>
         <div className="bg-primary/10 border border-primary/20 text-primary px-4 py-2 rounded-2xl text-xs font-bold flex items-center gap-2">
@@ -177,160 +88,7 @@ export function SettingsView({ store }: { store: MemoryBondStore }) {
       {/* 2. Regional & Indian Languages Section (Clean, Expandable, Elder-Friendly) */}
       <RegionalLanguageSection store={store} />
 
-      {/* 2B. Spoken Voice Selection (Voice A / B / C) */}
-      <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-xs space-y-4">
-        <div className="flex items-center gap-3">
-          <Volume2 className="h-6 w-6 text-primary" />
-          <div>
-            <h3 className="text-xl font-bold text-foreground">
-              TTS Voice Character (Voice A / B / C)
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              Choose the tone and character of your AI companion. The selected voice is applied immediately to all spoken responses.
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-          {[
-            {
-              id: "voice-a",
-              title: "Voice A",
-              label: "Warm Elder Companion",
-              desc: "Gentle, reassuring cadence with elder warmth and slow pacing.",
-            },
-            {
-              id: "voice-b",
-              title: "Voice B",
-              label: "Gentle & Calm Female",
-              desc: "Clear, soothing female pronunciation ideal for daily reminders.",
-            },
-            {
-              id: "voice-c",
-              title: "Voice C",
-              label: "Clear & Confident Male",
-              desc: "Deep, articulate voice with clear consonants for easy listening.",
-            },
-          ].map((v) => {
-            const isSelected = selectedVoice === v.id;
-            return (
-              <button
-                key={v.id}
-                type="button"
-                onClick={() => handleVoiceSelection(v.id)}
-                className={`p-4 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-2 cursor-pointer ${
-                  isSelected
-                    ? "bg-primary/10 border-primary shadow-sm ring-2 ring-primary/20"
-                    : "bg-secondary/30 hover:bg-secondary/60 border-border text-foreground"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-base font-bold text-foreground">{v.title}</span>
-                  {isSelected && (
-                    <span className="text-xs font-black px-2 py-0.5 rounded-full bg-primary text-primary-foreground">
-                      Active
-                    </span>
-                  )}
-                </div>
-                <span className="text-xs font-bold text-primary block">{v.label}</span>
-                <p className="text-xs text-muted-foreground">{v.desc}</p>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 3. Voice Provider Architecture */}
-      <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-xs space-y-4">
-        <div className="flex items-center gap-3">
-          <Cpu className="h-6 w-6 text-primary" />
-          <div>
-            <h3 className="text-xl font-bold text-foreground">Voice Engine Provider</h3>
-            <p className="text-sm text-muted-foreground">
-              Select speech recognition and synthesis backend for Indian regional accents.
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-          {[
-            {
-              id: "web_speech",
-              title: "Web Speech API",
-              subtitle: "Local / Offline",
-              badge: "On-Device",
-              desc: "Fastest zero-latency speech recognition and synthesis. Fully offline resilient.",
-            },
-            {
-              id: "bhashini",
-              title: "BHASHINI AI",
-              subtitle: "National AI Mission",
-              badge: "NER Specialized",
-              desc: "Optimized for Assamese, Bengali, and North-Eastern dialects via Gov. of India NLTM.",
-            },
-            {
-              id: "google_cloud",
-              title: "Google Cloud Speech",
-              subtitle: "Cloud Neural TTS",
-              badge: "High Accuracy",
-              desc: "Deep neural voices with calm senior cadence and multilingual noise cancellation.",
-            },
-          ].map((prov) => {
-            const isSelected = currentProvider === prov.id;
-            return (
-              <button
-                key={prov.id}
-                onClick={() => handleVoiceProviderChange(prov.id as any)}
-                className={`p-5 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-3 ${
-                  isSelected
-                    ? "bg-primary/10 border-primary shadow-sm ring-2 ring-primary/20"
-                    : "bg-secondary/30 hover:bg-secondary/60 border-border"
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <span className="text-base font-bold text-foreground block">{prov.title}</span>
-                    <span className="text-xs font-semibold text-muted-foreground">{prov.subtitle}</span>
-                  </div>
-                  <span className="text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full bg-primary/20 text-primary">
-                    {prov.badge}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground font-medium leading-relaxed">
-                  {prov.desc}
-                </p>
-                {isSelected && (
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-primary">
-                    <Check className="h-4 w-4" /> Active Provider
-                  </div>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Test Speech Button */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 bg-secondary/20 p-4 rounded-2xl">
-          <div className="text-sm font-medium text-foreground">
-            Test current voice synthesis in <strong>{LANGUAGES.find((l) => l.code === lang)?.label}</strong>:
-            {testSpeechStatus && (
-              <span className="text-xs font-bold text-primary ml-2 animate-pulse">
-                {testSpeechStatus}
-              </span>
-            )}
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={testVoiceSample}
-            className="rounded-xl font-bold gap-2 cursor-pointer"
-          >
-            <Volume2 className="h-4 w-4 text-primary" /> Test Voice Readout
-          </Button>
-        </div>
-      </div>
-
-      {/* 4. Font Size Scaling */}
+      {/* 3. Font Size Scaling */}
       <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-xs space-y-4">
         <div className="flex items-center gap-3">
           <Type className="h-6 w-6 text-primary" />
@@ -365,7 +123,7 @@ export function SettingsView({ store }: { store: MemoryBondStore }) {
         </div>
       </div>
 
-      {/* 5. Vision, Motion & Audio Accessibility */}
+      {/* 4. Vision, Motion & Audio Accessibility */}
       <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-xs space-y-4">
         <div className="flex items-center gap-3">
           <Eye className="h-6 w-6 text-primary" />
@@ -451,7 +209,7 @@ export function SettingsView({ store }: { store: MemoryBondStore }) {
         </div>
       </div>
 
-      {/* 6. Floating Accessibility Bubble (Android Companion) */}
+      {/* 5. Floating Accessibility Bubble (Android Companion) */}
       <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-xs space-y-4">
         <div className="flex items-center gap-3">
           <Smartphone className="h-6 w-6 text-primary" />
@@ -495,7 +253,7 @@ export function SettingsView({ store }: { store: MemoryBondStore }) {
         </div>
       </div>
 
-      {/* Home State & Regional Cultural Preference (Requirement 13) */}
+      {/* 6. Home State & Regional Cultural Preference (Requirement 13) */}
       <div className="rounded-3xl border-2 border-border bg-card p-6 shadow-xs space-y-4">
         <div className="flex items-center gap-3">
           <MapPin className="h-6 w-6 text-primary" />
