@@ -1099,6 +1099,20 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
             </div>
           </div>
 
+          {/* Forgot password (sign-in mode only) */}
+          {authMode === "signin" && (
+            <div className="text-right">
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={handleForgotPassword}
+                className="text-[11px] font-bold text-primary hover:underline cursor-pointer disabled:opacity-50"
+              >
+                Forgot password?
+              </button>
+            </div>
+          )}
+
           {/* Feedback alerts */}
           {errorMessage && (
             <div className="p-3 rounded-2xl bg-destructive/15 border border-destructive/40 flex items-start gap-2 text-xs text-destructive">
@@ -1127,6 +1141,48 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
               t("signInCaregiverPortal") || "Sign In to Caregiver Portal"
             )}
           </Button>
+
+          {/* Divider */}
+          <div className="relative flex items-center gap-3 py-1">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">or continue with</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+
+          {/* Google OAuth Button */}
+          <button
+            type="button"
+            disabled={isLoading}
+            onClick={() => handleOAuthLogin("google")}
+            className="w-full h-11 rounded-2xl border-2 border-[#E2EAF5] bg-white hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-all flex items-center justify-center gap-3 font-bold text-sm text-[#1A2B4B] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
+          >
+            {/* Google SVG */}
+            <svg width="18" height="18" viewBox="0 0 48 48" className="shrink-0">
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.96 2.36-8.16 2.36-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.16C6.51 42.62 14.62 48 24 48z"/>
+              <path fill="#FBBC05" d="M10.53 28.64A14.52 14.52 0 0 1 9.5 24c0-1.62.28-3.19.76-4.64l-7.98-6.16A23.93 23.93 0 0 0 0 24c0 3.77.9 7.34 2.5 10.48l8.03-5.84z"/>
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.89C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.5 13.52l8.03 6.16C12.43 13.72 17.74 9.5 24 9.5z"/>
+            </svg>
+            Continue with Google
+          </button>
+
+          {/* Facebook OAuth Button */}
+          <button
+            type="button"
+            disabled={isLoading}
+            onClick={() => handleOAuthLogin("facebook")}
+            className="w-full h-11 rounded-2xl border-2 border-[#E2EAF5] bg-white hover:bg-[#F0F4FF] hover:border-[#CBD5E1] transition-all flex items-center justify-center gap-3 font-bold text-sm text-[#1A2B4B] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
+          >
+            {/* Facebook SVG */}
+            <svg width="18" height="18" viewBox="0 0 48 48" className="shrink-0">
+              <linearGradient id="fb_grad" x1="6.228" x2="42.077" y1="4.896" y2="43.432" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stopColor="#0062e0"/>
+                <stop offset="1" stopColor="#19afff"/>
+              </linearGradient>
+              <path fill="url(#fb_grad)" d="M42 24c0-9.941-8.059-18-18-18S6 14.059 6 24c0 8.984 6.576 16.422 15.18 17.78V29.25h-4.57V24h4.57v-3.968c0-4.508 2.685-6.996 6.794-6.996 1.969 0 4.028.351 4.028.351v4.429h-2.269c-2.236 0-2.931 1.387-2.931 2.81V24h4.993l-.798 5.25H26.8V41.78C35.424 40.422 42 32.984 42 24z"/>
+            </svg>
+            Continue with Facebook
+          </button>
         </form>
 
         {/* 1-Click Instant Caregiver Demo Access */}
