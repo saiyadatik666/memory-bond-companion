@@ -65,12 +65,16 @@ export function CaregiverDashboard({
   const [chartCategory, setChartCategory] = useState<"overall" | "memory" | "attention" | "pattern">("overall");
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
 
-  // Caregiver Unique Connection Identity
+  // Caregiver Unique Connection Identity (safely guarded for SSR/prerender)
   const caregiverUniqueCode =
-    localStorage.getItem("mb_caregiver_unique_code") ||
+    (typeof window !== "undefined" ? localStorage.getItem("mb_caregiver_unique_code") : null) ||
     (() => {
       const gen = "MB-CG-781042";
-      localStorage.setItem("mb_caregiver_unique_code", gen);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("mb_caregiver_unique_code", gen);
+        } catch {}
+      }
       return gen;
     })();
 

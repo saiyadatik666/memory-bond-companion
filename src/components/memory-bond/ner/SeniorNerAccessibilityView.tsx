@@ -382,7 +382,9 @@ export function SeniorNerAccessibilityView({
     setVoiceConfirmation(null);
 
     const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      typeof window !== "undefined"
+        ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+        : undefined;
 
     if (!SpeechRecognition) {
       setVoiceError(

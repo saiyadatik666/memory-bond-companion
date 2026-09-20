@@ -140,6 +140,16 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
+  useEffect(() => {
+    // Automatically recover if Vite dynamic import or preview reload fails due to chunk updates
+    const handlePreloadError = () => {
+      console.warn("[Vite] Dynamic import / preload error detected. Reloading for latest bundle...");
+      window.location.reload();
+    };
+    window.addEventListener("vite:preloadError", handlePreloadError);
+    return () => window.removeEventListener("vite:preloadError", handlePreloadError);
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
