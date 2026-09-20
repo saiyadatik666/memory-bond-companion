@@ -24,12 +24,27 @@ import type {
   DailyForecast,
   NearbyCategoryType,
   NearbyPlace,
+  SelectedSearchLocation,
+  HelpServiceResult,
 } from "@/types/realSafetyMap";
+import { buildExactGoogleMapsUrl } from "./travelStore";
 
 // Default national center for India (Nagpur, Central India: 20.5937° N, 78.9629° E)
 export const DEFAULT_INDIA_CENTER: LatLng = {
   lat: 20.5937,
   lng: 78.9629,
+};
+
+// Default search center for senior citizens (Mahesana, Gujarat, India)
+export const DEFAULT_SELECTED_LOCATION: SelectedSearchLocation = {
+  name: "Mahesana",
+  city: "Mahesana",
+  state: "Gujarat",
+  country: "India",
+  latitude: 23.5979685,
+  longitude: 72.3698056,
+  displayName: "Mahesana, Gujarat, India",
+  source: "manual",
 };
 
 // Regional center alias
@@ -172,6 +187,101 @@ export async function searchGeocodingOSM(
   nearLng?: number
 ): Promise<PlaceSearchResult[]> {
   return searchPlacesNominatim(query, nearLat, nearLng);
+}
+
+/**
+ * Parses a raw Nominatim geocoding item into a structured SelectedSearchLocation
+ * with explicit city, state, country, and coordinates as the source of truth.
+ */
+export function parseNominatimPlace(item: any): SelectedSearchLocation {
+  const addr = item.address || {};
+  const city =
+    addr.city ||
+    addr.town ||
+    addr.village ||
+    addr.municipality ||
+    addr.county ||
+    addr.state_district ||
+    item.name ||
+    item.display_name.split(",")[0].trim();
+  const state = addr.state || "Gujarat";
+  const country = addr.country || "India";
+  const name = item.name || city;
+
+  return {
+    name,
+    city,
+    state,
+    country,
+    latitude: parseFloat(item.lat),
+    longitude: parseFloat(item.lon),
+    displayName: item.display_name,
+    placeId: String(item.place_id || ""),
+    source: "manual",
+  };
+}
+
+/**
+ * Searches locations in India with structured autocomplete results
+ * for the manual location search and voice search input.
+ */
+export async function searchLocationsNominatim(
+  query: string
+): Promise<SelectedSearchLocation[]> {
+  const cleanQ = sanitizeSearchQuery(query);
+  if (!cleanQ || cleanQ.length < 2) return [];
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+      cleanQ
+    )}&limit=6&addressdetails=1&countrycodes=in`;
+
+    const res = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "MemoryBond-SafetySystem/1.0",
+      },
+    });
+
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data)) return [];
+
+    return data
+      .filter((item: any) => isInsideIndia(parseFloat(item.lat), parseFloat(item.lon)))
+      .map(parseNominatimPlace);
+  } catch (err) {
+    console.warn("[RealMap] searchLocationsNominatim failed:", err);
+    return [];
+  }
+}
+
+/**
+ * Reverse geocodes device GPS coordinates into a structured SelectedSearchLocation
+ */
+export async function reverseGeocodeToLocation(
+  lat: number,
+  lng: number
+): Promise<SelectedSearchLocation | null> {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
+    const res = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "MemoryBond-SafetySystem/1.0",
+      },
+    });
+    if (!res.ok) return null;
+    const item = await res.json();
+    if (!item || !item.address) return null;
+
+    const parsed = parseNominatimPlace(item);
+    parsed.source = "gps";
+    return parsed;
+  } catch (err) {
+    console.warn("[RealMap] Reverse geocoding failed:", err);
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -575,7 +685,187 @@ const NEARBY_CATEGORY_MAP: Record<
   worship: { query: "place of worship", label: "Place of Worship" },
   parking: { query: "parking", label: "Parking Space" },
   emergency: { query: "emergency", label: "Emergency Services" },
+  doctor: { query: "clinic doctor", label: "Doctors & Clinics" },
+  elder_care: { query: "nursing home", label: "Elder Care & Senior Living" },
 };
+
+const NEARBY_HELP_MAP: Record<
+  "hospital" | "pharmacy" | "emergency" | "doctor" | "elder_care",
+  { query: string; label: string }
+> = {
+  hospital: { query: "hospital", label: "Hospital" },
+  pharmacy: { query: "pharmacy", label: "Pharmacy" },
+  emergency: { query: "emergency hospital", label: "Emergency Service" },
+  doctor: { query: "clinic doctor", label: "Doctor / Clinic" },
+  elder_care: { query: "nursing home", label: "Elder Care" },
+};
+
+const nearbyHelpCache = new Map<
+  string,
+  {
+    timestamp: number;
+    data: {
+      results: HelpServiceResult[];
+      searchRadiusKm: number;
+      isDistantFallback: boolean;
+      message: string;
+    };
+  }
+>();
+
+/**
+ * Searches nearby healthcare and elder care services centered strictly around
+ * the selected location with a 0-10 km primary radius, expanding to 25 km if needed,
+ * and sorted strictly by distance ascending (Requirement 1, 2, 3, 4, 5, 15).
+ */
+export async function searchNearbyHelpServices(
+  location: SelectedSearchLocation,
+  category: "hospital" | "pharmacy" | "emergency" | "doctor" | "elder_care"
+): Promise<{
+  results: HelpServiceResult[];
+  searchRadiusKm: number;
+  isDistantFallback: boolean;
+  message: string;
+}> {
+  const meta = NEARBY_HELP_MAP[category] || { query: "hospital", label: "Healthcare" };
+  const lat = location.latitude;
+  const lng = location.longitude;
+  const cacheKey = `help-${lat.toFixed(3)},${lng.toFixed(3)}-${category}`;
+
+  const cached = nearbyHelpCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  try {
+    const fetchPOIs = async (delta: number) => {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+        meta.query
+      )}&bounded=1&viewbox=${lng - delta},${lat + delta},${lng + delta},${lat - delta}&limit=25&addressdetails=1&countrycodes=in`;
+      const res = await fetch(url, {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "MemoryBond-NearbyHelpEngine/1.0",
+        },
+      });
+      if (!res.ok) return [];
+      const json = await res.json();
+      return Array.isArray(json) ? json : [];
+    };
+
+    // Primary: ~10 km radius (delta 0.10)
+    let items = await fetchPOIs(0.10);
+
+    // If fewer than 3 items, expand to ~25 km radius (delta 0.25)
+    if (items.length < 3) {
+      const secondary = await fetchPOIs(0.25);
+      const seen = new Set(items.map((i: any) => i.place_id));
+      for (const item of secondary) {
+        if (!seen.has(item.place_id)) {
+          items.push(item);
+          seen.add(item.place_id);
+        }
+      }
+    }
+
+    const allMapped: HelpServiceResult[] = items
+      .map((item: any) => {
+        const itemLat = parseFloat(item.lat);
+        const itemLng = parseFloat(item.lon);
+        const distKm = calculateDistanceKm({ lat, lng }, { lat: itemLat, lng: itemLng });
+        const cleanName = item.name || item.display_name.split(",")[0].trim();
+        const phone = item.extratags?.phone || item.extratags?.["contact:phone"] || null;
+        const googleMapsUrl = buildExactGoogleMapsUrl({
+          name: cleanName,
+          address: item.display_name,
+          lat: itemLat,
+          lng: itemLng,
+          city: location.city,
+          state: location.state,
+          placeId: String(item.place_id || ""),
+        });
+
+        return {
+          id: String(item.place_id),
+          name: cleanName,
+          type: category,
+          categoryLabel: meta.label,
+          address: item.display_name,
+          city: location.city,
+          state: location.state,
+          lat: itemLat,
+          lng: itemLng,
+          distanceKm: distKm,
+          phone,
+          googleMapsUrl,
+          isOpen24Hours: item.extratags?.opening_hours === "24/7",
+          source: "OpenStreetMap Verified Facilities Directory",
+        };
+      })
+      .filter((item) => isInsideIndia(item.lat, item.lng));
+
+    // Sort strictly by distance ascending (Requirement 4)
+    allMapped.sort((a, b) => a.distanceKm - b.distanceKm);
+
+    // 1. Primary radius: 0–10 km
+    const within10km = allMapped.filter((r) => r.distanceKm <= 10.0);
+    if (within10km.length >= 3) {
+      const out = {
+        results: within10km,
+        searchRadiusKm: 10,
+        isDistantFallback: false,
+        message: `Showing ${within10km.length} ${meta.label.toLowerCase()} locations within 10 km of ${location.name}.`,
+      };
+      nearbyHelpCache.set(cacheKey, { timestamp: Date.now(), data: out });
+      return out;
+    }
+
+    // 2. Secondary radius: 10–25 km
+    const within25km = allMapped.filter((r) => r.distanceKm <= 25.0);
+    if (within25km.length > 0) {
+      const notice =
+        within10km.length > 0
+          ? `Showing ${within25km.length} closest ${meta.label.toLowerCase()} locations within 25 km of ${location.name}.`
+          : `No ${meta.label.toLowerCase()} found within 10 km. Showing ${within25km.length} closest options within 25 km of ${location.name}.`;
+      const out = {
+        results: within25km,
+        searchRadiusKm: 25,
+        isDistantFallback: false,
+        message: notice,
+      };
+      nearbyHelpCache.set(cacheKey, { timestamp: Date.now(), data: out });
+      return out;
+    }
+
+    // 3. Fallback: closest available options (Requirement 3)
+    if (allMapped.length > 0) {
+      const closest = allMapped.slice(0, 5);
+      const out = {
+        results: closest,
+        searchRadiusKm: Math.ceil(closest[closest.length - 1].distanceKm),
+        isDistantFallback: true,
+        message: "No nearby results found. Showing the closest available options.",
+      };
+      nearbyHelpCache.set(cacheKey, { timestamp: Date.now(), data: out });
+      return out;
+    }
+
+    return {
+      results: [],
+      searchRadiusKm: 25,
+      isDistantFallback: false,
+      message: `No ${meta.label.toLowerCase()} locations found near ${location.name}.`,
+    };
+  } catch (err) {
+    console.warn("[RealMap] searchNearbyHelpServices failed:", err);
+    return {
+      results: [],
+      searchRadiusKm: 10,
+      isDistantFallback: false,
+      message: "We couldn't load nearby locations right now. Please check your internet connection and try again.",
+    };
+  }
+}
 
 // In-memory cache to respect free OSM rate limits
 const nearbyCache = new Map<string, { timestamp: number; data: NearbyPlace[] }>();

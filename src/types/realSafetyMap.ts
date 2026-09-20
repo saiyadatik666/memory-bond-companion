@@ -51,6 +51,18 @@ export interface SelectedLocationState {
   selectedAt: string;
 }
 
+export interface SelectedSearchLocation {
+  name: string;
+  city: string;
+  state: string;
+  country: string;
+  latitude: number;
+  longitude: number;
+  displayName: string;
+  placeId?: string;
+  source: "gps" | "manual" | "voice";
+}
+
 export type NearbyCategoryType =
   | "hotel"
   | "hospital"
@@ -67,7 +79,9 @@ export type NearbyCategoryType =
   | "nearby"
   | "worship"
   | "parking"
-  | "emergency";
+  | "emergency"
+  | "doctor"
+  | "elder_care";
 
 export interface NearbyPlace {
   id: string;
@@ -160,12 +174,29 @@ export type LiveWeatherObservation = RealWeatherResult;
 export interface EmergencyFacility {
   id: string;
   name: string;
-  type: "hospital" | "clinic" | "pharmacy" | "police" | "fire_station";
+  type: "hospital" | "clinic" | "pharmacy" | "police" | "fire_station" | "emergency" | "doctor" | "elder_care";
   lat: number;
   lng: number;
   distanceKm: number;
   address: string;
   phone: string | null; // Real phone only if present in OSM tags; never fabricated
+  isOpen24Hours?: boolean;
+  source: string;
+}
+
+export interface HelpServiceResult {
+  id: string;
+  name: string;
+  type: "hospital" | "pharmacy" | "emergency" | "doctor" | "elder_care";
+  categoryLabel: string;
+  address: string;
+  city: string;
+  state: string;
+  lat: number;
+  lng: number;
+  distanceKm: number;
+  phone: string | null;
+  googleMapsUrl: string;
   isOpen24Hours?: boolean;
   source: string;
 }

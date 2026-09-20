@@ -605,15 +605,15 @@ export function RealInteractiveMap({
 
             return (
               <div
-                className="absolute pointer-events-auto cursor-pointer flex flex-col items-center"
+                className="absolute pointer-events-auto cursor-pointer flex flex-col items-center z-30"
                 style={{
-                  transform: `translate3d(${pt.x - 16}px, ${pt.y - 36}px, 0)`,
+                  transform: `translate3d(${pt.x - 20}px, ${pt.y - 48}px, 0)`,
                 }}
                 onClick={(e) => {
                   e.stopPropagation();
                   setActivePin({
                     title: activeSelectedLoc.name,
-                    type: activeSelectedLoc.type || "Selected Destination",
+                    type: activeSelectedLoc.type || "Selected Location",
                     lat: activeSelectedLoc.lat,
                     lng: activeSelectedLoc.lng,
                     address: activeSelectedLoc.address,
@@ -621,8 +621,11 @@ export function RealInteractiveMap({
                   });
                 }}
               >
-                <div className="w-8 h-8 rounded-full bg-rose-600 text-white flex items-center justify-center text-sm shadow-xl border-2 border-white animate-bounce-short">
-                  🎯
+                <div className="px-2.5 py-0.5 rounded-md bg-amber-500 text-slate-950 font-black text-[11px] shadow-lg border border-white whitespace-nowrap mb-1">
+                  📍 {activeSelectedLoc.name || "Selected Location"}
+                </div>
+                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-600 to-amber-400 text-white flex items-center justify-center text-base shadow-xl border-2 border-white ring-4 ring-amber-400/30 animate-pulse">
+                  📍
                 </div>
               </div>
             );
@@ -679,7 +682,7 @@ export function RealInteractiveMap({
           );
         })}
 
-        {/* D) Emergency Facilities Markers */}
+        {/* D) Emergency Facilities & Nearby Help Markers (Requirement 14) */}
         {facilities.map((fac) => {
           const pt = projectToScreen(fac.lat, fac.lng);
           const isVisible =
@@ -689,10 +692,37 @@ export function RealInteractiveMap({
             pt.y <= dimensions.height + 30;
           if (!isVisible) return null;
 
+          const facType = fac.type || "hospital";
+          const icon =
+            facType === "hospital"
+              ? "🏥"
+              : facType === "pharmacy"
+              ? "💊"
+              : facType === "emergency"
+              ? "🚑"
+              : facType === "doctor" || facType === "clinic"
+              ? "👨‍⚕️"
+              : facType === "elder_care"
+              ? "🏠"
+              : "🏥";
+
+          const bgClass =
+            facType === "hospital"
+              ? "bg-rose-600"
+              : facType === "pharmacy"
+              ? "bg-emerald-600"
+              : facType === "emergency"
+              ? "bg-red-700"
+              : facType === "doctor" || facType === "clinic"
+              ? "bg-indigo-600"
+              : facType === "elder_care"
+              ? "bg-teal-600"
+              : "bg-rose-600";
+
           return (
             <div
               key={fac.id}
-              className="absolute pointer-events-auto cursor-pointer group"
+              className="absolute pointer-events-auto cursor-pointer group z-20"
               style={{
                 transform: `translate3d(${pt.x - 14}px, ${pt.y - 14}px, 0)`,
               }}
@@ -700,7 +730,7 @@ export function RealInteractiveMap({
                 e.stopPropagation();
                 setActivePin({
                   title: fac.name,
-                  type: fac.type === "hospital" ? "Hospital" : fac.type,
+                  type: facType === "hospital" ? "Hospital" : facType,
                   lat: fac.lat,
                   lng: fac.lng,
                   address: `${fac.address} (${fac.distanceKm} km away)`,
@@ -708,8 +738,8 @@ export function RealInteractiveMap({
                 });
               }}
             >
-              <div className="w-7 h-7 rounded-full bg-rose-600 text-white flex items-center justify-center text-xs shadow-md border-2 border-white group-hover:scale-115 transition-transform">
-                🏥
+              <div className={`w-8 h-8 rounded-full ${bgClass} text-white flex items-center justify-center text-xs shadow-md border-2 border-white group-hover:scale-125 transition-transform`}>
+                {icon}
               </div>
             </div>
           );

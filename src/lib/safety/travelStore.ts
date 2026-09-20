@@ -153,11 +153,16 @@ export function clearRecentDestinations(): void {
 /**
  * Generate external turn-by-turn navigation URL for Google Maps, Apple Maps, or Universal Map intent
  */
-export function getExternalNavigationUrl(destination: LatLng, origin?: LatLng | null, destinationName?: string): string {
+export function getExternalNavigationUrl(
+  destination: LatLng,
+  origin?: LatLng | null,
+  destinationName?: string,
+  destinationAddress?: string
+): string {
   const destStr = `${destination.lat},${destination.lng}`;
   const isApple = typeof navigator !== "undefined" && /(Mac|iPhone|iPod|iPad)/i.test(navigator.userAgent);
 
-  if (origin) {
+  if (origin && origin.lat && origin.lng) {
     const origStr = `${origin.lat},${origin.lng}`;
     if (isApple) {
       return `https://maps.apple.com/?saddr=${origStr}&daddr=${destStr}&dirflg=d`;
@@ -165,10 +170,77 @@ export function getExternalNavigationUrl(destination: LatLng, origin?: LatLng | 
     return `https://www.google.com/maps/dir/?api=1&origin=${origStr}&destination=${destStr}&travelmode=driving`;
   }
 
+  if (destinationName && destinationAddress) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${destinationName}, ${destinationAddress}`)}`;
+  } else if (destinationName) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destinationName)}`;
+  }
+
   if (isApple) {
     return `https://maps.apple.com/?q=${encodeURIComponent(destinationName || "Destination")}&ll=${destStr}`;
   }
   return `https://www.google.com/maps/search/?api=1&query=${destStr}`;
+}
+
+/**
+ * Constructs an exact, unambiguous Google Maps search/view URL
+ * Preserves full contextual information (Name, City, State, Country, and Lat/Lng)
+ * to prevent Google Maps from redirecting to another similarly-named location.
+ */
+export function buildExactGoogleMapsUrl(result: {
+  name: string;
+  address?: string;
+  lat: number;
+  lng: number;
+  city?: string;
+  state?: string;
+  placeId?: string;
+}): string {
+  const cityState = [result.city, result.state, "India"].filter(Boolean).join(", ");
+  const queryText = result.name.toLowerCase().includes(result.city?.toLowerCase() || "")
+    ? `${result.name}, ${result.state || "India"}`
+    : `${result.name}, ${cityState}`;
+
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(queryText)}`;
+}
+
+/**
+ * Constructs a turn-by-turn driving directions URL in Google Maps
+ * to the exact coordinate destination.
+ */
+export function buildExactGoogleMapsDirectionsUrl(
+  destination: { lat: number; lng: number; name?: string; address?: string },
+  origin?: LatLng | null
+): string {
+  const destCoords = `${destination.lat},${destination.lng}`;
+  if (origin && origin.lat && origin.lng) {
+    const origStr = `${origin.lat},${origin.lng}`;
+    return `https://www.google.com/maps/dir/?api=1&origin=${origStr}&destination=${destCoords}&travelmode=driving`;
+  }
+  return `https://www.google.com/maps/dir/?api=1&destination=${destCoords}&travelmode=driving`;
+}
+
+const STORAGE_SELECTED_LOCATION_KEY = "mb_selected_search_location";
+
+export function loadSelectedSearchLocation(): import("@/types/realSafetyMap").SelectedSearchLocation | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_SELECTED_LOCATION_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (err) {
+    console.warn("[TravelStore] Failed to load selected search location:", err);
+    return null;
+  }
+}
+
+export function saveSelectedSearchLocation(loc: import("@/types/realSafetyMap").SelectedSearchLocation): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_SELECTED_LOCATION_KEY, JSON.stringify(loc));
+  } catch (err) {
+    console.warn("[TravelStore] Failed to save selected search location:", err);
+  }
 }
 
 /**

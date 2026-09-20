@@ -43,10 +43,14 @@ import {
   searchNearbyEmergencyFacilities,
   analyzeRoadSafety,
   searchPlacesNominatim,
+  searchLocationsNominatim,
+  reverseGeocodeToLocation,
+  searchNearbyHelpServices,
   sanitizeSearchQuery,
   searchNearbyPOIs,
   calculateDistanceKm,
   DEFAULT_INDIA_CENTER,
+  DEFAULT_SELECTED_LOCATION,
   DEFAULT_NER_CENTER,
   isInsideIndia,
 } from "@/lib/safety/realMapService";
@@ -58,6 +62,10 @@ import {
   addRecentDestination,
   removeRecentDestination,
   getExternalNavigationUrl,
+  buildExactGoogleMapsUrl,
+  buildExactGoogleMapsDirectionsUrl,
+  loadSelectedSearchLocation,
+  saveSelectedSearchLocation,
   isOnline,
   type SavedPlace,
   type RecentDestination,
@@ -75,6 +83,8 @@ import type {
   NearbyCategoryType,
   NearbyPlace,
   PlaceSearchResult,
+  SelectedSearchLocation,
+  HelpServiceResult,
   LatLng,
 } from "@/types/realSafetyMap";
 
@@ -109,10 +119,37 @@ export function SeniorNerAccessibilityView({
     useState<LocationPermissionState>("prompt");
   const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
 
-  // 2. User-Selected Map Location State (Distinct from Live GPS)
+  // 1B. Primary Selected Search Location - Source of Truth (Requirement 1)
+  const [selectedSearchLocation, setSelectedSearchLocation] = useState<SelectedSearchLocation>(() => {
+    return loadSelectedSearchLocation() || DEFAULT_SELECTED_LOCATION;
+  });
+
+  // Nearby Help Services State (Requirement 2, 3, 4, 18)
+  const [activeHelpCategory, setActiveHelpCategory] = useState<
+    "hospital" | "pharmacy" | "emergency" | "doctor" | "elder_care"
+  >("hospital");
+  const [helpServices, setHelpServices] = useState<HelpServiceResult[]>([]);
+  const [helpSearchNotice, setHelpSearchNotice] = useState<string | null>(null);
+  const [isLoadingHelpServices, setIsLoadingHelpServices] = useState(false);
+
+  // Search input & autocomplete state for search bar directly above map (Problem 2)
+  const [searchLocationQuery, setSearchLocationQuery] = useState("");
+  const [locationSuggestions, setLocationSuggestions] = useState<SelectedSearchLocation[]>([]);
+  const [isSearchingLocations, setIsSearchingLocations] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Voice Search states (Requirement 10 & 11)
+  const [isListening, setIsListening] = useState(false);
+  const [voiceConfirmation, setVoiceConfirmation] = useState<{
+    transcript: string;
+    location?: SelectedSearchLocation;
+  } | null>(null);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+
+  // 2. User-Selected Map Location State (Destination for Routing)
   const [selectedLocation, setSelectedLocation] = useState<SelectedLocationState | null>(null);
 
-  // 3. Search & Quick Categories State
+  // 3. Quick Categories State
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<PlaceSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -260,6 +297,196 @@ export function SeniorNerAccessibilityView({
       );
     }
   }, []);
+
+  // 1C. Location-Aware Help Services Fetcher (Requirements 1, 2, 3, 4)
+  const loadNearbyServices = useCallback(
+    async (
+      loc: SelectedSearchLocation,
+      cat: "hospital" | "pharmacy" | "emergency" | "doctor" | "elder_care"
+    ) => {
+      setIsLoadingHelpServices(true);
+      setHelpSearchNotice(null);
+
+      const res = await searchNearbyHelpServices(loc, cat);
+      setHelpServices(res.results);
+      setHelpSearchNotice(res.message);
+      setIsLoadingHelpServices(false);
+
+      // Preload live weather and road analysis for this selected location
+      fetchLiveWeatherOpenMeteo(loc.latitude, loc.longitude).then(setLiveWeather);
+      analyzeRoadSafety(
+        { lat: loc.latitude, lng: loc.longitude },
+        { lat: loc.latitude + 0.04, lng: loc.longitude + 0.04 },
+        loc.name
+      ).then(setRoadAnalysis);
+    },
+    []
+  );
+
+  // Automatically refresh nearby help services when selected location or category changes
+  useEffect(() => {
+    loadNearbyServices(selectedSearchLocation, activeHelpCategory);
+  }, [selectedSearchLocation, activeHelpCategory, loadNearbyServices]);
+
+  // Select a new location as the primary search center (Requirement 1 & 6)
+  const handleSelectSearchLocation = useCallback(
+    (loc: SelectedSearchLocation) => {
+      setSelectedSearchLocation(loc);
+      saveSelectedSearchLocation(loc);
+      setSearchLocationQuery("");
+      setLocationSuggestions([]);
+      setVoiceConfirmation(null);
+      setVoiceError(null);
+      setSelectedLocation(null);
+      setActiveRoute(null);
+      setAvailableRoutes([]);
+
+      const spoken =
+        currentLanguage === "hi"
+          ? `स्थान चुना गया: ${loc.name}, ${loc.state}। नजदीकी सेवाएं अपडेट की जा रही हैं।`
+          : currentLanguage === "gu"
+          ? `સ્થળ પસંદ થયું: ${loc.name}, ${loc.state}। નજીકની સેવાઓ અપડેટ થઈ રહી છે.`
+          : `Selected search location: ${loc.name}, ${loc.state}. Updating nearby services.`;
+      announceToUser(spoken);
+    },
+    [currentLanguage, announceToUser]
+  );
+
+  // Handle manual typing in location search bar (Requirement 9)
+  const handleLocationInputChange = (val: string) => {
+    setSearchLocationQuery(val);
+    setVoiceError(null);
+    setVoiceConfirmation(null);
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (!val.trim() || val.trim().length < 2) {
+      setLocationSuggestions([]);
+      setIsSearchingLocations(false);
+      return;
+    }
+
+    setIsSearchingLocations(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      const results = await searchLocationsNominatim(val);
+      setLocationSuggestions(results);
+      setIsSearchingLocations(false);
+    }, 280);
+  };
+
+  // Voice Search Handler (Requirement 10 & 11)
+  const startVoiceSearch = useCallback(() => {
+    setVoiceError(null);
+    setVoiceConfirmation(null);
+
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setVoiceError(
+        currentLanguage === "hi"
+          ? "इस ब्राउज़र में वॉयस सर्च समर्थित नहीं है। कृपया लिखकर खोजें।"
+          : currentLanguage === "gu"
+          ? "આ બ્રાઉઝરમાં વોઇસ સર્ચ સપોર્ટેડ નથી. કૃપા કરીને ટાઇપ કરીને શોધો."
+          : "Voice search is not supported in this browser. Please type your location manually."
+      );
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang =
+        currentLanguage === "gu" ? "gu-IN" : currentLanguage === "hi" ? "hi-IN" : "en-IN";
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+        announceToUser(
+          currentLanguage === "hi"
+            ? "कृपया शहर या स्थान का नाम बोलें..."
+            : currentLanguage === "gu"
+            ? "કૃપા કરીને શહેર અથવા સ્થળનું નામ બોલો..."
+            : "Please say a city or location..."
+        );
+      };
+
+      recognition.onresult = async (event: any) => {
+        setIsListening(false);
+        const transcript = event.results[0][0].transcript?.trim();
+        if (!transcript) return;
+
+        setSearchLocationQuery(transcript);
+        announceToUser(`Searching for ${transcript}`);
+
+        // Geocode speech to locations
+        const locations = await searchLocationsNominatim(transcript);
+        if (locations.length > 0) {
+          const topLoc = locations[0];
+          setVoiceConfirmation({
+            transcript,
+            location: topLoc,
+          });
+          setLocationSuggestions(locations);
+        } else {
+          setVoiceConfirmation({
+            transcript,
+          });
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        setIsListening(false);
+        console.warn("[VoiceSearch] Error:", event.error);
+        if (event.error === "not-allowed") {
+          setVoiceError(
+            "Microphone access is required for voice search. You can still type your location manually."
+          );
+        } else {
+          setVoiceError("No speech detected. Please tap the microphone and try speaking again.");
+        }
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.start();
+    } catch (err) {
+      console.warn("[VoiceSearch] Exception:", err);
+      setIsListening(false);
+      setVoiceError(
+        "Microphone access could not be started. You can still type your location manually."
+      );
+    }
+  }, [currentLanguage, announceToUser]);
+
+  // Use Device GPS as current search location
+  const handleUseDeviceLocationAsSearchCenter = useCallback(async () => {
+    if (!locationState.coords) {
+      handleRequestLocation();
+      return;
+    }
+    setOperationLoadingText("Finding city for your GPS location…");
+    const gpsLoc = await reverseGeocodeToLocation(locationState.coords.lat, locationState.coords.lng);
+    setOperationLoadingText(null);
+    if (gpsLoc) {
+      handleSelectSearchLocation(gpsLoc);
+    } else {
+      handleSelectSearchLocation({
+        name: "My Location",
+        city: "Current Location",
+        state: "India",
+        country: "India",
+        latitude: locationState.coords.lat,
+        longitude: locationState.coords.lng,
+        displayName: `Coordinates: ${locationState.coords.lat.toFixed(4)}, ${locationState.coords.lng.toFixed(4)}`,
+        source: "gps",
+      });
+    }
+  }, [locationState.coords, handleRequestLocation, handleSelectSearchLocation]);
 
   // Multi-lingual Voice Alert announcer (Requirement 11 & 12)
   const speakTravelAlert = useCallback(() => {
@@ -1043,152 +1270,459 @@ export function SeniorNerAccessibilityView({
       </div>
 
       {/* ============================================================ */}
-      {/* 3. PROMINENT SEARCH FIELD (Requirement 4 & 5)                */}
+      {/* 3. LOCATION & SEARCH BAR DIRECTLY ABOVE MAP (Requirements 8-11) */}
       {/* ============================================================ */}
-      <div className="space-y-2">
-        <form onSubmit={handleSearch} className="relative">
-          <div className="relative flex items-center w-full rounded-3xl bg-white dark:bg-slate-900 border-2 border-sky-300 focus-within:border-sky-600 focus-within:ring-4 focus-within:ring-sky-100 dark:focus-within:ring-sky-950/50 shadow-md transition-all p-2 pl-4 gap-3">
+      <div className="p-5 sm:p-6 rounded-3xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-2 border-sky-300 dark:border-sky-800 shadow-md space-y-4">
+        {/* Active Search Location Header (Requirement 1, 6 & 7) */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">📍</span>
+              <span className="text-xs font-black uppercase tracking-wider text-sky-700 dark:text-sky-300">
+                CURRENT SEARCH LOCATION • PRIMARY GEOGRAPHIC REFERENCE
+              </span>
+            </div>
+            <div className="text-xl sm:text-2xl font-black text-foreground mt-1 flex flex-wrap items-baseline gap-2">
+              <span>{selectedSearchLocation.city || selectedSearchLocation.name}, {selectedSearchLocation.state}</span>
+              <span className="text-xs font-bold text-muted-foreground">({selectedSearchLocation.country})</span>
+              <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300">
+                Single Source of Truth
+              </span>
+            </div>
+            <p className="text-xs font-semibold text-muted-foreground mt-0.5">
+              All healthcare, doctors, pharmacies and emergency help services below are centered strictly around this location.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0 self-start sm:self-auto">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleUseDeviceLocationAsSearchCenter}
+              className="h-9 px-3.5 rounded-xl font-bold text-xs gap-1.5 cursor-pointer border-sky-300 text-sky-800 dark:text-sky-200 hover:bg-sky-50 shadow-2xs"
+              title="Set search center using your device GPS"
+            >
+              <MapPin className="h-3.5 w-3.5 text-sky-600" />
+              <span>Use My Location</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const el = document.getElementById("senior-location-search-input");
+                el?.focus();
+              }}
+              className="h-9 px-3.5 rounded-xl font-bold text-xs gap-1.5 cursor-pointer border-border hover:bg-muted"
+            >
+              <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+              <span>Change City</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Senior-Friendly Search Bar with Integrated Microphone (Requirements 8, 9, 10, 19) */}
+        <div className="relative">
+          <div className="relative flex items-center w-full rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border-3 border-sky-400 focus-within:border-sky-600 focus-within:ring-4 focus-within:ring-sky-100 dark:focus-within:ring-sky-950/60 shadow-lg transition-all p-2 pl-4 sm:pl-5 gap-2 sm:gap-3">
             <Search className="h-6 w-6 text-sky-600 shrink-0" />
             <Input
-              id="search-destination-input"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              id="senior-location-search-input"
+              value={searchLocationQuery}
+              onChange={(e) => handleLocationInputChange(e.target.value)}
               placeholder={
                 currentLanguage === "hi"
-                  ? "भारत में अपना गंतव्य स्थान खोजें..."
+                  ? "शहर, क्षेत्र या स्थान खोजें (उदा: Mahesana, Vadodara, Ahmedabad)..."
                   : currentLanguage === "gu"
-                  ? "ભારતમાં તમારું સ્થળ શોધો..."
-                  : "Search destination in India..."
+                  ? "શહેર અથવા સ્થળ શોધો (દા.ત: Mahesana, Vadodara, Ahmedabad)..."
+                  : "Search city, area or location (e.g. Mahesana, Vadodara, Ahmedabad)..."
               }
               className="border-0 shadow-none focus-visible:ring-0 text-base sm:text-lg font-bold h-12 p-0 bg-transparent text-foreground placeholder:text-muted-foreground"
             />
-            {isSearching && (
-              <RefreshCw className="h-5 w-5 text-sky-600 animate-spin shrink-0 mr-2" />
-            )}
-            {searchQuery && (
+
+            {/* Clear Button */}
+            {searchLocationQuery && (
               <button
                 type="button"
                 onClick={() => {
-                  setSearchQuery("");
-                  setSearchResults([]);
-                  setSearchHasSearched(false);
+                  setSearchLocationQuery("");
+                  setLocationSuggestions([]);
+                  setVoiceConfirmation(null);
                 }}
-                className="w-8 h-8 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground font-black text-sm cursor-pointer shrink-0"
-                title="Clear search"
+                className="w-9 h-9 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground font-black text-sm cursor-pointer shrink-0"
+                title="Clear"
               >
                 ✕
               </button>
             )}
-            <Button
-              type="submit"
-              disabled={isSearching || !searchQuery.trim()}
-              className="h-12 px-6 rounded-2xl font-black text-sm bg-primary hover:bg-primary/90 text-white cursor-pointer shrink-0 shadow-md"
+
+            {/* Senior-Friendly Microphone Button (Requirement 10 & 19) */}
+            <button
+              type="button"
+              onClick={startVoiceSearch}
+              className={`h-12 px-4 sm:px-6 rounded-xl sm:rounded-2xl font-black text-sm flex items-center gap-2 cursor-pointer transition-all shrink-0 shadow-md ${
+                isListening
+                  ? "bg-rose-600 text-white animate-pulse ring-4 ring-rose-300"
+                  : "bg-sky-600 hover:bg-sky-700 text-white active:scale-95"
+              }`}
+              title="Search location using voice"
             >
-              Search
-            </Button>
+              <Mic className={`h-5 w-5 ${isListening ? "animate-bounce" : ""}`} />
+              <span className="hidden sm:inline">
+                {isListening ? "Listening…" : "Voice Search"}
+              </span>
+            </button>
           </div>
 
-          {/* Autocomplete / Search Results Dropdown */}
-          {searchResults.length > 0 && (
-            <div className="absolute top-18 left-0 right-0 rounded-3xl bg-white dark:bg-slate-900 border-2 border-border shadow-2xl p-2.5 max-h-72 overflow-y-auto space-y-1 z-50 animate-in fade-in slide-in-from-top-2">
-              <div className="px-3 py-1 text-[11px] font-black uppercase text-muted-foreground tracking-wider">
-                Matching Places ({searchResults.length})
+          {/* Voice Listening Active Indicator (Requirement 10 & 11) */}
+          {isListening && (
+            <div className="mt-2.5 p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/70 border-2 border-rose-300 text-rose-950 dark:text-rose-100 flex items-center justify-between text-xs sm:text-sm font-black shadow-md animate-pulse">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl animate-spin">🎙️</span>
+                <div>
+                  <div className="font-black text-sm">Listening... Please say a city or location</div>
+                  <div className="text-xs font-semibold text-rose-800 dark:text-rose-300 mt-0.5">
+                    Example: "Mahesana Gujarat", "Vadodara", or "Ahmedabad"
+                  </div>
+                </div>
               </div>
-              {searchResults.map((res) => (
-                <button
-                  key={res.id}
-                  type="button"
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setIsListening(false)}
+                className="h-8 px-3 rounded-xl border-rose-300 text-rose-900 hover:bg-rose-100 font-bold text-xs"
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
+
+          {/* Voice Confirmation Card (Requirement 11) */}
+          {voiceConfirmation && (
+            <div className="mt-2.5 p-4 sm:p-5 rounded-2xl bg-sky-50 dark:bg-sky-950/90 border-2 border-sky-400 shadow-lg text-xs space-y-3 animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-center gap-2.5">
+                <span className="text-2xl">🎙️</span>
+                <div>
+                  <div className="text-xs font-bold text-muted-foreground uppercase">Voice Recognized</div>
+                  <div className="font-black text-base sm:text-lg text-foreground">
+                    Did you mean:{" "}
+                    <span className="text-primary underline">
+                      {voiceConfirmation.location?.displayName || voiceConfirmation.transcript}
+                    </span>
+                    ?
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                {voiceConfirmation.location ? (
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      if (voiceConfirmation.location) {
+                        handleSelectSearchLocation(voiceConfirmation.location);
+                      }
+                    }}
+                    className="h-11 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm cursor-pointer shadow-md gap-1.5"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>Yes, use this location</span>
+                  </Button>
+                ) : null}
+
+                <Button
+                  size="sm"
+                  variant="outline"
                   onClick={() => {
-                    const loc: SelectedLocationState = {
-                      lat: res.lat,
-                      lng: res.lng,
-                      name: res.name,
-                      address: res.displayName,
-                      type: res.category || "Search Result",
-                      selectedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-                    };
-                    handleSelectDestination(loc);
-                    setSearchResults([]);
-                    setSearchQuery(res.name);
+                    setVoiceConfirmation(null);
+                    startVoiceSearch();
                   }}
-                  className="w-full p-3 rounded-2xl hover:bg-sky-50 dark:hover:bg-slate-800 text-left transition-colors cursor-pointer flex items-start gap-3"
+                  className="h-11 px-4 rounded-xl font-bold text-xs cursor-pointer border-sky-300 hover:bg-sky-100"
                 >
-                  <MapPin className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                  <Mic className="h-3.5 w-3.5 text-sky-600" />
+                  <span>Search again</span>
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setVoiceConfirmation(null)}
+                  className="h-11 px-3 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Microphone Permission / Voice Error (Requirement 17 Case E) */}
+          {voiceError && (
+            <div className="mt-2.5 p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/60 border border-amber-300 text-xs text-amber-900 dark:text-amber-200 font-semibold flex items-center justify-between shadow-xs">
+              <div className="flex items-center gap-2.5">
+                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                <span>{voiceError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setVoiceError(null)}
+                className="text-xs font-black underline ml-2 cursor-pointer"
+              >
+                Dismiss ✕
+              </button>
+            </div>
+          )}
+
+          {/* Autocomplete Suggestions Dropdown (Requirements 9 & 17 Case B) */}
+          {locationSuggestions.length > 0 && (
+            <div className="absolute top-full mt-2 left-0 right-0 rounded-3xl bg-white dark:bg-slate-900 border-2 border-sky-300 shadow-2xl p-2.5 max-h-72 overflow-y-auto space-y-1 z-50 animate-in fade-in slide-in-from-top-2">
+              <div className="px-3 py-1 text-[11px] font-black uppercase text-muted-foreground tracking-wider">
+                Select Location ({locationSuggestions.length} suggestions)
+              </div>
+              {locationSuggestions.map((loc, idx) => (
+                <button
+                  key={`${loc.name}-${idx}`}
+                  type="button"
+                  onClick={() => handleSelectSearchLocation(loc)}
+                  className="w-full p-3 rounded-2xl hover:bg-sky-50 dark:hover:bg-slate-800 text-left transition-colors cursor-pointer flex items-start gap-3 border border-transparent hover:border-sky-200"
+                >
+                  <MapPin className="h-5 w-5 text-sky-600 shrink-0 mt-0.5" />
                   <div className="min-w-0">
                     <div className="text-sm font-black text-foreground truncate">
-                      {res.name}
+                      {loc.name}, {loc.state}
                     </div>
                     <div className="text-xs text-muted-foreground truncate">
-                      {res.displayName}
+                      {loc.displayName}
                     </div>
                   </div>
                 </button>
               ))}
             </div>
           )}
+        </div>
+      </div>
 
-          {/* No results fallback state (Requirement 5) */}
-          {searchHasSearched && !isSearching && searchResults.length === 0 && (
-            <div className="p-4 rounded-2xl bg-muted/40 border border-border text-center space-y-1 mt-2">
-              <p className="text-sm font-black text-foreground">No place found.</p>
-              <p className="text-xs font-semibold text-muted-foreground">
-                Try another name or search nearby using the categories below.
-              </p>
-            </div>
-          )}
-        </form>
+      {/* ============================================================ */}
+      {/* 4. REAL INTERACTIVE MAP (Immediately Below Search Bar)        */}
+      {/* ============================================================ */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg sm:text-xl font-black text-foreground flex items-center gap-2">
+              <span>Interactive Healthcare & Navigation Map</span>
+            </h2>
+            <p className="text-xs font-semibold text-muted-foreground">
+              Centered on 📍 <strong>{selectedSearchLocation.city || selectedSearchLocation.name}, {selectedSearchLocation.state}</strong>
+            </p>
+          </div>
+          <span className="text-xs font-bold text-muted-foreground hidden sm:inline">
+            📍 0–25 km verified radius
+          </span>
+        </div>
 
-        {/* ============================================================ */}
-        {/* 4. QUICK CATEGORIES (Requirement 4 & 6)                      */}
-        {/* ============================================================ */}
-        <div className="pt-2">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-black uppercase tracking-wider text-muted-foreground">
-              Quick Categories
-            </span>
-            {activeCategory && (
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveCategory(null);
-                  setCategoryResults([]);
-                }}
-                className="text-xs font-bold text-sky-600 hover:underline cursor-pointer"
-              >
-                Clear Category Filter ✕
-              </button>
-            )}
+        <RealInteractiveMap
+          initialCenter={{
+            lat: selectedSearchLocation.latitude,
+            lng: selectedSearchLocation.longitude,
+          }}
+          initialZoom={12}
+          locationState={locationState}
+          hideEmbeddedSearch={true}
+          onCenterOnLocation={() => {
+            if (!locationState.coords) {
+              setIsPermissionModalOpen(true);
+            }
+          }}
+          selectedLocation={
+            selectedLocation || {
+              lat: selectedSearchLocation.latitude,
+              lng: selectedSearchLocation.longitude,
+              name: selectedSearchLocation.city || selectedSearchLocation.name,
+              address: selectedSearchLocation.displayName,
+              type: "Selected Search Center",
+              selectedAt: "",
+            }
+          }
+          onSelectLocation={(loc) => handleSelectDestination(loc)}
+          onClearSelectedLocation={() => {
+            setSelectedLocation(null);
+            setActiveRoute(null);
+          }}
+          onRequestRouteFromCurrent={(dest) => {
+            handleSelectDestination(dest);
+            handleCalculateRoute(dest);
+          }}
+          activeRoute={activeRoute}
+          facilities={mapFacilities}
+          isSeniorMode={true}
+          onSelectDestination={(dest, name) => {
+            const loc: SelectedLocationState = {
+              lat: dest.lat,
+              lng: dest.lng,
+              name,
+              address: `Coordinates: ${dest.lat.toFixed(4)}°N, ${dest.lng.toFixed(4)}°E`,
+              type: "Selected Map Point",
+              selectedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            };
+            handleSelectDestination(loc);
+          }}
+        />
+      </div>
+
+      {/* ============================================================ */}
+      {/* 5. NEARBY HELP & SERVICES (Directly Below Map)                */}
+      {/* ============================================================ */}
+      <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border-2 border-sky-200 dark:border-sky-800 shadow-md space-y-4">
+        {/* Category Selector Tabs (Requirements 2, 14, 18) */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
+          <div>
+            <h3 className="text-lg sm:text-xl font-black text-foreground flex items-center gap-2">
+              <span>Nearby Help Services</span>
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200 font-bold border border-sky-300">
+                Around {selectedSearchLocation.city || selectedSearchLocation.name}
+              </span>
+            </h3>
+            <p className="text-xs font-semibold text-muted-foreground mt-0.5">
+              Verified facilities sorted strictly by distance from {selectedSearchLocation.city || selectedSearchLocation.name}
+            </p>
           </div>
 
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-            {[
-              { id: "hospital", label: "Hospitals", icon: "🏥", color: "border-rose-300 hover:border-rose-500" },
-              { id: "pharmacy", label: "Pharmacies", icon: "💊", color: "border-emerald-300 hover:border-emerald-500" },
-              { id: "fuel", label: "Fuel", icon: "🚗", color: "border-amber-300 hover:border-amber-500" },
-              { id: "hotel", label: "Hotels", icon: "🏨", color: "border-indigo-300 hover:border-indigo-500" },
-              { id: "food", label: "Food", icon: "🍴", color: "border-orange-300 hover:border-orange-500" },
-              { id: "essentials", label: "Essentials", icon: "🛒", color: "border-teal-300 hover:border-teal-500" },
-              { id: "nearby", label: "Nearby", icon: "📍", color: "border-sky-300 hover:border-sky-500" },
-            ].map((cat) => {
-              const isActive = activeCategory === cat.id;
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => handleSelectCategory(cat.id as NearbyCategoryType)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-sm whitespace-nowrap transition-all cursor-pointer border-2 shadow-xs active:scale-95 ${
-                    isActive
-                      ? "bg-primary text-white border-primary shadow-md scale-102"
-                      : `bg-white dark:bg-slate-900 text-foreground ${cat.color}`
-                  }`}
-                >
-                  <span className="text-base">{cat.icon}</span>
-                  <span>{cat.label}</span>
-                </button>
-              );
-            })}
+          <div className="text-xs font-bold text-muted-foreground flex items-center gap-1 self-start sm:self-auto">
+            <span>Center:</span>
+            <strong className="text-foreground">
+              {selectedSearchLocation.city || selectedSearchLocation.name}, {selectedSearchLocation.state}
+            </strong>
           </div>
         </div>
+
+        {/* 5 Prominent Service Category Buttons (Requirement 18) */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+          {[
+            { id: "hospital", label: "Hospitals", icon: "🏥", color: "border-rose-300 text-rose-900" },
+            { id: "pharmacy", label: "Pharmacies", icon: "💊", color: "border-emerald-300 text-emerald-900" },
+            { id: "emergency", label: "Emergency", icon: "🚑", color: "border-red-300 text-red-900" },
+            { id: "doctor", label: "Doctors", icon: "👨‍⚕️", color: "border-indigo-300 text-indigo-900" },
+            { id: "elder_care", label: "Elder Care", icon: "🏠", color: "border-teal-300 text-teal-900" },
+          ].map((cat) => {
+            const isActive = activeHelpCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setActiveHelpCategory(cat.id as any)}
+                className={`flex items-center justify-center gap-2 px-3 py-3 rounded-2xl font-black text-xs sm:text-sm cursor-pointer transition-all border-2 shadow-xs active:scale-95 ${
+                  isActive
+                    ? "bg-primary text-white border-primary shadow-md scale-102"
+                    : `bg-muted/30 hover:bg-muted text-foreground ${cat.color}`
+                }`}
+              >
+                <span className="text-base sm:text-lg">{cat.icon}</span>
+                <span>{cat.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Distance Notice / Fallback Message (Requirement 3 & 17 Case C) */}
+        {helpSearchNotice && (
+          <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/50 border border-amber-300 text-xs font-semibold text-amber-900 dark:text-amber-200 flex items-center gap-2">
+            <span className="text-base">ℹ️</span>
+            <span>{helpSearchNotice}</span>
+          </div>
+        )}
+
+        {/* Loading Spinner */}
+        {isLoadingHelpServices && (
+          <div className="p-6 rounded-2xl bg-muted/20 border border-border text-center space-y-2">
+            <RefreshCw className="h-6 w-6 text-primary animate-spin mx-auto" />
+            <p className="text-xs font-bold text-muted-foreground">
+              Searching verified {activeHelpCategory} services near {selectedSearchLocation.city || selectedSearchLocation.name}…
+            </p>
+          </div>
+        )}
+
+        {/* Results List Sorted by Distance (Requirements 3, 4, 5, 15, 18) */}
+        {!isLoadingHelpServices && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-1">
+            {helpServices.map((svc) => (
+              <div
+                key={svc.id}
+                className="p-4 rounded-2xl bg-white dark:bg-slate-800/90 border border-border/90 hover:border-primary/50 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between gap-3 text-xs"
+              >
+                <div className="space-y-1.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <h4 className="font-black text-sm sm:text-base text-foreground line-clamp-1">
+                      {svc.name}
+                    </h4>
+                    <span className="px-2.5 py-0.5 rounded-md text-[11px] font-black uppercase bg-primary/10 text-primary shrink-0">
+                      {svc.distanceKm} km
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-muted text-muted-foreground">
+                      {svc.categoryLabel}
+                    </span>
+                    {svc.isOpen24Hours && (
+                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                        Open 24/7
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-[11px] text-muted-foreground line-clamp-2">
+                    📍 {svc.address}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/40">
+                  {/* Google Maps Exact Result Button (Requirement 5 & 15) */}
+                  <a
+                    href={svc.googleMapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 h-9 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1.5 font-black text-xs cursor-pointer shadow-xs transition-colors"
+                    title={`Open ${svc.name} in Google Maps`}
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    <span>Open in Maps</span>
+                  </a>
+
+                  {/* Route Button */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const loc: SelectedLocationState = {
+                        lat: svc.lat,
+                        lng: svc.lng,
+                        name: svc.name,
+                        address: svc.address,
+                        type: svc.categoryLabel,
+                        selectedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                      };
+                      handleSelectDestination(loc);
+                      handleCalculateRoute(loc);
+                    }}
+                    className="h-9 px-3 text-xs font-black rounded-xl border-primary/40 text-primary hover:bg-sky-50 cursor-pointer gap-1"
+                  >
+                    <Navigation className="h-3.5 w-3.5" />
+                    <span>Route</span>
+                  </Button>
+
+                  {/* Phone Call Button */}
+                  {svc.phone && (
+                    <a
+                      href={`tel:${svc.phone}`}
+                      className="h-9 px-2.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 flex items-center justify-center font-bold text-xs"
+                      title={`Call ${svc.phone}`}
+                    >
+                      <Phone className="h-3.5 w-3.5" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Loading State Banner (Requirement 23) */}
@@ -1200,327 +1734,7 @@ export function SeniorNerAccessibilityView({
       )}
 
       {/* ============================================================ */}
-      {/* 5. NEARBY PLACES RESULTS LIST (Requirement 6)                */}
-      {/* ============================================================ */}
-      {categoryResults.length > 0 && (
-        <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border-2 border-primary/20 shadow-lg space-y-3 animate-in fade-in">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base sm:text-lg font-black text-foreground flex items-center gap-2">
-              <span>Verified Nearby {activeCategory?.toUpperCase()}</span>
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-muted font-bold text-muted-foreground">
-                {categoryResults.length} found
-              </span>
-            </h3>
-            <span className="text-xs text-muted-foreground font-semibold">
-              Sorted by real driving distance
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {categoryResults.slice(0, 6).map((item) => (
-              <div
-                key={item.id}
-                className="p-3.5 rounded-2xl bg-muted/30 border border-border/80 hover:border-primary/50 text-xs flex flex-col justify-between gap-2.5 transition-all shadow-2xs"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-1">
-                    <span className="font-black text-sm text-foreground line-clamp-1">
-                      {item.name}
-                    </span>
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-primary/10 text-primary shrink-0">
-                      {item.distanceKm} km
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground line-clamp-2 mt-1">
-                    {item.address}
-                  </p>
-                  {item.isOpen24Hours && (
-                    <span className="inline-block mt-1 text-[10px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                      Open 24/7
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2 pt-1 border-t border-border/40">
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      const loc: SelectedLocationState = {
-                        lat: item.lat,
-                        lng: item.lng,
-                        name: item.name,
-                        address: item.address,
-                        type: item.categoryLabel,
-                        selectedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-                      };
-                      handleSelectDestination(loc);
-                      handleCalculateRoute(loc);
-                    }}
-                    className="flex-1 h-8 text-xs font-black rounded-xl bg-primary text-white cursor-pointer"
-                  >
-                    Route Here
-                  </Button>
-
-                  {item.phone && (
-                    <a
-                      href={`tel:${item.phone}`}
-                      className="h-8 px-2.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 flex items-center justify-center font-bold"
-                      title={`Call ${item.phone}`}
-                    >
-                      <Phone className="h-3.5 w-3.5" />
-                    </a>
-                  )}
-
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      const loc: SelectedLocationState = {
-                        lat: item.lat,
-                        lng: item.lng,
-                        name: item.name,
-                        address: item.address,
-                        type: item.categoryLabel,
-                        selectedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-                      };
-                      handleSelectDestination(loc);
-                    }}
-                    className="h-8 px-2.5 text-xs font-bold rounded-xl cursor-pointer"
-                  >
-                    View
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ============================================================ */}
-      {/* 5. WEATHER NEAR YOU & TRAVEL ALERTS (Requirement 7, 8, 9, 10)*/}
-      {/* ============================================================ */}
-      <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-sky-50 via-white to-blue-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-sky-950/20 border-2 border-sky-200 dark:border-sky-800 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-sky-600 text-white flex items-center justify-center text-2xl shadow-md shrink-0">
-              🌦️
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base sm:text-lg font-black text-foreground">
-                  WEATHER NEAR YOU
-                </h3>
-                <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200">
-                  Real-Time Weather
-                </span>
-              </div>
-              <p className="text-xs font-semibold text-muted-foreground">
-                Verified meteorological observations for your current location in India
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={speakTravelAlert}
-              className="h-9 px-3.5 rounded-xl font-black text-xs text-sky-700 border-sky-300 hover:bg-sky-50 gap-1.5 cursor-pointer"
-            >
-              <Volume2 className="h-4 w-4" />
-              <span>Read Weather</span>
-            </Button>
-          </div>
-        </div>
-
-        {/* Real Weather Details Cards (Requirement 8) */}
-        {liveWeather ? (
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 text-xs text-center font-bold">
-            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/80 border border-sky-100 dark:border-slate-700 shadow-2xs">
-              <div className="text-[10px] uppercase font-black text-muted-foreground tracking-wider">Condition</div>
-              <div className="text-base font-black text-foreground mt-1 truncate">{liveWeather.condition}</div>
-            </div>
-            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/80 border border-sky-100 dark:border-slate-700 shadow-2xs">
-              <div className="text-[10px] uppercase font-black text-muted-foreground tracking-wider">Temperature</div>
-              <div className="text-base font-black text-foreground mt-1">{liveWeather.temperatureC}°C</div>
-            </div>
-            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/80 border border-sky-100 dark:border-slate-700 shadow-2xs">
-              <div className="text-[10px] uppercase font-black text-muted-foreground tracking-wider">Rainfall</div>
-              <div className="text-base font-black text-sky-600 mt-1">{liveWeather.precipitationMm} mm</div>
-            </div>
-            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/80 border border-sky-100 dark:border-slate-700 shadow-2xs">
-              <div className="text-[10px] uppercase font-black text-muted-foreground tracking-wider">Wind Speed</div>
-              <div className="text-base font-black text-foreground mt-1">{liveWeather.windSpeedKmh} km/h</div>
-            </div>
-            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/80 border border-sky-100 dark:border-slate-700 shadow-2xs col-span-2 sm:col-span-1">
-              <div className="text-[10px] uppercase font-black text-muted-foreground tracking-wider">Warning</div>
-              <div className="text-sm font-black mt-1 truncate text-amber-700 dark:text-amber-300">
-                {liveWeather.activeWarnings.length > 0 ? liveWeather.activeWarnings[0].title : "None Active"}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="p-4 rounded-2xl bg-muted/20 border border-dashed border-border text-center text-xs text-muted-foreground">
-            {locationState.coords
-              ? "Fetching live weather observations…"
-              : "Enable location to view real weather at your current position."}
-          </div>
-        )}
-
-        {/* Travel Alerts (Requirement 10) */}
-        {liveWeather && liveWeather.activeWarnings.length > 0 && (
-          <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 space-y-2">
-            <div className="flex items-center gap-2 text-xs font-black text-amber-900 dark:text-amber-200">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-              <span>ACTIVE TRAVEL ALERT</span>
-            </div>
-            {liveWeather.activeWarnings.map((w, idx) => (
-              <div key={idx} className="text-xs text-amber-950 dark:text-amber-100 space-y-0.5">
-                <div className="font-black text-sm">{w.title}</div>
-                <p className="font-semibold text-[11px] text-amber-900/80">{w.description}</p>
-                <div className="text-[10px] text-muted-foreground pt-1">
-                  Severity: {w.severity} • Source: Open-Meteo Meteorological Warning Stream
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Destination Weather Comparison if Destination is selected (Requirement 9) */}
-        {selectedLocation && destinationWeather && (
-          <div className="p-4 rounded-2xl bg-white dark:bg-slate-800/90 border border-border shadow-xs space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-black text-foreground flex items-center gap-1.5">
-                <span>🎯 Destination Weather:</span>
-                <strong className="text-primary">{selectedLocation.name}</strong>
-              </span>
-              <span className="text-[11px] font-bold text-muted-foreground">
-                {destinationWeather.condition} • {destinationWeather.temperatureC}°C • Rain: {destinationWeather.precipitationMm} mm
-              </span>
-            </div>
-            {destinationWeather.precipitationMm > 0 ? (
-              <p className="text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 p-2.5 rounded-xl border border-amber-200">
-                🌧️ Rain may affect your destination ({selectedLocation.name}). Carry umbrella or plan extra travel time.
-              </p>
-            ) : (
-              <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-200">
-                ☀️ Clear weather expected at your destination ({selectedLocation.name}).
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* ============================================================ */}
-      {/* 6. NEAREST HOSPITALS (Requirements 13, 14, 15)               */}
-      {/* ============================================================ */}
-      <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-rose-50/80 via-white to-red-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-rose-950/20 border-2 border-rose-200 dark:border-rose-900/50 shadow-md space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-rose-600 text-white flex items-center justify-center text-2xl shadow-md shrink-0">
-              🏥
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base sm:text-lg font-black text-rose-950 dark:text-rose-100">
-                  NEAREST HOSPITALS
-                </h3>
-                <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200 border border-rose-200">
-                  Verified Healthcare
-                </span>
-              </div>
-              <p className="text-xs font-semibold text-muted-foreground">
-                Actual verified hospitals near your real current location in India
-              </p>
-            </div>
-          </div>
-
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleSelectCategory("hospital")}
-            className="h-9 px-4 rounded-xl font-black text-xs text-rose-700 border-rose-300 hover:bg-rose-50 cursor-pointer self-start sm:self-auto"
-          >
-            Find More Hospitals →
-          </Button>
-        </div>
-
-        {nearestHospitals.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {nearestHospitals.slice(0, 3).map((hosp) => (
-              <div
-                key={hosp.id}
-                className="p-4 rounded-2xl bg-white dark:bg-slate-800/90 border border-rose-200/80 dark:border-rose-900/40 flex flex-col justify-between gap-3 shadow-2xs hover:shadow-xs transition-all"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <h4 className="font-black text-sm text-foreground line-clamp-1">
-                      {hosp.name}
-                    </h4>
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200 shrink-0">
-                      {hosp.distanceKm} km
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground line-clamp-2 mt-1">
-                    {hosp.address}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 pt-2 border-t border-border/40">
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      if (!locationState.coords) {
-                        announceToUser(
-                          "Your current location is unavailable. Enable location to calculate the emergency route."
-                        );
-                        setIsPermissionModalOpen(true);
-                        return;
-                      }
-                      const loc: SelectedLocationState = {
-                        lat: hosp.lat,
-                        lng: hosp.lng,
-                        name: hosp.name,
-                        address: hosp.address,
-                        type: "Hospital",
-                        selectedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-                      };
-                      handleSelectDestination(loc);
-                      handleCalculateRoute(loc);
-                    }}
-                    className="flex-1 h-9 text-xs font-black rounded-xl bg-rose-600 hover:bg-rose-700 text-white cursor-pointer shadow-xs gap-1.5"
-                  >
-                    <Navigation className="h-3.5 w-3.5" />
-                    <span>GET EMERGENCY ROUTE</span>
-                  </Button>
-
-                  {hosp.phone && (
-                    <a
-                      href={`tel:${hosp.phone}`}
-                      className="h-9 px-3 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 flex items-center justify-center font-black text-xs gap-1 shadow-2xs"
-                      title={`Call ${hosp.phone}`}
-                    >
-                      <Phone className="h-3.5 w-3.5" />
-                      <span>CALL</span>
-                    </a>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="p-4 rounded-2xl bg-muted/20 border border-dashed border-border text-center text-xs text-muted-foreground space-y-1">
-            <p className="font-bold">
-              {locationState.coords
-                ? "Searching verified hospitals near you…"
-                : "Your current location is unavailable. Enable location to calculate the emergency route."}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* ============================================================ */}
-      {/* 7. ROUTE STATUS & TRAVEL CHECK (Requirement 4, 5, 6)          */}
+      {/* 6. ROUTE STATUS & TRAVEL CHECK (When Destination Selected)   */}
       {/* ============================================================ */}
       {selectedLocation && (
         <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border-2 border-primary/40 shadow-xl space-y-4 animate-in fade-in slide-in-from-bottom-3">
@@ -1559,7 +1773,7 @@ export function SeniorNerAccessibilityView({
             </button>
           </div>
 
-          {/* Real Route Calculation Card (Requirement 4 & 5) */}
+          {/* Real Route Calculation Card */}
           {activeRoute && (
             <div className="p-4 sm:p-5 rounded-2xl bg-sky-50/80 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-sky-200 dark:border-sky-800/80 pb-2.5">
@@ -1578,7 +1792,7 @@ export function SeniorNerAccessibilityView({
                 </div>
               </div>
 
-              {/* Alternative Routes Comparison (Requirement 4) */}
+              {/* Alternative Routes Comparison */}
               {availableRoutes.length > 1 && (
                 <div className="flex flex-wrap items-center gap-2 py-1 border-b border-sky-200/60 dark:border-sky-800/60">
                   <span className="text-[11px] font-black uppercase text-muted-foreground tracking-wider">
@@ -1628,7 +1842,7 @@ export function SeniorNerAccessibilityView({
                 </div>
               </div>
 
-              {/* TRAVEL CHECK Section (Requirement 6) */}
+              {/* TRAVEL CHECK Section */}
               <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-border space-y-2">
                 <div className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">
                   TRAVEL CHECK
@@ -1693,8 +1907,6 @@ export function SeniorNerAccessibilityView({
                   onClick={() => {
                     setSelectedLocation(null);
                     setActiveRoute(null);
-                    const input = document.getElementById("search-destination-input");
-                    input?.focus();
                   }}
                   className="h-8 px-3 rounded-xl border-amber-400 text-amber-900 dark:text-amber-200 font-bold text-xs cursor-pointer"
                 >
@@ -1751,58 +1963,118 @@ export function SeniorNerAccessibilityView({
       )}
 
       {/* ============================================================ */}
-      {/* 8. REAL INTERACTIVE MAP (India-Focused) (Requirement 1, 18)   */}
+      {/* 7. WEATHER NEAR YOU & TRAVEL ALERTS                          */}
       {/* ============================================================ */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg sm:text-xl font-black text-foreground flex items-center gap-2">
-              <span>Interactive Navigation Map</span>
-              <span className="text-xs font-bold text-muted-foreground">
-                (India Geographic Focus)
-              </span>
-            </h2>
+      <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-sky-50 via-white to-blue-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-sky-950/20 border-2 border-sky-200 dark:border-sky-800 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-sky-600 text-white flex items-center justify-center text-2xl shadow-md shrink-0">
+              🌦️
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-black text-foreground">
+                  WEATHER NEAR YOU
+                </h3>
+                <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200">
+                  Real-Time Weather
+                </span>
+              </div>
+              <p className="text-xs font-semibold text-muted-foreground">
+                Verified meteorological observations for your current location in India
+              </p>
+            </div>
           </div>
-          <span className="text-xs font-bold text-muted-foreground">
-            {locationState.coords ? "📍 Real Current Position Active" : "📍 India Overview Map"}
-          </span>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={speakTravelAlert}
+              className="h-9 px-3.5 rounded-xl font-black text-xs text-sky-700 border-sky-300 hover:bg-sky-50 gap-1.5 cursor-pointer"
+            >
+              <Volume2 className="h-4 w-4" />
+              <span>Read Weather</span>
+            </Button>
+          </div>
         </div>
 
-        <RealInteractiveMap
-          initialCenter={locationState.coords || DEFAULT_INDIA_CENTER}
-          initialZoom={locationState.coords ? 14 : 5}
-          locationState={locationState}
-          hideEmbeddedSearch={true}
-          onCenterOnLocation={() => {
-            if (!locationState.coords) {
-              setIsPermissionModalOpen(true);
-            }
-          }}
-          selectedLocation={selectedLocation}
-          onSelectLocation={(loc) => handleSelectDestination(loc)}
-          onClearSelectedLocation={() => {
-            setSelectedLocation(null);
-            setActiveRoute(null);
-          }}
-          onRequestRouteFromCurrent={(dest) => {
-            handleSelectDestination(dest);
-            handleCalculateRoute(dest);
-          }}
-          activeRoute={activeRoute}
-          facilities={mapFacilities}
-          isSeniorMode={true}
-          onSelectDestination={(dest, name) => {
-            const loc: SelectedLocationState = {
-              lat: dest.lat,
-              lng: dest.lng,
-              name,
-              address: `Coordinates: ${dest.lat.toFixed(4)}°N, ${dest.lng.toFixed(4)}°E`,
-              type: "Selected Map Point",
-              selectedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-            };
-            handleSelectDestination(loc);
-          }}
-        />
+        {/* Real Weather Details Cards */}
+        {liveWeather ? (
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 text-xs text-center font-bold">
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/80 border border-sky-100 dark:border-slate-700 shadow-2xs">
+              <div className="text-[10px] uppercase font-black text-muted-foreground tracking-wider">Condition</div>
+              <div className="text-base font-black text-foreground mt-1 truncate">{liveWeather.condition}</div>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/80 border border-sky-100 dark:border-slate-700 shadow-2xs">
+              <div className="text-[10px] uppercase font-black text-muted-foreground tracking-wider">Temperature</div>
+              <div className="text-base font-black text-foreground mt-1">{liveWeather.temperatureC}°C</div>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/80 border border-sky-100 dark:border-slate-700 shadow-2xs">
+              <div className="text-[10px] uppercase font-black text-muted-foreground tracking-wider">Rainfall</div>
+              <div className="text-base font-black text-sky-600 mt-1">{liveWeather.precipitationMm} mm</div>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/80 border border-sky-100 dark:border-slate-700 shadow-2xs">
+              <div className="text-[10px] uppercase font-black text-muted-foreground tracking-wider">Wind Speed</div>
+              <div className="text-base font-black text-foreground mt-1">{liveWeather.windSpeedKmh} km/h</div>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/80 border border-sky-100 dark:border-slate-700 shadow-2xs col-span-2 sm:col-span-1">
+              <div className="text-[10px] uppercase font-black text-muted-foreground tracking-wider">Warning</div>
+              <div className="text-sm font-black mt-1 truncate text-amber-700 dark:text-amber-300">
+                {liveWeather.activeWarnings.length > 0 ? liveWeather.activeWarnings[0].title : "None Active"}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="p-4 rounded-2xl bg-muted/20 border border-dashed border-border text-center text-xs text-muted-foreground">
+            {locationState.coords
+              ? "Fetching live weather observations…"
+              : "Enable location to view real weather at your current position."}
+          </div>
+        )}
+
+        {/* Travel Alerts */}
+        {liveWeather && liveWeather.activeWarnings.length > 0 && (
+          <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-black text-amber-900 dark:text-amber-200">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <span>ACTIVE TRAVEL ALERT</span>
+            </div>
+            {liveWeather.activeWarnings.map((w, idx) => (
+              <div key={idx} className="text-xs text-amber-950 dark:text-amber-100 space-y-0.5">
+                <div className="font-black text-sm">{w.title}</div>
+                <p className="font-semibold text-[11px] text-amber-900/80">{w.description}</p>
+                <div className="text-[10px] text-muted-foreground pt-1">
+                  Severity: {w.severity} • Source: Open-Meteo Meteorological Warning Stream
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Destination Weather Comparison if Destination is selected */}
+        {selectedLocation && destinationWeather && (
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-800/90 border border-border shadow-xs space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-black text-foreground flex items-center gap-1.5">
+                <span>🎯 Destination Weather:</span>
+                <strong className="text-primary">{selectedLocation.name}</strong>
+              </span>
+              <span className="text-[11px] font-bold text-muted-foreground">
+                {destinationWeather.condition} • {destinationWeather.temperatureC}°C • Rain: {destinationWeather.precipitationMm} mm
+              </span>
+            </div>
+            {destinationWeather.precipitationMm > 0 ? (
+              <p className="text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 p-2.5 rounded-xl border border-amber-200">
+                🌧️ Rain may affect your destination ({selectedLocation.name}). Carry umbrella or plan extra travel time.
+              </p>
+            ) : (
+              <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-200">
+                ☀️ Clear weather expected at your destination ({selectedLocation.name}).
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Save Place Dialog Modal */}
