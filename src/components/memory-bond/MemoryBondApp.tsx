@@ -33,6 +33,7 @@ import {
   clearActiveSession,
   saveActiveSession,
 } from "@/lib/authGuards";
+import { syncUserProfile } from "@/lib/userProfileService";
 
 // Modals
 import { SosModal } from "./SosModal";
@@ -119,25 +120,53 @@ export function MemoryBondApp() {
     let subscription: { unsubscribe: () => void } | undefined;
     try {
       if (supabase && typeof supabase.auth?.onAuthStateChange === "function") {
-        const res = supabase.auth.onAuthStateChange((_event, session) => {
+        const res = supabase.auth.onAuthStateChange(async (_event, session) => {
           if (session?.user) {
             const user = session.user;
             const role = (user.user_metadata?.role as any) === "senior" ? "senior" : "caregiver";
-            const fullName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Caregiver";
-            store.updateProfile({ full_name: fullName, role });
-            store.setRole(role);
-            saveActiveSession({
-              userId: user.id,
-              role,
-              email: user.email,
-              fullName,
-            });
-            setIsAuthenticated(true);
-            const defaultTab = getDefaultTabForRole(role);
-            setCurrentTab(defaultTab);
+            try {
+              const syncedProfile = await syncUserProfile(user, role);
+              const fullName = syncedProfile.full_name || user.user_metadata?.full_name || user.email?.split("@")[0] || "Caregiver";
+              store.updateProfile({ full_name: fullName, role: syncedProfile.role || role });
+              store.setRole(syncedProfile.role || role);
+              saveActiveSession({
+                userId: user.id,
+                role: (syncedProfile.role as any) || role,
+                email: user.email,
+                fullName,
+              });
+              store.reloadUserData?.();
+              setIsAuthenticated(true);
+              const defaultTab = getDefaultTabForRole(syncedProfile.role || role);
+              setCurrentTab(defaultTab);
+            } catch (err) {
+              console.warn("[MemoryBond App] Profile sync during auth change:", err);
+            }
           }
         });
         subscription = res?.data?.subscription;
+      }
+
+      // Check initial session on mount
+      if (supabase && typeof supabase.auth?.getSession === "function") {
+        supabase.auth.getSession().then(async ({ data }) => {
+          if (data?.session?.user && !getActiveSession()) {
+            const user = data.session.user;
+            const role = (user.user_metadata?.role as any) === "senior" ? "senior" : "caregiver";
+            const syncedProfile = await syncUserProfile(user, role);
+            const fullName = syncedProfile.full_name || user.user_metadata?.full_name || user.email?.split("@")[0] || "Caregiver";
+            store.updateProfile({ full_name: fullName, role: syncedProfile.role || role });
+            store.setRole(syncedProfile.role || role);
+            saveActiveSession({
+              userId: user.id,
+              role: (syncedProfile.role as any) || role,
+              email: user.email,
+              fullName,
+            });
+            store.reloadUserData?.();
+            setIsAuthenticated(true);
+          }
+        }).catch(() => {});
       }
     } catch (err) {
       console.warn("[MemoryBond App] Supabase auth state listener bypassed safely:", err);
@@ -158,10 +187,12 @@ export function MemoryBondApp() {
     clearActiveSession();
     setIsAuthenticated(false);
     store.setRole("senior");
+    store.reloadUserData?.();
     setCurrentTab("home");
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
       url.search = "";
+      url.hash = "";
       window.history.replaceState(null, "", url.toString());
     }
   }, [store]);

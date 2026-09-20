@@ -2814,6 +2814,74 @@ export function useMemoryBondStore() {
     addHealthMeasurement,
     updateHealthMeasurement,
     deleteHealthMeasurement,
+
+    // User Data Reload on Auth Change / Account Switch
+    reloadUserData: useCallback(() => {
+      try {
+        const session = getActiveSession();
+
+        // Reload Profile
+        let baseProf: Profile = DEMO_PROFILE;
+        const savedProf = localStorage.getItem(getKey("profile"));
+        if (savedProf) {
+          try {
+            baseProf = JSON.parse(savedProf);
+          } catch {}
+        } else if (session) {
+          baseProf = {
+            ...DEMO_PROFILE,
+            id: session.userId,
+            full_name: session.fullName || DEMO_PROFILE.full_name,
+            role: session.role,
+          };
+        }
+        setProfile(baseProf);
+
+        // Reload Medicines
+        const savedMeds = localStorage.getItem(getKey("medicines"));
+        if (savedMeds) {
+          try { setMedicines(JSON.parse(savedMeds)); } catch {}
+        }
+
+        // Reload Reminders
+        const savedRems = localStorage.getItem(getKey("reminders"));
+        if (savedRems) {
+          try { setReminders(JSON.parse(savedRems)); } catch {}
+        }
+
+        // Reload Routines
+        const savedRoutines = localStorage.getItem(getKey("routines"));
+        if (savedRoutines) {
+          try { setRoutines(JSON.parse(savedRoutines)); } catch {}
+        }
+
+        // Reload Appointments
+        const savedAppts = localStorage.getItem(getKey("appointments"));
+        if (savedAppts) {
+          try { setAppointments(JSON.parse(savedAppts)); } catch {}
+        }
+
+        // Reload Cues
+        const savedCues = localStorage.getItem(getKey("cues"));
+        if (savedCues) {
+          try { setMemoryCues(JSON.parse(savedCues)); } catch {}
+        }
+
+        // Reload Contacts
+        const savedContacts = localStorage.getItem(getKey("contacts"));
+        if (savedContacts) {
+          try { setContacts(JSON.parse(savedContacts)); } catch {}
+        }
+
+        // Reload Journal
+        const savedJournal = localStorage.getItem(getKey("journal"));
+        if (savedJournal) {
+          try { setJournal(JSON.parse(savedJournal)); } catch {}
+        }
+      } catch (err) {
+        console.error("[Store] reloadUserData error:", err);
+      }
+    }, []),
   };
 }
 

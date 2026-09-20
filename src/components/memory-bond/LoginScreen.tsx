@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ShieldCheck,
   QrCode,
@@ -32,6 +32,7 @@ import { connectSeniorToCaregiver } from "@/lib/caregiverConnectionService";
 import { MemoryBondLogo } from "./MemoryBondLogo";
 import { SeniorInterestsScreen } from "./SeniorInterestsScreen";
 import { saveActiveSession } from "@/lib/authGuards";
+import { syncUserProfile, checkOAuthRedirectError } from "@/lib/userProfileService";
 
 interface LoginScreenProps {
   store: MemoryBondStore;
@@ -54,11 +55,27 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
   // Caregiver form state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Check for OAuth redirect errors upon returning from Google / Facebook
+  useEffect(() => {
+    const redirectErr = checkOAuthRedirectError();
+    if (redirectErr) {
+      setErrorMessage(redirectErr);
+      setStage("caregiver_auth");
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.hash = "";
+        url.search = "";
+        window.history.replaceState(null, "", url.toString());
+      }
+    }
+  }, []);
 
   // Senior linking state
   const [connectionCode, setConnectionCode] = useState("");
@@ -109,15 +126,20 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
 
     try {
       if (authMode === "signup") {
-        if (!email.trim() || !password.trim()) {
-          throw new Error("Please enter both email and password.");
+        const emailTrimmed = email.trim();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailTrimmed || !emailRegex.test(emailTrimmed)) {
+          throw new Error("Please enter a valid email address.");
         }
-        if (password.length < 6) {
+        if (!password || password.length < 6) {
           throw new Error("Password must be at least 6 characters long.");
+        }
+        if (password !== confirmPassword) {
+          throw new Error("Passwords do not match.");
         }
 
         const { data, error } = await supabase.auth.signUp({
-          email: email.trim(),
+          email: emailTrimmed,
           password,
           options: {
             data: {
@@ -127,52 +149,84 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
           },
         });
 
-        if (error) throw error;
+        if (error) {
+          const errLower = error.message?.toLowerCase() || "";
+          if (errLower.includes("already registered") || errLower.includes("already exists")) {
+            throw new Error("An account with this email already exists. Please sign in instead.");
+          }
+          throw error;
+        }
 
-        const userId = data.user?.id || `cg_${Date.now()}`;
-        const caregiverCode = getOrCreateCaregiverCode(userId);
+        if (data.user) {
+          const synced = await syncUserProfile(data.user, "caregiver");
+          const caregiverCode = getOrCreateCaregiverCode(data.user.id);
+          const resolvedName = synced.full_name || fullName.trim() || "Caregiver";
 
-        saveActiveSession({
-          userId,
-          role: "caregiver",
-          email: email.trim(),
-          fullName: fullName.trim() || "Caregiver",
-          caregiverCode,
-        });
-        localStorage.setItem("mb_welcome_completed", "true");
+          saveActiveSession({
+            userId: data.user.id,
+            role: "caregiver",
+            email: data.user.email || emailTrimmed,
+            fullName: resolvedName,
+            caregiverCode,
+          });
+          localStorage.setItem("mb_welcome_completed", "true");
 
-        store.updateProfile({
-          full_name: fullName.trim() || "Caregiver",
-          role: "caregiver",
-        });
-        store.setRole("caregiver");
+          store.updateProfile({
+            full_name: resolvedName,
+            role: "caregiver",
+          });
+          store.setRole("caregiver");
+          store.reloadUserData?.();
 
-        setSuccessMessage("Caregiver account created! Opening Caregiver Dashboard...");
-        setTimeout(() => {
-          onAuthenticated("caregiver");
-        }, 700);
+          if (!data.session) {
+            setSuccessMessage("Caregiver account created! If email confirmation is required, please check your inbox before signing in.");
+          } else {
+            setSuccessMessage("Caregiver account created! Opening Caregiver Dashboard...");
+            setTimeout(() => {
+              onAuthenticated("caregiver");
+            }, 600);
+          }
+        }
       } else {
-        // Sign in
-        if (!email.trim() || !password.trim()) {
-          throw new Error("Please enter your email and password.");
+        // Sign in - strictly authenticates existing account
+        const emailTrimmed = email.trim();
+        if (!emailTrimmed || !password.trim()) {
+          throw new Error("Please enter both your email and password.");
         }
 
         const { data, error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
+          email: emailTrimmed,
           password,
         });
 
-        if (error) throw error;
+        if (error) {
+          console.warn("[Auth] Sign-in error:", error);
+          const errLower = error.message?.toLowerCase() || "";
+          if (errLower.includes("invalid login credentials") || error.status === 400) {
+            throw new Error("Incorrect email or password. Please try again. If you don't have an account, please create one first.");
+          }
+          if (errLower.includes("email not confirmed")) {
+            throw new Error("Your email address is not verified yet. Please check your email inbox for the confirmation link.");
+          }
+          if (errLower.includes("fetch") || errLower.includes("network") || errLower.includes("connection")) {
+            throw new Error("We couldn't connect right now. Please check your internet connection and try again.");
+          }
+          throw error;
+        }
 
         const user = data.user;
-        const userId = user?.id || `cg_${Date.now()}`;
-        const caregiverCode = getOrCreateCaregiverCode(userId);
-        const name = user?.user_metadata?.full_name || email.split("@")[0] || "Caregiver";
+        if (!user) {
+          throw new Error("No account found with this email. Please create an account first.");
+        }
+
+        const synced = await syncUserProfile(user, "caregiver");
+        const caregiverCode = getOrCreateCaregiverCode(user.id);
+        const name = synced.full_name || user.user_metadata?.full_name || emailTrimmed.split("@")[0] || "Caregiver";
 
         saveActiveSession({
-          userId,
+          userId: user.id,
           role: "caregiver",
-          email: user?.email || email,
+          email: user.email || emailTrimmed,
           fullName: name,
           caregiverCode,
         });
@@ -183,15 +237,85 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
           role: "caregiver",
         });
         store.setRole("caregiver");
+        store.reloadUserData?.();
 
-        setSuccessMessage("Caregiver signed in! Opening Caregiver Dashboard...");
+        setSuccessMessage("Welcome back! Opening Caregiver Dashboard...");
         setTimeout(() => {
           onAuthenticated("caregiver");
-        }, 700);
+        }, 500);
       }
     } catch (err: any) {
       setErrorMessage(err.message || "Authentication failed. Please check credentials or use Demo Access below.");
     } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // PASSWORD RECOVERY / FORGOT PASSWORD
+  const handleForgotPassword = async () => {
+    const emailTrimmed = email.trim();
+    if (!emailTrimmed) {
+      setErrorMessage("Please enter your email address in the field above first, then click 'Forgot password?'.");
+      return;
+    }
+    setIsLoading(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    try {
+      const redirectOrigin = typeof window !== "undefined"
+        ? window.location.origin
+        : "https://memory-bond-ai.lovable.app";
+      const { error } = await supabase.auth.resetPasswordForEmail(emailTrimmed, {
+        redirectTo: `${redirectOrigin}/`,
+      });
+      if (error) throw error;
+      setSuccessMessage(`Password recovery instructions sent to ${emailTrimmed}! Please check your email inbox.`);
+    } catch (err: any) {
+      setErrorMessage(err.message || "Could not send password reset email. Please verify your email and try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // OAUTH SOCIAL SIGN IN (Google / Facebook)
+  const handleOAuthLogin = async (provider: "google" | "facebook") => {
+    setIsLoading(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    try {
+      const redirectOrigin = typeof window !== "undefined"
+        ? window.location.origin
+        : "https://memory-bond-ai.lovable.app";
+      const redirectTo = `${redirectOrigin}/`;
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo,
+          queryParams: provider === "google" ? {
+            access_type: "offline",
+            prompt: "consent",
+          } : undefined,
+        },
+      });
+
+      if (error) {
+        if (error.message?.includes("provider is not enabled") || error.message?.includes("Unsupported provider")) {
+          throw new Error(
+            `${provider === "google" ? "Google" : "Facebook"} login is ready in Memory Bond, but requires activating the ${provider === "google" ? "Google" : "Facebook"} provider in your Supabase Auth dashboard (Authentication -> Providers).`
+          );
+        }
+        throw error;
+      }
+    } catch (err: any) {
+      console.error(`${provider} OAuth error:`, err);
+      if (err.message?.includes("fetch") || err.message?.includes("network")) {
+        setErrorMessage("We couldn't connect right now. Please check your internet connection and try again.");
+      } else {
+        setErrorMessage(
+          err.message || `${provider === "google" ? "Google" : "Facebook"} sign-in could not be completed. Please try again.`
+        );
+      }
       setIsLoading(false);
     }
   };
