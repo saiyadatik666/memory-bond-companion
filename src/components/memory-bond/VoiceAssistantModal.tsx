@@ -45,6 +45,7 @@ import { requestNotificationPermission } from "@/lib/notificationService";
 import type { MemoryBondStore, Reminder } from "@/lib/memoryBondStore";
 import { useI18n, LANGUAGES } from "@/lib/i18n";
 import { languageEngine, SUPPORTED_LANGUAGES } from "@/lib/languageEngine";
+import { processVoiceQuery, type ConversationTurn } from "@/lib/voiceIntelligence";
 import { MemoryBondLogo } from "./MemoryBondLogo";
 
 export type AssistantVoiceState =
@@ -88,6 +89,7 @@ export function VoiceAssistantModal({
   const latestHeardTranscriptRef = useRef<string>("");
   const isSpeechActiveRef = useRef<boolean>(false);
   const lastActionCompletedRef = useRef<boolean>(false);
+  const conversationHistoryRef = useRef<ConversationTurn[]>([]);
 
   // Keep refs synchronized
   useEffect(() => {
@@ -446,98 +448,57 @@ export function VoiceAssistantModal({
       }
     }
 
-    // STAGE 2: Direct Central Intent Parser (Hindi, Hinglish, English)
+    // STAGE 2: Full Multi-Intent Voice AI Intelligence Engine
     if (!finalResponseText) {
-      const parsed = parseVoiceIntent(text, store, detectedLocale);
+      try {
+        const intelResult = await processVoiceQuery(
+          text,
+          store,
+          detectedLocale,
+          conversationHistoryRef.current,
+          onNavigate
+        );
 
-      if (parsed.type === "CREATE_REMINDER") {
-        if (parsed.needsTime) {
-          // Preserve context & ask for missing time
-          conversationalAI.setDialogueContext({
-            stage: "awaiting_reminder_time",
-            targetTitle: parsed.title,
-            targetDate: parsed.date,
-            reminderType: parsed.reminderType as any,
-          });
-          finalResponseText = parsed.confirmationMessage;
-        } else if (parsed.needsTitle) {
-          // Preserve context & ask for missing topic
-          conversationalAI.setDialogueContext({
-            stage: "awaiting_reminder_topic",
-            targetTime: parsed.time,
-            targetDate: parsed.date,
-            reminderType: parsed.reminderType as any,
-          });
-          finalResponseText = parsed.confirmationMessage;
-        } else {
-          // REAL PERSISTENT CREATION VIA CENTRAL REMINDER SERVICE
-          const result = createVerifiedReminder(store, {
-            title: parsed.title,
-            time: parsed.time,
-            date: parsed.date,
-            repeat: parsed.repeat || (parsed.date ? "none" : "daily"),
-            type: parsed.reminderType,
-            notes: parsed.notes,
-            source: "voice",
-          });
+        if (intelResult && intelResult.responseText) {
+          finalResponseText = cleanAIResponse(intelResult.responseText);
 
-          if (result.success && result.reminder) {
-            setLastCreatedReminder(result.reminder);
-            finalResponseText = parsed.confirmationMessage;
+          if (intelResult.detectedLocale) {
+            detectedLocale = intelResult.detectedLocale;
+            setCurrentLocale(detectedLocale);
+            currentLocaleRef.current = detectedLocale;
+          }
+          if (intelResult.languageName) {
+            setDetectedLangName(intelResult.languageName);
+          }
+
+          if (intelResult.suggestedAction === "create_reminder" && intelResult.actionData) {
+            setLastCreatedReminder(intelResult.actionData);
             isActionCompleted = true;
-          } else {
-            finalResponseText = detectedLocale.startsWith("hi")
-              ? "मैं यह रिमाइंडर सेव नहीं कर सका। कृपया दोबारा प्रयास करें।"
-              : "I couldn't save that reminder. Please try again.";
+          } else if (intelResult.isActionCompleted) {
+            isActionCompleted = true;
           }
         }
-      } else if (parsed.type === "SPEAK_REMINDERS") {
-        finalResponseText = parsed.message;
-      } else if (parsed.type === "QUERY_NEXT_REMINDER") {
-        finalResponseText = parsed.message;
-      } else if (parsed.type === "TAKE_MEDICINE") {
-        const medId = parsed.medicineId || store.medicines[0]?.id;
-        if (medId) {
-          store.takeMedicine(medId);
-        }
-        finalResponseText = parsed.confirmationMessage;
-      } else if (parsed.type === "NAVIGATE") {
-        finalResponseText = parsed.confirmationMessage;
-        if (onNavigate) {
-          setTimeout(() => {
-            onNavigate(parsed.targetView);
-            onClose();
-          }, 1200);
-        }
-      } else if (parsed.type === "ANSWER" || parsed.type === "QUERY_MEDICINE") {
-        finalResponseText = parsed.message;
-      } else if (parsed.type === "CANCEL_ACTION") {
-        conversationalAI.resetDialogue();
-        finalResponseText = parsed.confirmationMessage;
+      } catch (err) {
+        console.error("[VoiceAssistantModal] Voice intelligence engine error:", err);
       }
     }
 
-    // STAGE 3: Quick Navigation Check
+    // STAGE 3: Honest Senior-Friendly Fallback (Never Generic Reminder)
     if (!finalResponseText) {
-      const lower = text.toLowerCase();
-      if (lower.includes("game") || lower.includes("गेम") || lower.includes("खेल")) {
-        finalResponseText = detectedLocale.startsWith("hi")
-          ? "आपका मेमोरी गेम शुरू कर रहे हैं।"
-          : "Opening your Cognitive Memory Games now.";
-        if (onNavigate) {
-          setTimeout(() => {
-            onNavigate("games");
-            onClose();
-          }, 1000);
-        }
+      if (detectedLocale.startsWith("gu")) {
+        finalResponseText = "માફ કરજો, મને આ બાબતે અત્યારે ચોક્કસ માહિતી ઉપલબ્ધ નથી. તમે બીજો કોઈ પ્રશ્ન પૂછી શકો છો.";
+      } else if (detectedLocale.startsWith("hi")) {
+        finalResponseText = "माफ़ कीजिए, मुझे इस विषय पर अभी पक्की जानकारी उपलब्ध नहीं है। आप मुझसे कोई अन्य प्रश्न पूछ सकते हैं।";
+      } else {
+        finalResponseText = "I apologize, but I do not have verified information on that topic right now. Feel free to ask me something else.";
       }
     }
 
-    // STAGE 4: Friendly Conversational Fallback
-    if (!finalResponseText) {
-      finalResponseText = detectedLocale.startsWith("hi")
-        ? "माफ़ कीजिए, मैं पूरी तरह समझ नहीं पाया। आप 'मुझे कल सुबह 8 बजे पौधों को पानी देने का रिमाइंडर लगा दो' या 'आज के मेरे रिमाइंडर क्या हैं?' पूछ सकते हैं।"
-        : "I'm having trouble understanding that request. You can say 'Remind me tomorrow at 8 AM to water the plants' or 'What are my reminders today?'";
+    // Keep conversational history for multi-turn pronoun & topic retention
+    conversationHistoryRef.current.push({ role: "user", content: text });
+    conversationHistoryRef.current.push({ role: "assistant", content: finalResponseText });
+    if (conversationHistoryRef.current.length > 16) {
+      conversationHistoryRef.current = conversationHistoryRef.current.slice(-16);
     }
 
     setLastResponseText(finalResponseText);

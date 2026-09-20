@@ -88,7 +88,7 @@ const EMPATHY_RESPONSES: Record<
     happy: "यह सुनकर मेरा दिल खुश हो गया! आपकी मुस्कान ही हमारी सबसे बड़ी खुशी है।",
     tea: "गर्म चाय की एक चुस्की मन को बहुत सुकून देती है। क्या आपने कुछ हल्का नाश्ता भी किया?",
     weather:
-      "आज का मौसम शांत और सुखद है। आप थोड़ी देर खिड़की के पास या बालकनी में बैठ सकते हैं।",
+      "मैं आपके लिए आज का मौसम देख सकता हूँ, अगर मौसम सेवा उपलब्ध है। आप किस शहर का मौसम जानना चाहते हैं? वर्तमान में लाइव मौसम सेवा कनेक्ट नहीं है।",
     talk:
       "हाँ बिल्कुल! मुझे आपसे बात करके हमेशा बहुत खुशी होती है। बताइए, आपका मन कैसा है? आज क्या खास हुआ?",
   },
@@ -99,7 +99,8 @@ const EMPATHY_RESPONSES: Record<
       "કૃપા કરીને થોડો આરામ કરો. એક ગ્લાસ હુંફાળું પાણી પીઓ અને શાંતિથી બેસો.",
     happy: "આ સાંભળીને ખૂબ આનંદ થયો! તમારું હાસ્ય જ અમારું સાચું સુખ છે.",
     tea: "ગરમ ચા મનને ઘણી શાંતિ આપે છે. શું તમે સાથે કંઈક હળવો નાસ્તો લીધો?",
-    weather: "આજનું હવામાન ઘણું શાંત છે. તમે થોડીવાર બાલકનીમાં બેસી શકો છો.",
+    weather:
+      "હું તમારા માટે આજનું હવામાન જોઈ શકું છું, જો હવામાન સેવા ઉપલબ્ધ હોય. તમે કયા શહેરનું હવામાન જાણવા માંગો છો? હાલમાં લાઈવ હવામાન સેવા કનેક્ટેડ નથી.",
     talk: "હા ચોક્કસ! તમારી સાથે વાત કરીને મને હંમેશા ખૂબ આનંદ થાય છે. કહો, તમારો મૂડ કેવો છે?",
   },
   "as-IN": {
@@ -195,7 +196,7 @@ const EMPATHY_RESPONSES: Record<
       "It brings me such joy to hear that! Your cheerful spirit brightens the entire day.",
     tea: "A warm cup of tea brings so much comfort. Did you also have a light snack with it?",
     weather:
-      "The day feels calm and peaceful. Sitting near the window or balcony might be lovely.",
+      "I can check today's weather for you if a weather service is connected. Which city's weather would you like to know? Real-time live weather service is currently unavailable.",
     talk:
       "Yes, absolutely! I always enjoy speaking with you. Tell me, how are you feeling today?",
   },
