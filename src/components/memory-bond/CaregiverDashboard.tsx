@@ -43,6 +43,7 @@ import { Label } from "@/components/ui/label";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
 import { QRCodeDisplay } from "./QRCodeDisplay";
+import { CaregiverMonthlySummary } from "./caregiver/CaregiverMonthlySummary";
 
 export function CaregiverDashboard({
   store,
@@ -58,6 +59,7 @@ export function CaregiverDashboard({
   const [selectedSeniorId, setSelectedSeniorId] = useState<string>("sr-1");
   const [isAlertConfigOpen, setIsAlertConfigOpen] = useState<boolean>(false);
   const [isReportOpen, setIsReportOpen] = useState<boolean>(false);
+  const [isMonthlySummaryOpen, setIsMonthlySummaryOpen] = useState<boolean>(false);
   const [alertCategoryFilter, setAlertCategoryFilter] = useState<string>("all");
   const [trendTab, setTrendTab] = useState<"daily" | "weekly" | "monthly">("weekly");
   const [chartCategory, setChartCategory] = useState<"overall" | "memory" | "attention" | "pattern">("overall");
@@ -135,6 +137,17 @@ export function CaregiverDashboard({
       wellnessTrend: "Improving",
     };
 
+  if (isMonthlySummaryOpen) {
+    return (
+      <CaregiverMonthlySummary
+        store={store}
+        selectedSenior={activeSenior}
+        onBack={() => setIsMonthlySummaryOpen(false)}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-full overflow-x-hidden box-border">
       {/* SECTION 25: CAREGIVER HOME — MEENA PATEL TODAY'S OVERVIEW */}
@@ -155,6 +168,12 @@ export function CaregiverDashboard({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <Button
+              onClick={() => setIsMonthlySummaryOpen(true)}
+              className="rounded-2xl font-black text-xs h-10 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm cursor-pointer"
+            >
+              <Calendar className="h-4 w-4" /> Monthly Summary & Vitals
+            </Button>
             <Button
               onClick={() => setIsReportOpen(true)}
               variant="outline"
@@ -255,6 +274,60 @@ export function CaregiverDashboard({
                 </button>
               );
             })}
+          </div>
+        </div>
+      </div>
+
+      {/* SECTION: CAREGIVER MONTHLY SUMMARY & HEALTH MONITORING (Section 13) */}
+      <div className="rounded-3xl border-2 border-indigo-200 bg-gradient-to-r from-indigo-50/80 via-white to-purple-50/50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 p-6 sm:p-7 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-3xl shadow-md shadow-indigo-600/25 shrink-0">
+              📊
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-wider text-indigo-800 bg-indigo-100 dark:bg-indigo-950 px-3 py-1 rounded-full border border-indigo-200">
+                  New Caregiver Feature
+                </span>
+                <span className="text-xs font-bold text-purple-700 bg-purple-100 dark:bg-purple-950 px-2 py-0.5 rounded-full">
+                  Health & Adherence
+                </span>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black text-foreground mt-1">
+                Monthly Summary & Health Monitoring
+              </h3>
+              <p className="text-sm font-semibold text-muted-foreground mt-0.5">
+                Review senior's monthly adherence, real-time BP & Blood Sugar logs, cognitive milestones, and event timeline.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            onClick={() => setIsMonthlySummaryOpen(true)}
+            className="w-full sm:w-auto h-12 px-6 rounded-2xl font-black text-sm bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white gap-2 shadow-md shadow-indigo-600/20 cursor-pointer"
+          >
+            <span>Open Monthly Summary</span>
+            <ArrowUpRight className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-indigo-100 dark:border-slate-800 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5 font-bold">
+            <span className="h-2 w-2 rounded-full bg-rose-500" />
+            <span>Blood Pressure Logs & Charts</span>
+          </div>
+          <div className="flex items-center gap-1.5 font-bold">
+            <span className="h-2 w-2 rounded-full bg-amber-500" />
+            <span>Blood Glucose (Sugar) Tracker</span>
+          </div>
+          <div className="flex items-center gap-1.5 font-bold">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            <span>Medicine Adherence & Inventory</span>
+          </div>
+          <div className="flex items-center gap-1.5 font-bold">
+            <span className="h-2 w-2 rounded-full bg-primary" />
+            <span>Chronological Event Diary</span>
           </div>
         </div>
       </div>

@@ -392,4 +392,8 @@ export const hi: Dict = {
   somethingWentWrong: "कुछ गलत हो गया। कृपया पुनः प्रयास करें।",
   tryAgain: "पुनः प्रयास करें",
   exitGame: "खेल से बाहर जाएं",
+  monthlySummary: "मासिक सारांश",
+  bloodPressure: "रक्तचाप (BP)",
+  bloodSugar: "ब्लड शुगर",
+  healthTimeline: "स्वास्थ्य टाइमलाइन",
 };

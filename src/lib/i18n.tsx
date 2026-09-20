@@ -532,6 +532,10 @@ const en: Dict = {
   getRouteHelp: "Get Route Help",
   travelAlert: "Travel Alert",
   emergencyRoute: "Emergency Route",
+  monthlySummary: "Monthly Summary",
+  bloodPressure: "Blood Pressure",
+  bloodSugar: "Blood Sugar",
+  healthTimeline: "Health Timeline",
 };
 
 const hi: Dict = {
@@ -932,6 +936,10 @@ const hi: Dict = {
   selfElderly: "स्वयं / वरिष्ठ नागरिक",
   familyGuardian: "पुत्र, पुत्री, अभिभावक",
   step2of2: "चरण 2 का 2",
+  monthlySummary: "मासिक सारांश",
+  bloodPressure: "रक्तचाप (BP)",
+  bloodSugar: "ब्लड शुगर",
+  healthTimeline: "स्वास्थ्य टाइमलाइन",
 };
 
 const as: Dict = {

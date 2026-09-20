@@ -284,6 +284,27 @@ export interface ReminderEscalation {
   resolved_at?: string;
 }
 
+export interface HealthMeasurement {
+  id: string;
+  senior_id: string;
+  type: "blood_pressure" | "blood_sugar" | "weight" | "heart_rate" | "temperature" | "spo2";
+  date: string; // YYYY-MM-DD
+  time: string; // HH:mm
+  // Blood Pressure fields
+  systolic?: number;
+  diastolic?: number;
+  // Blood Sugar fields
+  glucose_value?: number;
+  glucose_unit?: "mg/dL" | "mmol/L";
+  meal_context?: "fasting" | "post_meal" | "random" | "bedtime";
+  // Other vitals
+  value?: number;
+  unit?: string;
+  notes?: string;
+  recorded_by?: string;
+  created_at: string;
+}
+
 export interface AuditLogEntry {
   id: string;
   timestamp: string;
@@ -1044,6 +1065,122 @@ export const DEMO_AUDIT_LOG: AuditLogEntry[] = [
   },
 ];
 
+export const DEMO_HEALTH_MEASUREMENTS: HealthMeasurement[] = [
+  // Senior sr-1 (Meena Patel / Ramesh) September 2026 BP and Blood Sugar records
+  {
+    id: "hm-bp-1",
+    senior_id: "sr-1",
+    type: "blood_pressure",
+    date: "2026-09-12",
+    time: "08:30",
+    systolic: 118,
+    diastolic: 76,
+    notes: "Resting morning reading after tea. Calm and relaxed.",
+    recorded_by: "Caregiver (Meena Patel)",
+    created_at: "2026-09-12T08:30:00.000Z",
+  },
+  {
+    id: "hm-bs-1",
+    senior_id: "sr-1",
+    type: "blood_sugar",
+    date: "2026-09-12",
+    time: "07:45",
+    glucose_value: 98,
+    glucose_unit: "mg/dL",
+    meal_context: "fasting",
+    notes: "Fasting morning test before breakfast.",
+    recorded_by: "Caregiver (Meena Patel)",
+    created_at: "2026-09-12T07:45:00.000Z",
+  },
+  {
+    id: "hm-bp-2",
+    senior_id: "sr-1",
+    type: "blood_pressure",
+    date: "2026-09-16",
+    time: "09:00",
+    systolic: 124,
+    diastolic: 80,
+    notes: "Checked after morning walk. Well hydrated.",
+    recorded_by: "Caregiver (Meena Patel)",
+    created_at: "2026-09-16T09:00:00.000Z",
+  },
+  {
+    id: "hm-bs-2",
+    senior_id: "sr-1",
+    type: "blood_sugar",
+    date: "2026-09-16",
+    time: "13:30",
+    glucose_value: 110,
+    glucose_unit: "mg/dL",
+    meal_context: "post_meal",
+    notes: "2 hours after lunch.",
+    recorded_by: "Caregiver (Meena Patel)",
+    created_at: "2026-09-16T13:30:00.000Z",
+  },
+  {
+    id: "hm-bp-3",
+    senior_id: "sr-1",
+    type: "blood_pressure",
+    date: "2026-09-20",
+    time: "08:45",
+    systolic: 130,
+    diastolic: 84,
+    notes: "Morning routine check. Advised peaceful breathing.",
+    recorded_by: "Caregiver (Meena Patel)",
+    created_at: "2026-09-20T08:45:00.000Z",
+  },
+  {
+    id: "hm-bs-3",
+    senior_id: "sr-1",
+    type: "blood_sugar",
+    date: "2026-09-20",
+    time: "17:00",
+    glucose_value: 105,
+    glucose_unit: "mg/dL",
+    meal_context: "random",
+    notes: "Evening checkup before tea.",
+    recorded_by: "Caregiver (Meena Patel)",
+    created_at: "2026-09-20T17:00:00.000Z",
+  },
+  {
+    id: "hm-wt-1",
+    senior_id: "sr-1",
+    type: "weight",
+    date: "2026-09-15",
+    time: "08:00",
+    value: 62.5,
+    unit: "kg",
+    notes: "Stable morning weight.",
+    recorded_by: "Caregiver (Meena Patel)",
+    created_at: "2026-09-15T08:00:00.000Z",
+  },
+  {
+    id: "hm-hr-1",
+    senior_id: "sr-1",
+    type: "heart_rate",
+    date: "2026-09-20",
+    time: "08:45",
+    value: 72,
+    unit: "bpm",
+    notes: "Normal resting pulse.",
+    recorded_by: "Caregiver (Meena Patel)",
+    created_at: "2026-09-20T08:45:00.000Z",
+  },
+  // Senior senior-biren (Biren Gogoi) September 2026 records (isolated)
+  {
+    id: "hm-bp-biren-1",
+    senior_id: "senior-biren",
+    type: "blood_pressure",
+    date: "2026-09-10",
+    time: "10:00",
+    systolic: 128,
+    diastolic: 82,
+    notes: "Home visit checkup.",
+    recorded_by: "CHW Ananya Goswami",
+    created_at: "2026-09-10T10:00:00.000Z",
+  },
+];
+
 // Cognitive Engagement Score (CES) Calculator
 export function calculateCES(sessions: GameSession[], routinesDoneCount: number, routinesTotal: number): CognitiveEngagementScore {
   if (sessions.length === 0) {
@@ -1459,6 +1596,16 @@ export function useMemoryBondStore() {
     }
   });
 
+  // Health Measurements (Blood Pressure, Blood Sugar, Vitals)
+  const [healthMeasurements, setHealthMeasurements] = useState<HealthMeasurement[]>(() => {
+    try {
+      const saved = localStorage.getItem(getKey("health_measurements"));
+      return saved ? JSON.parse(saved) : DEMO_HEALTH_MEASUREMENTS;
+    } catch {
+      return DEMO_HEALTH_MEASUREMENTS;
+    }
+  });
+
   // Sync state to LocalStorage
   useEffect(() => {
     try {
@@ -1488,10 +1635,11 @@ export function useMemoryBondStore() {
       localStorage.setItem(getKey("caregiver_alerts_list"), JSON.stringify(alerts));
       localStorage.setItem(getKey("todays_mood"), todaysMood);
       localStorage.setItem(getKey("last_adaptive_feedback"), JSON.stringify(lastAdaptiveFeedback));
+      localStorage.setItem(getKey("health_measurements"), JSON.stringify(healthMeasurements));
     } catch (e) {
       console.warn("LocalStorage save error:", e);
     }
-  }, [profile, medicines, medicineLogs, reminders, routines, appointments, memoryCues, journal, contacts, sosEvents, gameSessions, notifications, caregiverLinks, routineCalls, socialFeed, clinicalNotes, syncQueue, reminderEscalations, auditLog, hydrationGlasses, hydrationTarget, memoryStories, assignedSeniors, alerts, todaysMood, lastAdaptiveFeedback]);
+  }, [profile, medicines, medicineLogs, reminders, routines, appointments, memoryCues, journal, contacts, sosEvents, gameSessions, notifications, caregiverLinks, routineCalls, socialFeed, clinicalNotes, syncQueue, reminderEscalations, auditLog, hydrationGlasses, hydrationTarget, memoryStories, assignedSeniors, alerts, todaysMood, lastAdaptiveFeedback, healthMeasurements]);
 
   // Network online/offline listener with automatic sync flush
   useEffect(() => {
@@ -2346,6 +2494,54 @@ export function useMemoryBondStore() {
     setProfile((prev) => ({ ...prev, easy_mode: !prev.easy_mode }));
   }, []);
 
+  // Health Measurements (Blood Pressure, Blood Sugar, Vitals) Actions
+  const addHealthMeasurement = useCallback(
+    (measurement: Omit<HealthMeasurement, "id" | "created_at">): HealthMeasurement => {
+      const newMeasurement: HealthMeasurement = {
+        ...measurement,
+        id: `hm-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        created_at: new Date().toISOString(),
+      };
+      setHealthMeasurements((prev) => [newMeasurement, ...prev]);
+
+      const logMsg =
+        newMeasurement.type === "blood_pressure"
+          ? `Recorded Blood Pressure: ${newMeasurement.systolic}/${newMeasurement.diastolic} mmHg`
+          : newMeasurement.type === "blood_sugar"
+          ? `Recorded Blood Sugar: ${newMeasurement.glucose_value} ${newMeasurement.glucose_unit || "mg/dL"}`
+          : `Recorded ${newMeasurement.type}: ${newMeasurement.value} ${newMeasurement.unit || ""}`;
+
+      const notif: AppNotification = {
+        id: `hm-notif-${Date.now()}`,
+        category: "general",
+        title: "Health Reading Logged",
+        body: logMsg,
+        read: false,
+        created_at: new Date().toISOString(),
+      };
+      setNotifications((prev) => [notif, ...prev]);
+
+      return newMeasurement;
+    },
+    []
+  );
+
+  const updateHealthMeasurement = useCallback(
+    (id: string, update: Partial<HealthMeasurement>) => {
+      setHealthMeasurements((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, ...update } : item))
+      );
+    },
+    []
+  );
+
+  const deleteHealthMeasurement = useCallback(
+    (id: string) => {
+      setHealthMeasurements((prev) => prev.filter((item) => item.id !== id));
+    },
+    []
+  );
+
   return {
     // Network & Demo state
     isOnline: effectiveOnline,
@@ -2612,6 +2808,12 @@ export function useMemoryBondStore() {
     // Conversation History
     addConversation,
     getRecentConversations,
+
+    // Health Measurements (Blood Pressure, Blood Sugar, Vitals)
+    healthMeasurements,
+    addHealthMeasurement,
+    updateHealthMeasurement,
+    deleteHealthMeasurement,
   };
 }
 
