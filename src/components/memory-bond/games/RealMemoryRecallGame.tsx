@@ -93,21 +93,24 @@ export function RealMemoryRecallGame({
 
   // Memorization countdown timer
   useEffect(() => {
-    if (stage !== "memorize") return;
-
-    if (countdown > 0) {
-      const timer = setTimeout(() => {
-        setCountdown((c) => c - 1);
-      }, 1000);
-      return () => clearTimeout(timer);
-    } else {
-      // Transition to recall stage
-      setStage("recall");
-      setStartTime(Date.now());
-      try {
-        speakText("Which objects did you see? Select the four objects you remember.", speechLocale);
-      } catch {}
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    if (stage === "memorize") {
+      if (countdown > 0) {
+        timer = setTimeout(() => {
+          setCountdown((c) => c - 1);
+        }, 1000);
+      } else {
+        // Transition to recall stage
+        setStage("recall");
+        setStartTime(Date.now());
+        try {
+          speakText("Which objects did you see? Select the four objects you remember.", speechLocale);
+        } catch {}
+      }
     }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [countdown, stage, speechLocale]);
 
   const handleSkipMemorize = () => {

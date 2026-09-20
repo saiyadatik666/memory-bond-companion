@@ -1507,7 +1507,7 @@ export function parseVoiceIntent(
         title: cleanTitle,
         time: effectiveTime,
         date: reminderDate,
-        repeat,
+        repeat: (repeat === "interval" ? "none" : repeat) as "none" | "daily" | "weekly",
         type: reminderType,
         notes: extractedNotes || null,
         active: true,

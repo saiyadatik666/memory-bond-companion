@@ -13,15 +13,18 @@ function RouteComponent() {
   const [initError, setInitError] = useState<string | null>(null);
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       // 1.2-second subtle branded splash animation, then seamlessly open the welcome screen
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
         setIsClientReady(true);
       }, 1200);
-      return () => clearTimeout(timer);
     } catch (err: any) {
       setInitError(err?.message || "Failed to initialize companion view");
     }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   if (!isClientReady) {

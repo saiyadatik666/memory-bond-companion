@@ -700,6 +700,8 @@ const NEARBY_HELP_MAP: Record<
   elder_care: { query: "nursing home", label: "Elder Care" },
 };
 
+const CACHE_TTL_MS = 60 * 1000; // 1 minute cache
+
 const nearbyHelpCache = new Map<
   string,
   {
@@ -869,7 +871,6 @@ export async function searchNearbyHelpServices(
 
 // In-memory cache to respect free OSM rate limits
 const nearbyCache = new Map<string, { timestamp: number; data: NearbyPlace[] }>();
-const CACHE_TTL_MS = 60 * 1000; // 1 minute cache
 
 export async function searchNearbyPOIs(
   lat: number,

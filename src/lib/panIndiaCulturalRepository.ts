@@ -533,7 +533,7 @@ function generatePanIndiaCatalog(): CulturalItem[] {
         { name: "Gudi Padwa", native: "गुढीपाडवा", icon: "🚩", desc: "Marathi New Year marked by hoisting the auspicious silk Gudi flag outside the window.", story: "Hoisting the bright green and red silk Gudi with neem leaves and sweet sugar candy garland." },
       ],
       food: [
-        { name: "Puran Poli", nativeName: "पुरणपोळी", native: "पुरणपोळी", icon: "🥞", desc: "Delicate sweet flatbread stuffed with spiced yellow gram and jaggery served with pure ghee.", story: "The warm, comforting taste of puran poli swimming in melted homemade ghee on festival days." },
+        { name: "Puran Poli", native: "पुरणपोळी", icon: "🥞", desc: "Delicate sweet flatbread stuffed with spiced yellow gram and jaggery served with pure ghee.", story: "The warm, comforting taste of puran poli swimming in melted homemade ghee on festival days." },
         { name: "Ukdiche Modak", native: "उकडीचे मोदक", icon: "🥟", desc: "Steamed rice-flour dumplings filled with fresh coconut, jaggery, and cardamom, drizzled with ghee.", story: "Watching grandmother expertly pinch the delicate 21 folds of the festival modak." },
         { name: "Misal Pav", native: "मिसळ पाव", icon: "🍛", desc: "Spicy sprouted moth bean curry garnished with farsan, onions, lemon, and soft pav bread.", story: "The fiery, satisfying breakfast of spicy rassa misal on Sunday mornings." },
       ],

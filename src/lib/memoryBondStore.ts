@@ -889,6 +889,7 @@ export interface AppNotification {
   body: string;
   read: boolean;
   created_at: string;
+  action_url?: string;
 }
 
 export const DEMO_NOTIFICATIONS: AppNotification[] = [
@@ -2025,6 +2026,20 @@ export function useMemoryBondStore() {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   }, []);
 
+  const addNotification = useCallback((n: { title: string; body: string; category?: any; action_url?: string } | Omit<AppNotification, "id" | "created_at">) => {
+    const fullNotif: AppNotification = {
+      id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      title: n.title,
+      body: n.body,
+      category: (n as any).category || "general",
+      read: false,
+      created_at: new Date().toISOString(),
+      action_url: (n as any).action_url,
+    };
+    setNotifications((prev) => [fullNotif, ...prev]);
+    return fullNotif;
+  }, []);
+
   // Hydration Actions (SIH 2026 Section 13)
   const drinkGlassOfWater = useCallback(() => {
     setHydrationGlasses((prev) => {
@@ -2244,7 +2259,7 @@ export function useMemoryBondStore() {
       reminder_type: "medicine",
       scheduled_time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       stage: 1,
-      status: "active",
+      status: "pending",
       first_sent_at: new Date().toISOString(),
     };
     setReminderEscalations((prev) => [initial, ...prev]);
@@ -2438,6 +2453,7 @@ export function useMemoryBondStore() {
 
     // Notifications
     notifications,
+    addNotification,
     markNotificationRead,
     markAllNotificationsRead,
 
@@ -2575,10 +2591,6 @@ export function useMemoryBondStore() {
 
     // AI Adaptive Difficulty Engine Feedback
     lastAdaptiveFeedback,
-
-    // Offline Simulation Controls
-    setOfflineModeForced,
-    offlineModeForced: !!offlineModeForced,
 
     // Memory Stories (SIH 2026 Section 22)
     memoryStories,

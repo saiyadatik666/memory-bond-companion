@@ -4,7 +4,7 @@
  * and External Navigation links for elderly users and caregivers.
  */
 
-import type { LatLng, SelectedLocationState } from "@/types/realSafetyMap";
+import type { LatLng, SelectedLocationState, SelectedSearchLocation } from "@/types/realSafetyMap";
 
 export type LocationPermissionState =
   | "available"
@@ -222,7 +222,7 @@ export function buildExactGoogleMapsDirectionsUrl(
 
 const STORAGE_SELECTED_LOCATION_KEY = "mb_selected_search_location";
 
-export function loadSelectedSearchLocation(): import("@/types/realSafetyMap").SelectedSearchLocation | null {
+export function loadSelectedSearchLocation(): SelectedSearchLocation | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(STORAGE_SELECTED_LOCATION_KEY);
@@ -234,7 +234,7 @@ export function loadSelectedSearchLocation(): import("@/types/realSafetyMap").Se
   }
 }
 
-export function saveSelectedSearchLocation(loc: import("@/types/realSafetyMap").SelectedSearchLocation): void {
+export function saveSelectedSearchLocation(loc: SelectedSearchLocation): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(STORAGE_SELECTED_LOCATION_KEY, JSON.stringify(loc));

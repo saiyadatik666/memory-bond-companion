@@ -199,20 +199,25 @@ export function MemoryBondApp() {
 
   // Scheduled device notifications & reminders watcher with fail-safe error handling
   useEffect(() => {
+    let interval: number | undefined;
     try {
       requestNotificationPermission();
       checkScheduledReminders(store);
-      const interval = window.setInterval(() => {
+      interval = window.setInterval(() => {
         try {
           checkScheduledReminders(store);
         } catch (err) {
           console.debug("[MemoryBond App] Scheduled reminder check tick:", err);
         }
       }, 20000);
-      return () => window.clearInterval(interval);
     } catch (err) {
       console.debug("[MemoryBond App] Notification watcher setup bypassed:", err);
     }
+    return () => {
+      if (interval !== undefined) {
+        window.clearInterval(interval);
+      }
+    };
   }, [store]);
 
   // Direct URL parameter synchronization & Route Guard Protection
@@ -269,7 +274,7 @@ export function MemoryBondApp() {
   }, [store.profile.role, currentTab]);
 
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const navTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const navTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Authoritative Navigation with Route Guard Enforcement
   const handleNavigate = useCallback(

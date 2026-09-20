@@ -92,6 +92,7 @@ export function VoiceAssistantModal({
   // Keep refs synchronized
   useEffect(() => {
     isOpenRef.current = isOpen;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     if (isOpen) {
       // Request browser notification permissions so alerts can pop up on device
       requestNotificationPermission().catch(() => {});
@@ -102,15 +103,17 @@ export function VoiceAssistantModal({
       setLastResponseText("");
       lastActionCompletedRef.current = false;
       // Auto-start listening on open for seamless experience
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
         if (isOpenRef.current) {
           startListening();
         }
       }, 300);
-      return () => clearTimeout(timer);
     } else {
       cleanupAllAudio();
     }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -454,7 +457,7 @@ export function VoiceAssistantModal({
             stage: "awaiting_reminder_time",
             targetTitle: parsed.title,
             targetDate: parsed.date,
-            reminderType: parsed.reminderType,
+            reminderType: parsed.reminderType as any,
           });
           finalResponseText = parsed.confirmationMessage;
         } else if (parsed.needsTitle) {
@@ -463,7 +466,7 @@ export function VoiceAssistantModal({
             stage: "awaiting_reminder_topic",
             targetTime: parsed.time,
             targetDate: parsed.date,
-            reminderType: parsed.reminderType,
+            reminderType: parsed.reminderType as any,
           });
           finalResponseText = parsed.confirmationMessage;
         } else {
@@ -592,7 +595,7 @@ export function VoiceAssistantModal({
         <div className="flex items-center justify-between border-b border-border/40 pb-3">
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-bold">
-              <MemoryBondLogo size={24} />
+              <MemoryBondLogo size="sm" />
             </div>
             <div>
               <h3 className="font-extrabold text-base sm:text-lg text-foreground">

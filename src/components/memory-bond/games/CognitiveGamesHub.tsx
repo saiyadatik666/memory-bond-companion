@@ -657,29 +657,34 @@ export function CognitiveGamesHub({
                   </div>
                 }
               >
-                <selectedGameObj.component
-                  key={`${activeGame}_lvl_${currentLevel}_${attemptCount}_${store.profile.selected_state || store.profile.selected_ner_state || "all"}_cycle_${store.cycleInfo.cycleNumber}`}
-                  level={currentLevel}
-                  onComplete={handleGameComplete}
-                  onBackToHome={() => {
-                    setActiveGame(null);
-                    setGameStage("playing");
-                    setLastResult(null);
-                    onNavigate?.("home");
-                  }}
-                  onPlayAnother={() => {
-                    setAttemptCount((c) => c + 1);
-                    setGameStage("playing");
-                    setLastResult(null);
-                  }}
-                  previousAccuracy={store.gameSessions.length > 0 ? store.gameSessions[store.gameSessions.length - 1].accuracy : 74}
-                  nerState={store.profile.selected_state || store.profile.selected_ner_state || "all"}
-                  memoryCues={store.memoryCues}
-                  contacts={store.contacts}
-                  cycleNumber={store.cycleInfo.cycleNumber}
-                  cycleSeed={store.cycleInfo.cycleNumber * 7919}
-                  adaptiveDifficulty={adaptiveRecommendation.recommended}
-                />
+                {(() => {
+                  const GameComp = selectedGameObj.component as any;
+                  return (
+                    <GameComp
+                      key={`${activeGame}_lvl_${currentLevel}_${attemptCount}_${store.profile.selected_state || store.profile.selected_ner_state || "all"}_cycle_${store.cycleInfo.cycleNumber}`}
+                      level={currentLevel}
+                      onComplete={handleGameComplete}
+                      onBackToHome={() => {
+                        setActiveGame(null);
+                        setGameStage("playing");
+                        setLastResult(null);
+                        onNavigate?.("home");
+                      }}
+                      onPlayAnother={() => {
+                        setAttemptCount((c) => c + 1);
+                        setGameStage("playing");
+                        setLastResult(null);
+                      }}
+                      previousAccuracy={store.gameSessions.length > 0 ? store.gameSessions[store.gameSessions.length - 1].accuracy : 74}
+                      nerState={store.profile.selected_state || store.profile.selected_ner_state || "all"}
+                      memoryCues={store.memoryCues}
+                      contacts={store.contacts}
+                      cycleNumber={store.cycleInfo.cycleNumber}
+                      cycleSeed={store.cycleInfo.cycleNumber * 7919}
+                      adaptiveDifficulty={adaptiveRecommendation.recommended}
+                    />
+                  );
+                })()}
               </GameErrorBoundary>
             </div>
           ) : (
@@ -1037,7 +1042,7 @@ export function CognitiveGamesHub({
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {(store.cognitiveCareLoopSteps || []).map((step) => {
                     const isDone = step.status === "completed";
-                    const isCurrent = step.status === "in_progress";
+                    const isCurrent = step.status === "active" || (step.status as any) === "in_progress";
                     return (
                       <div
                         key={step.step}
@@ -1079,14 +1084,14 @@ export function CognitiveGamesHub({
                         Personalization Engine Profile
                       </span>
                       <p className="text-foreground font-semibold">
-                        Best Performance Window: <strong className="text-foreground">{store.personalizationInsights.preferredFocusWindow}</strong> • 
-                        Avg Session: <strong>{store.personalizationInsights.avgSessionDurationMinutes} mins</strong> • 
-                        Trend: <strong className="capitalize text-emerald-700 dark:text-emerald-300">{store.personalizationInsights.performanceTrend}</strong>
+                        Best Performance Window: <strong className="text-foreground">{store.personalizationInsights.preferredTimeWindow || (store.personalizationInsights as any).preferredFocusWindow || "Morning"}</strong> • 
+                        Avg Session: <strong>{Math.round((store.personalizationInsights.avgSessionDurationMs || 300000) / 60000)} mins</strong> • 
+                        Suggestion: <strong className="capitalize text-emerald-700 dark:text-emerald-300">{store.personalizationInsights.proactiveSuggestion || "Keep practicing"}</strong>
                       </p>
                     </div>
-                    {store.personalizationInsights.favoriteGames.length > 0 && (
+                    {store.personalizationInsights.favoriteGame && (
                       <span className="text-muted-foreground">
-                        Favorite Game: <strong className="text-foreground">{store.personalizationInsights.favoriteGames[0].name}</strong>
+                        Favorite Game: <strong className="text-foreground">{store.personalizationInsights.favoriteGame.title}</strong>
                       </span>
                     )}
                   </div>

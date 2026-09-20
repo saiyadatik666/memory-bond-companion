@@ -136,7 +136,7 @@ export function SeniorNerAccessibilityView({
   const [searchLocationQuery, setSearchLocationQuery] = useState("");
   const [locationSuggestions, setLocationSuggestions] = useState<SelectedSearchLocation[]>([]);
   const [isSearchingLocations, setIsSearchingLocations] = useState(false);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Voice Search states (Requirement 10 & 11)
   const [isListening, setIsListening] = useState(false);
@@ -184,8 +184,8 @@ export function SeniorNerAccessibilityView({
   const [sosHoldProgress, setSosHoldProgress] = useState(0);
   const [sosSecondsLeft, setSosSecondsLeft] = useState(3);
   const [isHoldingSos, setIsHoldingSos] = useState(false);
-  const sosTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const sosIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const sosTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sosIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // 8. Spoken / Status Message
   const [spokenMessage, setSpokenMessage] = useState<string | null>(null);
@@ -875,7 +875,7 @@ export function SeniorNerAccessibilityView({
     sosTimerRef.current = setTimeout(() => {
       cancelSosHold();
       if (locationState.coords) {
-        store.setSeniorCoordinates?.(locationState.coords.lat, locationState.coords.lng);
+        (store as any).setSeniorCoordinates?.(locationState.coords.lat, locationState.coords.lng);
       }
       onOpenSos();
     }, duration);

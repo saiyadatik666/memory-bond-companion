@@ -119,7 +119,7 @@ export function checkScheduledReminders(store: MemoryBondStore) {
   const currentHours = String(now.getHours()).padStart(2, "0");
   const currentMins = String(now.getMinutes()).padStart(2, "0");
   const currentTimeKey = `${currentHours}:${currentMins}`;
-  const todayDateStr = getLocalTodayDateString(now);
+  const todayDateStr = getLocalTodayDateString();
   const currentDayOfWeek = now.getDay();
 
   // 1. Check Medicine Schedules
