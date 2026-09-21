@@ -421,20 +421,25 @@ export function SeniorHome({
           <button
             type="button"
             onClick={() => onNavigate("games")}
-            className="group p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border border-[#E2EAF5] hover:border-purple-300 hover:bg-purple-50/30 text-left transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-98 flex flex-col justify-between min-h-[96px] sm:min-h-[104px]"
+            className="group p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border-2 border-[#E2EAF5] hover:border-primary hover:bg-primary/5 text-left transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-98 flex flex-col justify-between min-h-[100px] sm:min-h-[110px]"
           >
             <div className="flex items-center justify-between w-full">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 transition-transform shrink-0">
-                🧠
+              <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center text-xl group-hover:scale-105 transition-transform shrink-0">
+                🎮
               </div>
-              <ChevronRight className="h-4 w-4 text-[#829AB1]/60 group-hover:text-purple-600 group-hover:translate-x-0.5 transition-all shrink-0" />
+              <div className="flex items-center gap-1 shrink-0">
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-primary/10 text-primary hidden sm:inline">
+                  {t("play") || "Play"}
+                </span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
+              </div>
             </div>
             <div className="mt-2 min-w-0">
-              <div className="text-xs sm:text-sm font-black text-[#0F243E] group-hover:text-purple-900 truncate">
-                Play Games
+              <div className="text-xs sm:text-sm font-black text-foreground group-hover:text-primary truncate">
+                {t("games") || "Memory Games"}
               </div>
-              <div className="text-[10px] sm:text-xs font-semibold text-[#5B728D] truncate">
-                Memory & puzzles
+              <div className="text-[10px] sm:text-xs font-semibold text-muted-foreground truncate">
+                12 Calm Activities
               </div>
             </div>
           </button>
@@ -511,24 +516,24 @@ export function SeniorHome({
               <button
                 type="button"
                 onClick={() => onNavigate("cultural")}
-                className="group p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border border-[#E2EAF5] hover:border-amber-300 hover:bg-amber-50/30 text-left transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-98 flex flex-col justify-between min-h-[96px] sm:min-h-[104px]"
+                className="group p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border-2 border-[#E2EAF5] hover:border-amber-400 hover:bg-amber-50/20 text-left transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-98 flex flex-col justify-between min-h-[100px] sm:min-h-[110px]"
               >
                 <div className="flex items-center justify-between w-full">
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 transition-transform shrink-0">
-                    🌍
+                  <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center text-xl group-hover:scale-105 transition-transform shrink-0">
+                    🏛️
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 hidden sm:inline">
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 hidden sm:inline">
                       {culturalBadge}
                     </span>
-                    <ChevronRight className="h-4 w-4 text-[#829AB1]/60 group-hover:text-amber-700 group-hover:translate-x-0.5 transition-all" />
+                    <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-amber-700 group-hover:translate-x-0.5 transition-all" />
                   </div>
                 </div>
                 <div className="mt-2 min-w-0">
-                  <div className="text-xs sm:text-sm font-black text-[#0F243E] group-hover:text-amber-950 truncate">
-                    Cultural Hub
+                  <div className="text-xs sm:text-sm font-black text-foreground group-hover:text-amber-900 truncate">
+                    {t("culturalHub") || "Cultural Hub"}
                   </div>
-                  <div className="text-[10px] sm:text-xs font-semibold text-[#5B728D] truncate">
+                  <div className="text-[10px] sm:text-xs font-semibold text-muted-foreground truncate">
                     {culturalSuggestion}
                   </div>
                 </div>

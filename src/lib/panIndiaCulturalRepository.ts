@@ -32,6 +32,9 @@ export interface CulturalItem {
   region: "North" | "South" | "East" | "West" | "Central" | "North-East";
   category: CulturalCategory;
   icon: string;
+  imageUrl?: string;
+  heroImageUrl?: string;
+  isNew?: boolean;
   description: string;
   reminiscenceStory: string;
   audioCueText?: string;
@@ -877,3 +880,214 @@ export function getRandomCulturalReminiscence(state?: string): CulturalItem {
   const idx = Math.floor(Math.random() * items.length);
   return items[idx] || PAN_INDIA_CULTURAL_CATALOG[0];
 }
+
+/**
+ * Maps any cultural item to an authentic, photorealistic photographic image
+ */
+export function getCulturalItemImage(item: CulturalItem): string {
+  if (item.imageUrl) return item.imageUrl;
+
+  const nameLower = (item.name || "").toLowerCase();
+  const idLower = (item.id || "").toLowerCase();
+  const stateLower = (item.state || "").toLowerCase();
+
+  if (nameLower.includes("bihu") || idLower.includes("bihu")) {
+    return "/images/cultural/bihu_dance.jpg";
+  }
+  if (nameLower.includes("tea") || idLower.includes("tea") || nameLower.includes("chai")) {
+    return "/images/cultural/assam_tea.jpg";
+  }
+  if (nameLower.includes("root bridge") || stateLower === "meghalaya" || nameLower.includes("shillong") || nameLower.includes("cherrapunji")) {
+    return "/images/cultural/living_root_bridge.jpg";
+  }
+  if (nameLower.includes("tawang") || stateLower === "arunachal pradesh" || nameLower.includes("monpa")) {
+    return "/images/cultural/tawang_monastery.jpg";
+  }
+  if (nameLower.includes("hornbill") || stateLower === "nagaland" || nameLower.includes("naga")) {
+    return "/images/cultural/hornbill_festival.jpg";
+  }
+  if (nameLower.includes("raas") || nameLower.includes("manipuri") || stateLower === "manipur" || nameLower.includes("loktak")) {
+    return "/images/cultural/manipur_dance.jpg";
+  }
+  if (nameLower.includes("cheraw") || nameLower.includes("bamboo") || stateLower === "mizoram" || nameLower.includes("chapchar")) {
+    return "/images/cultural/mizoram_bamboo.jpg";
+  }
+  if (nameLower.includes("kanchenjunga") || stateLower === "sikkim" || nameLower.includes("rumtek")) {
+    return "/images/cultural/sikkim_himalaya.jpg";
+  }
+  if (nameLower.includes("neermahal") || stateLower === "tripura" || nameLower.includes("ujjayanta")) {
+    return "/images/cultural/tripura_palace.jpg";
+  }
+  if (stateLower === "assam") {
+    return "/images/cultural/bihu_dance.jpg";
+  }
+
+  // Category based photorealistic mappings
+  switch (item.category) {
+    case "festivals":
+      return "/images/cultural/diwali_lamps.jpg";
+    case "food":
+      return "/images/cultural/traditional_food.jpg";
+    case "clothing":
+    case "crafts":
+    case "art":
+      return "/images/cultural/handicrafts_weaving.jpg";
+    case "music":
+    case "instruments":
+      return "/images/cultural/indian_music.jpg";
+    case "dance":
+      return "/images/cultural/bihu_dance.jpg";
+    case "architecture":
+    case "heritage":
+    case "markets":
+      return "/images/cultural/tripura_palace.jpg";
+    case "nature":
+    case "agriculture":
+      return "/images/cultural/assam_tea.jpg";
+    case "traditions":
+    case "lifestyle":
+    case "objects":
+    default:
+      return "/images/cultural/diwali_lamps.jpg";
+  }
+}
+
+/**
+ * Featured Cultural Experience of the day
+ */
+export const FEATURED_CULTURAL_EXPERIENCE: CulturalItem = {
+  id: "featured_bihu_celebration",
+  name: "Rongali Bihu Festival of Assam",
+  nativeName: "ৰঙালী বিহু উৎসৱ",
+  state: "Assam",
+  region: "North-East",
+  category: "festivals",
+  icon: "🌸",
+  imageUrl: "/images/cultural/bihu_dance.jpg",
+  heroImageUrl: "/images/cultural/bihu_dance.jpg",
+  isNew: true,
+  description: "Celebrate the joyous spring festival of Assam with the uplifting rhythmic beats of the Bihu dhol, authentic golden Muga silk mekhela sador, and fragrant kopou orchid blossoms.",
+  reminiscenceStory: "Remembering peaceful village mornings filled with fresh turmeric baths, the aroma of newly baked til pitha, and young dancers dancing to the resonant Pepa horn.",
+  audioCueText: "The resonant dhol drum and Pepa horn ring across the Brahmaputra valley welcoming the spring new year with blessings of peace and health.",
+  tags: ["Spring", "Assam", "Muga Silk", "Folk Dance", "NER"],
+};
+
+/**
+ * 8 North Eastern Region Curated Cultural Showcases
+ */
+export const NER_SHOWCASE_ITEMS: CulturalItem[] = [
+  {
+    id: "ner_assam_bihu",
+    name: "Rongali Bihu Celebration",
+    nativeName: "ৰঙালী বিহু (অসম)",
+    state: "Assam",
+    region: "North-East",
+    category: "dance",
+    icon: "🌸",
+    imageUrl: "/images/cultural/bihu_dance.jpg",
+    heroImageUrl: "/images/cultural/bihu_dance.jpg",
+    isNew: true,
+    description: "Traditional spring celebration of Assam with dancers in handwoven golden Muga silk mekhela sador moving gracefully to rhythmic dhol drums.",
+    reminiscenceStory: "The joyous clatter of the taat handloom in the courtyard and singing Bihu naam with family under the warm spring sun.",
+    audioCueText: "The vibrant rhythmic beats of the Bihu dhol drum welcoming the spring festival in Assam.",
+  },
+  {
+    id: "ner_meghalaya_root_bridge",
+    name: "Living Root Bridges",
+    nativeName: "Jingkieng Jri (Meghalaya)",
+    state: "Meghalaya",
+    region: "North-East",
+    category: "nature",
+    icon: "🌉",
+    imageUrl: "/images/cultural/living_root_bridge.jpg",
+    heroImageUrl: "/images/cultural/living_root_bridge.jpg",
+    isNew: true,
+    description: "Ancient living bio-engineering wonders hand-guided across generations by the Khasi and Jaintia communities over crystal mountain rivers.",
+    reminiscenceStory: "Walking softly across damp living moss and strong intertwining ficus tree roots while listening to the rushing turquoise waterfall below.",
+    audioCueText: "The gentle murmuring of clear mountain streams beneath the ancient living root bridges of Cherrapunji.",
+  },
+  {
+    id: "ner_arunachal_tawang",
+    name: "Tawang Monastery at Sunrise",
+    nativeName: "Tawang Gompa (Arunachal)",
+    state: "Arunachal Pradesh",
+    region: "North-East",
+    category: "architecture",
+    icon: "🏔️",
+    imageUrl: "/images/cultural/tawang_monastery.jpg",
+    heroImageUrl: "/images/cultural/tawang_monastery.jpg",
+    description: "India's largest Buddhist monastery perched high at 10,000 feet amidst misty snow-dusted Eastern Himalayan peaks.",
+    reminiscenceStory: "Golden prayer wheels gently turning in crisp mountain air while colorful flags carry silent prayers across the quiet valley.",
+    audioCueText: "Deep brass temple horns sounding across the Himalayan valleys of Tawang at early morning dawn.",
+  },
+  {
+    id: "ner_nagaland_hornbill",
+    name: "Hornbill Festival of Heritage",
+    nativeName: "Hornbill Festival (Nagaland)",
+    state: "Nagaland",
+    region: "North-East",
+    category: "festivals",
+    icon: "🎺",
+    imageUrl: "/images/cultural/hornbill_festival.jpg",
+    heroImageUrl: "/images/cultural/hornbill_festival.jpg",
+    description: "The grand Festival of Festivals at Kisama village uniting all Naga tribes in joyous dance, geometric handwoven shawls, and ancient songs.",
+    reminiscenceStory: "The warm scent of community campfires, resonant tribal log drums, and bright red-and-black woven heritage shawls.",
+    audioCueText: "The powerful unity of community chanting and resonant folk drums echoing through the Naga hills.",
+  },
+  {
+    id: "ner_manipur_raas",
+    name: "Manipuri Raas Leela Dance",
+    nativeName: "মণিপুৰী ৰাস লীলা",
+    state: "Manipur",
+    region: "North-East",
+    category: "dance",
+    icon: "💃",
+    imageUrl: "/images/cultural/manipur_dance.jpg",
+    heroImageUrl: "/images/cultural/manipur_dance.jpg",
+    description: "Classical devotional dance of Manipur renowned for serene lyrical movements, mirror-embroidered Kumil skirts, and subtle hand expressions.",
+    reminiscenceStory: "Sitting in quiet reverence in the temple mandap watching dancers glide softly like floating lotus blossoms on calm water.",
+    audioCueText: "The soft ringing of ankle bells and gentle devotional melodies of the pung drum and flute.",
+  },
+  {
+    id: "ner_mizoram_cheraw",
+    name: "Cheraw Bamboo Dance",
+    nativeName: "Cheraw Lam (Mizoram)",
+    state: "Mizoram",
+    region: "North-East",
+    category: "dance",
+    icon: "🎋",
+    imageUrl: "/images/cultural/mizoram_bamboo.jpg",
+    heroImageUrl: "/images/cultural/mizoram_bamboo.jpg",
+    description: "Rhythmic traditional dance of Mizoram where agile dancers step gracefully between rhythmic clapping bamboo poles on festive occasions.",
+    reminiscenceStory: "Lively family laughter during Chapchar Kut celebrations as young and old cheer to the steady clack-clack tempo of polished bamboo.",
+    audioCueText: "The rhythmic, cheerful clacking of green bamboo poles marking the joyful tempo of the Cheraw dance.",
+  },
+  {
+    id: "ner_tripura_neermahal",
+    name: "Neermahal Water Palace",
+    nativeName: "নীৰমহল (ত্ৰিপুৰা)",
+    state: "Tripura",
+    region: "North-East",
+    category: "architecture",
+    icon: "🏰",
+    imageUrl: "/images/cultural/tripura_palace.jpg",
+    heroImageUrl: "/images/cultural/tripura_palace.jpg",
+    description: "Splendid water palace in Tripura surrounded by the serene Rudrasagar Lake, showcasing royal Mughal and Hindu architectural harmony.",
+    reminiscenceStory: "Taking a gentle wooden boat ride at sunset across still lake waters while the red palace walls glow in the golden evening light.",
+    audioCueText: "Water gently lapping against the wooden boat hull as the majestic palace lights reflect on Rudrasagar Lake.",
+  },
+  {
+    id: "ner_sikkim_kanchenjunga",
+    name: "Sacred Kanchenjunga Sunrise",
+    nativeName: "सिक्किम कञ्चनजङ्घा",
+    state: "Sikkim",
+    region: "North-East",
+    category: "nature",
+    icon: "🏔️",
+    imageUrl: "/images/cultural/sikkim_himalaya.jpg",
+    heroImageUrl: "/images/cultural/sikkim_himalaya.jpg",
+    description: "Majestic Mount Kanchenjunga revered as the guardian deity of Sikkim, glowing radiant gold against serene high-altitude skies.",
+    reminiscenceStory: "Sipping a hot cup of cardamom tea on the misty hillside veranda as the morning sun reveals the glowing snow peaks.",
+    audioCueText: "Crisp mountain wind fluttering colorful prayer flags against the mighty silent presence of Mount Kanchenjunga.",
+  },
+];

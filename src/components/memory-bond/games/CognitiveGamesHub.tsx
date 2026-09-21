@@ -29,11 +29,13 @@ import {
   Cpu,
   Compass,
   Check,
+  Play,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { type MemoryBondStore, getRecommendedDifficulty } from "@/lib/memoryBondStore";
 import { useI18n, getMotivationalFeedback } from "@/lib/i18n";
 import { speakText } from "@/lib/voiceParser";
+import { GameArtwork } from "./GameArtwork";
 
 import { MemoryCardMatch } from "./MemoryCardMatch";
 import { ObjectRecall } from "./ObjectRecall";
@@ -118,10 +120,233 @@ export function CognitiveGamesHub({
   const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false);
   const [showAiLoop, setShowAiLoop] = useState<boolean>(false);
 
+  const [pendingGame, setPendingGame] = useState<string | null>(null);
+
   // Dynamic Difficulty Adaptation Engine from MemoryBondStore
   const adaptiveRecommendation = useMemo(() => {
     return getRecommendedDifficulty(activeGame || "", store.gameSessions, difficulty);
   }, [activeGame, store.gameSessions, difficulty]);
+
+  const getLocalizedGame = useCallback((gameId: string) => {
+    const isHi = lang === "hi";
+    const isGu = lang === "gu";
+    const isAs = lang === "as";
+
+    const dict: Record<string, { title: string; summary: string; instruction: string }> = {
+      pattern_recall: {
+        title: isHi ? "पैटर्न मिलान" : isGu ? "પેટર્ન મેળવો" : isAs ? "প্যাটাৰ্ন মিলোৱা" : "Pattern Match",
+        summary: isHi
+          ? "आकारों के शांत क्रम को देखें और अगला सही आकार चुनें।"
+          : isGu
+          ? "આકારનો ક્રમ યાદ રાખો અને તે જ ક્રમમાં પસંદ કરો."
+          : isAs
+          ? "ক্ৰমটো মনত ৰাখি সেইদৰে সজাওক।"
+          : "Watch the soothing sequence and pick the next pattern.",
+        instruction: isHi
+          ? "क्रम को ध्यान से देखें और अगला आकार चुनें।"
+          : isGu
+          ? "આકારનો ક્રમ યાદ રાખો અને તે જ ક્રમમાં પસંદ કરો."
+          : isAs
+          ? "ক্ৰমটো মনত ৰাখি সেইদৰে সজাওক।"
+          : "Watch the pattern and repeat the sequence in order.",
+      },
+      card_match: {
+        title: isHi ? "कार्ड जोड़ी मिलान" : isGu ? "કાર્ડ જોડી મેળવો" : isAs ? "কাৰ্ড যোৰ মিলোৱা" : "Memory Card Match",
+        summary: isHi
+          ? "समान चित्रों वाले दो कार्ड पलटें और शांति से जोड़े बनाएं।"
+          : isGu
+          ? "સરખા ચિત્રવાળા બે કાર્ડ પસંદ કરો અને જોડી બનાવો."
+          : isAs
+          ? "একে ছবিৰ দুখন কাৰ্ড বাছি যোৰ সাজক।"
+          : "Flip peaceful cards and find identical matching pairs.",
+        instruction: isHi
+          ? "देखिए और समान तस्वीरें मिलाइए।"
+          : isGu
+          ? "સરખા ચિત્રવાળા બે કાર્ડ પસંદ કરો અને જોડી બનાવો."
+          : isAs
+          ? "একে ছবিৰ দুখন কাৰ্ড বাছি যোৰ সাজক।"
+          : "Flip peaceful cards and find matching pairs.",
+      },
+      real_memory: {
+        title: isHi ? "याददाश्त और पहचान" : isGu ? "સ્મૃતિ અને ઓળખ" : isAs ? "স্মৃতি আৰু চিনাক্তকৰণ" : "Memory Match & Recall",
+        summary: isHi
+          ? "थाली पर रखी 4 परिचित वस्तुओं (सेब, चाय, चाबी, कमल) को याद रखें।"
+          : isGu
+          ? "થાલી પર રાખેલી 4 વસ્તુઓ (સફરજન, ચા, ચાવી, કમળ) યાદ રાખો."
+          : isAs
+          ? "কাঁহীত থকা ৪টা চিনাকি বস্তু (আপেল, চাহ, চাবি, পদুম) মনত ৰাখক।"
+          : "Remember 4 familiar objects (🍎, ☕, 🔑, 🌸) and recall them.",
+        instruction: isHi
+          ? "थाली पर रखी वस्तुओं को ध्यान से देखें और याद रखें।"
+          : isGu
+          ? "થાલી પર રાખેલી વસ્તુઓ ધ્યાનથી જુઓ અને યાદ રાખો."
+          : isAs
+          ? "বস্তুবোৰ মনোযোগেৰে চাই মনত ৰাখক।"
+          : "Observe the keepsakes on the tray and remember them.",
+      },
+      sequence_memory: {
+        title: isHi ? "संख्या क्रम याददाश्त" : isGu ? "આંકડા ક્રમ સ્મૃતિ" : isAs ? "সংখ্যা ক্ৰম স্মৃতি" : "Number Sequence Memory",
+        summary: isHi
+          ? "दिखाए गए नंबरों को याद रखें और उसी क्रम में शांत मन से दर्ज करें।"
+          : isGu
+          ? "દર્શાવેલા આંકડા યાદ રાખીને તે જ ક્રમમાં દાખલ કરો."
+          : isAs
+          ? "নম্বৰবোৰ মনত ৰাখক আৰু একে ক্ৰমত লিখক।"
+          : "Remember short number sequences and enter them calmly.",
+        instruction: isHi
+          ? "दिखाए गए नंबर याद रखें और उसी क्रम में दर्ज करें।"
+          : isGu
+          ? "દર્શાવેલા આંકડા યાદ રાખીને તે જ ક્રમમાં દાખલ કરો."
+          : isAs
+          ? "নম্বৰবোৰ মনত ৰাখক আৰু একে ক্ৰমত লিখক।"
+          : "Remember the numbers shown and enter them in order.",
+      },
+      find_difference: {
+        title: isHi ? "अलग पहचानें (एकाग्रता)" : isGu ? "જુદું ઓળખો (ધ્યાન)" : isAs ? "ভিন্নটো চিনাক্ত কৰা" : "Visual Attention (Odd One Out)",
+        summary: isHi
+          ? "शांत ग्रिड में से अलग दिखने वाली एक वस्तु पर टैप करें।"
+          : isGu
+          ? "ગ્રીડમાં જુદી પડતી એક વસ્તુ પર ટેપ કરો."
+          : isAs
+          ? "বেলেগ বস্তু এটা চিনাক্ত কৰক।"
+          : "Calm visual search for the slightly different item in a pattern.",
+        instruction: isHi
+          ? "ग्रिड में से अलग दिखने वाली वस्तु पर टैप करें।"
+          : isGu
+          ? "ગ્રીડમાં જુદી પડતી એક વસ્તુ પર ટેપ કરો."
+          : isAs
+          ? "বেলেগ বস্তু এটা চিনাক্ত কৰক।"
+          : "Look across the peaceful grid and tap the odd one out.",
+      },
+      word_memory: {
+        title: isHi ? "शब्द याददाश्त" : isGu ? "શબ્દ સ્મૃતિ" : isAs ? "শব্দ স্মৃতি" : "Word Memory Recall",
+        summary: isHi
+          ? "सुखद व सुकून भरे शब्दों की छोटी सूची पढ़ें और याद रखें।"
+          : isGu
+          ? "શાંતિથી શબ્દો વાંચો અને યાદ રાખીને પસંદ કરો."
+          : isAs
+          ? "শব্দবোৰ পঢ়ি মনত ৰাখক।"
+          : "Short, pleasant word lists for peaceful memorization.",
+        instruction: isHi
+          ? "शांति से शब्दों को पढ़ें और याद रखकर चुनें।"
+          : isGu
+          ? "શાંતિથી શબ્દો વાંચો અને યાદ રાખીને પસંદ કરો."
+          : isAs
+          ? "শব্দবোৰ পঢ়ি মনত ৰাখক।"
+          : "Read and remember the calm words, then pick them out.",
+      },
+      family_photo: {
+        title: isHi ? "पारिवारिक फोटो स्मृति" : isGu ? "કૌટુંબિક ફોટો સ્મૃતિ" : isAs ? "পৰিয়ালৰ ফটো স্মৃতি" : "Family Photo Memory",
+        summary: isHi
+          ? "परिवार के प्रिय सदस्यों और पुरानी मधुर यादों को पहचानें।"
+          : isGu
+          ? "પરિવારના વહાલા સભ્યો અને જૂની યાદોને ઓળખો."
+          : isAs
+          ? "পৰিয়ালৰ মৰমৰ মানুহবোৰ চিনি পাওক।"
+          : "Familiar faces and heartwarming family relationships.",
+        instruction: isHi
+          ? "परिवार के प्रिय सदस्यों और प्यारी यादों को पहचानें।"
+          : isGu
+          ? "પરિવારના વહાલા સભ્યો અને જૂની યાદોને ઓળખો."
+          : isAs
+          ? "পৰিয়ালৰ মৰমৰ মানুহবোৰ চিনি পাওক।"
+          : "Look at the familiar faces and recognize family members.",
+      },
+      routine_recall: {
+        title: isHi ? "दैनिक दिनचर्या स्मृति" : isGu ? "દૈનિક દિનચર્યા સ્મૃતિ" : isAs ? "দৈনন্দিন ৰুটিন স্মৃতি" : "Daily Routine Recall",
+        summary: isHi
+          ? "आज की दैनिक गतिविधियों (सुबह, चाय, दवा, सैर) को याद करें।"
+          : isGu
+          ? "આજની દૈનિક આદતો (સવાર, ચા, દવા, ચાલવું) વિશે યાદ કરો."
+          : isAs
+          ? "দৈনন্দিন স্বাস্থ্যৱান অভ্যাসৰ বিষয়ে উত্তৰ দিয়ক।"
+          : "Remember and sequence today's healthy daily activities.",
+        instruction: isHi
+          ? "दैनिक स्वस्थ दिनचर्या के बारे में शांत मन से उत्तर दें।"
+          : isGu
+          ? "દૈનિક સ્વસ્થ આદતો વિશે શાંત મનથી જવાબ આપો."
+          : isAs
+          ? "দৈনন্দিন স্বাস্থ্যৱান অভ্যাসৰ বিষয়ে উত্তৰ দিয়ক।"
+          : "Calm questions reinforcing healthy daily habits.",
+      },
+      match_object: {
+        title: isHi ? "वस्तुओं की जोड़ी" : isGu ? "વસ્તુઓની જોડી બનાવો" : isAs ? "বস্তুৰ যোৰ মিলাওক" : "Match the Object",
+        summary: isHi
+          ? "घरेलू दैनिक वस्तुओं को उनके सही साथी (चाय-प्याली, ताला-चाबी) से जोड़ें।"
+          : isGu
+          ? "સંબંધિત ઘરની વસ્તુઓની યોગ્ય જોડી બનાવો."
+          : isAs
+          ? "সম্পৰ্ক থকা বস্তুবোৰ মিলাওক।"
+          : "Connect household items with their natural partners.",
+        instruction: isHi
+          ? "जुड़ी हुई वस्तुओं के सही जोड़े बनाएं।"
+          : isGu
+          ? "સંબંધિત ઘરની વસ્તુઓની યોગ્ય જોડી બનાવો."
+          : isAs
+          ? "সম্পৰ্ক থকা বস্তুবোৰ মিলাওক।"
+          : "Connect everyday items with their natural partners.",
+      },
+      voice_quiz: {
+        title: isHi ? "आवाज़ स्मृति प्रश्नोत्तरी" : isGu ? "અવાજ સ્મૃતિ ક્વિઝ" : isAs ? "কণ্ঠস্বৰ স্মৃতি কুইজ" : "Voice Memory Quiz",
+        summary: isHi
+          ? "सुरीली आवाज़ सुनकर सरल याददाश्त प्रश्नों के उत्तर दें।"
+          : isGu
+          ? "ધ્યાનથી અવાજ સાંભળો અને સાચો વિકલ્પ પસંદ કરો."
+          : isAs
+          ? "কথাখিনি শুনি সঠিক উত্তৰ বাছক।"
+          : "Listen to gentle audio cues and answer recall questions.",
+        instruction: isHi
+          ? "आवाज़ ध्यान से सुनें और सही उत्तर चुनें।"
+          : isGu
+          ? "ધ્યાનથી અવાજ સાંભળો અને સાચો વિકલ્પ પસંદ કરો."
+          : isAs
+          ? "কথাখিনি শুনি সঠিক উত্তৰ বাছক।"
+          : "Listen to the audio cue and pick the correct recall answer.",
+      },
+      ner_cultural_memory: {
+        title: isHi ? "पूर्वोत्तर सांस्कृतिक धरोहर" : isGu ? "પૂર્વોત્તર સાંસ્કૃતિક વારસો" : isAs ? "উত্তৰ-পূব সাংস্কৃতিক স্মৃতি" : "Cultural Keepsakes Recall",
+        summary: isHi
+          ? "पूर्वोत्तर की सांस्कृतिक धरोहरों का क्रम याद रखें व पहचानें।"
+          : isGu
+          ? "સાંસ્કૃતિક વસ્તુઓનો ક્રમ ધ્યાનથી યાદ રાખો."
+          : isAs
+          ? "উত্তৰ-পূবৰ সাংস্কৃতিক বস্তুবোৰৰ ক্ৰম মনত ৰাখক।"
+          : "Culturally familiar North East keepsakes tray recall.",
+        instruction: isHi
+          ? "सांस्कृतिक वस्तुओं का क्रम ध्यान से याद रखें।"
+          : isGu
+          ? "સાંસ્કૃતિક વસ્તુઓનો ક્રમ ધ્યાનથી યાદ રાખો."
+          : isAs
+          ? "উত্তৰ-পূবৰ সাংস্কৃতিক বস্তুবোৰৰ ক্ৰম মনত ৰাখক।"
+          : "Remember the sequence of culturally familiar keepsakes.",
+      },
+      object_recall: {
+        title: isHi ? "स्मृति थाली" : isGu ? "સ્મૃતિ થાળી" : isAs ? "স্মৃতি কাঁহী" : "Keepsake Memory Tray",
+        summary: isHi
+          ? "थाली पर रखी वस्तुओं को ध्यान से देखें और बदलाव पहचानें।"
+          : isGu
+          ? "થાલી પર રાખેલી વસ્તુઓ ધ્યાનથી જુઓ અને ફેરફાર ઓળખો."
+          : isAs
+          ? "কাঁহীত থকা বস্তুবোৰ চাই পৰিৱৰ্তন চিনি উলিয়াওক।"
+          : "Observe cherished Indian keepsakes on the tray and spot the change.",
+        instruction: isHi
+          ? "थाली पर रखी वस्तुओं को ध्यान से देखें और बदलाव पहचानें।"
+          : isGu
+          ? "થાલી પર રાખેલી વસ્તુઓ ધ્યાનથી જુઓ અને ફેરફાર ઓળખો."
+          : isAs
+          ? "কাঁহীত থকা বস্তুবোৰ মনোযোগেৰে চাই পৰিৱৰ্তন চিনি উলিয়াওক।"
+          : "Observe keepsakes on the tray and spot the mystery change.",
+      },
+    };
+
+    return (
+      dict[gameId] || {
+        title: gameId.replace(/_/g, " "),
+        summary: "Engaging memory and attention activity.",
+        instruction: "Follow the gentle instructions on screen to play.",
+      }
+    );
+  }, [lang]);
 
   const games = [
     {
@@ -1222,103 +1447,111 @@ export function CognitiveGamesHub({
             </div>
           </div>
 
-          {/* MOBILE VIEW: Dedicated clean vertical list (Section 19: icon, title, description, duration, [ Start ]) */}
-          <div className="flex flex-col gap-3 sm:hidden">
+          {/* MOBILE VIEW: Senior-Friendly Photographic/Visual Game Cards (Section 11) */}
+          <div className="flex flex-col gap-4 sm:hidden">
             {games
               .filter((g) => selectedCategory === "all" || g.category === selectedCategory)
               .map((g) => {
-                const Icon = g.icon;
+                const localized = getLocalizedGame(g.id);
+                const prog = getGameProgress(g.id);
                 return (
                   <div
                     key={g.id}
-                    className="rounded-3xl border-2 border-border/80 bg-card p-4 text-left shadow-xs flex flex-col gap-3"
+                    className="rounded-3xl border-2 border-border/80 bg-card p-4 text-left shadow-xs flex flex-col gap-3 group transition-all hover:border-primary/50"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center shrink-0 shadow-2xs ${g.color}`}>
-                        <Icon className="h-6 w-6" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-1.5">
-                          <h3 className="text-base font-black text-foreground truncate">{g.title}</h3>
-                          <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-secondary text-muted-foreground shrink-0">
-                            {g.duration}
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
-                          {g.description}
-                        </p>
-                      </div>
+                    {/* Game Visual Artwork (Section 11 & 12) */}
+                    <div className="w-full overflow-hidden rounded-2xl">
+                      <GameArtwork gameId={g.id} compact />
                     </div>
+
+                    {/* Game Name & One-line Explanation */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between gap-1.5">
+                        <h3 className="text-lg font-black text-foreground truncate">
+                          {localized.title}
+                        </h3>
+                        <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">
+                          Lvl {prog.cur}/30
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed font-medium">
+                        {localized.summary}
+                      </p>
+                    </div>
+
+                    {/* Prominent Senior-Friendly PLAY Button (Section 11) */}
                     <Button
-                      onClick={() => handleSelectGame(g.id)}
-                      className="w-full h-12 rounded-2xl font-black text-sm shadow-xs bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                      onClick={() => setPendingGame(g.id)}
+                      className="w-full h-14 rounded-2xl font-black text-base shadow-sm bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-2.5 cursor-pointer active:scale-98 transition-transform"
                     >
-                      <span>Start</span>
-                      <ArrowRight className="h-4 w-4" />
+                      <Play className="h-5 w-5 fill-white" />
+                      <span>{lang === "hi" ? "खेलें" : lang === "gu" ? "રમો" : lang === "as" ? "খেলক" : "PLAY"}</span>
+                      <ArrowRight className="h-4 w-4 ml-auto" />
                     </Button>
                   </div>
                 );
               })}
           </div>
 
-          {/* TABLET & DESKTOP VIEW: Multi-Column Grid */}
-          <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+          {/* TABLET & DESKTOP VIEW: Multi-Column Visual Game Cards Grid (Section 11) */}
+          <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {games
               .filter((g) => selectedCategory === "all" || g.category === selectedCategory)
               .map((g) => {
-                const Icon = g.icon;
+                const localized = getLocalizedGame(g.id);
                 const prog = getGameProgress(g.id);
                 const progressPct = Math.round((prog.high / 30) * 100);
                 return (
                   <div
                     key={g.id}
-                    className="group rounded-3xl border-2 border-border/80 bg-card p-6 text-left shadow-sm transition-all hover:border-primary/60 hover:shadow-md flex flex-col justify-between"
+                    className="group rounded-3xl border-2 border-border/80 bg-card p-5 text-left shadow-sm transition-all hover:border-primary/60 hover:shadow-lg flex flex-col justify-between"
                   >
-                    <div className="space-y-4">
-                      {/* Header: Icon & Read Aloud & Level Pill */}
-                      <div className="flex items-center justify-between">
-                        <div className={`w-14 h-14 rounded-2xl border flex items-center justify-center shadow-xs ${g.color}`}>
-                          <Icon className="h-7 w-7" />
-                        </div>
-                        <div className="flex items-center gap-2">
+                    <div className="space-y-3.5">
+                      {/* Top Custom Game Visual (Section 11 & 12) */}
+                      <div className="w-full overflow-hidden rounded-2xl shadow-xs">
+                        <GameArtwork gameId={g.id} />
+                      </div>
+
+                      {/* Header: Title, Category & Audio */}
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-secondary text-foreground/85 border border-border/60">
+                              ⏱️ {g.duration}
+                            </span>
+                            <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                              Lvl {prog.cur}/30
+                            </span>
+                          </div>
                           <button
                             type="button"
-                            onClick={() => speakText(`${g.title}. ${g.description}`, speechLocale)}
+                            onClick={() => speakText(`${localized.title}. ${localized.instruction}`, speechLocale)}
                             className="p-2 rounded-xl hover:bg-secondary text-muted-foreground hover:text-primary transition-colors cursor-pointer"
-                            title="Read aloud"
+                            title="Read instruction aloud"
                             aria-label="Read game title aloud"
                           >
                             <Volume2 className="h-4 w-4" />
                           </button>
-                          <span className="text-xs font-black px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
-                            Lvl {prog.high}/30
-                          </span>
                         </div>
-                      </div>
 
-                      {/* Title, Badges & Description */}
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2 mb-2">
-                          <span className="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-secondary text-foreground/85 border border-border/60">
-                            ⏱️ {g.duration}
-                          </span>
-                          <span className="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-                            ⚡ {g.difficultyLabel}
-                          </span>
-                        </div>
+                        {/* Game Name */}
                         <h3 className="text-xl font-black text-foreground group-hover:text-primary transition-colors">
-                          {g.title}
+                          {localized.title}
                         </h3>
-                        <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed min-h-[40px]">
-                          {g.description}
+
+                        {/* Short One-Line Explanation */}
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed min-h-[36px]">
+                          {localized.summary}
                         </p>
                       </div>
 
-                      {/* Progress Bar & Best Score stats */}
-                      <div className="bg-secondary/30 rounded-2xl p-3 border border-border/60 space-y-2">
+                      {/* Progress Bar & Best Score */}
+                      <div className="bg-secondary/30 rounded-2xl p-3 border border-border/60 space-y-1.5">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="font-bold text-muted-foreground">Progress: Level {prog.cur}</span>
-                          <span className="font-extrabold text-foreground">{prog.best > 0 ? `Best: ${prog.best}%` : "Ready to Start"}</span>
+                          <span className="font-bold text-muted-foreground">Level {prog.cur} of 30</span>
+                          <span className="font-extrabold text-foreground">
+                            {prog.best > 0 ? `Best: ${prog.best}%` : "Ready to Start"}
+                          </span>
                         </div>
                         <div className="w-full h-2 rounded-full bg-border/60 overflow-hidden">
                           <div
@@ -1329,21 +1562,100 @@ export function CognitiveGamesHub({
                       </div>
                     </div>
 
-                    {/* Prominent Senior-Friendly Start Button (Section 11) */}
-                    <div className="pt-4 mt-2">
+                    {/* Prominent Senior-Friendly PLAY Button (Section 11) */}
+                    <div className="pt-4 mt-1">
                       <Button
-                        onClick={() => handleSelectGame(g.id)}
-                        className="w-full h-14 rounded-2xl font-black text-lg shadow-sm bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.01]"
+                        onClick={() => setPendingGame(g.id)}
+                        className="w-full h-14 rounded-2xl font-black text-lg shadow-sm bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-2.5 cursor-pointer transition-all hover:scale-[1.02] active:scale-98"
                       >
-                        <Gamepad2 className="h-6 w-6" />
-                        <span>Start</span>
-                        <ArrowRight className="h-5 w-5 ml-1" />
+                        <Play className="h-5 w-5 fill-white" />
+                        <span>{lang === "hi" ? "खेलें" : lang === "gu" ? "રમો" : lang === "as" ? "খেলক" : "PLAY"}</span>
+                        <ArrowRight className="h-5 w-5 ml-auto" />
                       </Button>
                     </div>
                   </div>
                 );
               })}
           </div>
+
+          {/* ========================================================================= */}
+          {/* Pre-Game Simple Instruction Modal (Section 15)                             */}
+          {/* ========================================================================= */}
+          {pendingGame && (() => {
+            const pendingGameObj = games.find((g) => g.id === pendingGame);
+            const localized = getLocalizedGame(pendingGame);
+            if (!pendingGameObj) return null;
+
+            return (
+              <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+                <div
+                  className="relative w-full max-w-lg bg-card border-2 border-primary/40 rounded-3xl overflow-hidden shadow-2xl p-6 sm:p-8 space-y-5"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Game Artwork Preview */}
+                  <div className="w-full overflow-hidden rounded-2xl shadow-inner">
+                    <GameArtwork gameId={pendingGame} />
+                  </div>
+
+                  {/* Game Title & Category Badge */}
+                  <div className="text-center space-y-1">
+                    <span className="text-xs font-black uppercase tracking-wider text-primary bg-primary/10 px-3 py-1 rounded-full">
+                      {pendingGameObj.category.toUpperCase()} • {pendingGameObj.duration}
+                    </span>
+                    <h3 className="text-2xl sm:text-3xl font-black text-foreground pt-1">
+                      {localized.title}
+                    </h3>
+                  </div>
+
+                  {/* Simple Instruction Box (Section 15: "देखिए और समान तस्वीरें मिलाइए।") */}
+                  <div className="bg-secondary/50 rounded-2xl p-5 border-2 border-primary/20 text-center space-y-2.5">
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+                      {lang === "hi" ? "खेल निर्देश" : lang === "gu" ? "રમત સૂચના" : lang === "as" ? "খেলৰ নিৰ্দেশনা" : "Game Instruction"}
+                    </span>
+                    <p className="text-lg sm:text-xl font-black text-foreground leading-relaxed">
+                      "{localized.instruction}"
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => speakText(localized.instruction, speechLocale)}
+                      className="inline-flex items-center gap-1.5 text-xs font-black text-primary hover:underline cursor-pointer pt-1"
+                    >
+                      <Volume2 className="h-4 w-4" />
+                      <span>
+                        {lang === "hi" ? "निर्देश सुनें" : lang === "gu" ? "સૂચના સાંભળો" : lang === "as" ? "নিৰ্দেশনা শুনক" : "Listen to Instruction"}
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Start Button & Back Button (Section 15: [ START GAME ]) */}
+                  <div className="space-y-3 pt-2">
+                    <Button
+                      onClick={() => {
+                        const gid = pendingGame;
+                        setPendingGame(null);
+                        handleSelectGame(gid);
+                      }}
+                      className="w-full h-16 rounded-2xl font-black text-xl shadow-lg bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-3 cursor-pointer transition-all hover:scale-[1.02] active:scale-98"
+                    >
+                      <Play className="h-6 w-6 fill-white" />
+                      <span>
+                        {lang === "hi" ? "खेल शुरू करें" : lang === "gu" ? "રમત શરૂ કરો" : lang === "as" ? "খেল আৰম্ভ কৰক" : "START GAME"}
+                      </span>
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      onClick={() => setPendingGame(null)}
+                      className="w-full h-11 rounded-2xl font-bold text-sm text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      <ArrowLeft className="h-4 w-4 mr-1.5" />
+                      <span>{lang === "hi" ? "वापस जाएं" : lang === "gu" ? "પાછા જાઓ" : lang === "as" ? "উভতি যাওক" : "Back to Games"}</span>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
