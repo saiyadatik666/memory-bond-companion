@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import type { UserRole } from "@/lib/memoryBondStore";
+import { motion } from "motion/react";
 
 export function BottomNavigation({
   currentTab,
@@ -54,11 +55,12 @@ export function BottomNavigation({
           const isActive = currentTab === tab.id;
 
           return (
-            <button
+            <motion.button
               key={tab.id}
               type="button"
+              whileTap={{ scale: 0.92 }}
               onClick={() => onSelectTab(tab.id)}
-              className={`flex flex-col items-center justify-center gap-0.5 sm:gap-1 py-1 sm:py-1.5 px-1 sm:px-2 rounded-xl sm:rounded-2xl transition-all duration-150 cursor-pointer min-w-0 flex-1 select-none min-h-[44px] active:scale-95 ${
+              className={`flex flex-col items-center justify-center gap-0.5 sm:gap-1 py-1 sm:py-1.5 px-1 sm:px-2 rounded-xl sm:rounded-2xl transition-all duration-150 cursor-pointer min-w-0 flex-1 select-none min-h-[44px] ${
                 isActive
                   ? "text-[#1E6FD9] font-black"
                   : "text-[#627D98] hover:text-[#0F243E] font-bold"
@@ -78,7 +80,7 @@ export function BottomNavigation({
               <span className="text-[10px] min-[360px]:text-[11px] truncate font-extrabold tracking-tight max-w-full">
                 {tab.label}
               </span>
-            </button>
+            </motion.button>
           );
         })}
       </div>

@@ -119,72 +119,73 @@ interface StateCategorySeed {
   desc: string;
   story: string;
   audio?: string;
+  imageUrl?: string;
 }
 
 const STATE_CULTURAL_SEEDS: Record<string, Record<CulturalCategory, StateCategorySeed[]>> = {
   "Assam": {
     festivals: [
-      { name: "Rongali Bihu", nativeName: "ৰঙালী বিহু", icon: "🌸", desc: "Spring festival celebrating the Assamese New Year with dance and festive songs.", story: "Remembering early morning baths with turmeric and the sound of Bihu dhol drifting through the village.", audio: "The vibrant rhythmic beats of the Bihu dhol ushering in spring." },
-      { name: "Bhogali (Magh) Bihu", nativeName: "মাঘ বিহু", icon: "🔥", desc: "Harvest festival marked by community feasts and burning of thatch Mejis.", story: "Gathering around the crackling morning Meji fire sharing freshly baked til pitha and hot tea.", audio: "The gentle crackle of the winter Meji bonfire." },
-      { name: "Kongali (Kati) Bihu", nativeName: "কাতি বিহু", icon: "🪔", desc: "Quiet prayer festival where earthen lamps are lit near sacred Tulsi plants and paddy fields.", story: "Lighting clay lamps near the lush green paddy fields praying for a peaceful harvest.", audio: "Soft prayers whispered beside the sacred Tulsi plant at twilight." },
-      { name: "Ambubachi Mela", nativeName: "অম্বুবাচী মেলা", icon: "🛕", desc: "Sacred annual gathering at the revered Kamakhya temple atop Nilachal hill.", story: "The scent of red sindoor, marigold garlands, and distant river chants.", audio: "Temple conch shells sounding across the Brahmaputra at sunrise." },
+      { name: "Rongali Bihu", nativeName: "ৰঙালী বিহু", icon: "🌸", imageUrl: "/images/cultural/bihu_dance.jpg", desc: "Spring festival celebrating the Assamese New Year with dance and festive songs.", story: "Remembering early morning baths with turmeric and the sound of Bihu dhol drifting through the village.", audio: "The vibrant rhythmic beats of the Bihu dhol ushering in spring." },
+      { name: "Bhogali (Magh) Bihu", nativeName: "মাঘ বিহু", icon: "🔥", imageUrl: "/images/cultural/bhogali_bihu_meji.jpg", desc: "Harvest festival marked by community feasts and burning of thatch Mejis.", story: "Gathering around the crackling morning Meji fire sharing freshly baked til pitha and hot tea.", audio: "The gentle crackle of the winter Meji bonfire." },
+      { name: "Kongali (Kati) Bihu", nativeName: "কাতি বিহু", icon: "🪔", imageUrl: "/images/cultural/kongali_bihu_saki.jpg", desc: "Quiet prayer festival where earthen lamps are lit near sacred Tulsi plants and paddy fields.", story: "Lighting clay lamps near the lush green paddy fields praying for a peaceful harvest.", audio: "Soft prayers whispered beside the sacred Tulsi plant at twilight." },
+      { name: "Ambubachi Mela", nativeName: "অম্বুবাচী মেলা", icon: "🛕", imageUrl: "/images/cultural/ambubachi_mela.jpg", desc: "Sacred annual gathering at the revered Kamakhya temple atop Nilachal hill.", story: "The scent of red sindoor, marigold garlands, and distant river chants.", audio: "Temple conch shells sounding across the Brahmaputra at sunrise." },
     ],
     food: [
-      { name: "Masor Tenga", nativeName: "মাছৰ টেঙা", icon: "🍲", desc: "Refreshing light sour fish curry prepared with elephant apple (ou tenga) or tomatoes.", story: "Sitting for lunch on a warm summer afternoon enjoying tangy masor tenga over steaming rice.", audio: "The gentle simmering of fresh fish in tangy lemon broth." },
-      { name: "Khar", nativeName: "খাৰ", icon: "🥣", desc: "Traditional alkaline delicacy prepared from charred sun-dried banana peels.", story: "The unmistakable earthy aroma of omita khar welcoming everyone to the family meal.", audio: "The soothing aroma of raw papaya tempered in mustard oil." },
-      { name: "Til Pitha", nativeName: "তিল পিঠা", icon: "🥞", desc: "Crisp cylindrical rice flour rolls filled with sweetened roasted black sesame and jaggery.", story: "Watching mother skillfully roll hot pithas on the iron skillet during Magh Bihu.", audio: "The sweet scent of roasted sesame and warm cane jaggery." },
-      { name: "Kaji Nemu", nativeName: "কাজী নেমু", icon: "🍋", desc: "Elongated, thin-skinned aromatic Assam lemon famous for its uplifting citrus scent.", story: "Squeezing a fresh slice of kaji nemu over hot dal and rice.", audio: "The crisp citrus freshness of freshly picked green lemon." },
+      { name: "Masor Tenga", nativeName: "মাছৰ টেঙা", icon: "🍲", imageUrl: "/images/cultural/masor_tenga.jpg", desc: "Refreshing light sour fish curry prepared with elephant apple (ou tenga) or tomatoes.", story: "Sitting for lunch on a warm summer afternoon enjoying tangy masor tenga over steaming rice.", audio: "The gentle simmering of fresh fish in tangy lemon broth." },
+      { name: "Khar", nativeName: "খাৰ", icon: "🥣", imageUrl: "/images/cultural/traditional_food.jpg", desc: "Traditional alkaline delicacy prepared from charred sun-dried banana peels.", story: "The unmistakable earthy aroma of omita khar welcoming everyone to the family meal.", audio: "The soothing aroma of raw papaya tempered in mustard oil." },
+      { name: "Til Pitha", nativeName: "তিল পিঠা", icon: "🥞", imageUrl: "/images/cultural/til_pitha.jpg", desc: "Crisp cylindrical rice flour rolls filled with sweetened roasted black sesame and jaggery.", story: "Watching mother skillfully roll hot pithas on the iron skillet during Magh Bihu.", audio: "The sweet scent of roasted sesame and warm cane jaggery." },
+      { name: "Kaji Nemu", nativeName: "কাজী নেমু", icon: "🍋", imageUrl: "/images/cultural/masor_tenga.jpg", desc: "Elongated, thin-skinned aromatic Assam lemon famous for its uplifting citrus scent.", story: "Squeezing a fresh slice of kaji nemu over hot dal and rice.", audio: "The crisp citrus freshness of freshly picked green lemon." },
     ],
     clothing: [
-      { name: "Muga Silk Mekhela Sador", nativeName: "মুগা মেখেলা চাদৰ", icon: "👘", desc: "Lustrous golden-hued wild silk attire unique to Assam, woven with intricate red floral motifs.", story: "Dressing in crisp golden Muga silk for family weddings and festive blessings.", audio: "The soft rustle of golden handloom silk." },
-      { name: "Phulam Gamosa", nativeName: "ফুলাম গামোচা", icon: "🧣", desc: "Sacred white handwoven cotton towel with rich red woven floral patterns presented to elders.", story: "Touching the feet of elders on Bihu morning while presenting a newly woven Gamosa.", audio: "The rhythmic shuttle clacking on a village handloom." },
-      { name: "Eri Silk Shawl", nativeName: "এৰী চাদৰ", icon: "🧣", desc: "Warm, soft thermal peace-silk shawl hand-spun in winter months.", story: "Wrapping a warm, comforting Eri shawl while sipping evening black tea on the veranda.", audio: "Gentle winter breezes warming under a soft Eri wrap." },
+      { name: "Muga Silk Mekhela Sador", nativeName: "মুগা মেখেলা চাদৰ", icon: "👘", imageUrl: "/images/cultural/muga_silk.jpg", desc: "Lustrous golden-hued wild silk attire unique to Assam, woven with intricate red floral motifs.", story: "Dressing in crisp golden Muga silk for family weddings and festive blessings.", audio: "The soft rustle of golden handloom silk." },
+      { name: "Phulam Gamosa", nativeName: "ফুলাম গামোচা", icon: "🧣", imageUrl: "/images/cultural/handicrafts_weaving.jpg", desc: "Sacred white handwoven cotton towel with rich red woven floral patterns presented to elders.", story: "Touching the feet of elders on Bihu morning while presenting a newly woven Gamosa.", audio: "The rhythmic shuttle clacking on a village handloom." },
+      { name: "Eri Silk Shawl", nativeName: "এৰী চাদৰ", icon: "🧣", imageUrl: "/images/cultural/handicrafts_weaving.jpg", desc: "Warm, soft thermal peace-silk shawl hand-spun in winter months.", story: "Wrapping a warm, comforting Eri shawl while sipping evening black tea on the veranda.", audio: "Gentle winter breezes warming under a soft Eri wrap." },
     ],
     music: [
-      { name: "Borgeet", nativeName: "বৰগীত", icon: "🎶", desc: "Classical devotional hymns composed by 15th-century saint Mahapurush Srimanta Sankardev.", story: "The serene melody of Borgeet echoing through the Namghar at dusk bringing deep peace.", audio: "Devotional vocal melodies accompanied by khol and cymbals." },
-      { name: "Bihu Naam", nativeName: "বিহু নাম", icon: "🎵", desc: "Joyous traditional folk lyrics singing of romance, nature, and the blooming orchids of spring.", story: "Singing along with old village records under the blooming Kopou orchid tree.", audio: "High-spirited chorus of young voices singing of spring." },
+      { name: "Borgeet", nativeName: "বৰগীত", icon: "🎶", imageUrl: "/images/cultural/indian_music.jpg", desc: "Classical devotional hymns composed by 15th-century saint Mahapurush Srimanta Sankardev.", story: "The serene melody of Borgeet echoing through the Namghar at dusk bringing deep peace.", audio: "Devotional vocal melodies accompanied by khol and cymbals." },
+      { name: "Bihu Naam", nativeName: "বিহু নাম", icon: "🎵", imageUrl: "/images/cultural/indian_music.jpg", desc: "Joyous traditional folk lyrics singing of romance, nature, and the blooming orchids of spring.", story: "Singing along with old village records under the blooming Kopou orchid tree.", audio: "High-spirited chorus of young voices singing of spring." },
     ],
     dance: [
-      { name: "Sattriya Dance", nativeName: "সত্ৰীয়া নৃত্য", icon: "💃", desc: "500-year-old classical monastic dance form expressing devotion with graceful gestures.", story: "Watching the monk dancers at Majuli island tell sacred stories through synchronized steps.", audio: "Rhythmic beats of the khol guiding serene classical movements." },
-      { name: "Bihu Dance", nativeName: "বিহু নৃত্য", icon: "💃", desc: "High-energy folk dance characterized by rapid hand movements and rhythmic hip swaying.", story: "Clapping hands to the rhythm of dhol and cymbals during village celebrations.", audio: "Lively tempo of folk drums and cheering village crowds." },
+      { name: "Sattriya Dance", nativeName: "সত্ৰীয়া নৃত্য", icon: "💃", imageUrl: "/images/cultural/sattriya_dance.jpg", desc: "500-year-old classical monastic dance form expressing devotion with graceful gestures.", story: "Watching the monk dancers at Majuli island tell sacred stories through synchronized steps.", audio: "Rhythmic beats of the khol guiding serene classical movements." },
+      { name: "Bihu Dance", nativeName: "বিহু নৃত্য", icon: "💃", imageUrl: "/images/cultural/bihu_dance.jpg", desc: "High-energy folk dance characterized by rapid hand movements and rhythmic hip swaying.", story: "Clapping hands to the rhythm of dhol and cymbals during village celebrations.", audio: "Lively tempo of folk drums and cheering village crowds." },
     ],
     art: [
-      { name: "Manuscript Painting (Sanchi Paat)", nativeName: "সাঁচিপাতৰ চিত্ৰ", icon: "🎨", desc: "Ancient miniature illuminated paintings rendered on treated bark of the Sanchi tree.", story: "Admiring the ancient herbal pigments depicting stories from the epics.", audio: "Gentle strokes of mineral inks on tree bark." },
+      { name: "Manuscript Painting (Sanchi Paat)", nativeName: "সাঁচিপাতৰ চিত্ৰ", icon: "🎨", imageUrl: "/images/cultural/handicrafts_weaving.jpg", desc: "Ancient miniature illuminated paintings rendered on treated bark of the Sanchi tree.", story: "Admiring the ancient herbal pigments depicting stories from the epics.", audio: "Gentle strokes of mineral inks on tree bark." },
     ],
     crafts: [
-      { name: "Sarthebari Bell Metal (Kanh)", nativeName: "কাঁহ শিল্প", icon: "🔔", desc: "Hand-hammered traditional brass and bronze plates, water vessels, and offering stands.", story: "Serving festive meals in heavy, shining golden bell-metal thalis.", audio: "The deep, melodious chime of handcrafted bell metal." },
-      { name: "Barpeta Cane & Bamboo Craft", nativeName: "বেঁত-বাঁহৰ শিল্প", icon: "🧺", desc: "Delicately woven fishing traps (polo, jakoi) and storage baskets from native bamboo.", story: "Watching village artisans weave flexible green bamboo into everyday masterpieces.", audio: "The rhythmic slicing of bamboo strips by hand." },
+      { name: "Sarthebari Bell Metal (Kanh)", nativeName: "কাঁহ শিল্প", icon: "🔔", imageUrl: "/images/cultural/handicrafts_weaving.jpg", desc: "Hand-hammered traditional brass and bronze plates, water vessels, and offering stands.", story: "Serving festive meals in heavy, shining golden bell-metal thalis.", audio: "The deep, melodious chime of handcrafted bell metal." },
+      { name: "Barpeta Cane & Bamboo Craft", nativeName: "বেঁত-বাঁহৰ শিল্প", icon: "🧺", imageUrl: "/images/cultural/assam_jaapi.jpg", desc: "Delicately woven fishing traps (polo, jakoi) and storage baskets from native bamboo.", story: "Watching village artisans weave flexible green bamboo into everyday masterpieces.", audio: "The rhythmic slicing of bamboo strips by hand." },
     ],
     traditions: [
-      { name: "Namghar Community Prayer", nativeName: "নামঘৰ", icon: "🙏", desc: "Open congregational prayer halls without idols, central to Assamese spiritual life.", story: "Walking barefoot to the village Namghar for evening community prayer and prasad.", audio: "Resonant brass Doba drum sounding before evening prayer." },
-      { name: "Tamul Paan Hospitality", nativeName: "তামোল পাণ", icon: "🍃", desc: "Traditional welcoming gesture offering betel nut, betel leaf, and lime on a brass bota.", story: "Offering a fresh tamul-paan to guests as a sign of heartfelt respect.", audio: "Warm words of welcome accompanied by a brass tray." },
+      { name: "Namghar Community Prayer", nativeName: "নামঘৰ", icon: "🙏", imageUrl: "/images/cultural/diwali_lamps.jpg", desc: "Open congregational prayer halls without idols, central to Assamese spiritual life.", story: "Walking barefoot to the village Namghar for evening community prayer and prasad.", audio: "Resonant brass Doba drum sounding before evening prayer." },
+      { name: "Tamul Paan Hospitality", nativeName: "তামোল পাণ", icon: "🍃", imageUrl: "/images/cultural/handicrafts_weaving.jpg", desc: "Traditional welcoming gesture offering betel nut, betel leaf, and lime on a brass bota.", story: "Offering a fresh tamul-paan to guests as a sign of heartfelt respect.", audio: "Warm words of welcome accompanied by a brass tray." },
     ],
     objects: [
-      { name: "Assam Jaapi", nativeName: "জাপি", icon: "👒", desc: "Conical headgear woven from tight cane, bamboo, and dry Tokou palm leaves.", story: "Remembering farmers wearing broad Jaapis while tending lush green summer paddy.", audio: "Gentle raindrops pattering softly on a tight woven Jaapi." },
-      { name: "Brass Xorai", nativeName: "শৰাই", icon: "🏆", desc: "Elevated offering tray with a bell-metal dome used for prasad, gifts, and respect.", story: "Placing betel leaves and holy gamosa on the gleaming golden Xorai.", audio: "The noble ring of the sacred offering tray." },
+      { name: "Assam Jaapi", nativeName: "জাপি", icon: "👒", imageUrl: "/images/cultural/assam_jaapi.jpg", desc: "Conical headgear woven from tight cane, bamboo, and dry Tokou palm leaves.", story: "Remembering farmers wearing broad Jaapis while tending lush green summer paddy.", audio: "Gentle raindrops pattering softly on a tight woven Jaapi." },
+      { name: "Brass Xorai", nativeName: "শৰাই", icon: "🏆", imageUrl: "/images/cultural/handicrafts_weaving.jpg", desc: "Elevated offering tray with a bell-metal dome used for prasad, gifts, and respect.", story: "Placing betel leaves and holy gamosa on the gleaming golden Xorai.", audio: "The noble ring of the sacred offering tray." },
     ],
     instruments: [
-      { name: "Bihu Dhol", nativeName: "বিহু ঢোল", icon: "🥁", desc: "Two-headed barrel drum slung around the neck and played with a bamboo stick and hand.", story: "The heartbeat of Assam that makes everyone want to dance with joy.", audio: "Booming, energetic rhythms echoing across river valleys." },
-      { name: "Pepa Horn", nativeName: "পেঁপা", icon: "🎺", desc: "Flute-horn crafted from buffalo horn and reed, producing a high-pitched haunting cry.", story: "The piercing, melodious sound of the pepa signaling the arrival of spring.", audio: "The soulful, vibrating pitch of the buffalo horn." },
-      { name: "Gogona", nativeName: "গগনা", icon: "🪈", desc: "Vibrating jaw-harp carved from seasoned bamboo, played between teeth.", story: "Young women playing the gogona with cheerful rhythm during evening gatherings.", audio: "A twanging, playful musical buzz of seasoned bamboo." },
+      { name: "Bihu Dhol", nativeName: "বিহু ঢোল", icon: "🥁", imageUrl: "/images/cultural/indian_music.jpg", desc: "Two-headed barrel drum slung around the neck and played with a bamboo stick and hand.", story: "The heartbeat of Assam that makes everyone want to dance with joy.", audio: "Booming, energetic rhythms echoing across river valleys." },
+      { name: "Pepa Horn", nativeName: "পেঁপা", icon: "🎺", imageUrl: "/images/cultural/indian_music.jpg", desc: "Flute-horn crafted from buffalo horn and reed, producing a high-pitched haunting cry.", story: "The piercing, melodious sound of the pepa signaling the arrival of spring.", audio: "The soulful, vibrating pitch of the buffalo horn." },
+      { name: "Gogona", nativeName: "গগনা", icon: "🪈", imageUrl: "/images/cultural/indian_music.jpg", desc: "Vibrating jaw-harp carved from seasoned bamboo, played between teeth.", story: "Young women playing the gogona with cheerful rhythm during evening gatherings.", audio: "A twanging, playful musical buzz of seasoned bamboo." },
     ],
     lifestyle: [
-      { name: "Chai on the Veranda", nativeName: "বাৰাণ্ডাৰ চাহ", icon: "☕", desc: "Morning ritual of sipping warm, sweet CTC Assam milk tea while watching the mist rise.", story: "Sitting on the cane armchair with morning tea, listening to morning bird calls.", audio: "Steam rising gently from a freshly poured cup of tea." },
-      { name: "Pukhuri (Village Pond) Fishing", nativeName: "পুখুৰীৰ মাছ", icon: "🐟", desc: "Community fishing in family ponds with bamboo nets before festival days.", story: "The excitement of netting fresh sweet-water fish for the family feast.", audio: "Water splashing as neighborhood families cast nets." },
+      { name: "Chai on the Veranda", nativeName: "বাৰাণ্ডাৰ চাহ", icon: "☕", imageUrl: "/images/cultural/assam_tea.jpg", desc: "Morning ritual of sipping warm, sweet CTC Assam milk tea while watching the mist rise.", story: "Sitting on the cane armchair with morning tea, listening to morning bird calls.", audio: "Steam rising gently from a freshly poured cup of tea." },
+      { name: "Pukhuri (Village Pond) Fishing", nativeName: "পুখুৰীৰ মাছ", icon: "🐟", imageUrl: "/images/cultural/brahmaputra_sunset.jpg", desc: "Community fishing in family ponds with bamboo nets before festival days.", story: "The excitement of netting fresh sweet-water fish for the family feast.", audio: "Water splashing as neighborhood families cast nets." },
     ],
     architecture: [
-      { name: "Rang Ghar Pavilion", nativeName: "ৰংঘৰ", icon: "🏛️", desc: "Two-storied royal amphitheater in Sivasagar with an inverted boat-shaped roof.", story: "Recalling visits to the ancient capital of the mighty Ahom kings.", audio: "Echoes of ancient royal drums under the high brick arches." },
-      { name: "Kareng Ghar Palace", nativeName: "কাৰেং ঘৰ", icon: "🏰", desc: "Multi-tiered historical royal palace built from indigenous sticky rice and egg mortar.", story: "Standing in awe of ancient engineering that stood strong through centuries.", audio: "The whispering breeze passing through royal stone corridors." },
+      { name: "Rang Ghar Pavilion", nativeName: "ৰংঘৰ", icon: "🏛️", imageUrl: "/images/cultural/tripura_palace.jpg", desc: "Two-storied royal amphitheater in Sivasagar with an inverted boat-shaped roof.", story: "Recalling visits to the ancient capital of the mighty Ahom kings.", audio: "Echoes of ancient royal drums under the high brick arches." },
+      { name: "Kareng Ghar Palace", nativeName: "কাৰেং ঘৰ", icon: "🏰", imageUrl: "/images/cultural/tripura_palace.jpg", desc: "Multi-tiered historical royal palace built from indigenous sticky rice and egg mortar.", story: "Standing in awe of ancient engineering that stood strong through centuries.", audio: "The whispering breeze passing through royal stone corridors." },
     ],
     markets: [
-      { name: "Jonbeel Mela", nativeName: "জোনবিল মেলা", icon: "🛍️", desc: "Historic barter fair where hill tribes and plains people exchange goods without money.", story: "Exchanging fresh mountain ginger and herbs for dried fish and handloom cotton.", audio: "Friendly voices trading goods under winter sunshine." },
+      { name: "Jonbeel Mela", nativeName: "জোনবিল মেলা", icon: "🛍️", imageUrl: "/images/cultural/handicrafts_weaving.jpg", desc: "Historic barter fair where hill tribes and plains people exchange goods without money.", story: "Exchanging fresh mountain ginger and herbs for dried fish and handloom cotton.", audio: "Friendly voices trading goods under winter sunshine." },
     ],
     agriculture: [
-      { name: "Golden Sali Harvest", nativeName: "শালি ধান", icon: "🌾", desc: "Winter harvesting of winter paddy when fields turn completely golden.", story: "The sweet scent of cut paddy sheaves stacked neatly on bullock carts.", audio: "Sickles quietly swishing through ripe golden rice stalks." },
+      { name: "Golden Sali Harvest", nativeName: "শালি ধান", icon: "🌾", imageUrl: "/images/cultural/assam_tea.jpg", desc: "Winter harvesting of winter paddy when fields turn completely golden.", story: "The sweet scent of cut paddy sheaves stacked neatly on bullock carts.", audio: "Sickles quietly swishing through ripe golden rice stalks." },
     ],
     nature: [
-      { name: "Brahmaputra Sunset", nativeName: "ব্ৰহ্মপুত্ৰৰ সূৰ্যাস্ত", icon: "🌅", desc: "Mighty red river flowing with golden ripples under the twilight sky.", story: "Watching ferry boats glide across the vast river as temple bells ring from the ghats.", audio: "Lapping waves of the sacred river under an evening sky." },
-      { name: "Kaziranga One-Horned Rhino", nativeName: "এশিঙীয়া গঁড়", icon: "🦏", desc: "Majestic emblem of Assam grazing peacefully in tall elephant grass.", story: "Spotting a mother rhino and calf through the early morning grasslands mist.", audio: "The calm rustle of tall elephant grass in the morning breeze." },
+      { name: "Brahmaputra Sunset", nativeName: "ব্ৰহ্মপুত্ৰৰ সূৰ্যাস্ত", icon: "🌅", imageUrl: "/images/cultural/brahmaputra_sunset.jpg", desc: "Mighty red river flowing with golden ripples under the twilight sky.", story: "Watching ferry boats glide across the vast river as temple bells ring from the ghats.", audio: "Lapping waves of the sacred river under an evening sky." },
+      { name: "Kaziranga One-Horned Rhino", nativeName: "এশিঙীয়া গঁড়", icon: "🦏", imageUrl: "/images/cultural/kaziranga_rhino.jpg", desc: "Majestic emblem of Assam grazing peacefully in tall elephant grass.", story: "Spotting a mother rhino and calf through the early morning grasslands mist.", audio: "The calm rustle of tall elephant grass in the morning breeze." },
     ],
   },
   "Gujarat": {
@@ -451,6 +452,7 @@ function generatePanIndiaCatalog(): CulturalItem[] {
           region,
           category,
           icon: seed.icon,
+          imageUrl: seed.imageUrl,
           description: seed.desc,
           reminiscenceStory: seed.story,
           audioCueText: seed.audio || seed.desc,
@@ -882,74 +884,303 @@ export function getRandomCulturalReminiscence(state?: string): CulturalItem {
 }
 
 /**
- * Maps any cultural item to an authentic, photorealistic photographic image
+ * Safe, category-appropriate fallback images.
+ * Ensures an item in one category (e.g. food) NEVER displays an unrelated image (e.g. Bihu dance).
+ */
+export const CATEGORY_FALLBACK_IMAGES: Record<CulturalCategory, string> = {
+  festivals: "/images/cultural/diwali_lamps.jpg",
+  food: "/images/cultural/traditional_food.jpg",
+  clothing: "/images/cultural/handicrafts_weaving.jpg",
+  crafts: "/images/cultural/handicrafts_weaving.jpg",
+  art: "/images/cultural/handicrafts_weaving.jpg",
+  objects: "/images/cultural/handicrafts_weaving.jpg",
+  music: "/images/cultural/indian_music.jpg",
+  instruments: "/images/cultural/indian_music.jpg",
+  dance: "/images/cultural/sattriya_dance.jpg",
+  architecture: "/images/cultural/tripura_palace.jpg",
+  markets: "/images/cultural/tripura_palace.jpg",
+  nature: "/images/cultural/living_root_bridge.jpg",
+  agriculture: "/images/cultural/assam_tea.jpg",
+  traditions: "/images/cultural/diwali_lamps.jpg",
+  lifestyle: "/images/cultural/traditional_food.jpg",
+};
+
+/**
+ * Stable, authentic 1-to-1 mapping from item id / slug to its verified photographic image.
+ */
+export const CULTURAL_ITEM_IMAGE_MAP: Record<string, string> = {
+  // --- Assam Festivals (Each festival has its OWN unique, verified image!) ---
+  "rongali_bihu": "/images/cultural/bihu_dance.jpg",
+  "rongali_bihu_celebration": "/images/cultural/bihu_dance.jpg",
+  "featured_bihu_celebration": "/images/cultural/bihu_dance.jpg",
+  "ner_assam_bihu": "/images/cultural/bihu_dance.jpg",
+  "bihu_dance": "/images/cultural/bihu_dance.jpg",
+
+  "bhogali_magh_bihu": "/images/cultural/bhogali_bihu_meji.jpg",
+  "bhogali_bihu": "/images/cultural/bhogali_bihu_meji.jpg",
+  "magh_bihu": "/images/cultural/bhogali_bihu_meji.jpg",
+
+  "kongali_kati_bihu": "/images/cultural/kongali_bihu_saki.jpg",
+  "kongali_bihu": "/images/cultural/kongali_bihu_saki.jpg",
+  "kati_bihu": "/images/cultural/kongali_bihu_saki.jpg",
+
+  "ambubachi_mela": "/images/cultural/ambubachi_mela.jpg",
+  "kamakhya_temple": "/images/cultural/ambubachi_mela.jpg",
+
+  // --- Assam Food (Verified culinary photos) ---
+  "masor_tenga": "/images/cultural/masor_tenga.jpg",
+  "til_pitha": "/images/cultural/til_pitha.jpg",
+  "khar": "/images/cultural/traditional_food.jpg",
+  "kaji_nemu": "/images/cultural/masor_tenga.jpg",
+  "kaji_nemu_assam_lemon": "/images/cultural/masor_tenga.jpg",
+
+  // --- Assam Crafts & Clothing ---
+  "muga_silk_mekhela_sador": "/images/cultural/muga_silk.jpg",
+  "muga_mekhela": "/images/cultural/muga_silk.jpg",
+  "muga_silk": "/images/cultural/muga_silk.jpg",
+  "phulam_gamosa": "/images/cultural/handicrafts_weaving.jpg",
+  "gamosa": "/images/cultural/handicrafts_weaving.jpg",
+  "eri_silk_shawl": "/images/cultural/handicrafts_weaving.jpg",
+  "assam_jaapi": "/images/cultural/assam_jaapi.jpg",
+  "jaapi": "/images/cultural/assam_jaapi.jpg",
+  "barpeta_cane_bamboo_craft": "/images/cultural/assam_jaapi.jpg",
+  "brass_xorai": "/images/cultural/handicrafts_weaving.jpg",
+  "xorai": "/images/cultural/handicrafts_weaving.jpg",
+  "sarthebari_bell_metal_kanh": "/images/cultural/handicrafts_weaving.jpg",
+
+  // --- Assam Performing Arts & Music ---
+  "sattriya_dance": "/images/cultural/sattriya_dance.jpg",
+  "borgeet": "/images/cultural/indian_music.jpg",
+  "bihu_naam": "/images/cultural/indian_music.jpg",
+  "bihu_dhol": "/images/cultural/indian_music.jpg",
+  "pepa_horn": "/images/cultural/indian_music.jpg",
+  "pepa_dhol": "/images/cultural/indian_music.jpg",
+  "gogona": "/images/cultural/indian_music.jpg",
+
+  // --- Assam Nature & Heritage ---
+  "chai_on_the_veranda": "/images/cultural/assam_tea.jpg",
+  "orthodox_tea_leaves": "/images/cultural/assam_tea.jpg",
+  "assam_tea": "/images/cultural/assam_tea.jpg",
+  "kaziranga_one_horned_rhino": "/images/cultural/kaziranga_rhino.jpg",
+  "kaziranga_rhino": "/images/cultural/kaziranga_rhino.jpg",
+  "brahmaputra_sunset": "/images/cultural/brahmaputra_sunset.jpg",
+  "rang_ghar_pavilion": "/images/cultural/tripura_palace.jpg",
+  "kareng_ghar_palace": "/images/cultural/tripura_palace.jpg",
+  "pukhuri_village_pond_fishing": "/images/cultural/brahmaputra_sunset.jpg",
+
+  // --- Meghalaya ---
+  "living_root_bridges": "/images/cultural/living_root_bridge.jpg",
+  "living_root_bridge": "/images/cultural/living_root_bridge.jpg",
+  "ner_meghalaya_root_bridge": "/images/cultural/living_root_bridge.jpg",
+  "root_bridge": "/images/cultural/living_root_bridge.jpg",
+  "khasi_conical_basket_khoh": "/images/cultural/handicrafts_weaving.jpg",
+  "khasi_basket": "/images/cultural/handicrafts_weaving.jpg",
+
+  // --- Arunachal Pradesh ---
+  "tawang_monastery_at_sunrise": "/images/cultural/tawang_monastery.jpg",
+  "tawang_monastery": "/images/cultural/tawang_monastery.jpg",
+  "ner_arunachal_tawang": "/images/cultural/tawang_monastery.jpg",
+  "apatani_bamboo": "/images/cultural/living_root_bridge.jpg",
+  "ziro_bamboo_groves": "/images/cultural/living_root_bridge.jpg",
+
+  // --- Nagaland ---
+  "hornbill_festival_of_heritage": "/images/cultural/hornbill_festival.jpg",
+  "hornbill_festival": "/images/cultural/hornbill_festival.jpg",
+  "ner_nagaland_hornbill": "/images/cultural/hornbill_festival.jpg",
+  "hornbill": "/images/cultural/hornbill_festival.jpg",
+  "great_hornbill_feather": "/images/cultural/hornbill_festival.jpg",
+  "naga_log_drum": "/images/cultural/indian_music.jpg",
+  "log_drum": "/images/cultural/indian_music.jpg",
+
+  // --- Manipur ---
+  "manipuri_raas_leela_dance": "/images/cultural/manipur_dance.jpg",
+  "manipuri_raas_leela": "/images/cultural/manipur_dance.jpg",
+  "ner_manipur_raas": "/images/cultural/manipur_dance.jpg",
+  "manipur_raas_lila": "/images/cultural/manipur_dance.jpg",
+  "floating_phumdi_island": "/images/cultural/brahmaputra_sunset.jpg",
+  "loktak_lake": "/images/cultural/brahmaputra_sunset.jpg",
+
+  // --- Mizoram ---
+  "cheraw_bamboo_dance": "/images/cultural/mizoram_bamboo.jpg",
+  "ner_mizoram_cheraw": "/images/cultural/mizoram_bamboo.jpg",
+  "cheraw_bamboo_staves": "/images/cultural/mizoram_bamboo.jpg",
+  "cheraw_bamboo": "/images/cultural/mizoram_bamboo.jpg",
+
+  // --- Tripura ---
+  "neermahal_water_palace": "/images/cultural/tripura_palace.jpg",
+  "ner_tripura_neermahal": "/images/cultural/tripura_palace.jpg",
+  "tripura_cane_lantern": "/images/cultural/handicrafts_weaving.jpg",
+  "tripura_cane": "/images/cultural/handicrafts_weaving.jpg",
+
+  // --- Sikkim ---
+  "sacred_kanchenjunga_sunrise": "/images/cultural/sikkim_himalaya.jpg",
+  "ner_sikkim_kanchenjunga": "/images/cultural/sikkim_himalaya.jpg",
+  "himalayan_prayer_wheel": "/images/cultural/tawang_monastery.jpg",
+  "prayer_wheel": "/images/cultural/tawang_monastery.jpg",
+
+  // --- Gujarat ---
+  "navratri_garba": "/images/cultural/gujarat_garba.jpg",
+  "dandiya_raas": "/images/cultural/gujarat_garba.jpg",
+  "gujarati_thali": "/images/cultural/traditional_food.jpg",
+  "khaman_dhokla": "/images/cultural/traditional_food.jpg",
+  "undhiyu": "/images/cultural/traditional_food.jpg",
+  "fafda_jalebi": "/images/cultural/traditional_food.jpg",
+  "handvo": "/images/cultural/traditional_food.jpg",
+  "bandhani_tie_dye_saree": "/images/cultural/handicrafts_weaving.jpg",
+  "patola_silk_saree": "/images/cultural/handicrafts_weaving.jpg",
+  "gir_forest_asiatic_lions": "/images/cultural/kaziranga_rhino.jpg",
+  "adalaj_stepwell_vav": "/images/cultural/tripura_palace.jpg",
+
+  // --- Kerala ---
+  "onam_festival": "/images/cultural/kerala_onam_sadya.jpg",
+  "onam_sadhya": "/images/cultural/kerala_onam_sadya.jpg",
+  "appam_stew": "/images/cultural/traditional_food.jpg",
+  "puttu_and_kadala_curry": "/images/cultural/traditional_food.jpg",
+  "palada_payasam": "/images/cultural/traditional_food.jpg",
+  "kathakali": "/images/cultural/sattriya_dance.jpg",
+  "mohiniyattam": "/images/cultural/sattriya_dance.jpg",
+  "theyyam": "/images/cultural/sattriya_dance.jpg",
+  "kasavu_saree_mundu": "/images/cultural/handicrafts_weaving.jpg",
+  "nilavilakku_lighting": "/images/cultural/diwali_lamps.jpg",
+  "alleppey_backwaters": "/images/cultural/brahmaputra_sunset.jpg",
+  "wayanad_tea_hills": "/images/cultural/assam_tea.jpg",
+
+  // --- Punjab ---
+  "baisakhi": "/images/cultural/punjab_baisakhi.jpg",
+  "bhangra": "/images/cultural/punjab_baisakhi.jpg",
+  "lohri": "/images/cultural/bhogali_bihu_meji.jpg",
+  "makki_di_roti_sarson_da_saag": "/images/cultural/traditional_food.jpg",
+  "amritsari_kulcha_chole": "/images/cultural/traditional_food.jpg",
+  "creamy_sweet_lassi": "/images/cultural/traditional_food.jpg",
+  "phulkari_dupatta": "/images/cultural/handicrafts_weaving.jpg",
+  "punjabi_dhol": "/images/cultural/indian_music.jpg",
+  "golden_wheat_fields_kanak": "/images/cultural/punjab_baisakhi.jpg",
+  "sri_harmandir_sahib_golden_temple": "/images/cultural/tripura_palace.jpg",
+
+  // --- West Bengal ---
+  "durga_puja": "/images/cultural/diwali_lamps.jpg",
+  "macher_jhol": "/images/cultural/masor_tenga.jpg",
+  "rosogolla": "/images/cultural/traditional_food.jpg",
+  "mishti_doi": "/images/cultural/traditional_food.jpg",
+  "shorshe_ilish": "/images/cultural/masor_tenga.jpg",
+  "tant_cotton_saree": "/images/cultural/handicrafts_weaving.jpg",
+  "baluchari_silk_saree": "/images/cultural/handicrafts_weaving.jpg",
+  "rabindra_sangeet": "/images/cultural/indian_music.jpg",
+  "baul_geeti": "/images/cultural/indian_music.jpg",
+  "victoria_memorial": "/images/cultural/tripura_palace.jpg",
+  "howrah_bridge": "/images/cultural/tripura_palace.jpg",
+};
+
+/**
+ * Normalizes a name string into a stable identifier slug
+ */
+function toItemSlug(str: string): string {
+  return (str || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+/**
+ * Maps any cultural item to an authentic, photorealistic photographic image.
+ * Uses a strict hierarchy:
+ * 1. Direct item imageUrl if set.
+ * 2. Stable item ID lookup in CULTURAL_ITEM_IMAGE_MAP.
+ * 3. Normalized name slug lookup in CULTURAL_ITEM_IMAGE_MAP.
+ * 4. Contextual keyword matching for specific festivals and key regional items.
+ * 5. Safe category-appropriate fallback (NEVER a universal Assam image!).
  */
 export function getCulturalItemImage(item: CulturalItem): string {
-  if (item.imageUrl) return item.imageUrl;
+  if (item?.imageUrl) return item.imageUrl;
 
-  const nameLower = (item.name || "").toLowerCase();
-  const idLower = (item.id || "").toLowerCase();
-  const stateLower = (item.state || "").toLowerCase();
+  const idLower = (item?.id || "").toLowerCase();
+  const nameLower = (item?.name || "").toLowerCase();
+  const slug = toItemSlug(item?.name || "");
 
-  if (nameLower.includes("bihu") || idLower.includes("bihu")) {
+  // 1. Direct dictionary matches
+  if (CULTURAL_ITEM_IMAGE_MAP[idLower]) {
+    return CULTURAL_ITEM_IMAGE_MAP[idLower];
+  }
+  if (CULTURAL_ITEM_IMAGE_MAP[slug]) {
+    return CULTURAL_ITEM_IMAGE_MAP[slug];
+  }
+
+  // 2. Exact festival distinction (CRITICAL: Each Bihu festival must have its own distinct image)
+  if (nameLower.includes("bhogali") || nameLower.includes("magh bihu")) {
+    return "/images/cultural/bhogali_bihu_meji.jpg";
+  }
+  if (nameLower.includes("kongali") || nameLower.includes("kati bihu")) {
+    return "/images/cultural/kongali_bihu_saki.jpg";
+  }
+  if (nameLower.includes("rongali") || nameLower.includes("bohag bihu") || nameLower.includes("bihu dance")) {
     return "/images/cultural/bihu_dance.jpg";
   }
-  if (nameLower.includes("tea") || idLower.includes("tea") || nameLower.includes("chai")) {
+
+  // 3. Specific item keywords
+  if (nameLower.includes("ambubachi") || nameLower.includes("kamakhya")) {
+    return "/images/cultural/ambubachi_mela.jpg";
+  }
+  if (nameLower.includes("masor tenga")) {
+    return "/images/cultural/masor_tenga.jpg";
+  }
+  if (nameLower.includes("til pitha") || nameLower.includes("pitha")) {
+    return "/images/cultural/til_pitha.jpg";
+  }
+  if (nameLower.includes("jaapi")) {
+    return "/images/cultural/assam_jaapi.jpg";
+  }
+  if (nameLower.includes("muga silk") || nameLower.includes("muga")) {
+    return "/images/cultural/muga_silk.jpg";
+  }
+  if (nameLower.includes("sattriya")) {
+    return "/images/cultural/sattriya_dance.jpg";
+  }
+  if (nameLower.includes("rhino") || nameLower.includes("kaziranga")) {
+    return "/images/cultural/kaziranga_rhino.jpg";
+  }
+  if (nameLower.includes("brahmaputra")) {
+    return "/images/cultural/brahmaputra_sunset.jpg";
+  }
+  if (nameLower.includes("tea") || nameLower.includes("chai")) {
     return "/images/cultural/assam_tea.jpg";
   }
-  if (nameLower.includes("root bridge") || stateLower === "meghalaya" || nameLower.includes("shillong") || nameLower.includes("cherrapunji")) {
+  if (nameLower.includes("root bridge")) {
     return "/images/cultural/living_root_bridge.jpg";
   }
-  if (nameLower.includes("tawang") || stateLower === "arunachal pradesh" || nameLower.includes("monpa")) {
+  if (nameLower.includes("tawang") || nameLower.includes("monpa")) {
     return "/images/cultural/tawang_monastery.jpg";
   }
-  if (nameLower.includes("hornbill") || stateLower === "nagaland" || nameLower.includes("naga")) {
+  if (nameLower.includes("hornbill")) {
     return "/images/cultural/hornbill_festival.jpg";
   }
-  if (nameLower.includes("raas") || nameLower.includes("manipuri") || stateLower === "manipur" || nameLower.includes("loktak")) {
+  if (nameLower.includes("manipuri") || nameLower.includes("raas")) {
     return "/images/cultural/manipur_dance.jpg";
   }
-  if (nameLower.includes("cheraw") || nameLower.includes("bamboo") || stateLower === "mizoram" || nameLower.includes("chapchar")) {
+  if (nameLower.includes("cheraw") || nameLower.includes("bamboo dance")) {
     return "/images/cultural/mizoram_bamboo.jpg";
   }
-  if (nameLower.includes("kanchenjunga") || stateLower === "sikkim" || nameLower.includes("rumtek")) {
+  if (nameLower.includes("kanchenjunga")) {
     return "/images/cultural/sikkim_himalaya.jpg";
   }
-  if (nameLower.includes("neermahal") || stateLower === "tripura" || nameLower.includes("ujjayanta")) {
+  if (nameLower.includes("neermahal") || nameLower.includes("ujjayanta")) {
     return "/images/cultural/tripura_palace.jpg";
   }
-  if (stateLower === "assam") {
-    return "/images/cultural/bihu_dance.jpg";
+  if (nameLower.includes("garba") || nameLower.includes("dandiya")) {
+    return "/images/cultural/gujarat_garba.jpg";
+  }
+  if (nameLower.includes("onam")) {
+    return "/images/cultural/kerala_onam_sadya.jpg";
+  }
+  if (nameLower.includes("baisakhi") || nameLower.includes("bhangra")) {
+    return "/images/cultural/punjab_baisakhi.jpg";
+  }
+  if (nameLower.includes("lohri")) {
+    return "/images/cultural/bhogali_bihu_meji.jpg";
   }
 
-  // Category based photorealistic mappings
-  switch (item.category) {
-    case "festivals":
-      return "/images/cultural/diwali_lamps.jpg";
-    case "food":
-      return "/images/cultural/traditional_food.jpg";
-    case "clothing":
-    case "crafts":
-    case "art":
-      return "/images/cultural/handicrafts_weaving.jpg";
-    case "music":
-    case "instruments":
-      return "/images/cultural/indian_music.jpg";
-    case "dance":
-      return "/images/cultural/bihu_dance.jpg";
-    case "architecture":
-    case ("heritage" as any):
-    case "markets":
-      return "/images/cultural/tripura_palace.jpg";
-    case "nature":
-    case "agriculture":
-      return "/images/cultural/assam_tea.jpg";
-    case "traditions":
-    case "lifestyle":
-    case "objects":
-    default:
-      return "/images/cultural/diwali_lamps.jpg";
-  }
+  // 4. Safe Category-Appropriate Fallback (NEVER a blanket state catch-all)
+  const category = (item?.category || "traditions") as CulturalCategory;
+  return CATEGORY_FALLBACK_IMAGES[category] || "/images/cultural/diwali_lamps.jpg";
 }
 
 /**

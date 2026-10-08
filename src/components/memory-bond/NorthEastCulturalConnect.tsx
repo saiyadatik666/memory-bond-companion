@@ -33,6 +33,7 @@ import {
   INDIAN_STATES,
   CULTURAL_CATEGORIES,
   getCulturalItemImage,
+  CATEGORY_FALLBACK_IMAGES,
   FEATURED_CULTURAL_EXPERIENCE,
   NER_SHOWCASE_ITEMS,
   type CulturalItem,
@@ -402,6 +403,11 @@ export function NorthEastCulturalConnect({ store }: { store: MemoryBondStore }) 
               src={FEATURED_CULTURAL_EXPERIENCE.imageUrl}
               alt={FEATURED_CULTURAL_EXPERIENCE.name}
               className="h-full w-full object-cover object-center group-hover:scale-102 transition-transform duration-700"
+              onError={(e) => {
+                const target = e.currentTarget;
+                const fallback = "/images/cultural/bihu_dance.jpg";
+                if (target.src !== fallback) target.src = fallback;
+              }}
             />
             {/* Soft dark gradient behind white text */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
@@ -592,6 +598,11 @@ export function NorthEastCulturalConnect({ store }: { store: MemoryBondStore }) 
                       src={item.imageUrl}
                       alt={item.name}
                       className="h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        const fallback = CATEGORY_FALLBACK_IMAGES[item.category] || "/images/cultural/diwali_lamps.jpg";
+                        if (target.src !== fallback) target.src = fallback;
+                      }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                     <div className="absolute top-3 left-3">
@@ -865,6 +876,11 @@ export function NorthEastCulturalConnect({ store }: { store: MemoryBondStore }) 
                               alt={item.name}
                               loading="lazy"
                               className="h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                              onError={(e) => {
+                                const target = e.currentTarget;
+                                const fallback = CATEGORY_FALLBACK_IMAGES[item.category] || "/images/cultural/diwali_lamps.jpg";
+                                if (target.src !== fallback) target.src = fallback;
+                              }}
                             />
                             {/* Subtle dark gradient behind text */}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent" />
@@ -1048,6 +1064,11 @@ export function NorthEastCulturalConnect({ store }: { store: MemoryBondStore }) 
                       src={getCulturalItemImage(currentQuizItem)}
                       alt={currentQuizItem.name}
                       className="h-full w-full object-cover"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        const fallback = CATEGORY_FALLBACK_IMAGES[currentQuizItem.category] || "/images/cultural/diwali_lamps.jpg";
+                        if (target.src !== fallback) target.src = fallback;
+                      }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                     <div className="absolute bottom-3 left-4 text-white">
@@ -1175,6 +1196,11 @@ export function NorthEastCulturalConnect({ store }: { store: MemoryBondStore }) 
                 src={getCulturalItemImage(activeItem)}
                 alt={activeItem.name}
                 className="h-full w-full object-cover object-center"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  const fallback = CATEGORY_FALLBACK_IMAGES[activeItem.category] || "/images/cultural/diwali_lamps.jpg";
+                  if (target.src !== fallback) target.src = fallback;
+                }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/20" />
 
