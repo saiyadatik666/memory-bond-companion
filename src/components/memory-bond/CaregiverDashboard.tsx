@@ -638,8 +638,9 @@ export function CaregiverDashboard({
                     : "bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/30";
 
                 return (
-                  <div
+                  <motion.div
                     key={alt.id}
+                    whileHover={{ scale: 1.005, y: -1 }}
                     className={`rounded-2xl border-2 p-4 transition-all flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 ${
                       isResolved
                         ? "border-border bg-secondary/20 opacity-60"
@@ -685,7 +686,7 @@ export function CaregiverDashboard({
                         </Button>
                       )}
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
 
