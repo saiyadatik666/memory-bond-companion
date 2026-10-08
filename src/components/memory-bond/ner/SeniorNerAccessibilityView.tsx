@@ -101,7 +101,7 @@ export function SeniorNerAccessibilityView({
   onOpenSos,
   onNavigate,
 }: SeniorNerAccessibilityViewProps) {
-  const { t, speechLocale, currentLanguage } = useI18n();
+  const { t, speechLocale, lang: currentLanguage } = useI18n();
 
   // 1. Live Device GPS Location State (Requirement 1, 2, 3, 18)
   const [locationState, setLocationState] = useState<LocationState>({

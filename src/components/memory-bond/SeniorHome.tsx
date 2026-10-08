@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { motion } from "motion/react";
+import { staggerContainerVariants, staggerItemVariants, useAppReducedMotion } from "@/lib/motionTokens";
 import {
   Brain,
   Pill,
@@ -135,7 +137,12 @@ export function SeniorHome({
       {/* ===================================================================== */}
       {/* 2. GREETING HEADER (Section 4 & 6: "Good morning, Meena ❤️")          */}
       {/* ===================================================================== */}
-      <div className="pt-1 pb-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="pt-1 pb-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+      >
         <div className="min-w-0">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-[#0F243E] tracking-tight flex items-center gap-2 flex-wrap">
             <span>{greeting}, {displayName}</span>
@@ -163,12 +170,16 @@ export function SeniorHome({
             Caregiver connected
           </span>
         </div>
-      </div>
+      </motion.div>
 
       {/* ===================================================================== */}
       {/* 3. PRIMARY ACTION: 🧠 TODAY'S MEMORY ACTIVITY (Section 6 & 32 HERO)   */}
       {/* ===================================================================== */}
-      <div className="rounded-3xl bg-gradient-to-br from-[#FAF5FF] via-white to-[#F3E8FF]/60 border-2 border-purple-200/90 p-5 sm:p-6 shadow-[0_4px_20px_-4px_rgba(147,51,234,0.08)] space-y-4">
+      <motion.div
+        whileHover={{ y: -2 }}
+        transition={{ duration: 0.2 }}
+        className="rounded-3xl bg-gradient-to-br from-[#FAF5FF] via-white to-[#F3E8FF]/60 border-2 border-purple-200/90 p-5 sm:p-6 shadow-[0_4px_20px_-4px_rgba(147,51,234,0.08)] space-y-4"
+      >
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="text-xs font-black uppercase tracking-wider text-purple-700 bg-purple-100/90 px-3 py-1 rounded-full border border-purple-200">
@@ -203,12 +214,16 @@ export function SeniorHome({
           <span>Start Activity</span>
           <ArrowRight className="h-4 w-4" />
         </Button>
-      </div>
+      </motion.div>
 
       {/* ===================================================================== */}
       {/* 4. NEXT CARE TASK: 💊 MEDICINE REMINDER (Section 6, 7, 8 COMPACT)     */}
       {/* ===================================================================== */}
-      <div className="rounded-3xl bg-white border-2 border-teal-200/90 p-5 sm:p-6 shadow-[0_4px_20px_-4px_rgba(13,148,136,0.06)] space-y-3.5">
+      <motion.div
+        whileHover={{ y: -2 }}
+        transition={{ duration: 0.2 }}
+        className="rounded-3xl bg-white border-2 border-teal-200/90 p-5 sm:p-6 shadow-[0_4px_20px_-4px_rgba(13,148,136,0.06)] space-y-3.5"
+      >
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="text-xl">💊</span>
@@ -271,7 +286,7 @@ export function SeniorHome({
             View Schedule
           </Button>
         </div>
-      </div>
+      </motion.div>
 
       {/* ===================================================================== */}
       {/* 5. TODAY'S PROGRESS: 💧 HYDRATION & 🧩 ROUTINE (Section 6, 9, 10)     */}
@@ -410,18 +425,26 @@ export function SeniorHome({
               <Sparkles className="h-4 w-4 text-amber-500" />
             </h3>
             <p className="text-xs sm:text-sm font-semibold text-[#5B728D]">
-              Your everyday features
+              Your most important daily activities
             </p>
           </div>
         </div>
 
         {/* 2x2 Grid on Mobile, 4-in-a-row on Desktop */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
+        <motion.div
+          variants={staggerContainerVariants}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5"
+        >
           {/* Card 1: 🧠 Play Games */}
-          <button
+          <motion.button
+            variants={staggerItemVariants}
+            whileHover={{ y: -3, scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
             type="button"
             onClick={() => onNavigate("games")}
-            className="group p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border-2 border-[#E2EAF5] hover:border-primary hover:bg-primary/5 text-left transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-98 flex flex-col justify-between min-h-[100px] sm:min-h-[110px]"
+            className="group p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border-2 border-[#E2EAF5] hover:border-primary hover:bg-primary/5 text-left transition-all cursor-pointer shadow-2xs hover:shadow-xs flex flex-col justify-between min-h-[100px] sm:min-h-[110px]"
           >
             <div className="flex items-center justify-between w-full">
               <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center text-xl group-hover:scale-105 transition-transform shrink-0">
@@ -442,13 +465,16 @@ export function SeniorHome({
                 12 Calm Activities
               </div>
             </div>
-          </button>
+          </motion.button>
 
           {/* Card 2: 💊 My Reminders */}
-          <button
+          <motion.button
+            variants={staggerItemVariants}
+            whileHover={{ y: -3, scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
             type="button"
             onClick={() => onNavigate("reminders")}
-            className="group p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border border-[#E2EAF5] hover:border-teal-300 hover:bg-teal-50/30 text-left transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-98 flex flex-col justify-between min-h-[96px] sm:min-h-[104px]"
+            className="group p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border border-[#E2EAF5] hover:border-teal-300 hover:bg-teal-50/30 text-left transition-all cursor-pointer shadow-2xs hover:shadow-xs flex flex-col justify-between min-h-[96px] sm:min-h-[104px]"
           >
             <div className="flex items-center justify-between w-full">
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 transition-transform shrink-0">
@@ -464,13 +490,16 @@ export function SeniorHome({
                 Medicines & tasks
               </div>
             </div>
-          </button>
+          </motion.button>
 
           {/* Card 3: ❤️ Family */}
-          <button
+          <motion.button
+            variants={staggerItemVariants}
+            whileHover={{ y: -3, scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
             type="button"
             onClick={() => onNavigate("family_tree")}
-            className="group p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border border-[#E2EAF5] hover:border-rose-300 hover:bg-rose-50/30 text-left transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-98 flex flex-col justify-between min-h-[96px] sm:min-h-[104px]"
+            className="group p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border border-[#E2EAF5] hover:border-rose-300 hover:bg-rose-50/30 text-left transition-all cursor-pointer shadow-2xs hover:shadow-xs flex flex-col justify-between min-h-[96px] sm:min-h-[104px]"
           >
             <div className="flex items-center justify-between w-full">
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 transition-transform shrink-0">
@@ -491,9 +520,9 @@ export function SeniorHome({
                 Connect with loved ones
               </div>
             </div>
-          </button>
+          </motion.button>
 
-          {/* Card 4: 🌍 Cultural Hub (Replaces Memory Journal per requirements 23-30) */}
+          {/* Card 4: 🌍 Cultural Hub */}
           {(() => {
             const userInterests = store.profile?.interests || [];
             let culturalSuggestion = "Culture, stories & traditions";
@@ -513,14 +542,17 @@ export function SeniorHome({
             }
 
             return (
-              <button
+              <motion.button
+                variants={staggerItemVariants}
+                whileHover={{ y: -3, scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
                 type="button"
                 onClick={() => onNavigate("cultural")}
-                className="group p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border-2 border-[#E2EAF5] hover:border-amber-400 hover:bg-amber-50/20 text-left transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-98 flex flex-col justify-between min-h-[100px] sm:min-h-[110px]"
+                className="group p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border-2 border-[#E2EAF5] hover:border-amber-400 hover:bg-amber-50/20 text-left transition-all cursor-pointer shadow-2xs hover:shadow-xs flex flex-col justify-between min-h-[100px] sm:min-h-[110px]"
               >
                 <div className="flex items-center justify-between w-full">
-                  <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center text-xl group-hover:scale-105 transition-transform shrink-0">
-                    🏛️
+                  <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center text-xl group-hover:scale-105 transition-transform shrink-0">
+                    🌍
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 hidden sm:inline">
@@ -537,10 +569,11 @@ export function SeniorHome({
                     {culturalSuggestion}
                   </div>
                 </div>
-              </button>
+              </motion.button>
             );
           })()}
-        </div>
+        </motion.div>
+      </div>
 
         {/* 🛣️ Road & Travel Help — India-focused Live System */}
         <div className="w-full p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-sky-50 via-white to-blue-50/50 border-2 border-sky-200 shadow-xs space-y-3.5 mt-3">
@@ -652,7 +685,6 @@ export function SeniorHome({
             </button>
           </div>
         </div>
-      </div>
     </div>
   );
 }

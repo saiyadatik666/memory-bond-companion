@@ -938,7 +938,7 @@ export function getCulturalItemImage(item: CulturalItem): string {
     case "dance":
       return "/images/cultural/bihu_dance.jpg";
     case "architecture":
-    case "heritage":
+    case ("heritage" as any):
     case "markets":
       return "/images/cultural/tripura_palace.jpg";
     case "nature":

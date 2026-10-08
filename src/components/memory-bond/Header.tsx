@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   Search,
   Globe,
@@ -340,8 +341,10 @@ export function Header({
             </div>
 
             {/* Notification Bell Button (Always visible on all screens) */}
-            <button
+            <motion.button
               type="button"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.94 }}
               onClick={onOpenNotifications}
               className="relative w-8 h-8 sm:w-9 sm:h-9 md:h-10 md:w-10 rounded-full border border-[#E2EAF5] bg-white hover:bg-[#F4F8FD] text-[#486581] hover:text-[#0F243E] flex items-center justify-center transition-colors shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E6FD9] shrink-0"
               aria-label="View Notifications"
@@ -351,7 +354,7 @@ export function Header({
               {unreadCount > 0 && (
                 <span className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-2.5 h-2.5 rounded-full bg-[#EF4444] ring-2 ring-white" />
               )}
-            </button>
+            </motion.button>
 
             {/* Profile Button */}
             {/* Small mobile (<380px): Hidden in header, accessible in hamburger menu */}
@@ -517,22 +520,31 @@ export function Header({
       {/* ==================================================================== */}
       {/* SLIDE-OVER MOBILE NAVIGATION DRAWER                                   */}
       {/* ==================================================================== */}
-      {isMobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex justify-end">
-          {/* Backdrop Overlay */}
-          <div
-            className="fixed inset-0 bg-[#0F243E]/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
-            onClick={() => setIsMobileMenuOpen(false)}
-            aria-hidden="true"
-          />
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <div className="lg:hidden fixed inset-0 z-50 flex justify-end">
+            {/* Backdrop Overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-[#0F243E]/40 backdrop-blur-xs cursor-pointer"
+              onClick={() => setIsMobileMenuOpen(false)}
+              aria-hidden="true"
+            />
 
-          {/* Slide-in Drawer Container */}
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Navigation Menu"
-            className="relative w-[88vw] max-w-sm bg-white h-full shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-200 z-10"
-          >
+            {/* Slide-in Drawer Container */}
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Navigation Menu"
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ duration: 0.26, ease: [0.32, 0.72, 0, 1] }}
+              className="relative w-[88vw] max-w-sm bg-white h-full shadow-2xl flex flex-col overflow-hidden z-10"
+            >
             {/* Drawer Top Branding & Close Button */}
             <div className="p-4 border-b border-[#E8EEF5] flex items-center justify-between bg-[#F8FAFD]">
               <div className="flex items-center gap-2">
@@ -606,7 +618,7 @@ export function Header({
                     type="button"
                     onClick={() => {
                       voiceManager.stopSpeaking();
-                      setLang(quick.code);
+                      setLang(quick.code as any);
                       store.updateProfile({ language: quick.code });
                     }}
                     className={`py-2 px-1.5 rounded-xl text-xs font-bold transition-all text-center cursor-pointer ${
@@ -629,9 +641,11 @@ export function Header({
                 const isDanger = item.isDanger;
 
                 return (
-                  <button
+                  <motion.button
                     key={item.id}
                     type="button"
+                    whileHover={{ x: 4 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => {
                       setIsMobileMenuOpen(false);
                       if (item.isAction && item.onAction) {
@@ -640,7 +654,7 @@ export function Header({
                         onNavigate(item.id);
                       }
                     }}
-                    className={`w-full flex items-center justify-between p-3 rounded-2xl min-h-[48px] transition-all duration-150 cursor-pointer text-left ${
+                    className={`w-full flex items-center justify-between p-3 rounded-2xl min-h-[48px] transition-colors cursor-pointer text-left ${
                       isDanger
                         ? "bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-extrabold shadow-xs"
                         : isActive
@@ -665,7 +679,7 @@ export function Header({
                     {isActive && (
                       <span className="w-2 h-2 rounded-full bg-[#1E6FD9]" />
                     )}
-                  </button>
+                  </motion.button>
                 );
               })}
 
@@ -709,9 +723,10 @@ export function Header({
                 </button>
               )}
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
+    </AnimatePresence>
     </>
   );
 }

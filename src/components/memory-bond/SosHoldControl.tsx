@@ -181,19 +181,19 @@ export function SosHoldControl({
             <div>
               <div className="flex items-center justify-center sm:justify-start gap-2">
                 <span className="text-xs font-black uppercase px-2.5 py-0.5 rounded-full bg-destructive/15 text-destructive">
-                  {t("sosSafetyGuard", "24/7 Safety Guard")}
+                  {t("sosSafetyGuard") || "24/7 Safety Guard"}
                 </span>
                 {state === "HOLDING" && (
                   <span className="text-xs font-bold text-destructive animate-pulse">
-                    {t("sosHoldingCountdown", "HOLD FOR {s}S...").replace("{s}", String(secondsLeft))}
+                    {(t("sosHoldingCountdown") || "HOLD FOR {s}S...").replace("{s}", String(secondsLeft))}
                   </span>
                 )}
               </div>
               <h3 className="text-xl sm:text-2xl font-black text-foreground mt-1">
-                {t("sosEmergencyFamilyAlert", "Emergency SOS & Family Alert")}
+                {t("sosEmergencyFamilyAlert") || "Emergency SOS & Family Alert"}
               </h3>
               <p className="text-sm text-muted-foreground mt-0.5 max-w-md">
-                {t("sosHoldDesc", "Press and hold continuously for 3 seconds to alert your family & doctor.")}
+                {t("sosHoldDesc") || "Press and hold continuously for 3 seconds to alert your family & doctor."}
               </p>
             </div>
           </div>
@@ -223,14 +223,14 @@ export function SosHoldControl({
               <AlertOctagon className={`h-6 w-6 ${state === "HOLDING" ? "animate-spin" : "animate-pulse"}`} />
               <span className="relative z-10">
                 {state === "HOLDING"
-                  ? t("sosHoldingCountdown", `HOLD FOR ${secondsLeft}S...`).replace("{s}", String(secondsLeft))
-                  : t("sosHold3s", "HOLD 3S FOR SOS")}
+                  ? (t("sosHoldingCountdown") || `HOLD FOR ${secondsLeft}S...`).replace("{s}", String(secondsLeft))
+                  : (t("sosHold3s") || "HOLD 3S FOR SOS")}
               </span>
             </button>
 
             {tapHint && (
               <p className="text-xs font-bold text-destructive animate-bounce text-center">
-                {t("sosHoldTapHint", "⚠️ Hold continuously for 3 full seconds to activate.")}
+                {t("sosHoldTapHint") || "⚠️ Hold continuously for 3 full seconds to activate."}
               </p>
             )}
           </div>
@@ -268,14 +268,14 @@ export function SosHoldControl({
           <AlertOctagon className={`h-5 w-5 shrink-0 ${state === "HOLDING" ? "animate-spin" : "animate-pulse"}`} />
           <span className="relative z-10 truncate">
             {state === "HOLDING"
-              ? t("sosHoldingCountdown", `HOLD FOR ${secondsLeft}S...`).replace("{s}", String(secondsLeft))
-              : t("sosHold3s", "HOLD 3S FOR SOS")}
+              ? (t("sosHoldingCountdown") || `HOLD FOR ${secondsLeft}S...`).replace("{s}", String(secondsLeft))
+              : (t("sosHold3s") || "HOLD 3S FOR SOS")}
           </span>
         </button>
 
         {tapHint && (
           <p className="text-[11px] font-bold text-destructive animate-bounce text-center">
-            {t("sosHoldTapHint", "⚠️ Hold for 3s to trigger SOS.")}
+            {t("sosHoldTapHint") || "⚠️ Hold for 3s to trigger SOS."}
           </p>
         )}
       </div>

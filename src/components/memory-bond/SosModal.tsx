@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import type { MemoryBondStore, SosEvent } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
 import { speakText, stopSpeaking } from "@/lib/voiceParser";
+import { motion, AnimatePresence } from "motion/react";
+import { useAppReducedMotion } from "@/lib/motionTokens";
 
 // Strict SOS Session State Machine
 export type SosSessionState =
@@ -76,6 +78,7 @@ export function SosModal({
   store: MemoryBondStore;
 }) {
   const { lang, t, speechLocale } = useI18n();
+  const shouldReduceMotion = useAppReducedMotion();
 
   // Session State Machine & In-Flight Refs
   const [sessionState, setSessionState] = useState<SosSessionState>("IDLE");
@@ -287,7 +290,7 @@ export function SosModal({
     } else {
       if (
         isCancelledRef.current ||
-        sessionStateRef.current === "CANCELLED" ||
+        (sessionStateRef.current as any) === "CANCELLED" ||
         (sessionId && activeSessionIdRef.current !== sessionId)
       ) {
         return;
@@ -535,16 +538,29 @@ export function SosModal({
     onClose();
   };
 
-  // When modal is closed or explicitly CANCELLED, render NOTHING
-  if (!isOpen || sessionState === "CANCELLED") return null;
-
   const emergencyContacts = store.contacts
     .filter((c) => c.is_emergency)
     .sort((a, b) => a.priority - b.priority);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-3 sm:p-4 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto">
-      <div className="relative w-full max-w-lg rounded-3xl border-2 border-destructive/60 bg-card p-6 sm:p-8 shadow-2xl space-y-6 text-center mx-auto my-auto modal-enter">
+    <AnimatePresence>
+      {isOpen && sessionState !== "CANCELLED" && (
+        <motion.div
+          key="sos-modal-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-3 sm:p-4 backdrop-blur-md overflow-y-auto"
+        >
+          <motion.div
+            key="sos-modal-card"
+            initial={shouldReduceMotion ? { opacity: 0 } : { scale: 0.96, opacity: 0, y: 10 }}
+            animate={shouldReduceMotion ? { opacity: 1 } : { scale: 1, opacity: 1, y: 0 }}
+            exit={shouldReduceMotion ? { opacity: 0 } : { scale: 0.96, opacity: 0, y: 10 }}
+            transition={{ duration: 0.2 }}
+            className="relative w-full max-w-lg rounded-3xl border-2 border-destructive/60 bg-card p-6 sm:p-8 shadow-2xl space-y-6 text-center mx-auto my-auto"
+          >
         {/* Close / Cancel X button (available during countdown & voice input) */}
         {sessionState !== "COMPLETED" && (
           <button
@@ -800,7 +816,9 @@ export function SosModal({
             </Button>
           </div>
         )}
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

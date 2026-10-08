@@ -26,6 +26,8 @@ import { Input } from "@/components/ui/input";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
 import { speakText } from "@/lib/voiceParser";
+import { motion, AnimatePresence } from "motion/react";
+import { useAppReducedMotion } from "@/lib/motionTokens";
 import {
   PAN_INDIA_CULTURAL_CATALOG,
   INDIAN_STATES,
@@ -65,6 +67,7 @@ const ITEMS_PER_PAGE = 24;
 
 export function NorthEastCulturalConnect({ store }: { store: MemoryBondStore }) {
   const { t, speechLocale, lang } = useI18n();
+  const shouldReduceMotion = useAppReducedMotion();
   const catalogTopRef = useRef<HTMLDivElement>(null);
   const showcaseScrollRef = useRef<HTMLDivElement>(null);
 
@@ -1146,12 +1149,26 @@ export function NorthEastCulturalConnect({ store }: { store: MemoryBondStore }) 
       {/* ========================================================================= */}
       {/* 7. Photographic Cultural Detail Page / Modal (Section 8)                   */}
       {/* ========================================================================= */}
-      {activeItem && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
-          <div
-            className="relative w-full max-w-2xl bg-card border-2 border-primary/40 rounded-3xl overflow-hidden shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+      <AnimatePresence>
+        {activeItem && (
+          <motion.div
+            key="cultural-modal-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
+            onClick={() => setActiveItem(null)}
           >
+            <motion.div
+              key="cultural-modal-card"
+              initial={shouldReduceMotion ? { opacity: 0 } : { scale: 0.96, opacity: 0, y: 10 }}
+              animate={shouldReduceMotion ? { opacity: 1 } : { scale: 1, opacity: 1, y: 0 }}
+              exit={shouldReduceMotion ? { opacity: 0 } : { scale: 0.96, opacity: 0, y: 10 }}
+              transition={{ duration: 0.2 }}
+              className="relative w-full max-w-2xl bg-card border-2 border-primary/40 rounded-3xl overflow-hidden shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
             {/* Full-bleed Hero Photo */}
             <div className="relative h-64 sm:h-80 w-full overflow-hidden bg-muted">
               <img
@@ -1253,9 +1270,10 @@ export function NorthEastCulturalConnect({ store }: { store: MemoryBondStore }) 
                 </Button>
               </div>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
-    </div>
-  );
+    </AnimatePresence>
+  </div>
+);
 }

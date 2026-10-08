@@ -44,6 +44,7 @@ import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
 import { QRCodeDisplay } from "./QRCodeDisplay";
 import { CaregiverMonthlySummary } from "./caregiver/CaregiverMonthlySummary";
+import { motion } from "motion/react";
 
 export function CaregiverDashboard({
   store,
@@ -260,18 +261,18 @@ export function CaregiverDashboard({
                   <div className="flex items-center justify-between gap-1">
                     <span className="font-black text-sm text-foreground truncate">{sn.name}</span>
                     <span className="text-xs">
-                      {sn.status === "stable" ? "🟢" : sn.status === "attention" ? "🟡" : "🔴"}
+                      {sn.status === "stable" ? "🟢" : sn.status === "needs_attention" ? "🟡" : "🔴"}
                     </span>
                   </div>
                   <div className="text-[11px] text-muted-foreground truncate mt-0.5">
                     {sn.age} yrs • {sn.region}
                   </div>
                   <div className={`text-[10px] font-bold mt-1 truncate ${
-                    sn.status === "stable" ? "text-emerald-600" : sn.status === "attention" ? "text-amber-600" : "text-destructive"
+                    sn.status === "stable" ? "text-emerald-600" : sn.status === "needs_attention" ? "text-amber-600" : "text-destructive"
                   }`}>
                     {sn.status === "stable"
                       ? (t("statusNormal") || "🟢 Activity Status: Normal")
-                      : sn.status === "attention"
+                      : sn.status === "needs_attention"
                       ? (t("statusAttention") || "🟡 Needs Attention")
                       : (t("statusUrgent") || "🔴 Urgent: Action Needed")}
                   </div>
@@ -453,11 +454,11 @@ export function CaregiverDashboard({
                 <span className={`text-xs font-black px-3 py-1 rounded-full border ${
                   activeSenior.status === "stable"
                     ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-600"
-                    : activeSenior.status === "attention"
+                    : activeSenior.status === "needs_attention"
                     ? "bg-amber-500/15 border-amber-500/30 text-amber-600"
                     : "bg-rose-500/15 border-rose-500/30 text-rose-600"
                 }`}>
-                  {activeSenior.status === "stable" ? (t("statusNormal") || "🟢 Activity Status: Normal") : activeSenior.status === "attention" ? (t("statusAttention") || "🟡 Needs Attention") : (t("statusUrgent") || "🔴 Urgent: Action Needed")}
+                  {activeSenior.status === "stable" ? (t("statusNormal") || "🟢 Activity Status: Normal") : activeSenior.status === "needs_attention" ? (t("statusAttention") || "🟡 Needs Attention") : (t("statusUrgent") || "🔴 Urgent: Action Needed")}
                 </span>
               </div>
               <p className="text-sm text-muted-foreground mt-0.5">
@@ -642,7 +643,7 @@ export function CaregiverDashboard({
                     className={`rounded-2xl border-2 p-4 transition-all flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 ${
                       isResolved
                         ? "border-border bg-secondary/20 opacity-60"
-                        : alt.severity === "high"
+                        : alt.severity === "red"
                         ? "border-rose-500/50 bg-rose-500/10 shadow-xs"
                         : "border-amber-500/40 bg-amber-500/10 shadow-xs"
                     }`}
@@ -664,7 +665,7 @@ export function CaregiverDashboard({
                           </span>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          {alt.description}
+                          {alt.message}
                         </p>
                       </div>
                     </div>

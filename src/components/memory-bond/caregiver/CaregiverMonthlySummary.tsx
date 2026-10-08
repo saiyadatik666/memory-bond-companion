@@ -293,7 +293,7 @@ export function CaregiverMonthlySummary({
                   <div className="flex items-center justify-between gap-1">
                     <span className="font-black text-sm text-foreground truncate">{sn.name}</span>
                     <span className="text-xs">
-                      {sn.status === "stable" ? "🟢" : sn.status === "attention" ? "🟡" : "🔴"}
+                      {sn.status === "stable" ? "🟢" : sn.status === "needs_attention" ? "🟡" : "🔴"}
                     </span>
                   </div>
                   <div className="text-[11px] text-muted-foreground truncate mt-0.5">

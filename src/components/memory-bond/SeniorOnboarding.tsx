@@ -71,7 +71,7 @@ export function SeniorOnboarding({
 
   const handleLanguageSelect = (code: string) => {
     setSelectedLang(code);
-    setLang(code);
+    setLang(code as any);
     try {
       speakText(code === "hi" ? "नमस्ते" : code === "as" ? "নমস্কাৰ" : "Hello", speechLocale);
     } catch {}

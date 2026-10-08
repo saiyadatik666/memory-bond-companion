@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { pageTransitionVariants, reducedPageTransitionVariants, useAppReducedMotion } from "@/lib/motionTokens";
 import { useMemoryBondStore } from "@/lib/memoryBondStore";
 import { Header } from "./Header";
 import { BottomNavigation } from "./BottomNavigation";
@@ -76,6 +78,7 @@ export function MemoryBondApp() {
   const [isVoiceOpen, setIsVoiceOpen] = useState<boolean>(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState<boolean>(false);
   const [isMemoryStoryOpen, setIsMemoryStoryOpen] = useState<boolean>(false);
+  const isReduced = useAppReducedMotion(store.profile.reduced_motion);
 
   // Synchronize store profile role with active authenticated session on mount & updates
   useEffect(() => {
@@ -425,10 +428,15 @@ export function MemoryBondApp() {
         {/* Main Responsive Body Canvas */}
         <div className="flex-1 w-full max-w-[1600px] mx-auto flex items-start">
           <main id="main-content" className="flex-1 w-full min-w-0 px-3 sm:px-6 pt-4 pb-24 md:pb-12">
-            <div
-              key={currentTab}
-              className={isTransitioning ? "page-transition-exit" : "page-transition-enter"}
-            >
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentTab}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                variants={isReduced ? reducedPageTransitionVariants : pageTransitionVariants}
+                className="w-full"
+              >
               {/* Senior Home: Accessible ONLY to Senior role */}
               {currentTab === "home" && (
                 currentRole === "senior" ? (
@@ -533,7 +541,8 @@ export function MemoryBondApp() {
               )}
 
               {currentTab === "settings" && <SettingsView store={store} />}
-            </div>
+              </motion.div>
+            </AnimatePresence>
           </main>
         </div>
 

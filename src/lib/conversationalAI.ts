@@ -879,9 +879,9 @@ export class ConversationalAIEngine {
       );
       const walkRoutine = store.routines.find(
         (r) =>
-          (r.title.toLowerCase().includes("walk") ||
-            r.title.toLowerCase().includes("सैर") ||
-            r.title.toLowerCase().includes("પાર્ક")) &&
+          (r.activity.toLowerCase().includes("walk") ||
+            r.activity.toLowerCase().includes("सैर") ||
+            r.activity.toLowerCase().includes("પાર્ક")) &&
           r.done_date === yesterdayStr
       );
 
@@ -1081,7 +1081,7 @@ export class ConversationalAIEngine {
     if (isAskingTodayAgenda) {
       const todayStr = new Date().toISOString().slice(0, 10);
       const pendingRoutines = store.routines.filter((r) => r.done_date !== todayStr);
-      const routineName = pendingRoutines[0]?.title || "शाम की सैर";
+      const routineName = pendingRoutines[0]?.activity || "शाम की सैर";
       const nextMed = store.medicines.find((m) => m.times.some((tm) => parseInt(tm, 10) >= 18)) || store.medicines[0];
       const nextApp = store.appointments[0];
 

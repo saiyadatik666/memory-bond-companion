@@ -507,6 +507,9 @@ export interface CognitiveCareLoopStep {
   status: "active" | "completed" | "ready";
   detail: string;
   icon: string;
+  title?: string;
+  description?: string;
+  metric?: string;
 }
 
 export function getCognitiveCareLoopSteps(

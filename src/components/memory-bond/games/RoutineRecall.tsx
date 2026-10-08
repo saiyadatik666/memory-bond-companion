@@ -2,6 +2,7 @@ import { useState, useMemo, useRef } from "react";
 import { Sparkles, RotateCcw, CheckCircle2, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n";
+import { motion, AnimatePresence } from "motion/react";
 
 interface RoutineQuestion {
   question: string;
@@ -330,7 +331,13 @@ export function RoutineRecall({
         </div>
       ) : (
         <div className="max-w-2xl mx-auto space-y-6">
-          <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+          <motion.div
+            key={currentIdx}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+            className="rounded-3xl border border-border bg-card p-6 shadow-sm"
+          >
             <h4 className="text-xl font-bold text-foreground leading-relaxed mb-6">
               {currentQ.question}
             </h4>
@@ -339,21 +346,23 @@ export function RoutineRecall({
               {currentQ.options.map((opt, idx) => {
                 const isSelected = selectedOpt === idx;
                 return (
-                  <button
+                  <motion.button
                     key={idx}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => handleSelect(idx)}
-                    className={`w-full text-left p-4 rounded-2xl border-2 transition-all font-medium text-base ${
+                    className={`w-full text-left p-4 rounded-2xl border-2 transition-all font-medium text-base cursor-pointer ${
                       isSelected
                         ? "bg-primary text-primary-foreground border-primary shadow-sm"
                         : "bg-secondary/30 hover:bg-secondary/60 border-border"
                     }`}
                   >
                     {opt}
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>
-          </div>
+          </motion.div>
 
           <div className="flex justify-end">
             <Button

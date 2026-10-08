@@ -12,10 +12,12 @@ import {
   Volume2,
   Filter,
 } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 import { Button } from "@/components/ui/button";
 import type { MemoryBondStore, AppNotification } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
 import { speakText, stopSpeaking } from "@/lib/voiceParser";
+import { useAppReducedMotion } from "@/lib/motionTokens";
 
 export function NotificationDrawer({
   isOpen,
@@ -28,8 +30,7 @@ export function NotificationDrawer({
 }) {
   const { speechLocale } = useI18n();
   const [showOnlyUnread, setShowOnlyUnread] = useState<boolean>(false);
-
-  if (!isOpen) return null;
+  const shouldReduceMotion = useAppReducedMotion();
 
   const getCategoryIcon = (category: AppNotification["category"]) => {
     switch (category) {
@@ -59,8 +60,26 @@ export function NotificationDrawer({
     : store.notifications;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-md animate-in fade-in">
-      <div className="w-full max-w-md bg-card border-l-2 border-border h-full shadow-2xl p-6 flex flex-col justify-between overflow-hidden">
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          key="notification-drawer-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-md"
+          onClick={onClose}
+        >
+          <motion.div
+            key="notification-drawer-panel"
+            initial={shouldReduceMotion ? { opacity: 0 } : { x: "100%" }}
+            animate={shouldReduceMotion ? { opacity: 1 } : { x: 0 }}
+            exit={shouldReduceMotion ? { opacity: 0 } : { x: "100%" }}
+            transition={{ type: "spring", damping: 30, stiffness: 350 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-card border-l-2 border-border h-full shadow-2xl p-6 flex flex-col justify-between overflow-hidden"
+          >
         {/* Header */}
         <div className="space-y-4">
           <div className="flex items-center justify-between pb-4 border-b border-border">
@@ -113,8 +132,10 @@ export function NotificationDrawer({
             </div>
           ) : (
             displayedNotifications.map((notif) => (
-              <div
+              <motion.div
                 key={notif.id}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
                 onClick={() => store.markNotificationRead(notif.id)}
                 className={`p-4 rounded-2xl border-2 transition-all cursor-pointer space-y-2 ${
                   notif.read
@@ -130,7 +151,7 @@ export function NotificationDrawer({
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={(e) => handleSpeakNotification(e, notif)}
-                      className="p-1 rounded-lg text-muted-foreground hover:text-primary hover:bg-secondary"
+                      className="p-1 rounded-lg text-muted-foreground hover:text-primary hover:bg-secondary cursor-pointer"
                       title="Read aloud notification"
                     >
                       <Volume2 className="h-4 w-4" />
@@ -152,18 +173,20 @@ export function NotificationDrawer({
                     })}
                   </span>
                 </div>
-              </div>
+              </motion.div>
             ))
           )}
         </div>
 
         {/* Footer */}
         <div className="pt-4 border-t border-border">
-          <Button onClick={onClose} className="w-full font-bold rounded-2xl h-12">
+          <Button onClick={onClose} className="w-full font-bold rounded-2xl h-12 cursor-pointer">
             Close Panel
           </Button>
         </div>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

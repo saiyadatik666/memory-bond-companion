@@ -47,6 +47,8 @@ import { useI18n, LANGUAGES } from "@/lib/i18n";
 import { languageEngine, SUPPORTED_LANGUAGES } from "@/lib/languageEngine";
 import { processVoiceQuery, type ConversationTurn } from "@/lib/voiceIntelligence";
 import { MemoryBondLogo } from "./MemoryBondLogo";
+import { motion, AnimatePresence } from "motion/react";
+import { useAppReducedMotion } from "@/lib/motionTokens";
 
 export type AssistantVoiceState =
   | "idle"        // 🎤 Tap to speak
@@ -68,6 +70,7 @@ export function VoiceAssistantModal({
   onNavigate?: (tab: string) => void;
 }) {
   const { lang, speechLocale, setLang } = useI18n();
+  const shouldReduceMotion = useAppReducedMotion();
 
   // Core Pipeline State
   const [voiceState, setVoiceState] = useState<AssistantVoiceState>("idle");
@@ -547,11 +550,27 @@ export function VoiceAssistantModal({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-background/80 backdrop-blur-sm animate-in fade-in">
-      <div className="relative w-full max-w-lg rounded-3xl bg-card border-2 border-border/80 shadow-2xl p-5 sm:p-6 flex flex-col gap-4 text-foreground">
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          key="voice-assistant-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-background/80 backdrop-blur-sm"
+          onClick={handleExit}
+        >
+          <motion.div
+            key="voice-assistant-card"
+            initial={shouldReduceMotion ? { opacity: 0 } : { scale: 0.96, opacity: 0, y: 8 }}
+            animate={shouldReduceMotion ? { opacity: 1 } : { scale: 1, opacity: 1, y: 0 }}
+            exit={shouldReduceMotion ? { opacity: 0 } : { scale: 0.96, opacity: 0, y: 8 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-lg rounded-3xl bg-card border-2 border-border/80 shadow-2xl p-5 sm:p-6 flex flex-col gap-4 text-foreground"
+          >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border/40 pb-3">
           <div className="flex items-center gap-2.5">
@@ -835,7 +854,9 @@ export function VoiceAssistantModal({
             <Send className="h-4 w-4" />
           </Button>
         </form>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

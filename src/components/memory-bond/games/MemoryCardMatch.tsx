@@ -3,6 +3,7 @@ import { Sparkles, RotateCcw, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getCulturalCardsForMemoryMatch, type NERState } from "@/lib/nerCulturalRepository";
 import { useI18n } from "@/lib/i18n";
+import { motion } from "motion/react";
 
 interface Card {
   id: number;
@@ -261,7 +262,12 @@ export function MemoryCardMatch({
       </div>
 
       {isCompleted ? (
-        <div className="rounded-3xl border border-success/30 bg-success/10 p-8 text-center space-y-4 animate-in fade-in zoom-in-95">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.25 }}
+          className="rounded-3xl border border-success/30 bg-success/10 p-8 text-center space-y-4"
+        >
           <Award className="mx-auto h-16 w-16 text-success" />
           <h4 className="text-3xl font-extrabold text-foreground">
             {gameStrings?.wellDone || "Well done! Excellent effort!"}
@@ -273,26 +279,28 @@ export function MemoryCardMatch({
               ? `आपने ${moves} चालों में सभी ${pairCount} जोड़े ढूंढ लिए।`
               : `You found all ${pairCount} pairs in ${moves} turns.`}
           </p>
-          <Button size="lg" onClick={initGame} className="gap-2 font-bold px-8 py-6 text-lg">
+          <Button size="lg" onClick={initGame} className="gap-2 font-bold px-8 py-6 text-lg cursor-pointer">
             <Sparkles className="h-5 w-5" /> {gameStrings?.restart || "Play Again"}
           </Button>
-        </div>
+        </motion.div>
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 sm:gap-4 max-w-2xl mx-auto">
           {cards.map((card, idx) => (
-            <button
+            <motion.button
               key={card.id}
+              whileHover={card.matched ? undefined : { scale: 1.03 }}
+              whileTap={card.matched ? undefined : { scale: 0.94 }}
               onClick={() => handleCardClick(idx)}
-              className={`h-24 sm:h-28 rounded-2xl border-2 text-4xl flex items-center justify-center transition-all duration-300 font-sans ${
+              className={`h-24 sm:h-28 rounded-2xl border-2 text-4xl flex items-center justify-center transition-all duration-300 font-sans cursor-pointer ${
                 card.matched
                   ? "bg-success/20 border-success/40 scale-95 opacity-80"
                   : card.flipped
                   ? "bg-card border-primary shadow-md scale-100"
-                  : "bg-primary/15 hover:bg-primary/25 border-primary/30 hover:scale-105 active:scale-95"
+                  : "bg-primary/15 hover:bg-primary/25 border-primary/30"
               }`}
             >
               {card.flipped || card.matched ? card.icon : "✨"}
-            </button>
+            </motion.button>
           ))}
         </div>
       )}

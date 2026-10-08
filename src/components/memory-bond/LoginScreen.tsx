@@ -484,7 +484,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
               <Languages className="h-3.5 w-3.5 text-primary" />
               <select
                 value={lang}
-                onChange={(e) => setLang(e.target.value)}
+                onChange={(e) => setLang(e.target.value as any)}
                 className="bg-transparent text-xs font-bold text-foreground focus:outline-none cursor-pointer"
               >
                 <option value="en">English</option>

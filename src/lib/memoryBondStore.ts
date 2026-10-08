@@ -188,6 +188,8 @@ export interface MemoryCue {
   photo_url?: string;
   voice_note_url?: string;
   author?: string;
+  author_role?: string;
+  patient_id?: string;
   created_at?: string;
 }
 
@@ -2373,8 +2375,8 @@ export function useMemoryBondStore() {
           ...esc,
           stage,
           second_sent_at: stage >= 2 ? (esc.second_sent_at || nowIso) : esc.second_sent_at,
-          caregiver_escalated_at: stage === 3 ? nowIso : esc.caregiver_escalated_at,
-          status: stage === 3 ? "caregiver_alerted" : "active",
+          caregiver_alerted_at: stage === 3 ? nowIso : esc.caregiver_alerted_at,
+          status: stage === 3 ? "caregiver_alerted" : stage === 2 ? "second_notice" : "pending",
         };
         if (stage === 3) {
           const alertNotif: AppNotification = {

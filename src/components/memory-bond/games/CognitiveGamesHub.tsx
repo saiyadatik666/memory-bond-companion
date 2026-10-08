@@ -36,6 +36,8 @@ import { type MemoryBondStore, getRecommendedDifficulty } from "@/lib/memoryBond
 import { useI18n, getMotivationalFeedback } from "@/lib/i18n";
 import { speakText } from "@/lib/voiceParser";
 import { GameArtwork } from "./GameArtwork";
+import { motion } from "motion/react";
+import { useAppReducedMotion, staggerContainerVariants, staggerItemVariants } from "@/lib/motionTokens";
 
 import { MemoryCardMatch } from "./MemoryCardMatch";
 import { ObjectRecall } from "./ObjectRecall";
@@ -72,12 +74,12 @@ class GameErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState
     return { hasError: true };
   }
 
-  componentDidCatch(error: any) {
+  override componentDidCatch(error: any) {
     console.error("[COGNITIVE_GAME_ERROR]", error);
     this.props.onCatch?.(error);
   }
 
-  render() {
+  override render() {
     if (this.state.hasError) {
       return this.props.fallback;
     }
@@ -1244,13 +1246,13 @@ export function CognitiveGamesHub({
 
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
                 {[
-                  { label: "Memory", val: store.profile.dynamic_cognitive_profile?.memory ?? 62, icon: "🧠", color: "text-indigo-600 dark:text-indigo-400" },
-                  { label: "Attention", val: store.profile.dynamic_cognitive_profile?.attention ?? 71, icon: "🎯", color: "text-amber-600 dark:text-amber-400" },
-                  { label: "Recognition", val: store.profile.dynamic_cognitive_profile?.recognition ?? 55, icon: "👁️", color: "text-teal-600 dark:text-teal-400" },
-                  { label: "Reaction Time", val: store.profile.dynamic_cognitive_profile?.reaction_time ?? 68, icon: "⚡", color: "text-sky-600 dark:text-sky-400" },
-                  { label: "Recall", val: store.profile.dynamic_cognitive_profile?.recall ?? 48, icon: "🔄", color: "text-rose-600 dark:text-rose-400" },
-                  { label: "Consistency", val: store.profile.dynamic_cognitive_profile?.consistency ?? 61, icon: "📊", color: "text-purple-600 dark:text-purple-400" },
-                  { label: "Engagement", val: store.profile.dynamic_cognitive_profile?.engagement ?? 73, icon: "🌟", color: "text-emerald-600 dark:text-emerald-400" },
+                  { label: "Memory", val: store.profile.cognitive_profile?.memory ?? 62, icon: "🧠", color: "text-indigo-600 dark:text-indigo-400" },
+                  { label: "Attention", val: store.profile.cognitive_profile?.attention ?? 71, icon: "🎯", color: "text-amber-600 dark:text-amber-400" },
+                  { label: "Recognition", val: store.profile.cognitive_profile?.recognition ?? 55, icon: "👁️", color: "text-teal-600 dark:text-teal-400" },
+                  { label: "Reaction Time", val: store.profile.cognitive_profile?.reactionTime ?? 68, icon: "⚡", color: "text-sky-600 dark:text-sky-400" },
+                  { label: "Recall", val: store.profile.cognitive_profile?.recall ?? 48, icon: "🔄", color: "text-rose-600 dark:text-rose-400" },
+                  { label: "Consistency", val: store.profile.cognitive_profile?.consistency ?? 61, icon: "📊", color: "text-purple-600 dark:text-purple-400" },
+                  { label: "Engagement", val: store.profile.cognitive_profile?.engagement ?? 73, icon: "🌟", color: "text-emerald-600 dark:text-emerald-400" },
                 ].map((dim) => (
                   <div key={dim.label} className="rounded-2xl border border-border bg-secondary/30 p-3 space-y-1 text-center">
                     <div className="text-base">{dim.icon}</div>
@@ -1455,8 +1457,10 @@ export function CognitiveGamesHub({
                 const localized = getLocalizedGame(g.id);
                 const prog = getGameProgress(g.id);
                 return (
-                  <div
+                  <motion.div
                     key={g.id}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
                     className="rounded-3xl border-2 border-border/80 bg-card p-4 text-left shadow-xs flex flex-col gap-3 group transition-all hover:border-primary/50"
                   >
                     {/* Game Visual Artwork (Section 11 & 12) */}
@@ -1488,7 +1492,7 @@ export function CognitiveGamesHub({
                       <span>{lang === "hi" ? "खेलें" : lang === "gu" ? "રમો" : lang === "as" ? "খেলক" : "PLAY"}</span>
                       <ArrowRight className="h-4 w-4 ml-auto" />
                     </Button>
-                  </div>
+                  </motion.div>
                 );
               })}
           </div>
@@ -1502,8 +1506,10 @@ export function CognitiveGamesHub({
                 const prog = getGameProgress(g.id);
                 const progressPct = Math.round((prog.high / 30) * 100);
                 return (
-                  <div
+                  <motion.div
                     key={g.id}
+                    whileHover={{ y: -3, scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
                     className="group rounded-3xl border-2 border-border/80 bg-card p-5 text-left shadow-sm transition-all hover:border-primary/60 hover:shadow-lg flex flex-col justify-between"
                   >
                     <div className="space-y-3.5">
@@ -1573,7 +1579,7 @@ export function CognitiveGamesHub({
                         <ArrowRight className="h-5 w-5 ml-auto" />
                       </Button>
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
           </div>

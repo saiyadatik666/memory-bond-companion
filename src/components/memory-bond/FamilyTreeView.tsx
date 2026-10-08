@@ -20,6 +20,8 @@ import { speakText, stopSpeaking } from "@/lib/voiceParser";
 import { SocialEngagementModule } from "./SocialEngagementModule";
 import { MemoryCuesView } from "./MemoryCuesView";
 import { MemoryJournalView } from "./MemoryJournalView";
+import { motion } from "motion/react";
+import { useAppReducedMotion, staggerContainerVariants, staggerItemVariants } from "@/lib/motionTokens";
 
 export interface FamilyTreeViewProps {
   store: MemoryBondStore;
@@ -178,10 +180,18 @@ export function FamilyTreeView({ store, initialTab = "tree" }: FamilyTreeViewPro
           </div>
 
           {/* Family Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+          <motion.div
+            variants={staggerContainerVariants}
+            initial="hidden"
+            animate="show"
+            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5"
+          >
             {contacts.map((contact) => (
-              <div
+              <motion.div
                 key={contact.id}
+                variants={staggerItemVariants}
+                whileHover={{ y: -3, scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
                 className="group rounded-3xl border-2 border-border bg-card p-5 space-y-4 hover:border-rose-500/60 hover:shadow-lg transition-all"
               >
                 <div className="flex items-center gap-4">
@@ -240,9 +250,9 @@ export function FamilyTreeView({ store, initialTab = "tree" }: FamilyTreeViewPro
                     Call
                   </a>
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
 
           {contacts.length === 0 && (
             <div className="text-center py-12 rounded-3xl border-2 border-dashed border-border bg-card p-6 space-y-3">
