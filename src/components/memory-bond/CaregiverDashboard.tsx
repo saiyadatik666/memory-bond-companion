@@ -184,7 +184,7 @@ export function CaregiverDashboard({
   }
 
   return (
-    <div className="space-y-6 max-w-full overflow-x-hidden box-border">
+    <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 space-y-6 select-none box-border">
       {/* SECTION 25: CAREGIVER HOME — MEENA PATEL TODAY'S OVERVIEW */}
       <div className="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50/80 via-white to-white p-5 sm:p-7 shadow-xs space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -459,22 +459,12 @@ export function CaregiverDashboard({
             </div>
           </div>
 
-          {/* Rendered Standard ISO/IEC 18004 QR Code with Cryptographic Signature & Expiry */}
-          <div className="flex flex-col items-center gap-2.5 p-4 rounded-3xl bg-card border-2 border-border shadow-md shrink-0">
+          {/* Rendered Standard ISO/IEC 18004 QR Code */}
+          <div className="flex flex-col items-center gap-2 p-4 rounded-3xl bg-card border-2 border-border shadow-md shrink-0">
             <QRCodeDisplay value={signedPairingToken || caregiverUniqueCode} size={180} />
-            <div className="flex items-center gap-1.5 text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              <span>Signed • 15m Expiry • Single-Use</span>
-            </div>
-            <button
-              type="button"
-              onClick={refreshPairingToken}
-              disabled={isRefreshingToken}
-              className="text-xs text-primary font-bold hover:underline flex items-center gap-1.5 cursor-pointer transition-opacity disabled:opacity-50"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingToken ? "animate-spin" : ""}`} />
-              <span>{isRefreshingToken ? "Refreshing..." : (t("refreshQr") || "Refresh Dynamic QR")}</span>
-            </button>
+            <span className="text-[11px] font-bold text-muted-foreground tracking-wide">
+              {t("scanFromSeniorLogin") || "Scan from Senior Login"}
+            </span>
           </div>
 
         </div>
