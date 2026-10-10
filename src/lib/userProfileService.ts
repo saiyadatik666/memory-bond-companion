@@ -158,25 +158,43 @@ export function checkOAuthRedirectError(): string | null {
 
     if (!full) return null;
 
-    if (full.includes("error_code=identity_already_exists") || full.includes("identity_already_exists")) {
-      return "This Google/Facebook account is already connected to another Memory Bond account. Please sign in to that account first.";
+    // Check standard error query and hash parameters
+    const cleanSearch = search.startsWith("?") ? search.slice(1) : search;
+    const cleanHash = hash.startsWith("#") ? hash.slice(1) : hash;
+    const searchParams = new URLSearchParams(cleanSearch);
+    const hashParams = new URLSearchParams(cleanHash);
+
+    const errorCode =
+      searchParams.get("error_code") ||
+      hashParams.get("error_code") ||
+      searchParams.get("error") ||
+      hashParams.get("error");
+
+    const errorDescription =
+      searchParams.get("error_description") ||
+      hashParams.get("error_description");
+
+    if (errorCode === "identity_already_exists" || full.includes("identity_already_exists")) {
+      return "This Google/Facebook account is already connected to another Memory Bond account. Please sign in to that account directly.";
     }
 
-    if (full.includes("error_description=")) {
-      const match = full.match(/error_description=([^&]+)/);
-      if (match && match[1]) {
-        const desc = decodeURIComponent(match[1].replace(/\+/g, " "));
-        if (desc.toLowerCase().includes("already registered") || desc.toLowerCase().includes("already exists")) {
-          return "This account is already registered. Please sign in using your existing password.";
-        }
-        return desc;
+    if (errorCode === "access_denied" || full.includes("access_denied")) {
+      return "Sign in was cancelled or access denied. You can try again or sign in with your email and password.";
+    }
+
+    if (errorDescription) {
+      const desc = decodeURIComponent(errorDescription.replace(/\+/g, " "));
+      if (desc.toLowerCase().includes("already registered") || desc.toLowerCase().includes("already exists")) {
+        return "An account with this email is already registered. Please sign in using your existing password.";
       }
+      return desc;
     }
 
-    if (full.includes("error=access_denied")) {
-      return "Sign in was cancelled or denied. Please try again.";
+    if (errorCode) {
+      return `Sign in could not be completed (${errorCode}). Please try again.`;
     }
   } catch {}
 
   return null;
 }
+
