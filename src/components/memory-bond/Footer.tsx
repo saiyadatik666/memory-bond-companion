@@ -102,8 +102,8 @@ export function Footer({
               <MemoryBondLogo size="lg" />
             </div>
 
-            <div className="inline-block px-3 py-1 rounded-full bg-[#E6F0FC] text-[#1E6FD9] text-xs font-black tracking-wide">
-              Together Always
+            <div className="inline-block px-3.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-black tracking-wide border border-primary/20">
+              Remember, Care, Connect, Protect.
             </div>
 
             <p className="text-sm text-[#627D98] leading-relaxed">
