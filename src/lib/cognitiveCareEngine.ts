@@ -72,14 +72,16 @@ export interface EarlyWarningStatus {
  * Strictly wellness & participation based, not a medical diagnosis.
  */
 export function calculateDynamicCognitiveProfile(
-  sessions: GameSession[],
-  routines: DailyRoutine[]
+  sessions: GameSession[] = [],
+  routines: DailyRoutine[] = []
 ): DynamicCognitiveProfile {
+  const safeSessions = Array.isArray(sessions) ? sessions : [];
+  const safeRoutines = Array.isArray(routines) ? routines : [];
   const todayStr = new Date().toISOString().slice(0, 10);
-  const routinesDoneToday = routines.filter((r) => r.done_date === todayStr).length;
-  const routineRatio = routines.length > 0 ? routinesDoneToday / routines.length : 0.6;
+  const routinesDoneToday = safeRoutines.filter((r) => r.done_date === todayStr).length;
+  const routineRatio = safeRoutines.length > 0 ? routinesDoneToday / safeRoutines.length : 0.6;
 
-  if (sessions.length === 0) {
+  if (safeSessions.length === 0) {
     return {
       memory: 65,
       attention: 70,
@@ -96,16 +98,16 @@ export function calculateDynamicCognitiveProfile(
   }
 
   // Filter sessions by cognitive domain
-  const memSessions = sessions.filter(
+  const memSessions = safeSessions.filter(
     (s) => s.game_type === "memory" || s.game_key === "card_match" || s.game_key === "word_memory" || s.game_key === "sequence_memory"
   );
-  const attSessions = sessions.filter(
+  const attSessions = safeSessions.filter(
     (s) => s.game_type === "attention" || s.game_key === "pattern_recall" || s.game_key === "find_difference"
   );
-  const recSessions = sessions.filter(
+  const recSessions = safeSessions.filter(
     (s) => s.game_type === "recognition" || s.game_key === "match_object" || s.game_key === "family_photo" || s.game_type === "cultural"
   );
-  const recallSessions = sessions.filter(
+  const recallSessions = safeSessions.filter(
     (s) => s.game_type === "recall" || s.game_key === "object_recall" || s.game_key === "routine_recall" || s.game_key === "voice_quiz"
   );
 
@@ -722,7 +724,8 @@ export interface EightDayCycleInfo {
 const CYCLE_ANCHOR_KEY = "mb_game_cycle_anchor_v2";
 const CYCLE_OVERRIDE_KEY = "mb_game_cycle_override_v2";
 
-export function get8DayCycleInfo(sessions: GameSession[]): EightDayCycleInfo {
+export function get8DayCycleInfo(sessions: GameSession[] = []): EightDayCycleInfo {
+  const safeSessions = Array.isArray(sessions) ? sessions : [];
   let anchorTime = Date.now();
   try {
     const savedAnchor = localStorage.getItem(CYCLE_ANCHOR_KEY);
@@ -773,7 +776,7 @@ export function get8DayCycleInfo(sessions: GameSession[]): EightDayCycleInfo {
   }
 
   // Aggregate current sessions into historical cycles
-  sessions.forEach((s) => {
+  safeSessions.forEach((s) => {
     const sCycle = (s as any).cycle_number || cycleNumber;
     if (!historicalCycles[sCycle]) {
       historicalCycles[sCycle] = { accuracies: [], sessionsCount: 0, maxLevel: 1 };
