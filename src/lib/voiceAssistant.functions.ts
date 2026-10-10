@@ -1,33 +1,44 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { cleanAIResponse } from "./voiceProvider";
 import { languageEngine, SUPPORTED_LANGUAGES } from "./languageEngine";
+import { checkRateLimit, extractClientIdentifier, RATE_LIMIT_PRESETS } from "./serverRateLimiter";
+import { sanitizeText } from "./sanitizer";
 
 const GATEWAY = "https://ai.gateway.lovable.dev/v1";
 
 const VoiceAssistantInput = z.object({
-  query: z.string(),
+  query: z
+    .string()
+    .min(1, "Query cannot be empty")
+    .max(1500, "Query is too long (maximum 1500 characters)")
+    .transform((val) => sanitizeText(val, 1500)),
   history: z
     .array(
       z.object({
-        role: z.string(),
-        content: z.string(),
+        role: z.enum(["user", "assistant", "system"]).default("user"),
+        content: z
+          .string()
+          .max(1500)
+          .transform((val) => sanitizeText(val, 1500)),
       })
     )
+    .max(10, "Conversation history capped at 10 turns")
     .optional()
     .default([]),
   context: z
     .object({
-      userName: z.string().optional(),
-      userAge: z.string().optional(),
-      userRegion: z.string().optional(),
-      medicinesCount: z.number().optional(),
-      pendingMeds: z.string().optional(),
-      routinesCompleted: z.string().optional(),
-      nextAppointment: z.string().optional(),
+      userName: z.string().max(80).optional(),
+      userAge: z.string().max(20).optional(),
+      userRegion: z.string().max(80).optional(),
+      medicinesCount: z.number().max(100).optional(),
+      pendingMeds: z.string().max(200).optional(),
+      routinesCompleted: z.string().max(200).optional(),
+      nextAppointment: z.string().max(200).optional(),
     })
     .optional(),
-  preferredLocale: z.string().optional(),
+  preferredLocale: z.string().max(20).optional(),
 });
 
 export interface VoiceAssistantResponse {
@@ -48,11 +59,30 @@ export interface VoiceAssistantResponse {
  * Server Function: Real Conversational AI Voice Assistant with Automatic Language Detection,
  * Romanized Indian Language Detection, Multi-Turn Context, and Dynamic Language Switching.
  * 
- * Securely uses the Lovable AI Gateway without exposing any API keys to the browser.
+ * Securely uses the Lovable AI Gateway with server-side sliding-window rate limiting
+ * and strict payload validation without exposing any API keys to the browser.
  */
 export const askVoiceAssistant = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => VoiceAssistantInput.parse(input))
+  .validator((input: unknown) => VoiceAssistantInput.parse(input))
   .handler(async ({ data }: { data: z.infer<typeof VoiceAssistantInput> }): Promise<VoiceAssistantResponse> => {
+    // 1. Rate Limiting Enforcement
+    let request: Request | null = null;
+    try {
+      request = getRequest();
+    } catch {}
+
+    const clientId = extractClientIdentifier(request);
+    const rateCheck = checkRateLimit("voice_assistant", clientId, RATE_LIMIT_PRESETS.VOICE_ASSISTANT);
+    if (!rateCheck.allowed) {
+      console.warn(`[RateLimit] AI voice assistant limit reached for ${clientId}. Retry after ${rateCheck.retryAfterSeconds}s`);
+      return {
+        reply: "You are speaking very quickly! Please pause for a moment before your next question. / કૃપા કરીને થોડી ક્ષણો રાહ જુઓ.",
+        detectedLocale: data.preferredLocale || "en-IN",
+        languageName: "Rate Limited",
+        suggestedAction: "none",
+      };
+    }
+
     const key = process.env["LOVABLE_API_KEY"];
     const { query, history = [], context = {}, preferredLocale = "en-IN" } = data;
 
@@ -63,6 +93,7 @@ export const askVoiceAssistant = createServerFn({ method: "POST" })
     if (!key) {
       return getLocalOfflineFallback(query, history, detectedLocale, context);
     }
+
 
 
     const systemPrompt = `You are "Memory Bond", an empathetic, intelligent, and warm AI voice companion designed for elderly users and dementia patients in India.

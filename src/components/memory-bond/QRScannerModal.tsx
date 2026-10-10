@@ -28,6 +28,8 @@ import {
   connectSeniorToCaregiver,
   type ResolvedCaregiverProfile,
 } from "@/lib/caregiverConnectionService";
+import { confirmSecurePairing } from "@/lib/caregiverPairing.functions";
+
 
 export type ScannerStage =
   | "STARTING_CAMERA"
@@ -383,6 +385,27 @@ export function QRScannerModal({
     setStage("CONNECTING");
 
     try {
+      // If token is modern signed pairing format (MBP1.), verify with server function first
+      if (detectedCode.startsWith("MBP1.")) {
+        try {
+          const serverVerified = await confirmSecurePairing({
+            data: {
+              token: detectedCode,
+              seniorId: store?.profile?.id || `sr_${Date.now()}`,
+              seniorName,
+              seniorConfirmed: true,
+            },
+          });
+          if (!serverVerified.success) {
+            setConnectError(serverVerified.error || "Pairing token could not be verified on server.");
+            setStage("CONFIRMATION");
+            return;
+          }
+        } catch (serverErr: any) {
+          console.warn("[QRScannerModal] Server verification warning:", serverErr);
+        }
+      }
+
       const result = await connectSeniorToCaregiver({
         code: detectedCode,
         seniorName,

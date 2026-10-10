@@ -108,6 +108,22 @@ export function extractAndNormalizeCaregiverCode(input: string): ExtractedCaregi
   }
   const trimmed = input.trim();
 
+  // 0. Support modern signed pairing token format (MBP1.base64)
+  if (trimmed.startsWith("MBP1.")) {
+    try {
+      const decoded = JSON.parse(atob(trimmed.slice(5)));
+      return {
+        code: trimmed,
+        caregiverName: decoded.name,
+        relationship: decoded.rel,
+        phone: decoded.phone,
+        expires: decoded.exp ? Number(decoded.exp) : undefined,
+      };
+    } catch {
+      return { code: trimmed };
+    }
+  }
+
   // 1. Try JSON parsing
   if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || trimmed.includes('"code"')) {
     try {
@@ -158,11 +174,13 @@ export function extractAndNormalizeCaregiverCode(input: string): ExtractedCaregi
  */
 export function validateCaregiverCodeFormat(code: string): boolean {
   if (!code) return false;
+  if (code.startsWith("MBP1.")) return true;
   const upper = code.trim().toUpperCase();
   if (upper === "MB-CAREGIVER-2026" || upper === "MEMORY_BOND_TEST_QR_123") return true;
   // MB-CG- followed by 4 to 12 alphanumeric characters
   return /^MB-CG-[A-Z0-9]{4,12}$/.test(upper);
 }
+
 
 /**
  * Resolve Caregiver display name and relationship based on code or known demo registry
@@ -356,24 +374,31 @@ export async function connectSeniorToCaregiver(params: ConnectionParams): Promis
 
   try {
     const dbPromise = (async () => {
-      // Upsert into Supabase caregiver_links table
-      const { data, error } = await supabase
-        .from("caregiver_links")
-        .upsert(
-          {
-            senior_id: seniorId,
-            caregiver_id: normalizedCode,
-            status: "approved",
-          },
-          { onConflict: "senior_id,caregiver_id" }
-        );
+      const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      
+      // Upsert into Supabase caregiver_links table only if both IDs are valid PostgreSQL UUIDs
+      if (isUuid(seniorId) && isUuid(normalizedCode)) {
+        const { error } = await supabase
+          .from("caregiver_links")
+          .upsert(
+            {
+              senior_id: seniorId,
+              caregiver_id: normalizedCode,
+              status: "accepted",
+            },
+            { onConflict: "senior_id,caregiver_id" }
+          );
 
-      if (error) {
-        console.warn("Supabase caregiver_links upsert notice:", error.message);
-        return false;
+        if (error) {
+          console.warn("Supabase caregiver_links upsert notice:", error.message);
+          return false;
+        }
+        return true;
       }
-      return true;
+      // If code is custom pairing format (MB-CG-XXXXXX), client/local storage pairing takes effect
+      return false;
     })();
+
 
     const timeoutPromise = new Promise<boolean>((resolve) => {
       setTimeout(() => {

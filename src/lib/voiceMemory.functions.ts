@@ -1,10 +1,26 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
+import { checkRateLimit, extractClientIdentifier, RATE_LIMIT_PRESETS, RateLimitExceededError } from "./serverRateLimiter";
+
+const ALLOWED_MIME_TYPES = [
+  "audio/webm",
+  "audio/mp4",
+  "audio/mpeg",
+  "audio/wav",
+  "audio/x-wav",
+  "audio/ogg",
+  "audio/aac",
+] as const;
 
 const ProcessInput = z.object({
-  audioBase64: z.string().min(32),
-  mimeType: z.string().default("audio/webm"),
-  language: z.string().optional(),
+  // Maximum 8MB base64 audio payload to prevent memory inflation / buffer DoS
+  audioBase64: z
+    .string()
+    .min(32, "Recording is too short")
+    .max(8 * 1024 * 1024, "Recording exceeds maximum size (8MB)"),
+  mimeType: z.enum(ALLOWED_MIME_TYPES).default("audio/webm"),
+  language: z.string().max(10).optional(),
 });
 
 const GATEWAY = "https://ai.gateway.lovable.dev/v1";
@@ -33,12 +49,30 @@ function base64ToBytes(b64: string): Uint8Array {
 /**
  * Transcribe a recorded voice memory in any supported language and return a
  * short Gujarati summary of what was said.
+ * 
+ * Protected by sliding-window rate limiting, audio payload bounds, and MIME verification.
  */
 export const processVoiceMemory = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => ProcessInput.parse(input))
+  .validator((input: unknown) => ProcessInput.parse(input))
   .handler(async ({ data }: { data: z.infer<typeof ProcessInput> }) => {
+    // 1. Rate Limiting Check
+    let request: Request | null = null;
+    try {
+      request = getRequest();
+    } catch {}
+
+    const clientId = extractClientIdentifier(request);
+    const rateCheck = checkRateLimit("voice_memory", clientId, RATE_LIMIT_PRESETS.VOICE_TRANSCRIPTION);
+    if (!rateCheck.allowed) {
+      throw new RateLimitExceededError(
+        `Too many audio recordings sent. Please wait ${rateCheck.retryAfterSeconds} seconds before saving another voice memory.`,
+        rateCheck.retryAfterSeconds
+      );
+    }
+
     const key = process.env["LOVABLE_API_KEY"];
-    if (!key) throw new Error("AI is not configured yet.");
+    if (!key) throw new Error("AI transcription service is currently not configured.");
+
 
     const bytes = base64ToBytes(data.audioBase64);
     if (bytes.byteLength < 2048) {
@@ -64,8 +98,8 @@ export const processVoiceMemory = createServerFn({ method: "POST" })
       body: form,
     });
     if (!sttRes.ok) {
-      const body = await sttRes.text().catch(() => "");
-      throw new Error(`Transcription failed (${sttRes.status}). ${body.slice(0, 300)}`);
+      console.warn(`[VoiceMemory] Transcription gateway error (${sttRes.status})`);
+      throw new Error("Voice transcription service is temporarily unavailable. Please try recording again.");
     }
     const sttJson = (await sttRes.json()) as { text?: string };
     const transcript = (sttJson.text ?? "").trim();
@@ -92,8 +126,8 @@ export const processVoiceMemory = createServerFn({ method: "POST" })
       }),
     });
     if (!chatRes.ok) {
-      const body = await chatRes.text().catch(() => "");
-      throw new Error(`Summary failed (${chatRes.status}). ${body.slice(0, 300)}`);
+      console.warn(`[VoiceMemory] AI summary gateway error (${chatRes.status})`);
+      throw new Error("Could not generate memory summary at this moment. The audio was recorded successfully.");
     }
     const chatJson = (await chatRes.json()) as {
       choices?: { message?: { content?: string } }[];

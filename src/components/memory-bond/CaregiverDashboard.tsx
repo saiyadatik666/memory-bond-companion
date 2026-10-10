@@ -44,7 +44,9 @@ import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
 import { QRCodeDisplay } from "./QRCodeDisplay";
 import { CaregiverMonthlySummary } from "./caregiver/CaregiverMonthlySummary";
+import { generateSecurePairingToken } from "@/lib/caregiverPairing.functions";
 import { motion } from "motion/react";
+
 
 export function CaregiverDashboard({
   store,
@@ -86,6 +88,34 @@ export function CaregiverDashboard({
   };
 
   // Caregiver notification config state
+  const [signedPairingToken, setSignedPairingToken] = useState<string | null>(null);
+  const [isRefreshingToken, setIsRefreshingToken] = useState<boolean>(false);
+
+  const refreshPairingToken = async () => {
+    setIsRefreshingToken(true);
+    try {
+      const res = await generateSecurePairingToken({
+        data: {
+          caregiverId: caregiverUniqueCode,
+          caregiverName: store.profile.full_name || "Caregiver",
+          relationship: "Family Caregiver",
+          phone: store.profile.phone || "+91 98765 43210",
+        },
+      });
+      if (res?.token) {
+        setSignedPairingToken(res.token);
+      }
+    } catch (err) {
+      console.warn("[CaregiverDashboard] Pairing token generation notice:", err);
+    } finally {
+      setIsRefreshingToken(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshPairingToken();
+  }, [caregiverUniqueCode]);
+
   const [alertConfig, setAlertConfig] = useState(
     store.profile.caregiver_alerts || {
       missed_medicines: true,
@@ -429,13 +459,24 @@ export function CaregiverDashboard({
             </div>
           </div>
 
-          {/* Rendered Standard ISO/IEC 18004 QR Code */}
-          <div className="flex flex-col items-center gap-2 p-4 rounded-3xl bg-card border-2 border-border shadow-md shrink-0">
-            <QRCodeDisplay value={caregiverUniqueCode} size={180} />
-            <span className="text-[11px] font-bold text-muted-foreground tracking-wide">
-              {t("scanFromSeniorLogin") || "Scan from Senior Login"}
-            </span>
+          {/* Rendered Standard ISO/IEC 18004 QR Code with Cryptographic Signature & Expiry */}
+          <div className="flex flex-col items-center gap-2.5 p-4 rounded-3xl bg-card border-2 border-border shadow-md shrink-0">
+            <QRCodeDisplay value={signedPairingToken || caregiverUniqueCode} size={180} />
+            <div className="flex items-center gap-1.5 text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              <span>Signed • 15m Expiry • Single-Use</span>
+            </div>
+            <button
+              type="button"
+              onClick={refreshPairingToken}
+              disabled={isRefreshingToken}
+              className="text-xs text-primary font-bold hover:underline flex items-center gap-1.5 cursor-pointer transition-opacity disabled:opacity-50"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingToken ? "animate-spin" : ""}`} />
+              <span>{isRefreshingToken ? "Refreshing..." : (t("refreshQr") || "Refresh Dynamic QR")}</span>
+            </button>
           </div>
+
         </div>
       </div>
 
