@@ -345,11 +345,11 @@ export function NorthEastCulturalConnect({ store }: { store: MemoryBondStore }) 
   };
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto pb-16 px-3 sm:px-6">
+    <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 space-y-8 pb-16 select-none box-border">
       {/* ========================================================================= */}
       {/* 1. Header Banner & Mode Switcher                                          */}
       {/* ========================================================================= */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card border-2 border-border/80 p-5 sm:p-7 rounded-3xl shadow-xs">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-br from-sky-50/80 via-white to-white dark:from-card dark:via-card dark:to-card border border-sky-100 dark:border-border p-5 sm:p-7 rounded-3xl shadow-xs">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
             <span className="text-xs font-black uppercase tracking-wider text-primary bg-primary/10 px-3 py-1 rounded-full flex items-center gap-1.5">

@@ -91,9 +91,9 @@ export function AppointmentsView({ store }: { store: MemoryBondStore }) {
   });
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 space-y-6 select-none box-border">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-secondary/30 p-6">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-gradient-to-br from-sky-50/80 via-white to-white dark:from-card dark:via-card dark:to-card border border-sky-100 dark:border-border p-6 shadow-xs">
         <div>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-foreground flex items-center gap-3">
             <Calendar className="h-8 w-8 text-primary" /> {t("appointments")} & Doctor Visits

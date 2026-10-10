@@ -312,7 +312,7 @@ export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
   const completedCount = store.routines.filter((r) => r.done_date === todayStr).length;
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 space-y-6 select-none box-border">
       {/* 1. Interactive "Daily Routine Call" Feature Banner (Section 10 of Prompt) */}
       <div className="rounded-3xl border-2 border-primary/25 bg-gradient-to-br from-primary/10 via-card to-card p-6 sm:p-8 shadow-sm text-foreground space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -341,7 +341,7 @@ export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
       </div>
 
       {/* Routine Timeline Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-secondary/30 p-5 sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-gradient-to-br from-sky-50/80 via-white to-white dark:from-card dark:via-card dark:to-card border border-sky-100 dark:border-border p-5 sm:p-6 shadow-xs">
         <div>
           <h3 className="text-xl sm:text-2xl font-black text-foreground flex items-center gap-2.5">
             <Sun className="h-7 w-7 text-primary" /> Visual Routine Schedule

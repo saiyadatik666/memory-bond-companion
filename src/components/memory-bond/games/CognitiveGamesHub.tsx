@@ -643,7 +643,7 @@ export function CognitiveGamesHub({
   const ces = store.cognitiveScore;
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 space-y-6 select-none box-border">
       {/* Statutory Medical Disclaimer */}
       <div className="flex items-start gap-3 rounded-2xl border border-primary/25 bg-primary/10 p-4 text-foreground text-sm">
         <ShieldAlert className="h-5 w-5 text-primary shrink-0 mt-0.5" />
@@ -1067,7 +1067,7 @@ export function CognitiveGamesHub({
         /* ALL 10 GAMES HUB VIEW */
         <div className="space-y-6">
           {/* Header & Stats Banner */}
-          <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-secondary/30 p-6 border border-border">
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-gradient-to-br from-sky-50/80 via-white to-white dark:from-card dark:via-card dark:to-card border border-sky-100 dark:border-border p-6 shadow-xs">
             <div>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-foreground flex items-center gap-3">
                 <Gamepad2 className="h-8 w-8 text-primary" /> Cognitive Gaming Center

@@ -205,9 +205,9 @@ export function HealthcareWorkerDashboard({
   });
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 space-y-6 select-none box-border">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-secondary/30 p-6 sm:p-8">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-gradient-to-br from-sky-50/80 via-white to-white dark:from-card dark:via-card dark:to-card border border-sky-100 dark:border-border p-6 sm:p-8 shadow-xs">
         <div>
           <div className="flex items-center gap-2">
             <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-teal-600 text-white flex items-center gap-1.5">

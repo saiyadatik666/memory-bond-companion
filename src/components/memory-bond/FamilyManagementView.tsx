@@ -92,7 +92,7 @@ export function FamilyManagementView({ store }: { store: MemoryBondStore }) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 space-y-6 select-none box-border">
       {/* 1. Senior Member ID & QR Code Pairing Card (Section 15) */}
       <div className="rounded-3xl border-2 border-primary/40 bg-gradient-to-br from-card to-primary/5 p-6 sm:p-8 shadow-sm space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-6">

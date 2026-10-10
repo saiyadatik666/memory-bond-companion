@@ -240,7 +240,7 @@ export function MemoryGarden({
 
   // Full Expanded Memory Garden View
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 space-y-6 select-none box-border">
       <div className="rounded-3xl border border-emerald-100 bg-gradient-to-b from-white via-emerald-50/30 to-white p-6 sm:p-8 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
