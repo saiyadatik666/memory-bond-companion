@@ -88,10 +88,16 @@ export function AppointmentsView({ store }: { store: MemoryBondStore }) {
     speakText(message, speechLocale || "en-IN");
   };
 
-  const filteredAppointments = store.appointments.filter((app) => {
-    if (filterKind === "all") return true;
-    return app.kind === filterKind;
-  });
+  const filteredAppointments = store.appointments
+    .filter((app) => {
+      if (filterKind === "all") return true;
+      return app.kind === filterKind;
+    })
+    .sort((a, b) => {
+      const timeA = `${a.date || ""}T${a.time || "00:00"}`;
+      const timeB = `${b.date || ""}T${b.time || "00:00"}`;
+      return timeA.localeCompare(timeB);
+    });
 
   return (
     <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 space-y-6 select-none box-border">

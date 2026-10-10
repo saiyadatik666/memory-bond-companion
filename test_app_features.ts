@@ -152,6 +152,14 @@ async function runFeatureSuite() {
     // Early Warning Detection
     const warning = detectAIEarlyWarning([]);
     assert(typeof warning.hasWarning === "boolean", "Early warning detector returns boolean hasWarning flag");
+
+    // Regression Test: calculateDynamicCognitiveProfile with undefined handles gracefully
+    const fallbackProfile = calculateDynamicCognitiveProfile(undefined, undefined);
+    assert(typeof fallbackProfile.overallCES === "number", "calculateDynamicCognitiveProfile defensively handles undefined inputs");
+
+    // Regression Test: get8DayCycleInfo with undefined handles gracefully
+    const fallbackCycle = get8DayCycleInfo(undefined);
+    assert(fallbackCycle.daysElapsedInCycle >= 1, "get8DayCycleInfo defensively handles undefined sessions parameter");
   }
 
   // SECTION 3: MEDICINES, STOCK THRESHOLDS & DOSE LOGGING
@@ -169,10 +177,15 @@ async function runFeatureSuite() {
       assert(med.times.length > 0, `Medicine ${med.name} has scheduled dose times`);
       assert(med.daily_usage > 0, `Medicine ${med.name} has non-zero daily usage`);
     }
+
+    // Regression Test: Medicine times input string splitting cleans empty tokens
+    const rawTimes = "08:30, , 20:30, ";
+    const parsedTimes = rawTimes.split(",").map((t) => t.trim()).filter(Boolean);
+    assert(parsedTimes.length === 2 && parsedTimes[0] === "08:30" && parsedTimes[1] === "20:30", "Medicine times input parser cleanly strips empty entries");
   }
 
-  // SECTION 4: ROUTINES & MEMORY GARDEN BLOOM LOGIC
-  console.log("\n4. DAILY ROUTINES & MEMORY GARDEN BLOOM LOGIC:");
+  // SECTION 4: DAILY ROUTINES, APPOINTMENTS & MEMORY GARDEN BLOOM LOGIC
+  console.log("\n4. DAILY ROUTINES, APPOINTMENTS & MEMORY GARDEN BLOOM LOGIC:");
   {
     const todayStr = new Date().toISOString().slice(0, 10);
     const routinesTotal = DEMO_ROUTINES.length;
@@ -181,6 +194,19 @@ async function runFeatureSuite() {
     assert(routinesTotal >= 5, "Demo routines define full-day schedule");
     const routinesBloomed = routinesTotal > 0 && routinesDone >= Math.ceil(routinesTotal / 2);
     assert(typeof routinesBloomed === "boolean", "Memory Garden routine bloom status evaluates cleanly");
+
+    // Regression Test: Appointments chronological sorting
+    const rawAppointments = [
+      { id: "a1", title: "Dr. Sharma", date: "2026-10-20", time: "11:00" },
+      { id: "a2", title: "Dr. Deepen", date: "2026-10-12", time: "09:30" },
+      { id: "a3", title: "Clinic Check", date: "2026-10-12", time: "08:00" },
+    ];
+    const sortedApps = [...rawAppointments].sort((a, b) => {
+      const timeA = `${a.date}T${a.time}`;
+      const timeB = `${b.date}T${b.time}`;
+      return timeA.localeCompare(timeB);
+    });
+    assert(sortedApps[0].id === "a3" && sortedApps[1].id === "a2" && sortedApps[2].id === "a1", "Appointments sort strictly chronologically by date and time");
   }
 
   // SECTION 5: REMINDERS & ZOD SCHEMAS

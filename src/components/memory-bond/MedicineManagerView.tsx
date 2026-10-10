@@ -67,7 +67,7 @@ export function MedicineManagerView({ store }: { store: MemoryBondStore }) {
       daily_usage: Number(dailyUsage),
       refill_threshold: Number(refillThreshold),
       warn_days: Number(warnDays),
-      times: timesStr.split(",").map((t) => t.trim()),
+      times: timesStr.split(",").map((t) => t.trim()).filter(Boolean),
       frequency: "daily",
       start_date: new Date().toISOString().slice(0, 10),
       end_date: null,
