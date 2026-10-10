@@ -59,8 +59,10 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
   const [fullName, setFullName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [oauthLoadingProvider, setOauthLoadingProvider] = useState<"google" | "facebook" | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
 
   // Check for OAuth redirect errors upon returning from Google / Facebook
   useEffect(() => {
@@ -280,6 +282,7 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
   // OAUTH SOCIAL SIGN IN (Google / Facebook)
   const handleOAuthLogin = async (provider: "google" | "facebook") => {
     setIsLoading(true);
+    setOauthLoadingProvider(provider);
     setErrorMessage(null);
     setSuccessMessage(null);
     try {
@@ -289,30 +292,45 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
       // Redirect back to root — Supabase session is restored via onAuthStateChange
       const redirectTo = `${redirectOrigin}/`;
 
-      const { error } = await supabase.auth.signInWithOAuth({
+      const options: {
+        redirectTo: string;
+        scopes?: string;
+        queryParams?: Record<string, string>;
+      } = {
+        redirectTo,
+        scopes: provider === "google" ? "email profile openid" : "email,public_profile",
+      };
+
+      if (provider === "google") {
+        options.queryParams = {
+          access_type: "offline",
+          prompt: "select_account",
+        };
+      }
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
-        options: {
-          redirectTo,
-          queryParams: provider === "google" ? {
-            access_type: "offline",
-            prompt: "select_account",
-          } : undefined,
-        },
+        options,
       });
 
       if (error) {
         const msg = error.message?.toLowerCase() || "";
-        // Provider not configured in Supabase Dashboard
+        const providerName = provider === "google" ? "Google" : "Facebook";
+
+        // Provider not configured or enabled in Supabase Dashboard (HTTP 400 validation_failed)
         if (
           msg.includes("provider is not enabled") ||
           msg.includes("unsupported provider") ||
-          msg.includes("validation_failed")
+          msg.includes("validation_failed") ||
+          msg.includes("provider google") ||
+          msg.includes("provider facebook") ||
+          error.status === 400
         ) {
-          const name = provider === "google" ? "Google" : "Facebook";
           throw new Error(
-            `${name} Sign-In is not yet activated on this project. ` +
-            `Please enable the ${name} provider in your Supabase Dashboard → Authentication → Providers, ` +
-            `then add your OAuth Client ID and Secret. In the meantime, please use email and password to sign in.`
+            `${providerName} Login is not yet enabled in your Supabase project (yusljlvaoxsotdbzzhfi). ` +
+            `Please enable ${providerName} in Supabase Dashboard → Authentication → Providers, ` +
+            `and enter your ${provider === "google" ? "Google Client ID and Client Secret" : "Meta App ID and App Secret"}. ` +
+            `In the meantime, you can sign in directly using Email & Password or 1-Click Demo Login below.`
           );
         }
         // Network/connection error
@@ -321,8 +339,12 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
         }
         throw error;
       }
-      // If no error, Supabase will redirect the browser to Google/Facebook.
-      // Don't setIsLoading(false) here — the page is about to navigate away.
+
+      // If Supabase provides direct URL, assign window location
+      if (data?.url && typeof window !== "undefined") {
+        window.location.assign(data.url);
+      }
+      // If no error, browser navigates to Google/Facebook OAuth consent screen.
     } catch (err: any) {
       console.error(`[Auth] ${provider} OAuth error:`, err);
       setErrorMessage(
@@ -330,8 +352,10 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
         `${provider === "google" ? "Google" : "Facebook"} sign-in could not be completed. Please use email and password instead.`
       );
       setIsLoading(false);
+      setOauthLoadingProvider(null);
     }
   };
+
 
   // ONE-CLICK CAREGIVER DEMO LOGIN (Priya Patel)
   const handleDemoCaregiverLogin = () => {
@@ -1165,37 +1189,56 @@ export function LoginScreen({ store, onAuthenticated }: LoginScreenProps) {
           {/* Google OAuth Button */}
           <button
             type="button"
-            disabled={isLoading}
+            disabled={isLoading || oauthLoadingProvider !== null}
             onClick={() => handleOAuthLogin("google")}
             className="w-full h-11 rounded-2xl border-2 border-[#E2EAF5] bg-white hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-all flex items-center justify-center gap-3 font-bold text-sm text-[#1A2B4B] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
           >
-            {/* Google SVG */}
-            <svg width="18" height="18" viewBox="0 0 48 48" className="shrink-0">
-              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.96 2.36-8.16 2.36-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.16C6.51 42.62 14.62 48 24 48z"/>
-              <path fill="#FBBC05" d="M10.53 28.64A14.52 14.52 0 0 1 9.5 24c0-1.62.28-3.19.76-4.64l-7.98-6.16A23.93 23.93 0 0 0 0 24c0 3.77.9 7.34 2.5 10.48l8.03-5.84z"/>
-              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.89C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.5 13.52l8.03 6.16C12.43 13.72 17.74 9.5 24 9.5z"/>
-            </svg>
-            Continue with Google
+            {oauthLoadingProvider === "google" ? (
+              <span className="flex items-center gap-2 text-primary font-bold">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Connecting to Google...</span>
+              </span>
+            ) : (
+              <>
+                {/* Google SVG */}
+                <svg width="18" height="18" viewBox="0 0 48 48" className="shrink-0">
+                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.96 2.36-8.16 2.36-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.16C6.51 42.62 14.62 48 24 48z"/>
+                  <path fill="#FBBC05" d="M10.53 28.64A14.52 14.52 0 0 1 9.5 24c0-1.62.28-3.19.76-4.64l-7.98-6.16A23.93 23.93 0 0 0 0 24c0 3.77.9 7.34 2.5 10.48l8.03-5.84z"/>
+                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.89C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.5 13.52l8.03 6.16C12.43 13.72 17.74 9.5 24 9.5z"/>
+                </svg>
+                <span>Continue with Google</span>
+              </>
+            )}
           </button>
 
           {/* Facebook OAuth Button */}
           <button
             type="button"
-            disabled={isLoading}
+            disabled={isLoading || oauthLoadingProvider !== null}
             onClick={() => handleOAuthLogin("facebook")}
             className="w-full h-11 rounded-2xl border-2 border-[#E2EAF5] bg-white hover:bg-[#F0F4FF] hover:border-[#CBD5E1] transition-all flex items-center justify-center gap-3 font-bold text-sm text-[#1A2B4B] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
           >
-            {/* Facebook SVG */}
-            <svg width="18" height="18" viewBox="0 0 48 48" className="shrink-0">
-              <linearGradient id="fb_grad" x1="6.228" x2="42.077" y1="4.896" y2="43.432" gradientUnits="userSpaceOnUse">
-                <stop offset="0" stopColor="#0062e0"/>
-                <stop offset="1" stopColor="#19afff"/>
-              </linearGradient>
-              <path fill="url(#fb_grad)" d="M42 24c0-9.941-8.059-18-18-18S6 14.059 6 24c0 8.984 6.576 16.422 15.18 17.78V29.25h-4.57V24h4.57v-3.968c0-4.508 2.685-6.996 6.794-6.996 1.969 0 4.028.351 4.028.351v4.429h-2.269c-2.236 0-2.931 1.387-2.931 2.81V24h4.993l-.798 5.25H26.8V41.78C35.424 40.422 42 32.984 42 24z"/>
-            </svg>
-            Continue with Facebook
+            {oauthLoadingProvider === "facebook" ? (
+              <span className="flex items-center gap-2 text-[#0062e0] font-bold">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Connecting to Facebook...</span>
+              </span>
+            ) : (
+              <>
+                {/* Facebook SVG */}
+                <svg width="18" height="18" viewBox="0 0 48 48" className="shrink-0">
+                  <linearGradient id="fb_grad" x1="6.228" x2="42.077" y1="4.896" y2="43.432" gradientUnits="userSpaceOnUse">
+                    <stop offset="0" stopColor="#0062e0"/>
+                    <stop offset="1" stopColor="#19afff"/>
+                  </linearGradient>
+                  <path fill="url(#fb_grad)" d="M42 24c0-9.941-8.059-18-18-18S6 14.059 6 24c0 8.984 6.576 16.422 15.18 17.78V29.25h-4.57V24h4.57v-3.968c0-4.508 2.685-6.996 6.794-6.996 1.969 0 4.028.351 4.028.351v4.429h-2.269c-2.236 0-2.931 1.387-2.931 2.81V24h4.993l-.798 5.25H26.8V41.78C35.424 40.422 42 32.984 42 24z"/>
+                </svg>
+                <span>Continue with Facebook</span>
+              </>
+            )}
           </button>
+
         </form>
 
         {/* 1-Click Instant Caregiver Demo Access */}
