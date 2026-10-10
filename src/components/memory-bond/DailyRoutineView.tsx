@@ -29,9 +29,12 @@ import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { speakText, stopSpeaking } from "@/lib/voiceParser";
 import { useI18n } from "@/lib/i18n";
 import { useRef } from "react";
+import { motion } from "motion/react";
+import { useAppReducedMotion } from "@/lib/motionTokens";
 
 export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
   const { t, speechLocale } = useI18n();
+  const shouldReduceMotion = useAppReducedMotion(store.profile?.reduced_motion);
   const [isAddOpen, setIsAddOpen] = useState<boolean>(false);
   const [time, setTime] = useState<string>("16:00");
   const [activity, setActivity] = useState<string>("");
@@ -366,8 +369,11 @@ export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
           const isDone = rt.done_date === todayStr;
 
           return (
-            <div
+            <motion.div
               key={rt.id}
+              whileHover={shouldReduceMotion ? undefined : { y: -2 }}
+              whileTap={shouldReduceMotion ? undefined : { scale: 0.99 }}
+              transition={{ duration: 0.2 }}
               className={`rounded-3xl border-2 p-5 flex items-center justify-between gap-4 transition-all shadow-xs ${
                 isDone
                   ? "bg-success/10 border-success/40 opacity-80"
@@ -410,7 +416,7 @@ export function DailyRoutineView({ store }: { store: MemoryBondStore }) {
                   "Mark Done"
                 )}
               </Button>
-            </div>
+            </motion.div>
           );
         })}
       </div>

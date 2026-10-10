@@ -25,9 +25,12 @@ import { Textarea } from "@/components/ui/textarea";
 import type { MemoryBondStore, Medicine } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
 import { speakText } from "@/lib/voiceParser";
+import { motion } from "motion/react";
+import { useAppReducedMotion } from "@/lib/motionTokens";
 
 export function MedicineManagerView({ store }: { store: MemoryBondStore }) {
   const { t, speechLocale } = useI18n();
+  const shouldReduceMotion = useAppReducedMotion(store.profile?.reduced_motion);
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
   const [refillMedId, setRefillMedId] = useState<string | null>(null);
   const [refillAmount, setRefillAmount] = useState<number>(30);
@@ -219,10 +222,13 @@ export function MedicineManagerView({ store }: { store: MemoryBondStore }) {
             const isTaken = todayLog?.status === "taken";
 
             return (
-              <div
+              <motion.div
                 key={med.id}
+                whileHover={shouldReduceMotion ? undefined : { y: -2 }}
+                whileTap={shouldReduceMotion ? undefined : { scale: 0.99 }}
+                transition={{ duration: 0.2 }}
                 className={`rounded-3xl border-2 bg-card p-6 shadow-sm space-y-4 transition-all ${
-                  isLow ? "border-amber-400/60 bg-amber-50/20" : "border-border"
+                  isLow ? "border-amber-400/60 bg-amber-50/20" : "border-border hover:border-primary/50"
                 }`}
               >
                 {/* Header with Visual Status State (✓ Taken / ○ Upcoming / ⚠ Low Stock) */}
@@ -354,7 +360,7 @@ export function MedicineManagerView({ store }: { store: MemoryBondStore }) {
                     </button>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>

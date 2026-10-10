@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import type { MemoryBondStore } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
 import { speakText } from "@/lib/voiceParser";
+import { motion } from "motion/react";
+import { useAppReducedMotion } from "@/lib/motionTokens";
 
 interface BloomItem {
   id: string;
@@ -32,6 +34,7 @@ export function MemoryGarden({
   compact?: boolean;
 }) {
   const { lang, speechLocale } = useI18n();
+  const shouldReduceMotion = useAppReducedMotion(store.profile?.reduced_motion);
   const [selectedBloom, setSelectedBloom] = useState<BloomItem | null>(null);
 
   const todayStr = new Date().toISOString().split("T")[0];
@@ -274,8 +277,11 @@ export function MemoryGarden({
         {/* Visual Soil & Flowers Layout */}
         <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {blooms.map((b) => (
-            <div
+            <motion.div
               key={b.id}
+              whileHover={shouldReduceMotion ? undefined : { y: -3, scale: 1.01 }}
+              whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
+              transition={{ duration: 0.2 }}
               onClick={() => handleFlowerTap(b)}
               className={`rounded-3xl border p-5 transition-all cursor-pointer hover:shadow-md flex flex-col justify-between h-48 bg-white ${
                 b.bloomed ? `${b.accentBorder} shadow-xs` : "border-border/60 opacity-80"
@@ -301,7 +307,7 @@ export function MemoryGarden({
                 <p className="text-xs text-emerald-700 font-bold mt-0.5">{b.progressText}</p>
                 <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{b.details}</p>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>

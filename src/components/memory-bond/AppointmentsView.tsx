@@ -23,9 +23,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { MemoryBondStore, Appointment } from "@/lib/memoryBondStore";
 import { useI18n } from "@/lib/i18n";
 import { speakText, stopSpeaking } from "@/lib/voiceParser";
+import { motion } from "motion/react";
+import { useAppReducedMotion } from "@/lib/motionTokens";
 
 export function AppointmentsView({ store }: { store: MemoryBondStore }) {
   const { t, speechLocale } = useI18n();
+  const shouldReduceMotion = useAppReducedMotion(store.profile?.reduced_motion);
   const [isAddOpen, setIsAddOpen] = useState<boolean>(false);
   const [filterKind, setFilterKind] = useState<string>("all");
 
@@ -144,9 +147,12 @@ export function AppointmentsView({ store }: { store: MemoryBondStore }) {
           </div>
         ) : (
           filteredAppointments.map((app) => (
-            <div
+            <motion.div
               key={app.id}
-              className="rounded-3xl border-2 border-border bg-card p-6 shadow-sm space-y-4 flex flex-col justify-between hover:border-primary/40 transition-all"
+              whileHover={shouldReduceMotion ? undefined : { y: -2 }}
+              whileTap={shouldReduceMotion ? undefined : { scale: 0.99 }}
+              transition={{ duration: 0.2 }}
+              className="rounded-3xl border-2 border-border bg-card p-6 shadow-sm space-y-4 flex flex-col justify-between hover:border-primary/50 transition-colors"
             >
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-3">
@@ -224,7 +230,7 @@ export function AppointmentsView({ store }: { store: MemoryBondStore }) {
                   <Volume2 className="h-4 w-4 text-primary" /> Read Aloud
                 </Button>
               </div>
-            </div>
+            </motion.div>
           ))
         )}
       </div>

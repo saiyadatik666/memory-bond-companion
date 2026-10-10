@@ -40,10 +40,13 @@ import {
   updateVerifiedReminder,
 } from "@/lib/reminderService";
 import { useI18n } from "@/lib/i18n";
+import { motion } from "motion/react";
+import { useAppReducedMotion } from "@/lib/motionTokens";
 
 // Memory Bond Reminders Engine — Senior-Friendly Light Theme
 export function RemindersView({ store }: { store: MemoryBondStore }) {
   const { t, speechLocale } = useI18n();
+  const shouldReduceMotion = useAppReducedMotion(store.profile?.reduced_motion);
 
   // Natural Language AI quick prompt & direct voice input
   const [naturalInput, setNaturalInput] = useState<string>("");
@@ -434,10 +437,13 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
             const isDoneToday = rem.last_done === todayStr;
 
               return (
-                <div
+                <motion.div
                   key={rem.id}
+                  whileHover={shouldReduceMotion ? undefined : { y: -2 }}
+                  whileTap={shouldReduceMotion ? undefined : { scale: 0.99 }}
+                  transition={{ duration: 0.2 }}
                   className={`rounded-3xl border-2 bg-card p-5 shadow-xs flex flex-wrap items-center justify-between gap-4 transition-all ${
-                    isDoneToday ? "opacity-70 border-success/30 bg-success/5" : "border-border"
+                    isDoneToday ? "opacity-70 border-success/30 bg-success/5" : "border-border hover:border-primary/50"
                   }`}
                 >
                   <div className="flex items-center gap-4">
@@ -549,7 +555,7 @@ export function RemindersView({ store }: { store: MemoryBondStore }) {
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                </div>
+                </motion.div>
               );
             });
         })()}
